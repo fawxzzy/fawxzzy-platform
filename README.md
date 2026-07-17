@@ -17,16 +17,21 @@ The project refs are identifiers, not credentials. This repository contains no k
 
 One person maps to one target `auth.users` identity and one global profile. Service membership uses the idempotent states `pending`, `active`, and `suspended`. A global signup may create pending memberships for discoverable services. The first authenticated Fitness or Mazer visit atomically activates or reuses the membership and creates or reuses its product profile.
 
+Human accounts use one globally unique canonical username and one immutable global `user_number`. Fitness is the initial canonical source for matched human profile fields and existing accepted Fitness numbers are preserved exactly. Username matching is never identity evidence by itself. All username/number backfill writes remain blocked pending the separately verified migration gate.
+
 Membership is not billing entitlement. Product-owned entitlement contracts remain in their product schemas, and authorization never trusts editable user metadata.
 
 ## Domains and sessions
 
 - `fawxzzy.com`: hub
+- `www.fawxzzy.com`: redirect to the hub
 - `account.fawxzzy.com`: neutral shared account origin
 - `fitness.fawxzzy.com`: Fitness origin
 - `mazer.fawxzzy.com`: Mazer origin
 
 Phase 1 shares Auth identity and database contracts but keeps browser sessions per origin. Cross-origin SSO is deferred and `BLOCKED`. Production redirect and recovery destinations are exact contract values; this repository does not change provider configuration.
+
+Email/password is the phase-one method: verification off, leaked-password protection required, and minimum length 10. Account surfaces must support at least 64 characters, preferably 128 or more, without truncation or a restrictive application cap. The neutral account origin owns shared sign-in, sign-out, account updates, and recovery.
 
 ## Contract layout
 

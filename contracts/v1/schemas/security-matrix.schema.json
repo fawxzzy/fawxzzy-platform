@@ -56,7 +56,8 @@
     },
     "relations": {
       "type": "array",
-      "minItems": 10,
+      "minItems": 12,
+      "maxItems": 12,
       "items": {
         "$ref": "#/$defs/relation"
       }
@@ -64,6 +65,7 @@
     "functions": {
       "type": "array",
       "minItems": 2,
+      "maxItems": 2,
       "items": {
         "$ref": "#/$defs/function"
       }
@@ -75,7 +77,8 @@
         "editable_user_metadata_authorization_forbidden",
         "public_execute_on_definer_forbidden",
         "fixed_search_path_required_for_definer",
-        "auth_uid_check_required_for_definer",
+        "auth_uid_check_required_for_caller_accessible_definer",
+        "auth_trigger_subject_derived_from_new_id",
         "membership_is_not_entitlement"
       ],
       "properties": {
@@ -88,7 +91,10 @@
         "fixed_search_path_required_for_definer": {
           "const": true
         },
-        "auth_uid_check_required_for_definer": {
+        "auth_uid_check_required_for_caller_accessible_definer": {
+          "const": true
+        },
+        "auth_trigger_subject_derived_from_new_id": {
           "const": true
         },
         "membership_is_not_entitlement": {
@@ -233,6 +239,7 @@
         "exposure",
         "fixed_search_path",
         "auth_uid_check",
+        "subject_source",
         "user_id_argument_allowed",
         "execute_grants",
         "execute_revoked_from",
@@ -240,8 +247,10 @@
       ],
       "properties": {
         "name": {
-          "type": "string",
-          "pattern": "^(platform_shared|platform_private)\\.[a-z_]+$"
+          "enum": [
+            "platform_shared.activate_service",
+            "platform_private.on_auth_user_created"
+          ]
         },
         "security": {
           "enum": [
@@ -260,6 +269,12 @@
         },
         "auth_uid_check": {
           "type": "boolean"
+        },
+        "subject_source": {
+          "enum": [
+            "auth.uid()",
+            "NEW.id"
+          ]
         },
         "user_id_argument_allowed": {
           "type": "boolean"

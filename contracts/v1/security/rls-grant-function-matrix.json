@@ -405,6 +405,7 @@
       "exposure": "allowlisted_rpc",
       "fixed_search_path": "",
       "auth_uid_check": true,
+      "subject_source": "auth.uid()",
       "user_id_argument_allowed": false,
       "execute_grants": [
         "authenticated"
@@ -426,7 +427,8 @@
       "security": "DEFINER",
       "exposure": "trigger_only",
       "fixed_search_path": "",
-      "auth_uid_check": true,
+      "auth_uid_check": false,
+      "subject_source": "NEW.id",
       "user_id_argument_allowed": false,
       "execute_grants": [],
       "execute_revoked_from": [
@@ -444,7 +446,8 @@
     "editable_user_metadata_authorization_forbidden": true,
     "public_execute_on_definer_forbidden": true,
     "fixed_search_path_required_for_definer": true,
-    "auth_uid_check_required_for_definer": true,
+    "auth_uid_check_required_for_caller_accessible_definer": true,
+    "auth_trigger_subject_derived_from_new_id": true,
     "membership_is_not_entitlement": true
   }
 }

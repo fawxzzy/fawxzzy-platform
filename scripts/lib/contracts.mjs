@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 
@@ -37,6 +38,26 @@ const expectedOperations = Object.freeze([
   'source_pause',
   'source_deletion'
 ]);
+
+const expectedRelationDigests = Object.freeze({
+  'platform_shared.global_profiles': '0100849a53ed9de47b69c95db63f25a6d6af8af3981e073a2ec0e9c5ba07e1dd',
+  'platform_shared.services': '6355c701c16b03370ed099858f4c1458293c608a5f704366b5589caa64528638',
+  'platform_shared.user_service_memberships': '32f05fcaac5a8499927c40f27a81a009bce482a8aad08420059147a3c2e5524f',
+  'platform_shared.service_activation_receipts': '792af06db4ceb095a9f6cbdec0c63c8640af217287fa2125371e946e4608310c',
+  'platform_private.source_identity_ledger': '9b08ad8a5420b29dc5426491453a01b078cdd4496f8b7183dcfab1e87e56dcb1',
+  'platform_private.identity_collision_adjudications': '84df17b7ea9813742fee571d3b0930dfc9be2a798286669e99a5818d054adc95',
+  'discordos.user_profiles': 'b37fae620d8b93f701bbd86aabe070421610ccc0081e66f52d38e3c1ff25930e',
+  'fitness.user_profiles': 'aeaeb43f7560498227e47878020ed5d5c6b84e4d736c79bb8f747679da9774f2',
+  'mazer.user_profiles': 'addf9b7c4053602e90ba858f20374a08a10931fa60fc22d46560922daab4254d',
+  'discordos.entitlements': '2a69394bed6d40d07eb51797ad03219918f77bfb2f19af71baf27897cdd736ef',
+  'fitness.entitlements': '876c5927822c902d4dee312b628042ff490283f4ac3454993e72fe3d7d897ff4',
+  'mazer.entitlements': '2cd0330ff0e0dd80616a8e2c5d487297f96f35d6c88f43e4297293b665221804'
+});
+
+const expectedFunctionDigests = Object.freeze({
+  'platform_shared.activate_service': '010456c0f327205c54aa5339de85dcc76bba34b48fea4dbf8dafa790bd96abfe',
+  'platform_private.on_auth_user_created': '644cc3631feb2e19b651e1d1ce8ec215b5e376c275f5a60ede97bafb3849aa51'
+});
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8'));
@@ -90,6 +111,10 @@ function sorted(values) {
 
 function sameValues(actual, expected) {
   return JSON.stringify(sorted(actual)) === JSON.stringify(sorted(expected));
+}
+
+function digest(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function collectStatusValues(value, pointer = '$', output = []) {
@@ -157,6 +182,28 @@ export function validateSemantics(documents) {
   requireCondition(identity.collision_summary.pii_included === false, 'collision summary must contain no PII');
   requireCondition(identity.ledger.append_only === true, 'source identity ledger must remain append-only');
   requireCondition(identity.ledger.semantic_cross_product_merge_forbidden === true, 'semantic cross-product merges must remain forbidden');
+  requireCondition(identity.username_contract.status === 'CURRENT', 'FP-MAN-006 username decision must remain approved');
+  requireCondition(identity.username_contract.namespace === 'one_global_canonical_username', 'username namespace must remain globally canonical');
+  requireCondition(identity.username_contract.database_unique_boundary === true, 'normalized username key must retain a database UNIQUE boundary');
+  requireCondition(identity.username_contract.identity_matching.status === 'CURRENT', 'FP-MAN-007 identity matching decision must remain approved');
+  requireCondition(identity.username_contract.identity_matching.username_alone_forbidden === true, 'username-only identity matching must remain forbidden');
+  requireCondition(identity.username_contract.backfill_status === 'BLOCKED', 'username backfill writes must remain BLOCKED');
+  requireCondition(identity.user_number_contract.field === 'platform_shared.global_profiles.user_number', 'global user_number field changed');
+  requireCondition(identity.user_number_contract.fitness_existing_member_rank_numbers_preserved_exactly === true, 'Fitness user numbers must be preserved exactly');
+  requireCondition(identity.user_number_contract.monotonic && identity.user_number_contract.never_reused && identity.user_number_contract.never_renumbered, 'global user_number must remain monotonic, never reused, and never renumbered');
+  requireCondition(identity.user_number_contract.non_fitness_backfill.decision_status === 'CURRENT', 'FP-MAN-009 numbering decision must remain approved');
+  requireCondition(identity.user_number_contract.non_fitness_backfill.status === 'BLOCKED', 'legacy user_number backfill writes must remain BLOCKED');
+  requireCondition(identity.cleanup_contract.decision_status === 'CURRENT', 'FP-MAN-010 cleanup decision must remain approved');
+  requireCondition(identity.cleanup_contract.destructive_cleanup_status === 'BLOCKED', 'destructive cleanup must remain BLOCKED');
+  requireCondition(identity.cleanup_contract.separate_action_time_approval_required === true, 'destructive cleanup must require separate action-time approval');
+  requireCondition(identity.auth_migration_contract.status === 'BLOCKED', 'Auth migration must remain BLOCKED');
+  requireCondition(identity.auth_migration_contract.target_signing_identity_preserved === true, 'target signing identity must remain target-owned');
+  requireCondition(identity.auth_migration_contract.source_jwt_secret_reuse_forbidden === true, 'source JWT secret reuse must remain forbidden');
+  requireCondition(identity.auth_migration_contract.source_service_role_secret_copy_forbidden === true, 'source service-role secret copying must remain forbidden');
+  requireCondition(identity.auth_migration_contract.existing_source_sessions_invalidated === true, 'source sessions must be invalidated at cutover');
+  requireCondition(identity.auth_migration_contract.controlled_reauthentication_required === true, 'controlled reauthentication must remain required');
+  requireCondition(identity.auth_migration_contract.three_auth_schema_wholesale_merge_forbidden === true, 'wholesale three-source Auth merge must remain forbidden');
+  requireCondition(identity.auth_migration_contract.storage_object_bodies.action_time_status === 'UNKNOWN', 'Storage object body denominator must be re-read at action time');
 
   const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
   const transitions = new Set(lifecycle.transitions.map((transition) => [transition.from, transition.event, transition.to, transition.result, transition.profile_effect].join('|')));
@@ -181,11 +228,28 @@ export function validateSemantics(documents) {
   requireCondition(origins.account === 'https://account.fawxzzy.com', 'account origin changed');
   requireCondition(origins.fitness === 'https://fitness.fawxzzy.com', 'Fitness origin changed');
   requireCondition(origins.mazer === 'https://mazer.fawxzzy.com', 'Mazer origin changed');
+  requireCondition(domain.domain_routing.www_redirect.source === 'https://www.fawxzzy.com' && domain.domain_routing.www_redirect.destination === 'https://fawxzzy.com', 'www redirect contract changed');
+  requireCondition(domain.domain_routing.fitness_compatibility_redirect.retirement_status === 'BLOCKED', 'Fitness compatibility redirect retirement must remain BLOCKED');
   requireCondition(domain.session_model.browser_sessions === 'per_origin', 'phase-1 browser sessions must remain per-origin');
   requireCondition(domain.session_model.cross_origin_sso.status === 'BLOCKED', 'cross-origin SSO must remain deferred and BLOCKED');
-  const configuredUrls = [...domain.auth_configuration.exact_redirect_urls, ...domain.auth_configuration.exact_recovery_urls];
+  requireCondition(sameValues(domain.session_model.cross_origin_sso.forbidden_mechanisms, ['shared_refresh_cookies', 'url_tokens']), 'unsafe cross-origin SSO mechanisms must remain forbidden');
+  const configuredUrls = [...domain.auth_configuration.exact_redirect_urls, domain.auth_configuration.exact_recovery_url];
   requireCondition(configuredUrls.every((url) => !url.includes('*')), 'production redirect and recovery URLs must be exact');
+  requireCondition(domain.auth_configuration.exact_recovery_url === 'https://account.fawxzzy.com/auth/recovery', 'recovery must remain centralized on the account origin');
   requireCondition(domain.auth_configuration.preview_redirects.urls.length === 0, 'preview redirects must remain empty in this packet');
+  requireCondition(domain.auth_policy.phase_one_method === 'email_password', 'phase-1 Auth method must remain email/password');
+  requireCondition(domain.auth_policy.email_verification === false, 'phase-1 email verification must remain off');
+  requireCondition(domain.auth_policy.leaked_password_protection.enabled === true, 'leaked-password protection must remain enabled');
+  requireCondition(domain.auth_policy.password_length.minimum.value === 10, 'password minimum must remain 10');
+  const passwordCapacity = domain.auth_policy.password_length.capacity;
+  requireCondition(passwordCapacity.restrictive_app_cap_allowed === false, 'restrictive application password caps are forbidden');
+  requireCondition(passwordCapacity.minimum_supported_characters >= 64, 'password surfaces must support at least 64 characters');
+  requireCondition(passwordCapacity.preferred_supported_characters_minimum >= 128, 'password surfaces should preserve at least 128-character capacity');
+  requireCondition(passwordCapacity.never_truncate === true, 'password truncation is forbidden');
+  requireCondition(passwordCapacity.provider_maximum_setting === 'NOT_APPLICABLE', 'provider maximum-password setting must remain NOT_APPLICABLE');
+  requireCondition(domain.account_surfaces.owner_origin === 'https://account.fawxzzy.com', 'neutral account flow owner changed');
+  requireCondition(domain.smtp.sender_address === 'no-reply@account.fawxzzy.com', 'SMTP sender contract changed');
+  requireCondition(domain.smtp.credentials_present === false && domain.smtp.live_configuration_allowed === false, 'repository must not contain SMTP credentials or live configuration authority');
 
   const security = documents['contracts/v1/security/rls-grant-function-matrix.json'];
   const schemaMap = Object.fromEntries(security.schemas.map((schema) => [schema.name, schema]));
@@ -212,6 +276,7 @@ export function validateSemantics(documents) {
   requireCondition(sameValues(security.relations.map((relation) => relation.name), expectedRelations), 'security matrix relation set changed');
 
   for (const relation of security.relations) {
+    requireCondition(digest(relation) === expectedRelationDigests[relation.name], `${relation.name}: exact grants and complete admitted policy set changed`);
     requireCondition(relation.grants.PUBLIC.length === 0, `${relation.name}: PUBLIC table grants are forbidden`);
     requireCondition(relation.grants.anon.every((operation) => operation === 'SELECT'), `${relation.name}: anon may only receive SELECT`);
     for (const policy of relation.policies) {
@@ -224,16 +289,26 @@ export function validateSemantics(documents) {
     }
   }
 
+  requireCondition(sameValues(security.functions.map((databaseFunction) => databaseFunction.name), Object.keys(expectedFunctionDigests)), 'security matrix function set changed');
+  requireCondition(security.functions.length === Object.keys(expectedFunctionDigests).length, 'security matrix function count changed');
+
   for (const databaseFunction of security.functions) {
+    requireCondition(digest(databaseFunction) === expectedFunctionDigests[databaseFunction.name], `${databaseFunction.name}: exact function contract changed`);
     requireCondition(databaseFunction.user_id_argument_allowed === false, `${databaseFunction.name}: user ID arguments are forbidden`);
     requireCondition(databaseFunction.execute_revoked_from.includes('PUBLIC'), `${databaseFunction.name}: PUBLIC execute must be revoked`);
     if (databaseFunction.security === 'DEFINER') {
       requireCondition(databaseFunction.name.startsWith('platform_private.') || databaseFunction.exposure === 'allowlisted_rpc', `${databaseFunction.name}: definer must be private or explicitly allowlisted`);
       requireCondition(databaseFunction.fixed_search_path === '', `${databaseFunction.name}: definer search_path must be fixed to empty`);
-      requireCondition(databaseFunction.auth_uid_check === true, `${databaseFunction.name}: definer must check auth.uid()`);
       requireCondition(!databaseFunction.execute_grants.includes('PUBLIC') && !databaseFunction.execute_grants.includes('anon'), `${databaseFunction.name}: unsafe execute grant`);
     }
   }
+
+  const activationFunction = security.functions.find((databaseFunction) => databaseFunction.name === 'platform_shared.activate_service');
+  requireCondition(activationFunction?.exposure === 'allowlisted_rpc', 'activation function must remain the only allowlisted RPC');
+  requireCondition(activationFunction?.auth_uid_check === true && activationFunction?.subject_source === 'auth.uid()', 'caller-accessible activation RPC must derive and check auth.uid()');
+  const authTrigger = security.functions.find((databaseFunction) => databaseFunction.name === 'platform_private.on_auth_user_created');
+  requireCondition(authTrigger?.exposure === 'trigger_only', 'Auth user creation function must remain trigger-only');
+  requireCondition(authTrigger?.auth_uid_check === false && authTrigger?.subject_source === 'NEW.id', 'Auth insert trigger must derive its subject from NEW.id without auth.uid()');
 
   return failures.sort((left, right) => left.localeCompare(right));
 }
@@ -247,7 +322,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 10,
+    semantic_check_groups: 13,
     failures
   };
 }

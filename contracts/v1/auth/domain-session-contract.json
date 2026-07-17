@@ -23,6 +23,19 @@
       "browser_session": "per_origin"
     }
   ],
+  "domain_routing": {
+    "www_redirect": {
+      "source": "https://www.fawxzzy.com",
+      "destination": "https://fawxzzy.com",
+      "status": "REQUIRED"
+    },
+    "fitness_compatibility_redirect": {
+      "source": "https://fawxzzyfitness.com",
+      "destination": "https://fitness.fawxzzy.com",
+      "status": "REQUIRED",
+      "retirement_status": "BLOCKED"
+    }
+  },
   "auth_configuration": {
     "site_url": "https://account.fawxzzy.com",
     "exact_redirect_urls": [
@@ -30,15 +43,83 @@
       "https://fitness.fawxzzy.com/auth/callback",
       "https://mazer.fawxzzy.com/auth/callback"
     ],
-    "exact_recovery_urls": [
-      "https://account.fawxzzy.com/auth/recovery",
-      "https://fitness.fawxzzy.com/auth/recovery",
-      "https://mazer.fawxzzy.com/auth/recovery"
-    ],
+    "exact_recovery_url": "https://account.fawxzzy.com/auth/recovery",
     "production_wildcards_allowed": false,
     "preview_redirects": {
       "status": "BLOCKED",
       "urls": []
+    }
+  },
+  "auth_policy": {
+    "decision_id": "FP-MAN-002",
+    "phase_one_method": "email_password",
+    "email_verification": false,
+    "leaked_password_protection": {
+      "enabled": true,
+      "enforcement": "provider_native",
+      "status": "REQUIRED"
+    },
+    "password_length": {
+      "minimum": {
+        "value": 10,
+        "enforcement": "provider_native",
+        "status": "REQUIRED"
+      },
+      "capacity": {
+        "decision_id": "FP-MAN-008",
+        "status": "CURRENT",
+        "restrictive_app_cap_allowed": false,
+        "minimum_supported_characters": 64,
+        "preferred_supported_characters_minimum": 128,
+        "never_truncate": true,
+        "account_surface_enforcement": "accept_at_least_minimum_supported_characters",
+        "provider_maximum_setting": "NOT_APPLICABLE"
+      }
+    },
+    "deferred_methods": [
+      "social",
+      "phone",
+      "anonymous",
+      "magic_link_only",
+      "enforced_mfa"
+    ],
+    "totp": {
+      "status": "BLOCKED",
+      "disposition": "future_optional"
+    }
+  },
+  "account_surfaces": {
+    "owner_origin": "https://account.fawxzzy.com",
+    "implementation_owner": "FawxzzyWeb",
+    "shared": [
+      {
+        "surface": "sign_in",
+        "status": "REQUIRED"
+      },
+      {
+        "surface": "sign_out",
+        "status": "REQUIRED"
+      },
+      {
+        "surface": "account_updates",
+        "status": "REQUIRED"
+      },
+      {
+        "surface": "recovery",
+        "status": "REQUIRED"
+      }
+    ],
+    "fitness": {
+      "branded_account_ux": "preserved",
+      "auth_backend": "shared_target",
+      "central_recovery": true,
+      "status": "REQUIRED"
+    },
+    "mazer": {
+      "account_section_status": "REQUIRED",
+      "username_slot_status": "REQUIRED",
+      "auth_backend": "shared_target",
+      "central_recovery": true
     }
   },
   "session_model": {
@@ -48,12 +129,23 @@
     "browser_sessions": "per_origin",
     "cross_origin_sso": {
       "status": "BLOCKED",
-      "disposition": "deferred_future_phase"
+      "disposition": "deferred_phase_two",
+      "allowed_future_mechanisms": [
+        "pkce_code_exchange",
+        "one_time_backend_exchange"
+      ],
+      "forbidden_mechanisms": [
+        "shared_refresh_cookies",
+        "url_tokens"
+      ]
     }
   },
   "smtp": {
+    "decision_id": "FP-MAN-003",
     "production_custom_smtp": "REQUIRED",
-    "provider_selection": "OWNER_DECISION",
+    "provider_service": "operator_fawxzzy_com_google_gmail",
+    "sender_address": "no-reply@account.fawxzzy.com",
+    "secure_provider_domain_setup": "REQUIRED",
     "credentials_present": false,
     "live_configuration_allowed": false
   }
