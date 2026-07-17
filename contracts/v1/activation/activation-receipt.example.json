@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "request_id": "00000000-0000-4000-8000-000000000001",
+  "activation_id": "00000000-0000-4000-8000-000000000002",
+  "service": "fitness",
+  "outcome": "ACTIVATED",
+  "membership_state": "active",
+  "product_profile_action": "CREATED",
+  "subject_source": "auth.uid()",
+  "occurred_at": "2000-01-01T00:00:01Z"
+}

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:membership-lifecycle",
+  "title": "Membership lifecycle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "states",
+    "transitions",
+    "invariants"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "states": {
+      "const": [
+        "pending",
+        "active",
+        "suspended"
+      ]
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "const": {
+              "from": null,
+              "event": "global_signup_discovery",
+              "to": "pending",
+              "result": "CREATED_PENDING",
+              "profile_effect": "NONE",
+              "authorization": "system_account_creation"
+            }
+          },
+          {
+            "const": {
+              "from": null,
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "ACTIVATED",
+              "profile_effect": "CREATE_ATOMICALLY",
+              "authorization": "authenticated_self"
+            }
+          },
+          {
+            "const": {
+              "from": "pending",
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "ACTIVATED",
+              "profile_effect": "CREATE_ATOMICALLY",
+              "authorization": "authenticated_self"
+            }
+          },
+          {
+            "const": {
+              "from": "active",
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "REUSED",
+              "profile_effect": "REUSE",
+              "authorization": "authenticated_self"
+            }
+          },
+          {
+            "const": {
+              "from": "active",
+              "event": "suspend",
+              "to": "suspended",
+              "result": "SUSPENDED",
+              "profile_effect": "PRESERVE",
+              "authorization": "privileged_service_control"
+            }
+          },
+          {
+            "const": {
+              "from": "suspended",
+              "event": "authenticated_first_visit",
+              "to": "suspended",
+              "result": "REJECTED_SUSPENDED",
+              "profile_effect": "PRESERVE",
+              "authorization": "authenticated_self"
+            }
+          },
+          {
+            "const": {
+              "from": "suspended",
+              "event": "controlled_reinstate",
+              "to": "active",
+              "result": "REINSTATED",
+              "profile_effect": "REUSE",
+              "authorization": "privileged_service_control"
+            }
+          }
+        ]
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotent",
+        "activation_and_profile_atomic",
+        "suspended_never_self_activates",
+        "membership_is_not_entitlement"
+      ],
+      "properties": {
+        "idempotent": {
+          "const": true
+        },
+        "activation_and_profile_atomic": {
+          "const": true
+        },
+        "suspended_never_self_activates": {
+          "const": true
+        },
+        "membership_is_not_entitlement": {
+          "const": true
+        }
+      }
+    }
+  }
+}

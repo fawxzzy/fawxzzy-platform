@@ -1,0 +1,457 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "schemas": [
+    {
+      "name": "public",
+      "data_api": "exposed",
+      "product_tables_allowed": false
+    },
+    {
+      "name": "platform_shared",
+      "data_api": "exposed",
+      "product_tables_allowed": false
+    },
+    {
+      "name": "platform_private",
+      "data_api": "not_exposed",
+      "product_tables_allowed": false
+    },
+    {
+      "name": "discordos",
+      "data_api": "exposed",
+      "product_tables_allowed": true
+    },
+    {
+      "name": "fitness",
+      "data_api": "exposed",
+      "product_tables_allowed": true
+    },
+    {
+      "name": "mazer",
+      "data_api": "exposed",
+      "product_tables_allowed": true
+    }
+  ],
+  "relations": [
+    {
+      "name": "platform_shared.global_profiles",
+      "kind": "shared_identity",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "authenticated_update_columns": [],
+      "server_owned_columns": [
+        "user_number",
+        "canonical_username",
+        "normalized_username_key",
+        "source_identity_provenance",
+        "lifecycle_state",
+        "created_at",
+        "updated_at"
+      ],
+      "policies": [
+        {
+          "name": "read own global profile",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "platform_shared.services",
+      "kind": "shared_service",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [
+          "SELECT"
+        ],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read discoverable services",
+          "command": "SELECT",
+          "role": "anon",
+          "using": "discoverable = true",
+          "with_check": null
+        },
+        {
+          "name": "read discoverable or joined services",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "discoverable = true or exists (select 1 from platform_shared.user_service_memberships m where m.service_id = services.service_id and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "platform_shared.user_service_memberships",
+      "kind": "shared_service",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own memberships",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "platform_shared.service_activation_receipts",
+      "kind": "shared_service",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own activation receipts",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "platform_private.source_identity_ledger",
+      "kind": "private_ledger",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [],
+        "service_role": [
+          "SELECT",
+          "INSERT"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": []
+    },
+    {
+      "name": "platform_private.identity_collision_adjudications",
+      "kind": "private_adjudication",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [],
+        "service_role": [
+          "SELECT",
+          "INSERT"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": []
+    },
+    {
+      "name": "discordos.user_profiles",
+      "kind": "product_profile",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own DiscordOS profile",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": null
+        },
+        {
+          "name": "update own DiscordOS profile",
+          "command": "UPDATE",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')"
+        }
+      ]
+    },
+    {
+      "name": "fitness.user_profiles",
+      "kind": "product_profile",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own Fitness profile",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": null
+        },
+        {
+          "name": "update own Fitness profile",
+          "command": "UPDATE",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
+        }
+      ]
+    },
+    {
+      "name": "mazer.user_profiles",
+      "kind": "product_profile",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own Mazer profile",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": null
+        },
+        {
+          "name": "update own Mazer profile",
+          "command": "UPDATE",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')"
+        }
+      ]
+    },
+    {
+      "name": "discordos.entitlements",
+      "kind": "product_entitlement",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own DiscordOS entitlements",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "fitness.entitlements",
+      "kind": "product_entitlement",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own Fitness entitlements",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    },
+    {
+      "name": "mazer.entitlements",
+      "kind": "product_entitlement",
+      "rls_enabled": true,
+      "rls_forced": true,
+      "grants": {
+        "PUBLIC": [],
+        "anon": [],
+        "authenticated": [
+          "SELECT"
+        ],
+        "service_role": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "supabase_auth_admin": []
+      },
+      "policies": [
+        {
+          "name": "read own Mazer entitlements",
+          "command": "SELECT",
+          "role": "authenticated",
+          "using": "(select auth.uid()) = user_id",
+          "with_check": null
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "platform_shared.activate_service",
+      "security": "DEFINER",
+      "exposure": "allowlisted_rpc",
+      "fixed_search_path": "",
+      "auth_uid_check": true,
+      "subject_source": "auth.uid()",
+      "user_id_argument_allowed": false,
+      "execute_grants": [
+        "authenticated"
+      ],
+      "execute_revoked_from": [
+        "PUBLIC",
+        "anon",
+        "service_role"
+      ],
+      "atomic_relations": [
+        "platform_shared.user_service_memberships",
+        "platform_shared.service_activation_receipts",
+        "fitness.user_profiles",
+        "mazer.user_profiles"
+      ]
+    },
+    {
+      "name": "platform_private.on_auth_user_created",
+      "security": "DEFINER",
+      "exposure": "trigger_only",
+      "fixed_search_path": "",
+      "auth_uid_check": false,
+      "subject_source": "NEW.id",
+      "user_id_argument_allowed": false,
+      "execute_grants": [],
+      "execute_revoked_from": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "atomic_relations": [
+        "platform_shared.global_profiles"
+      ]
+    }
+  ],
+  "invariants": {
+    "editable_user_metadata_authorization_forbidden": true,
+    "public_execute_on_definer_forbidden": true,
+    "fixed_search_path_required_for_definer": true,
+    "auth_uid_check_required_for_caller_accessible_definer": true,
+    "auth_trigger_subject_derived_from_new_id": true,
+    "global_profile_relation_update_for_authenticated_forbidden": true,
+    "server_owned_profile_columns_direct_update_forbidden": true,
+    "membership_is_not_entitlement": true
+  }
+}

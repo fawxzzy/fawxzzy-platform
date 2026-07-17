@@ -1,0 +1,569 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:identity-map",
+  "title": "Identity map and provenance ledger contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "rules",
+    "username_contract",
+    "user_number_contract",
+    "cleanup_contract",
+    "auth_migration_contract",
+    "entries",
+    "ledger",
+    "collision_summary"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "one_target_auth_user_per_person",
+        "normalized_email_is_not_adjudication",
+        "automatic_source_merge_forbidden",
+        "controlled_reauthentication_required"
+      ],
+      "properties": {
+        "one_target_auth_user_per_person": {
+          "const": true
+        },
+        "normalized_email_is_not_adjudication": {
+          "const": true
+        },
+        "automatic_source_merge_forbidden": {
+          "const": true
+        },
+        "controlled_reauthentication_required": {
+          "const": true
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "source_user_id",
+          "target_user_id",
+          "rekey_version",
+          "status"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/service"
+          },
+          "source_user_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_user_id": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/uuid"
+          },
+          "rekey_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          }
+        }
+      }
+    },
+    "username_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "namespace",
+        "primary_human_profile_source",
+        "cross_check_sources",
+        "normalized_key",
+        "database_unique_boundary",
+        "mutation_boundary",
+        "ui_availability_is_advisory",
+        "immutable_account_identity_separate",
+        "provenance_and_rollback_required",
+        "aliases_and_history_preserved",
+        "silent_collision_resolution_forbidden",
+        "service_identity_human_linkage_required",
+        "backfill_status",
+        "identity_matching"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-006"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "namespace": {
+          "const": "one_global_canonical_username"
+        },
+        "primary_human_profile_source": {
+          "const": "fitness"
+        },
+        "cross_check_sources": {
+          "const": [
+            "mazer",
+            "discordos"
+          ]
+        },
+        "normalized_key": {
+          "const": "deterministic"
+        },
+        "database_unique_boundary": {
+          "const": true
+        },
+        "mutation_boundary": {
+          "const": "atomic_server_side_claim_create_rename"
+        },
+        "ui_availability_is_advisory": {
+          "const": true
+        },
+        "immutable_account_identity_separate": {
+          "const": true
+        },
+        "provenance_and_rollback_required": {
+          "const": true
+        },
+        "aliases_and_history_preserved": {
+          "const": true
+        },
+        "silent_collision_resolution_forbidden": {
+          "const": true
+        },
+        "service_identity_human_linkage_required": {
+          "const": true
+        },
+        "backfill_status": {
+          "const": "BLOCKED"
+        },
+        "identity_matching": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decision_id",
+            "status",
+            "verified_identity_evidence_required",
+            "username_alone_forbidden"
+          ],
+          "properties": {
+            "decision_id": {
+              "const": "FP-MAN-007"
+            },
+            "status": {
+              "const": "CURRENT"
+            },
+            "verified_identity_evidence_required": {
+              "const": true
+            },
+            "username_alone_forbidden": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "user_number_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "scope",
+        "fitness_existing_member_rank_numbers_preserved_exactly",
+        "field",
+        "immutable",
+        "unique",
+        "not_null_once_migrated",
+        "allocation",
+        "monotonic",
+        "never_reused",
+        "never_renumbered",
+        "independent_from",
+        "service_identity_human_linkage_required",
+        "silent_collision_resolution_forbidden",
+        "non_fitness_backfill"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-009"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "scope": {
+          "const": "every_human_fawxzzy_account"
+        },
+        "fitness_existing_member_rank_numbers_preserved_exactly": {
+          "const": true
+        },
+        "field": {
+          "const": "platform_shared.global_profiles.user_number"
+        },
+        "immutable": {
+          "const": true
+        },
+        "unique": {
+          "const": true
+        },
+        "not_null_once_migrated": {
+          "const": true
+        },
+        "allocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mechanism",
+            "scope",
+            "atomic_with_global_profile_creation"
+          ],
+          "properties": {
+            "mechanism": {
+              "const": "authoritative_database_sequence"
+            },
+            "scope": {
+              "const": "all_entry_services"
+            },
+            "atomic_with_global_profile_creation": {
+              "const": true
+            }
+          }
+        },
+        "monotonic": {
+          "const": true
+        },
+        "never_reused": {
+          "const": true
+        },
+        "never_renumbered": {
+          "const": true
+        },
+        "independent_from": {
+          "const": [
+            "username",
+            "billing_entitlement",
+            "service_membership"
+          ]
+        },
+        "service_identity_human_linkage_required": {
+          "const": true
+        },
+        "silent_collision_resolution_forbidden": {
+          "const": true
+        },
+        "non_fitness_backfill": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decision_id",
+            "decision_status",
+            "status",
+            "requires_aggregate_inventory",
+            "requires_collision_dry_run",
+            "allocation_start",
+            "allocation_order"
+          ],
+          "properties": {
+            "decision_id": {
+              "const": "FP-MAN-009"
+            },
+            "decision_status": {
+              "const": "CURRENT"
+            },
+            "status": {
+              "const": "BLOCKED"
+            },
+            "requires_aggregate_inventory": {
+              "const": true
+            },
+            "requires_collision_dry_run": {
+              "const": true
+            },
+            "allocation_start": {
+              "const": "after_highest_preserved_fitness_number"
+            },
+            "allocation_order": {
+              "const": [
+                "earliest_independently_verified_account_created_at",
+                "source_priority",
+                "immutable_source_account_id"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cleanup_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "decision_status",
+        "destructive_cleanup_status",
+        "cleanup_meaning",
+        "classifications",
+        "archive_first",
+        "conflict_quarantine_required",
+        "quarantine_uncertain_conflicting_unproven",
+        "parity_restore_rollback_observation_required",
+        "discordos_functional_parity_required",
+        "exact_retirement_manifest_required",
+        "useful_raw_transformation_proof",
+        "preserve",
+        "raw_retirement_prerequisites",
+        "separate_action_time_approval_required"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-010"
+        },
+        "decision_status": {
+          "const": "CURRENT"
+        },
+        "destructive_cleanup_status": {
+          "const": "BLOCKED"
+        },
+        "cleanup_meaning": {
+          "const": "classify_normalize_deduplicate_quarantine"
+        },
+        "classifications": {
+          "const": [
+            "raw",
+            "derived",
+            "canonical",
+            "duplicate",
+            "obsolete",
+            "quarantined",
+            "immutable_evidence",
+            "retention_bound",
+            "secret_bearing"
+          ]
+        },
+        "archive_first": {
+          "const": true
+        },
+        "conflict_quarantine_required": {
+          "const": true
+        },
+        "quarantine_uncertain_conflicting_unproven": {
+          "const": true
+        },
+        "parity_restore_rollback_observation_required": {
+          "const": true
+        },
+        "discordos_functional_parity_required": {
+          "const": true
+        },
+        "exact_retirement_manifest_required": {
+          "const": true
+        },
+        "useful_raw_transformation_proof": {
+          "const": [
+            "deterministic",
+            "completeness",
+            "complete_provenance",
+            "digest_correlation",
+            "schema_validity",
+            "replay",
+            "idempotency",
+            "backup_restore"
+          ]
+        },
+        "preserve": {
+          "const": [
+            "authoritative_evidence",
+            "audit_security_records",
+            "source_of_truth_artifacts",
+            "required_history",
+            "unproven_raw_data"
+          ]
+        },
+        "raw_retirement_prerequisites": {
+          "const": [
+            "derivative_acceptance",
+            "retention_proof",
+            "rollback_proof",
+            "separate_exact_action_time_deletion_authority"
+          ]
+        },
+        "separate_action_time_approval_required": {
+          "const": true
+        }
+      }
+    },
+    "auth_migration_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "auth_schema_and_password_hash_migration_supported",
+        "password_reset_required_solely_by_migration",
+        "target_signing_identity_preserved",
+        "source_jwt_secret_reuse_forbidden",
+        "source_service_role_secret_copy_forbidden",
+        "existing_source_sessions_invalidated",
+        "controlled_reauthentication_required",
+        "new_sessions_per_origin",
+        "canonical_human_mapping",
+        "product_foreign_key_rekey_boundary",
+        "three_auth_schema_wholesale_merge_forbidden",
+        "app_environment_cutover_status",
+        "storage_object_bodies"
+      ],
+      "properties": {
+        "status": {
+          "const": "BLOCKED"
+        },
+        "auth_schema_and_password_hash_migration_supported": {
+          "const": true
+        },
+        "password_reset_required_solely_by_migration": {
+          "const": false
+        },
+        "target_signing_identity_preserved": {
+          "const": true
+        },
+        "source_jwt_secret_reuse_forbidden": {
+          "const": true
+        },
+        "source_service_role_secret_copy_forbidden": {
+          "const": true
+        },
+        "existing_source_sessions_invalidated": {
+          "const": true
+        },
+        "controlled_reauthentication_required": {
+          "const": true
+        },
+        "new_sessions_per_origin": {
+          "const": [
+            "account",
+            "fitness",
+            "mazer"
+          ]
+        },
+        "canonical_human_mapping": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fitness_matched_humans",
+            "mazer_only_humans",
+            "discordos_service_identities"
+          ],
+          "properties": {
+            "fitness_matched_humans": {
+              "const": "canonical_account_and_password_record"
+            },
+            "mazer_only_humans": {
+              "const": "retain_migrated_hash_when_identity_evidence_sufficient"
+            },
+            "discordos_service_identities": {
+              "const": "excluded_without_explicit_human_linkage"
+            }
+          }
+        },
+        "product_foreign_key_rekey_boundary": {
+          "const": "immutable_source_identity_mapping"
+        },
+        "three_auth_schema_wholesale_merge_forbidden": {
+          "const": true
+        },
+        "app_environment_cutover_status": {
+          "const": "BLOCKED"
+        },
+        "storage_object_bodies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "separate_migration_surface",
+            "current_known_denominator",
+            "action_time_status",
+            "action_time_reread_required"
+          ],
+          "properties": {
+            "separate_migration_surface": {
+              "const": true
+            },
+            "current_known_denominator": {
+              "const": 0
+            },
+            "action_time_status": {
+              "const": "UNKNOWN"
+            },
+            "action_time_reread_required": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation",
+        "append_only",
+        "source_provenance_required",
+        "semantic_cross_product_merge_forbidden"
+      ],
+      "properties": {
+        "relation": {
+          "const": "platform_private.source_identity_ledger"
+        },
+        "append_only": {
+          "const": true
+        },
+        "source_provenance_required": {
+          "const": true
+        },
+        "semantic_cross_product_merge_forbidden": {
+          "const": true
+        }
+      }
+    },
+    "collision_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "sources",
+        "count",
+        "status",
+        "pii_included"
+      ],
+      "properties": {
+        "kind": {
+          "const": "normalized_email"
+        },
+        "sources": {
+          "const": [
+            "fitness",
+            "mazer"
+          ]
+        },
+        "count": {
+          "const": 1
+        },
+        "status": {
+          "const": "OWNER_DECISION"
+        },
+        "pii_included": {
+          "const": false
+        }
+      }
+    }
+  }
+}

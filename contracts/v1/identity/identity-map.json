@@ -1,0 +1,167 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "rules": {
+    "one_target_auth_user_per_person": true,
+    "normalized_email_is_not_adjudication": true,
+    "automatic_source_merge_forbidden": true,
+    "controlled_reauthentication_required": true
+  },
+  "username_contract": {
+    "decision_id": "FP-MAN-006",
+    "status": "CURRENT",
+    "namespace": "one_global_canonical_username",
+    "primary_human_profile_source": "fitness",
+    "cross_check_sources": [
+      "mazer",
+      "discordos"
+    ],
+    "normalized_key": "deterministic",
+    "database_unique_boundary": true,
+    "mutation_boundary": "atomic_server_side_claim_create_rename",
+    "ui_availability_is_advisory": true,
+    "immutable_account_identity_separate": true,
+    "provenance_and_rollback_required": true,
+    "aliases_and_history_preserved": true,
+    "silent_collision_resolution_forbidden": true,
+    "service_identity_human_linkage_required": true,
+    "backfill_status": "BLOCKED",
+    "identity_matching": {
+      "decision_id": "FP-MAN-007",
+      "status": "CURRENT",
+      "verified_identity_evidence_required": true,
+      "username_alone_forbidden": true
+    }
+  },
+  "user_number_contract": {
+    "decision_id": "FP-MAN-009",
+    "status": "CURRENT",
+    "scope": "every_human_fawxzzy_account",
+    "fitness_existing_member_rank_numbers_preserved_exactly": true,
+    "field": "platform_shared.global_profiles.user_number",
+    "immutable": true,
+    "unique": true,
+    "not_null_once_migrated": true,
+    "allocation": {
+      "mechanism": "authoritative_database_sequence",
+      "scope": "all_entry_services",
+      "atomic_with_global_profile_creation": true
+    },
+    "monotonic": true,
+    "never_reused": true,
+    "never_renumbered": true,
+    "independent_from": [
+      "username",
+      "billing_entitlement",
+      "service_membership"
+    ],
+    "service_identity_human_linkage_required": true,
+    "silent_collision_resolution_forbidden": true,
+    "non_fitness_backfill": {
+      "decision_id": "FP-MAN-009",
+      "decision_status": "CURRENT",
+      "status": "BLOCKED",
+      "requires_aggregate_inventory": true,
+      "requires_collision_dry_run": true,
+      "allocation_start": "after_highest_preserved_fitness_number",
+      "allocation_order": [
+        "earliest_independently_verified_account_created_at",
+        "source_priority",
+        "immutable_source_account_id"
+      ]
+    }
+  },
+  "cleanup_contract": {
+    "decision_id": "FP-MAN-010",
+    "decision_status": "CURRENT",
+    "destructive_cleanup_status": "BLOCKED",
+    "cleanup_meaning": "classify_normalize_deduplicate_quarantine",
+    "classifications": [
+      "raw",
+      "derived",
+      "canonical",
+      "duplicate",
+      "obsolete",
+      "quarantined",
+      "immutable_evidence",
+      "retention_bound",
+      "secret_bearing"
+    ],
+    "archive_first": true,
+    "conflict_quarantine_required": true,
+    "quarantine_uncertain_conflicting_unproven": true,
+    "parity_restore_rollback_observation_required": true,
+    "discordos_functional_parity_required": true,
+    "exact_retirement_manifest_required": true,
+    "useful_raw_transformation_proof": [
+      "deterministic",
+      "completeness",
+      "complete_provenance",
+      "digest_correlation",
+      "schema_validity",
+      "replay",
+      "idempotency",
+      "backup_restore"
+    ],
+    "preserve": [
+      "authoritative_evidence",
+      "audit_security_records",
+      "source_of_truth_artifacts",
+      "required_history",
+      "unproven_raw_data"
+    ],
+    "raw_retirement_prerequisites": [
+      "derivative_acceptance",
+      "retention_proof",
+      "rollback_proof",
+      "separate_exact_action_time_deletion_authority"
+    ],
+    "separate_action_time_approval_required": true
+  },
+  "auth_migration_contract": {
+    "status": "BLOCKED",
+    "auth_schema_and_password_hash_migration_supported": true,
+    "password_reset_required_solely_by_migration": false,
+    "target_signing_identity_preserved": true,
+    "source_jwt_secret_reuse_forbidden": true,
+    "source_service_role_secret_copy_forbidden": true,
+    "existing_source_sessions_invalidated": true,
+    "controlled_reauthentication_required": true,
+    "new_sessions_per_origin": [
+      "account",
+      "fitness",
+      "mazer"
+    ],
+    "canonical_human_mapping": {
+      "fitness_matched_humans": "canonical_account_and_password_record",
+      "mazer_only_humans": "retain_migrated_hash_when_identity_evidence_sufficient",
+      "discordos_service_identities": "excluded_without_explicit_human_linkage"
+    },
+    "product_foreign_key_rekey_boundary": "immutable_source_identity_mapping",
+    "three_auth_schema_wholesale_merge_forbidden": true,
+    "app_environment_cutover_status": "BLOCKED",
+    "storage_object_bodies": {
+      "separate_migration_surface": true,
+      "current_known_denominator": 0,
+      "action_time_status": "UNKNOWN",
+      "action_time_reread_required": true
+    }
+  },
+  "entries": [],
+  "ledger": {
+    "relation": "platform_private.source_identity_ledger",
+    "append_only": true,
+    "source_provenance_required": true,
+    "semantic_cross_product_merge_forbidden": true
+  },
+  "collision_summary": {
+    "kind": "normalized_email",
+    "sources": [
+      "fitness",
+      "mazer"
+    ],
+    "count": 1,
+    "status": "OWNER_DECISION",
+    "pii_included": false
+  }
+}

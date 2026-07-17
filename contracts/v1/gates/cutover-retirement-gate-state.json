@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "source_projects_must_remain_active": true,
+  "cutover_gates": [
+    {
+      "name": "target schema data auth and settings parity",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "application environment cutover approval",
+      "status": "OWNER_DECISION"
+    },
+    {
+      "name": "production deployment approval",
+      "status": "OWNER_DECISION"
+    },
+    {
+      "name": "rollback rehearsal",
+      "status": "REQUIRED"
+    }
+  ],
+  "retirement_gates": [
+    {
+      "name": "source write pause after observation window",
+      "status": "BLOCKED"
+    },
+    {
+      "name": "zero remaining source readers writers and traffic",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "restorable backup proof",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "named-project deletion approval at action time",
+      "status": "OWNER_DECISION"
+    }
+  ],
+  "operation_gates": [
+    {
+      "operation": "target_writes",
+      "status": "BLOCKED",
+      "reason": "migration has not been admitted"
+    },
+    {
+      "operation": "data_import",
+      "status": "BLOCKED",
+      "reason": "rehearsal and parity gates are open"
+    },
+    {
+      "operation": "auth_import",
+      "status": "BLOCKED",
+      "reason": "identity gate is open"
+    },
+    {
+      "operation": "vercel_env_cutover",
+      "status": "BLOCKED",
+      "reason": "cutover approval is absent"
+    },
+    {
+      "operation": "production_deploy",
+      "status": "BLOCKED",
+      "reason": "production approval is absent"
+    },
+    {
+      "operation": "source_pause",
+      "status": "BLOCKED",
+      "reason": "source projects remain rollback anchors"
+    },
+    {
+      "operation": "source_deletion",
+      "status": "BLOCKED",
+      "reason": "retirement and destructive approval gates are open"
+    }
+  ]
+}

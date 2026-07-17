@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "closed_world": true,
+  "values": [
+    "CURRENT",
+    "REQUIRED",
+    "OWNER_DECISION",
+    "BLOCKED",
+    "UNKNOWN",
+    "NOT_APPLICABLE"
+  ]
+}

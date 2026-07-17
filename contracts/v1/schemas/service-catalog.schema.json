@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:service-catalog",
+  "title": "Service catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "membership_is_billing_entitlement",
+    "services"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "membership_is_billing_entitlement": {
+      "const": false
+    },
+    "services": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "const": {
+              "id": "discordos",
+              "schema": "discordos",
+              "discoverable": false,
+              "global_signup_may_create_pending": false,
+              "activation_mode": "controlled",
+              "product_profile": "discordos.user_profiles",
+              "entitlement_contract": "discordos.entitlements",
+              "status": "CURRENT"
+            }
+          },
+          {
+            "const": {
+              "id": "fitness",
+              "schema": "fitness",
+              "discoverable": true,
+              "global_signup_may_create_pending": true,
+              "activation_mode": "authenticated_first_visit",
+              "product_profile": "fitness.user_profiles",
+              "entitlement_contract": "fitness.entitlements",
+              "status": "CURRENT"
+            }
+          },
+          {
+            "const": {
+              "id": "mazer",
+              "schema": "mazer",
+              "discoverable": true,
+              "global_signup_may_create_pending": true,
+              "activation_mode": "authenticated_first_visit",
+              "product_profile": "mazer.user_profiles",
+              "entitlement_contract": "mazer.entitlements",
+              "status": "CURRENT"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

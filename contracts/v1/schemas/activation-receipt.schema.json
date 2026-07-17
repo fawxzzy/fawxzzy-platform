@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:activation-receipt",
+  "title": "Service activation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "request_id",
+    "activation_id",
+    "service",
+    "outcome",
+    "membership_state",
+    "product_profile_action",
+    "subject_source",
+    "occurred_at"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "request_id": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/uuid"
+    },
+    "activation_id": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/uuid"
+    },
+    "service": {
+      "enum": [
+        "fitness",
+        "mazer"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "ACTIVATED",
+        "REUSED",
+        "REJECTED_SUSPENDED"
+      ]
+    },
+    "membership_state": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/membership_state"
+    },
+    "product_profile_action": {
+      "enum": [
+        "CREATED",
+        "REUSED",
+        "PRESERVED"
+      ]
+    },
+    "subject_source": {
+      "const": "auth.uid()"
+    },
+    "occurred_at": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/timestamp"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "outcome": {
+          "const": "ACTIVATED"
+        },
+        "membership_state": {
+          "const": "active"
+        },
+        "product_profile_action": {
+          "const": "CREATED"
+        }
+      }
+    },
+    {
+      "properties": {
+        "outcome": {
+          "const": "REUSED"
+        },
+        "membership_state": {
+          "const": "active"
+        },
+        "product_profile_action": {
+          "const": "REUSED"
+        }
+      }
+    },
+    {
+      "properties": {
+        "outcome": {
+          "const": "REJECTED_SUSPENDED"
+        },
+        "membership_state": {
+          "const": "suspended"
+        },
+        "product_profile_action": {
+          "const": "PRESERVED"
+        }
+      }
+    }
+  ]
+}
