@@ -26,6 +26,58 @@ test('activation request schema rejects a caller-selected subject', () => {
   assert.ok(failures.some((failure) => failure.includes('activation-request.example.json')));
 });
 
+test('activation receipt accepts exactly the three coherent combinations', () => {
+  const baseline = loadDocuments();
+  const admitted = [
+    ['ACTIVATED', 'active', 'CREATED'],
+    ['REUSED', 'active', 'REUSED'],
+    ['REJECTED_SUSPENDED', 'suspended', 'PRESERVED']
+  ];
+  for (const [outcome, membershipState, productProfileAction] of admitted) {
+    const documents = structuredClone(baseline);
+    const receipt = documents['contracts/v1/activation/activation-receipt.example.json'];
+    receipt.outcome = outcome;
+    receipt.membership_state = membershipState;
+    receipt.product_profile_action = productProfileAction;
+    assert.deepEqual(validateSchemaInstances(documents, createValidator()), [], `${outcome} schema`);
+    assert.deepEqual(validateSemantics(documents), [], `${outcome} semantics`);
+  }
+});
+
+test('activation receipt rejects every contradictory combination', () => {
+  const baseline = loadDocuments();
+  const outcomes = ['ACTIVATED', 'REUSED', 'REJECTED_SUSPENDED'];
+  const membershipStates = ['active', 'suspended'];
+  const productProfileActions = ['CREATED', 'REUSED', 'PRESERVED'];
+  const admitted = new Set([
+    'ACTIVATED|active|CREATED',
+    'REUSED|active|REUSED',
+    'REJECTED_SUSPENDED|suspended|PRESERVED'
+  ]);
+  let rejectedActiveCreatedObserved = false;
+
+  for (const outcome of outcomes) {
+    for (const membershipState of membershipStates) {
+      for (const productProfileAction of productProfileActions) {
+        const combination = [outcome, membershipState, productProfileAction].join('|');
+        if (admitted.has(combination)) continue;
+        const documents = structuredClone(baseline);
+        const receipt = documents['contracts/v1/activation/activation-receipt.example.json'];
+        receipt.outcome = outcome;
+        receipt.membership_state = membershipState;
+        receipt.product_profile_action = productProfileAction;
+        const schemaFailures = validateSchemaInstances(documents, createValidator());
+        const semanticFailures = validateSemantics(documents);
+        assert.ok(schemaFailures.some((failure) => failure.includes('activation-receipt.example.json')), `${combination} schema`);
+        assert.ok(semanticFailures.some((failure) => failure.includes(`activation receipt combination is not admitted: ${combination}`)), `${combination} semantics`);
+        if (combination === 'REJECTED_SUSPENDED|active|CREATED') rejectedActiveCreatedObserved = true;
+      }
+    }
+  }
+
+  assert.equal(rejectedActiveCreatedObserved, true);
+});
+
 test('semantic checks reject an unblocked migration operation', () => {
   const documents = structuredClone(loadDocuments());
   documents['contracts/v1/gates/migration-gate-state.json'].operation_gates[0].status = 'CURRENT';
@@ -190,4 +242,22 @@ test('global user_number invariants reject reuse or renumbering', () => {
   numbering.never_reused = false;
   numbering.never_renumbered = false;
   assert.ok(validateSemantics(documents).some((failure) => failure.includes('monotonic, never reused, and never renumbered')));
+});
+
+test('manual decision bindings separate verified identity from legacy numbering', () => {
+  const baseline = loadDocuments();
+  const identity = baseline['contracts/v1/identity/identity-map.json'];
+  assert.equal(identity.username_contract.identity_matching.decision_id, 'FP-MAN-007');
+  assert.equal(identity.user_number_contract.decision_id, 'FP-MAN-009');
+  assert.equal(identity.user_number_contract.non_fitness_backfill.decision_id, 'FP-MAN-009');
+
+  const documents = structuredClone(baseline);
+  documents['contracts/v1/identity/identity-map.json'].user_number_contract.decision_id = 'FP-MAN-007';
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('identity-map.json')));
+  assert.ok(validateSemantics(documents).some((failure) => failure.includes('legacy user_number allocation and ordering must remain bound to FP-MAN-009')));
+
+  const identityDrift = structuredClone(baseline);
+  identityDrift['contracts/v1/identity/identity-map.json'].username_contract.identity_matching.decision_id = 'FP-MAN-009';
+  assert.ok(validateSchemaInstances(identityDrift, createValidator()).some((failure) => failure.includes('identity-map.json')));
+  assert.ok(validateSemantics(identityDrift).some((failure) => failure.includes('verified identity matching must remain bound to FP-MAN-007')));
 });

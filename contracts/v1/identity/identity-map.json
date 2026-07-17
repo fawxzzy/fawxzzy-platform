@@ -34,7 +34,7 @@
     }
   },
   "user_number_contract": {
-    "decision_id": "FP-MAN-007",
+    "decision_id": "FP-MAN-009",
     "status": "CURRENT",
     "scope": "every_human_fawxzzy_account",
     "fitness_existing_member_rank_numbers_preserved_exactly": true,

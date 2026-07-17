@@ -21,7 +21,7 @@ This packet freezes contracts only. It makes no live Supabase or hosting change 
 
 FP-MAN-006 and FP-MAN-007 establish one globally unique canonical username for human accounts. Fitness is the initial canonical source for matched human profile fields; Mazer and DiscordOS are cross-check sources. A future normalized username key must be deterministic and database-unique, and claim/create/rename must be atomic and server-side. UI availability is advisory. Account identity, immutable source IDs and digests, rollback mappings, and username aliases/history remain distinct and preserved. Username alone is never identity evidence, and bots or service identities cannot become humans without explicit linkage evidence.
 
-Every human account also has one immutable global `user_number`, independent of username, billing, and service membership. Existing accepted Fitness member/rank numbers are preserved exactly. Future signups through any entry service allocate atomically from one monotonic authoritative database sequence; numbers are unique, never reused, and never renumbered. FP-MAN-009 fixes the legacy allocation order after the highest preserved Fitness number by earliest independently verified creation time, then source priority and immutable source account ID. Inventory and dry-run planning are allowed, but all backfill writes remain `BLOCKED` in this packet.
+Every human account also has one immutable global `user_number`, independent of username, billing, and service membership. Existing accepted Fitness member/rank numbers are preserved exactly. FP-MAN-007 remains the verified-identity and global-number policy decision; FP-MAN-009 binds the root allocation/ordering contract. Future signups through any entry service allocate atomically from one monotonic authoritative database sequence; numbers are unique, never reused, and never renumbered. FP-MAN-009 fixes the legacy allocation order after the highest preserved Fitness number by earliest independently verified creation time, then source priority and immutable source account ID. Inventory and dry-run planning are allowed, but all backfill writes remain `BLOCKED` in this packet.
 
 Supabase Auth may automatically link verified identities with the same email and supports authenticated manual linking. That provider behavior is not sufficient evidence for joining legacy source identities, so the migration ledger and adjudication gate remain authoritative.
 
@@ -41,6 +41,7 @@ The contracted trigger function is private, `SECURITY DEFINER`, fixed to an empt
 - Missing or pending membership becomes active in the same transaction that creates the product profile.
 - An existing active membership and profile are idempotently reused.
 - Suspended membership rejects self-activation and requires controlled reinstatement.
+- Activation receipts are closed-world: `ACTIVATED` pairs only with `active`/`CREATED`, `REUSED` only with `active`/`REUSED`, and `REJECTED_SUSPENDED` only with `suspended`/`PRESERVED`.
 
 The future activation RPC is the only exposed `SECURITY DEFINER` function in this contract. It is explicitly allowlisted, uses an empty search path, validates `auth.uid()`, accepts no user ID argument, revokes default `PUBLIC` execute, grants execute only to `authenticated`, and is covered by negative tests.
 

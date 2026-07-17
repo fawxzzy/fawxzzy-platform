@@ -81,7 +81,7 @@ Required evidence:
 - clean apply, replay, rollback, restore, and re-apply;
 - count and checksum parity by source relation;
 - Auth import rehearsal with collision quarantine and controlled reauthentication receipts;
-- activation outcomes for missing, pending, active, and suspended memberships;
+- activation outcomes for missing, pending, active, and suspended memberships, with receipts limited to `ACTIVATED`/`active`/`CREATED`, `REUSED`/`active`/`REUSED`, or `REJECTED_SUSPENDED`/`suspended`/`PRESERVED`;
 - negative RLS and function tests for anonymous, wrong-user, suspended, stale-session, and direct-write attempts;
 - negative policy tests for unqualified or tautological membership predicates, missing membership, suspended membership, relation-wide global-profile update, and every immutable or server-owned column grant;
 - negative closed-world tests proving any extra policy, predicate/grant drift, or third privileged function fails;

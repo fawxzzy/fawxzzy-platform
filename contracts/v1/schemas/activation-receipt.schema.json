@@ -54,5 +54,46 @@
     "occurred_at": {
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/timestamp"
     }
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "outcome": {
+          "const": "ACTIVATED"
+        },
+        "membership_state": {
+          "const": "active"
+        },
+        "product_profile_action": {
+          "const": "CREATED"
+        }
+      }
+    },
+    {
+      "properties": {
+        "outcome": {
+          "const": "REUSED"
+        },
+        "membership_state": {
+          "const": "active"
+        },
+        "product_profile_action": {
+          "const": "REUSED"
+        }
+      }
+    },
+    {
+      "properties": {
+        "outcome": {
+          "const": "REJECTED_SUSPENDED"
+        },
+        "membership_state": {
+          "const": "suspended"
+        },
+        "product_profile_action": {
+          "const": "PRESERVED"
+        }
+      }
+    }
+  ]
 }

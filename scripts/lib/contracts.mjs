@@ -201,10 +201,12 @@ export function validateSemantics(documents) {
   requireCondition(identity.username_contract.status === 'CURRENT', 'FP-MAN-006 username decision must remain approved');
   requireCondition(identity.username_contract.namespace === 'one_global_canonical_username', 'username namespace must remain globally canonical');
   requireCondition(identity.username_contract.database_unique_boundary === true, 'normalized username key must retain a database UNIQUE boundary');
+  requireCondition(identity.username_contract.identity_matching.decision_id === 'FP-MAN-007', 'verified identity matching must remain bound to FP-MAN-007');
   requireCondition(identity.username_contract.identity_matching.status === 'CURRENT', 'FP-MAN-007 identity matching decision must remain approved');
   requireCondition(identity.username_contract.identity_matching.username_alone_forbidden === true, 'username-only identity matching must remain forbidden');
   requireCondition(identity.username_contract.backfill_status === 'BLOCKED', 'username backfill writes must remain BLOCKED');
   requireCondition(identity.user_number_contract.field === 'platform_shared.global_profiles.user_number', 'global user_number field changed');
+  requireCondition(identity.user_number_contract.decision_id === 'FP-MAN-009', 'legacy user_number allocation and ordering must remain bound to FP-MAN-009');
   requireCondition(identity.user_number_contract.fitness_existing_member_rank_numbers_preserved_exactly === true, 'Fitness user numbers must be preserved exactly');
   requireCondition(identity.user_number_contract.monotonic && identity.user_number_contract.never_reused && identity.user_number_contract.never_renumbered, 'global user_number must remain monotonic, never reused, and never renumbered');
   requireCondition(identity.user_number_contract.non_fitness_backfill.decision_status === 'CURRENT', 'FP-MAN-009 numbering decision must remain approved');
@@ -237,6 +239,13 @@ export function validateSemantics(documents) {
   requireCondition(!Object.hasOwn(request, 'subject_user_id'), 'activation request must not accept subject_user_id');
   const receipt = documents['contracts/v1/activation/activation-receipt.example.json'];
   requireCondition(receipt.subject_source === 'auth.uid()', 'activation subject must derive from auth.uid()');
+  const receiptCombination = [receipt.outcome, receipt.membership_state, receipt.product_profile_action].join('|');
+  const admittedReceiptCombinations = new Set([
+    'ACTIVATED|active|CREATED',
+    'REUSED|active|REUSED',
+    'REJECTED_SUSPENDED|suspended|PRESERVED'
+  ]);
+  requireCondition(admittedReceiptCombinations.has(receiptCombination), `activation receipt combination is not admitted: ${receiptCombination}`);
 
   const domain = documents['contracts/v1/auth/domain-session-contract.json'];
   const origins = Object.fromEntries(domain.origins.map((origin) => [origin.role, origin.origin]));
@@ -352,7 +361,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 15,
+    semantic_check_groups: 16,
     failures
   };
 }
