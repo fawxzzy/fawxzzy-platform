@@ -68,6 +68,51 @@ test('closed-world relation validation rejects an extra permissive policy', () =
   assert.ok(failures.some((failure) => failure.includes('exact grants and complete admitted policy set changed')));
 });
 
+test('product-profile policies reject tautological membership predicates', () => {
+  const documents = structuredClone(loadDocuments());
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'discordos.user_profiles');
+  relation.policies[0].using = relation.policies[0].using.replace('m.user_id = (select auth.uid())', 'm.user_id = user_id');
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('membership row must bind directly to auth.uid()')));
+  assert.ok(failures.some((failure) => failure.includes('unqualified membership user predicate is tautological and forbidden')));
+});
+
+test('product-profile policies reject access without membership', () => {
+  const documents = structuredClone(loadDocuments());
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'fitness.user_profiles');
+  relation.policies[0].using = '(select auth.uid()) = user_id';
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('product-profile access must require its service membership')));
+  assert.ok(failures.some((failure) => failure.includes('membership row must bind directly to auth.uid()')));
+});
+
+test('product-profile policies reject suspended membership access', () => {
+  const documents = structuredClone(loadDocuments());
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'mazer.user_profiles');
+  relation.policies[1].using = relation.policies[1].using.replace("m.state = 'active'", "m.state = 'suspended'");
+  relation.policies[1].with_check = relation.policies[1].with_check.replace("m.state = 'active'", "m.state = 'suspended'");
+  assert.ok(validateSemantics(documents).some((failure) => failure.includes('product-profile access must require active membership only')));
+});
+
+test('global profile rejects relation-wide authenticated UPDATE', () => {
+  const documents = structuredClone(loadDocuments());
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'platform_shared.global_profiles');
+  relation.grants.authenticated.push('UPDATE');
+  assert.ok(validateSemantics(documents).some((failure) => failure.includes('relation-wide authenticated UPDATE is forbidden')));
+});
+
+test('global profile rejects column grants for every immutable or server-owned field', () => {
+  const baseline = loadDocuments();
+  const protectedColumns = baseline['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'platform_shared.global_profiles').server_owned_columns;
+  for (const protectedColumn of protectedColumns) {
+    const documents = structuredClone(baseline);
+    const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'platform_shared.global_profiles');
+    relation.authenticated_update_columns.push(protectedColumn);
+    const failures = validateSemantics(documents);
+    assert.ok(failures.some((failure) => failure.includes('immutable or server-owned columns cannot receive authenticated UPDATE')), protectedColumn);
+  }
+});
+
 test('closed-world function validation rejects a third privileged function', () => {
   const documents = structuredClone(loadDocuments());
   documents['contracts/v1/security/rls-grant-function-matrix.json'].functions.push({

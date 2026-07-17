@@ -79,6 +79,8 @@
         "fixed_search_path_required_for_definer",
         "auth_uid_check_required_for_caller_accessible_definer",
         "auth_trigger_subject_derived_from_new_id",
+        "global_profile_relation_update_for_authenticated_forbidden",
+        "server_owned_profile_columns_direct_update_forbidden",
         "membership_is_not_entitlement"
       ],
       "properties": {
@@ -95,6 +97,12 @@
           "const": true
         },
         "auth_trigger_subject_derived_from_new_id": {
+          "const": true
+        },
+        "global_profile_relation_update_for_authenticated_forbidden": {
+          "const": true
+        },
+        "server_owned_profile_columns_direct_update_forbidden": {
           "const": true
         },
         "membership_is_not_entitlement": {
@@ -221,6 +229,22 @@
         },
         "grants": {
           "$ref": "#/$defs/grants"
+        },
+        "authenticated_update_columns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "server_owned_columns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
         },
         "policies": {
           "type": "array",

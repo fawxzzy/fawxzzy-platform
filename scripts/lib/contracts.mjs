@@ -40,15 +40,15 @@ const expectedOperations = Object.freeze([
 ]);
 
 const expectedRelationDigests = Object.freeze({
-  'platform_shared.global_profiles': '0100849a53ed9de47b69c95db63f25a6d6af8af3981e073a2ec0e9c5ba07e1dd',
+  'platform_shared.global_profiles': 'edcaff331c9fde92d3d72905f5ee0b08d65aa1e9882b93bb05d12d70f649e074',
   'platform_shared.services': '6355c701c16b03370ed099858f4c1458293c608a5f704366b5589caa64528638',
   'platform_shared.user_service_memberships': '32f05fcaac5a8499927c40f27a81a009bce482a8aad08420059147a3c2e5524f',
   'platform_shared.service_activation_receipts': '792af06db4ceb095a9f6cbdec0c63c8640af217287fa2125371e946e4608310c',
   'platform_private.source_identity_ledger': '9b08ad8a5420b29dc5426491453a01b078cdd4496f8b7183dcfab1e87e56dcb1',
   'platform_private.identity_collision_adjudications': '84df17b7ea9813742fee571d3b0930dfc9be2a798286669e99a5818d054adc95',
-  'discordos.user_profiles': 'b37fae620d8b93f701bbd86aabe070421610ccc0081e66f52d38e3c1ff25930e',
-  'fitness.user_profiles': 'aeaeb43f7560498227e47878020ed5d5c6b84e4d736c79bb8f747679da9774f2',
-  'mazer.user_profiles': 'addf9b7c4053602e90ba858f20374a08a10931fa60fc22d46560922daab4254d',
+  'discordos.user_profiles': 'dbcc716ce3c9ddc03877c2b9167702aeb8f332e799eb7a1f8a00fd37ef13a57e',
+  'fitness.user_profiles': 'be24823d5ed6b70412313ea0578b15e019668c7673e36cc2fdae4f34cbce3bd8',
+  'mazer.user_profiles': '2bebe35c5874b26bccce99b7fde74a8a1d1e774235b69c26d70a4da9b8be8ac5',
   'discordos.entitlements': '2a69394bed6d40d07eb51797ad03219918f77bfb2f19af71baf27897cdd736ef',
   'fitness.entitlements': '876c5927822c902d4dee312b628042ff490283f4ac3454993e72fe3d7d897ff4',
   'mazer.entitlements': '2cd0330ff0e0dd80616a8e2c5d487297f96f35d6c88f43e4297293b665221804'
@@ -57,6 +57,22 @@ const expectedRelationDigests = Object.freeze({
 const expectedFunctionDigests = Object.freeze({
   'platform_shared.activate_service': '010456c0f327205c54aa5339de85dcc76bba34b48fea4dbf8dafa790bd96abfe',
   'platform_private.on_auth_user_created': '644cc3631feb2e19b651e1d1ce8ec215b5e376c275f5a60ede97bafb3849aa51'
+});
+
+const protectedGlobalProfileColumns = Object.freeze([
+  'user_number',
+  'canonical_username',
+  'normalized_username_key',
+  'source_identity_provenance',
+  'lifecycle_state',
+  'created_at',
+  'updated_at'
+]);
+
+const productProfileServices = Object.freeze({
+  'discordos.user_profiles': 'discordos',
+  'fitness.user_profiles': 'fitness',
+  'mazer.user_profiles': 'mazer'
 });
 
 function readJson(relativePath) {
@@ -286,8 +302,22 @@ export function validateSemantics(documents) {
       if (policy.command === 'UPDATE') {
         requireCondition(Boolean(policy.using) && Boolean(policy.with_check), `${relation.name}/${policy.name}: UPDATE requires USING and WITH CHECK`);
       }
+      const serviceId = productProfileServices[relation.name];
+      if (serviceId) {
+        requireCondition(expression.includes(`m.service_id = '${serviceId}'`), `${relation.name}/${policy.name}: product-profile access must require its service membership`);
+        requireCondition(expression.includes('m.user_id = (select auth.uid())'), `${relation.name}/${policy.name}: membership row must bind directly to auth.uid()`);
+        requireCondition(!/\bm\.user_id\s*=\s*user_id\b/.test(expression), `${relation.name}/${policy.name}: unqualified membership user predicate is tautological and forbidden`);
+        requireCondition(expression.includes("m.state = 'active'") && !expression.includes("'suspended'"), `${relation.name}/${policy.name}: product-profile access must require active membership only`);
+      }
     }
   }
+
+  const globalProfile = security.relations.find((relation) => relation.name === 'platform_shared.global_profiles');
+  requireCondition(!globalProfile?.grants.authenticated.includes('UPDATE'), 'platform_shared.global_profiles: relation-wide authenticated UPDATE is forbidden');
+  requireCondition(Array.isArray(globalProfile?.authenticated_update_columns) && globalProfile.authenticated_update_columns.length === 0, 'platform_shared.global_profiles: direct authenticated update columns must remain empty until explicitly declared');
+  requireCondition(sameValues(globalProfile?.server_owned_columns ?? [], protectedGlobalProfileColumns), 'platform_shared.global_profiles: server-owned column set changed');
+  requireCondition((globalProfile?.authenticated_update_columns ?? []).every((column) => !protectedGlobalProfileColumns.includes(column)), 'platform_shared.global_profiles: immutable or server-owned columns cannot receive authenticated UPDATE');
+  requireCondition(globalProfile?.policies.every((policy) => policy.command !== 'UPDATE'), 'platform_shared.global_profiles: direct authenticated UPDATE policy is forbidden without declared mutable columns');
 
   requireCondition(sameValues(security.functions.map((databaseFunction) => databaseFunction.name), Object.keys(expectedFunctionDigests)), 'security matrix function set changed');
   requireCondition(security.functions.length === Object.keys(expectedFunctionDigests).length, 'security matrix function count changed');
@@ -322,7 +352,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 13,
+    semantic_check_groups: 15,
     failures
   };
 }

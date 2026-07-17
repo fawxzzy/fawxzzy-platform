@@ -61,6 +61,8 @@ Required evidence:
 - ordered schema creation for `platform_shared`, `platform_private`, `discordos`, `fitness`, and `mazer`;
 - explicit schema exposure, grants, RLS policies, trigger, and function definitions matching the security matrix;
 - fixed search paths, `NEW.id` derivation in the Auth insert trigger, `auth.uid()` guards only on caller-accessible RPCs, revoked default execute, and negative authorization tests;
+- product-profile predicates that bind membership rows directly to `auth.uid()` and require the caller's service membership to be active;
+- no relation-wide authenticated `UPDATE` on the global profile, no direct update policy, and an empty direct column-update set until a later contract explicitly declares mutable profile columns;
 - a deterministic normalized global-username key with a database `UNIQUE` boundary and atomic server-side claim/create/rename;
 - a global `user_number` field on the global profile with an authoritative sequence, uniqueness, post-migration non-nullability, immutable allocation, and exact Fitness-number preservation;
 - transport mappings that preserve source keys and immutable re-key provenance;
@@ -81,6 +83,7 @@ Required evidence:
 - Auth import rehearsal with collision quarantine and controlled reauthentication receipts;
 - activation outcomes for missing, pending, active, and suspended memberships;
 - negative RLS and function tests for anonymous, wrong-user, suspended, stale-session, and direct-write attempts;
+- negative policy tests for unqualified or tautological membership predicates, missing membership, suspended membership, relation-wide global-profile update, and every immutable or server-owned column grant;
 - negative closed-world tests proving any extra policy, predicate/grant drift, or third privileged function fails;
 - username collision, advisory-availability race, user-number concurrency, reuse, renumbering, and bot/service exclusion tests;
 - adjudicated Auth migration rehearsal proving password-hash preservation where accepted, target-owned signing identity, source-session invalidation, and controlled per-origin reauthentication;

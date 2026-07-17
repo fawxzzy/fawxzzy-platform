@@ -43,8 +43,7 @@
         "PUBLIC": [],
         "anon": [],
         "authenticated": [
-          "SELECT",
-          "UPDATE"
+          "SELECT"
         ],
         "service_role": [
           "SELECT",
@@ -54,6 +53,16 @@
         ],
         "supabase_auth_admin": []
       },
+      "authenticated_update_columns": [],
+      "server_owned_columns": [
+        "user_number",
+        "canonical_username",
+        "normalized_username_key",
+        "source_identity_provenance",
+        "lifecycle_state",
+        "created_at",
+        "updated_at"
+      ],
       "policies": [
         {
           "name": "read own global profile",
@@ -61,13 +70,6 @@
           "role": "authenticated",
           "using": "(select auth.uid()) = user_id",
           "with_check": null
-        },
-        {
-          "name": "update own global profile",
-          "command": "UPDATE",
-          "role": "authenticated",
-          "using": "(select auth.uid()) = user_id",
-          "with_check": "(select auth.uid()) = user_id"
         }
       ]
     },
@@ -224,15 +226,15 @@
           "name": "read own DiscordOS profile",
           "command": "SELECT",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = user_id and m.state = 'active')",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
           "with_check": null
         },
         {
           "name": "update own DiscordOS profile",
           "command": "UPDATE",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = user_id and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = user_id and m.state = 'active')"
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')"
         }
       ]
     },
@@ -261,15 +263,15 @@
           "name": "read own Fitness profile",
           "command": "SELECT",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = user_id and m.state = 'active')",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
           "with_check": null
         },
         {
           "name": "update own Fitness profile",
           "command": "UPDATE",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = user_id and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = user_id and m.state = 'active')"
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
         }
       ]
     },
@@ -298,15 +300,15 @@
           "name": "read own Mazer profile",
           "command": "SELECT",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = user_id and m.state = 'active')",
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')",
           "with_check": null
         },
         {
           "name": "update own Mazer profile",
           "command": "UPDATE",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = user_id and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = user_id and m.state = 'active')"
+          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'mazer' and m.user_id = (select auth.uid()) and m.state = 'active')"
         }
       ]
     },
@@ -448,6 +450,8 @@
     "fixed_search_path_required_for_definer": true,
     "auth_uid_check_required_for_caller_accessible_definer": true,
     "auth_trigger_subject_derived_from_new_id": true,
+    "global_profile_relation_update_for_authenticated_forbidden": true,
+    "server_owned_profile_columns_direct_update_forbidden": true,
     "membership_is_not_entitlement": true
   }
 }

@@ -50,6 +50,10 @@ Membership means that a person may enter a service; it is not payment or subscri
 
 RLS uses ownership predicates derived from `auth.uid()`. No policy or function may authorize from `user_metadata` or `raw_user_meta_data`, because authenticated users can edit that data. Update policies require both `USING` and `WITH CHECK`.
 
+Product-profile policies require both row ownership and an active membership for the same caller. Every DiscordOS, Fitness, and Mazer membership subquery binds `m.user_id` directly to `(select auth.uid())`; an unqualified inner `user_id`, a missing membership predicate, or a suspended membership is never sufficient.
+
+The contract declares no directly mutable `platform_shared.global_profiles` storage columns. The `authenticated` role therefore has `SELECT` only, no relation-wide `UPDATE`, an empty authenticated column-update set, and no direct update policy. `user_number`, canonical username and its normalized key, source identity/provenance, lifecycle state, and server-maintained timestamps are explicitly server-owned. The approved account-update surface does not imply a broad table grant; a later schema packet must name any mutable columns and their exact validation boundary before direct updates can be admitted.
+
 The security matrix is closed-world. It admits exactly twelve named relations, their complete grant and policy sets with exact predicates, and exactly two privileged functions: the Auth insert trigger and the activation RPC. An added permissive policy, changed predicate or grant, or third privileged function fails deterministic validation even if it is otherwise well-shaped.
 
 ### Schema and API isolation
