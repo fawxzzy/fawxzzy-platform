@@ -78,6 +78,89 @@ test('activation receipt rejects every contradictory combination', () => {
   assert.equal(rejectedActiveCreatedObserved, true);
 });
 
+test('membership lifecycle admits the exact seven-transition set', () => {
+  const documents = loadDocuments();
+  const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
+  assert.equal(lifecycle.transitions.length, 7);
+  assert.equal(new Set(lifecycle.transitions.map((transition) => JSON.stringify(transition))).size, 7);
+  assert.deepEqual(validateSchemaInstances(documents, createValidator()), []);
+  assert.deepEqual(validateSemantics(documents), []);
+});
+
+test('membership lifecycle rejects removal of suspend or controlled reinstatement', () => {
+  const baseline = loadDocuments();
+  for (const event of ['suspend', 'controlled_reinstate']) {
+    const documents = structuredClone(baseline);
+    const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
+    lifecycle.transitions = lifecycle.transitions.filter((transition) => transition.event !== event);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('membership-lifecycle.json')), `${event} schema`);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes('membership lifecycle exact transition set changed')), `${event} semantics`);
+  }
+});
+
+test('membership lifecycle rejects contradictory suspended self-activation', () => {
+  const documents = structuredClone(loadDocuments());
+  documents['contracts/v1/membership/membership-lifecycle.json'].transitions.push({
+    from: 'suspended',
+    event: 'authenticated_first_visit',
+    to: 'active',
+    result: 'ACTIVATED',
+    profile_effect: 'REUSE',
+    authorization: 'authenticated_self'
+  });
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('membership-lifecycle.json')));
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('membership lifecycle exact transition set changed')));
+  assert.ok(failures.some((failure) => failure.includes('suspended membership must never self-activate')));
+});
+
+test('membership lifecycle rejects duplicate transitions', () => {
+  const documents = structuredClone(loadDocuments());
+  const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
+  lifecycle.transitions.pop();
+  lifecycle.transitions.push(structuredClone(lifecycle.transitions[0]));
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('membership-lifecycle.json')));
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('membership lifecycle exact transition set changed')));
+  assert.ok(failures.some((failure) => failure.includes('membership lifecycle transitions must be unique')));
+});
+
+test('service catalog rejects cross-product profile and entitlement swaps', () => {
+  const baseline = loadDocuments();
+  for (const [field, semanticMessage] of [
+    ['product_profile', 'fitness product profile relation must remain fitness.user_profiles'],
+    ['entitlement_contract', 'fitness entitlement relation must remain fitness.entitlements']
+  ]) {
+    const documents = structuredClone(baseline);
+    const fitness = documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'fitness');
+    fitness[field] = field === 'product_profile' ? 'mazer.user_profiles' : 'mazer.entitlements';
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('service-catalog.json')), `${field} schema`);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(semanticMessage)), `${field} semantics`);
+  }
+});
+
+test('service catalog rejects undeclared owning-schema relations', () => {
+  const documents = structuredClone(loadDocuments());
+  const fitness = documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'fitness');
+  fitness.product_profile = 'fitness.alternate_profiles';
+  fitness.entitlement_contract = 'fitness.alternate_entitlements';
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('service-catalog.json')));
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('fitness product profile relation must remain fitness.user_profiles')));
+  assert.ok(failures.some((failure) => failure.includes('fitness entitlement relation must remain fitness.entitlements')));
+});
+
+test('project registry rejects target and source role reversal', () => {
+  const documents = structuredClone(loadDocuments());
+  const registry = documents['contracts/v1/registry/project-registry.json'];
+  registry.target.role = 'source';
+  for (const source of registry.sources) source.role = 'target';
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('project-registry.json')));
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('target position must retain role target')));
+  assert.ok(failures.some((failure) => failure.includes('source positions must retain role source')));
+});
+
 test('semantic checks reject an unblocked migration operation', () => {
   const documents = structuredClone(loadDocuments());
   documents['contracts/v1/gates/migration-gate-state.json'].operation_gates[0].status = 'CURRENT';

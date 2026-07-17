@@ -20,7 +20,19 @@
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
     },
     "target": {
-      "$ref": "#/$defs/project"
+      "allOf": [
+        {
+          "$ref": "#/$defs/project"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "role": {
+              "const": "target"
+            }
+          }
+        }
+      ]
     },
     "sources": {
       "type": "array",
@@ -28,7 +40,19 @@
       "maxItems": 3,
       "uniqueItems": true,
       "items": {
-        "$ref": "#/$defs/project"
+        "allOf": [
+          {
+            "$ref": "#/$defs/project"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "const": "source"
+              }
+            }
+          }
+        ]
       }
     },
     "operation_gates": {

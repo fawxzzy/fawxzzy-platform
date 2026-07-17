@@ -24,50 +24,46 @@
       "type": "array",
       "minItems": 3,
       "maxItems": 3,
+      "uniqueItems": true,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "schema",
-          "discoverable",
-          "global_signup_may_create_pending",
-          "activation_mode",
-          "product_profile",
-          "entitlement_contract",
-          "status"
-        ],
-        "properties": {
-          "id": {
-            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/service"
+        "oneOf": [
+          {
+            "const": {
+              "id": "discordos",
+              "schema": "discordos",
+              "discoverable": false,
+              "global_signup_may_create_pending": false,
+              "activation_mode": "controlled",
+              "product_profile": "discordos.user_profiles",
+              "entitlement_contract": "discordos.entitlements",
+              "status": "CURRENT"
+            }
           },
-          "schema": {
-            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/service"
+          {
+            "const": {
+              "id": "fitness",
+              "schema": "fitness",
+              "discoverable": true,
+              "global_signup_may_create_pending": true,
+              "activation_mode": "authenticated_first_visit",
+              "product_profile": "fitness.user_profiles",
+              "entitlement_contract": "fitness.entitlements",
+              "status": "CURRENT"
+            }
           },
-          "discoverable": {
-            "type": "boolean"
-          },
-          "global_signup_may_create_pending": {
-            "type": "boolean"
-          },
-          "activation_mode": {
-            "enum": [
-              "authenticated_first_visit",
-              "controlled"
-            ]
-          },
-          "product_profile": {
-            "type": "string",
-            "pattern": "^(discordos|fitness|mazer)\\.user_profiles$"
-          },
-          "entitlement_contract": {
-            "type": "string",
-            "pattern": "^(discordos|fitness|mazer)\\.entitlements$"
-          },
-          "status": {
-            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          {
+            "const": {
+              "id": "mazer",
+              "schema": "mazer",
+              "discoverable": true,
+              "global_signup_may_create_pending": true,
+              "activation_mode": "authenticated_first_visit",
+              "product_profile": "mazer.user_profiles",
+              "entitlement_contract": "mazer.entitlements",
+              "status": "CURRENT"
+            }
           }
-        }
+        ]
       }
     }
   }

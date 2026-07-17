@@ -8,6 +8,8 @@ DiscordOS, Fitness, and Mazer are moving toward one target Supabase platform. Co
 
 This packet freezes contracts only. It makes no live Supabase or hosting change and contains no executable migration SQL.
 
+The project registry is directional and closed by position: `bxtcuhkotumitoqtrcej` is the sole `target`; DiscordOS `nwexsktuuenfdegzrbut`, Fitness `lpswxoyfniocuhljgzbc`, and Mazer `geknvnrmktchljnyddwp` are `source` entries. Reversing those roles is contract-invalid.
+
 ## Decision
 
 ### Identity
@@ -34,7 +36,9 @@ The contracted trigger function is private, `SECURITY DEFINER`, fixed to an empt
 ### Service membership and activation
 
 - The service catalog contains DiscordOS, Fitness, and Mazer.
+- Each service owns exactly its same-named schema, `<service>.user_profiles`, and `<service>.entitlements`; cross-product swaps and undeclared catalog relations are invalid.
 - Membership states are exactly `pending`, `active`, and `suspended`.
+- The transition set is exactly seven entries. Global-signup discovery is authorized only by `system_account_creation`; first-visit activation, reuse, or suspended rejection is `authenticated_self`; suspension and controlled reinstatement are `privileged_service_control`. Missing, extra, duplicate, or contradictory transitions are invalid.
 - Global signup may create a pending membership for discoverable Fitness and Mazer services.
 - First authenticated visit to Fitness or Mazer calls one allowlisted activation boundary.
 - The activation boundary derives the subject from `auth.uid()`; requests cannot contain a target user ID.

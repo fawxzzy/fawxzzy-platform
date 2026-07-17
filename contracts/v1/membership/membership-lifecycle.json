@@ -12,49 +12,56 @@
       "event": "global_signup_discovery",
       "to": "pending",
       "result": "CREATED_PENDING",
-      "profile_effect": "NONE"
+      "profile_effect": "NONE",
+      "authorization": "system_account_creation"
     },
     {
       "from": null,
       "event": "authenticated_first_visit",
       "to": "active",
       "result": "ACTIVATED",
-      "profile_effect": "CREATE_ATOMICALLY"
+      "profile_effect": "CREATE_ATOMICALLY",
+      "authorization": "authenticated_self"
     },
     {
       "from": "pending",
       "event": "authenticated_first_visit",
       "to": "active",
       "result": "ACTIVATED",
-      "profile_effect": "CREATE_ATOMICALLY"
+      "profile_effect": "CREATE_ATOMICALLY",
+      "authorization": "authenticated_self"
     },
     {
       "from": "active",
       "event": "authenticated_first_visit",
       "to": "active",
       "result": "REUSED",
-      "profile_effect": "REUSE"
+      "profile_effect": "REUSE",
+      "authorization": "authenticated_self"
     },
     {
       "from": "active",
       "event": "suspend",
       "to": "suspended",
       "result": "SUSPENDED",
-      "profile_effect": "PRESERVE"
+      "profile_effect": "PRESERVE",
+      "authorization": "privileged_service_control"
     },
     {
       "from": "suspended",
       "event": "authenticated_first_visit",
       "to": "suspended",
       "result": "REJECTED_SUSPENDED",
-      "profile_effect": "PRESERVE"
+      "profile_effect": "PRESERVE",
+      "authorization": "authenticated_self"
     },
     {
       "from": "suspended",
       "event": "controlled_reinstate",
       "to": "active",
       "result": "REINSTATED",
-      "profile_effect": "REUSE"
+      "profile_effect": "REUSE",
+      "authorization": "privileged_service_control"
     }
   ],
   "invariants": {

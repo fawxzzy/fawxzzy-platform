@@ -27,10 +27,11 @@ Entry: repository bootstrap admitted.
 Required evidence:
 
 1. Versioned project, service, identity, membership, activation, migration, cutover, domain/session, and security contracts.
-2. Closed status vocabulary and machine-readable blocked operations.
-3. Deterministic schema, semantic, negative, path, line-ending, JSON, secret, and machine-path checks.
-4. Hosted CI green on the exact contract head.
-5. Approved FP-MAN-001 through FP-MAN-010 policy contracts, with execution gates still independently blocked.
+2. Position-bound registry roles, exact service-to-schema/profile/entitlement mappings, and the complete seven-entry membership lifecycle with explicit authorization semantics.
+3. Closed status vocabulary and machine-readable blocked operations.
+4. Deterministic schema, semantic, negative, path, line-ending, JSON, secret, and machine-path checks.
+5. Hosted CI green on the exact contract head.
+6. Approved FP-MAN-001 through FP-MAN-010 policy contracts, with execution gates still independently blocked.
 
 Exit: draft PR reviewed and accepted. This gate does not admit a target write.
 
@@ -60,6 +61,8 @@ Required evidence:
 
 - ordered schema creation for `platform_shared`, `platform_private`, `discordos`, `fitness`, and `mazer`;
 - explicit schema exposure, grants, RLS policies, trigger, and function definitions matching the security matrix;
+- target/source direction matching the position-bound project registry and product relations matching each service's exact owning schema;
+- lifecycle generation matching all seven admitted transitions and their `system_account_creation`, `authenticated_self`, or `privileged_service_control` authorization boundary;
 - fixed search paths, `NEW.id` derivation in the Auth insert trigger, `auth.uid()` guards only on caller-accessible RPCs, revoked default execute, and negative authorization tests;
 - product-profile predicates that bind membership rows directly to `auth.uid()` and require the caller's service membership to be active;
 - no relation-wide authenticated `UPDATE` on the global profile, no direct update policy, and an empty direct column-update set until a later contract explicitly declares mutable profile columns;
@@ -85,6 +88,7 @@ Required evidence:
 - negative RLS and function tests for anonymous, wrong-user, suspended, stale-session, and direct-write attempts;
 - negative policy tests for unqualified or tautological membership predicates, missing membership, suspended membership, relation-wide global-profile update, and every immutable or server-owned column grant;
 - negative closed-world tests proving any extra policy, predicate/grant drift, or third privileged function fails;
+- negative lifecycle tests for missing, extra, duplicate, contradictory, and suspended self-activation transitions; negative catalog and registry tests for cross-service relation swaps and role reversal;
 - username collision, advisory-availability race, user-number concurrency, reuse, renumbering, and bot/service exclusion tests;
 - adjudicated Auth migration rehearsal proving password-hash preservation where accepted, target-owned signing identity, source-session invalidation, and controlled per-origin reauthentication;
 - exact redirect, recovery, and custom SMTP configuration plan with no live mutation.

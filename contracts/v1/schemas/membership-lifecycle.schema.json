@@ -27,65 +27,82 @@
     },
     "transitions": {
       "type": "array",
-      "minItems": 6,
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "from",
-          "event",
-          "to",
-          "result",
-          "profile_effect"
-        ],
-        "properties": {
-          "from": {
-            "oneOf": [
-              {
-                "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/membership_state"
-              },
-              {
-                "type": "null"
-              }
-            ]
+        "oneOf": [
+          {
+            "const": {
+              "from": null,
+              "event": "global_signup_discovery",
+              "to": "pending",
+              "result": "CREATED_PENDING",
+              "profile_effect": "NONE",
+              "authorization": "system_account_creation"
+            }
           },
-          "event": {
-            "enum": [
-              "global_signup_discovery",
-              "authenticated_first_visit",
-              "suspend",
-              "controlled_reinstate"
-            ]
+          {
+            "const": {
+              "from": null,
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "ACTIVATED",
+              "profile_effect": "CREATE_ATOMICALLY",
+              "authorization": "authenticated_self"
+            }
           },
-          "to": {
-            "oneOf": [
-              {
-                "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/membership_state"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          {
+            "const": {
+              "from": "pending",
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "ACTIVATED",
+              "profile_effect": "CREATE_ATOMICALLY",
+              "authorization": "authenticated_self"
+            }
           },
-          "result": {
-            "enum": [
-              "CREATED_PENDING",
-              "ACTIVATED",
-              "REUSED",
-              "SUSPENDED",
-              "REJECTED_SUSPENDED",
-              "REINSTATED"
-            ]
+          {
+            "const": {
+              "from": "active",
+              "event": "authenticated_first_visit",
+              "to": "active",
+              "result": "REUSED",
+              "profile_effect": "REUSE",
+              "authorization": "authenticated_self"
+            }
           },
-          "profile_effect": {
-            "enum": [
-              "NONE",
-              "CREATE_ATOMICALLY",
-              "REUSE",
-              "PRESERVE"
-            ]
+          {
+            "const": {
+              "from": "active",
+              "event": "suspend",
+              "to": "suspended",
+              "result": "SUSPENDED",
+              "profile_effect": "PRESERVE",
+              "authorization": "privileged_service_control"
+            }
+          },
+          {
+            "const": {
+              "from": "suspended",
+              "event": "authenticated_first_visit",
+              "to": "suspended",
+              "result": "REJECTED_SUSPENDED",
+              "profile_effect": "PRESERVE",
+              "authorization": "authenticated_self"
+            }
+          },
+          {
+            "const": {
+              "from": "suspended",
+              "event": "controlled_reinstate",
+              "to": "active",
+              "result": "REINSTATED",
+              "profile_effect": "REUSE",
+              "authorization": "privileged_service_control"
+            }
           }
-        }
+        ]
       }
     },
     "invariants": {

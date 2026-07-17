@@ -39,6 +39,83 @@ const expectedOperations = Object.freeze([
   'source_deletion'
 ]);
 
+const expectedServiceBindings = Object.freeze({
+  discordos: Object.freeze({
+    schema: 'discordos',
+    product_profile: 'discordos.user_profiles',
+    entitlement_contract: 'discordos.entitlements'
+  }),
+  fitness: Object.freeze({
+    schema: 'fitness',
+    product_profile: 'fitness.user_profiles',
+    entitlement_contract: 'fitness.entitlements'
+  }),
+  mazer: Object.freeze({
+    schema: 'mazer',
+    product_profile: 'mazer.user_profiles',
+    entitlement_contract: 'mazer.entitlements'
+  })
+});
+
+const expectedMembershipTransitions = Object.freeze([
+  Object.freeze({
+    from: null,
+    event: 'global_signup_discovery',
+    to: 'pending',
+    result: 'CREATED_PENDING',
+    profile_effect: 'NONE',
+    authorization: 'system_account_creation'
+  }),
+  Object.freeze({
+    from: null,
+    event: 'authenticated_first_visit',
+    to: 'active',
+    result: 'ACTIVATED',
+    profile_effect: 'CREATE_ATOMICALLY',
+    authorization: 'authenticated_self'
+  }),
+  Object.freeze({
+    from: 'pending',
+    event: 'authenticated_first_visit',
+    to: 'active',
+    result: 'ACTIVATED',
+    profile_effect: 'CREATE_ATOMICALLY',
+    authorization: 'authenticated_self'
+  }),
+  Object.freeze({
+    from: 'active',
+    event: 'authenticated_first_visit',
+    to: 'active',
+    result: 'REUSED',
+    profile_effect: 'REUSE',
+    authorization: 'authenticated_self'
+  }),
+  Object.freeze({
+    from: 'active',
+    event: 'suspend',
+    to: 'suspended',
+    result: 'SUSPENDED',
+    profile_effect: 'PRESERVE',
+    authorization: 'privileged_service_control'
+  }),
+  Object.freeze({
+    from: 'suspended',
+    event: 'authenticated_first_visit',
+    to: 'suspended',
+    result: 'REJECTED_SUSPENDED',
+    profile_effect: 'PRESERVE',
+    authorization: 'authenticated_self'
+  }),
+  Object.freeze({
+    from: 'suspended',
+    event: 'controlled_reinstate',
+    to: 'active',
+    result: 'REINSTATED',
+    profile_effect: 'REUSE',
+    authorization: 'privileged_service_control'
+  })
+]);
+
 const expectedRelationDigests = Object.freeze({
   'platform_shared.global_profiles': 'edcaff331c9fde92d3d72905f5ee0b08d65aa1e9882b93bb05d12d70f649e074',
   'platform_shared.services': '6355c701c16b03370ed099858f4c1458293c608a5f704366b5589caa64528638',
@@ -166,7 +243,11 @@ export function validateSemantics(documents) {
   }
 
   const registry = documents['contracts/v1/registry/project-registry.json'];
+  requireCondition(registry.target.name === 'fawxzzy-platform', 'target project identity changed');
+  requireCondition(registry.target.role === 'target', 'project registry target position must retain role target');
   requireCondition(registry.target.ref === 'bxtcuhkotumitoqtrcej', 'target project ref changed');
+  requireCondition(sameValues(registry.sources.map((source) => source.name), ['DiscordOS', 'Fitness', 'Mazer']), 'source project identities changed');
+  requireCondition(registry.sources.every((source) => source.role === 'source'), 'project registry source positions must retain role source');
   const sourceRefs = Object.fromEntries(registry.sources.map((source) => [source.name, source.ref]));
   requireCondition(sourceRefs.DiscordOS === 'nwexsktuuenfdegzrbut', 'DiscordOS source ref changed');
   requireCondition(sourceRefs.Fitness === 'lpswxoyfniocuhljgzbc', 'Fitness source ref changed');
@@ -185,6 +266,14 @@ export function validateSemantics(documents) {
   const catalog = documents['contracts/v1/catalog/service-catalog.json'];
   requireCondition(catalog.membership_is_billing_entitlement === false, 'membership must not become a billing entitlement');
   requireCondition(sameValues(catalog.services.map((service) => service.id), ['discordos', 'fitness', 'mazer']), 'service catalog membership changed');
+  for (const [id, expectedBinding] of Object.entries(expectedServiceBindings)) {
+    const matchingServices = catalog.services.filter((service) => service.id === id);
+    requireCondition(matchingServices.length === 1, `${id} must have exactly one service catalog entry`);
+    const service = matchingServices[0];
+    requireCondition(service?.schema === expectedBinding.schema, `${id} service schema must remain ${expectedBinding.schema}`);
+    requireCondition(service?.product_profile === expectedBinding.product_profile, `${id} product profile relation must remain ${expectedBinding.product_profile}`);
+    requireCondition(service?.entitlement_contract === expectedBinding.entitlement_contract, `${id} entitlement relation must remain ${expectedBinding.entitlement_contract}`);
+  }
   for (const id of ['fitness', 'mazer']) {
     const service = catalog.services.find((candidate) => candidate.id === id);
     requireCondition(service?.discoverable === true, `${id} must remain discoverable`);
@@ -224,15 +313,25 @@ export function validateSemantics(documents) {
   requireCondition(identity.auth_migration_contract.storage_object_bodies.action_time_status === 'UNKNOWN', 'Storage object body denominator must be re-read at action time');
 
   const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
-  const transitions = new Set(lifecycle.transitions.map((transition) => [transition.from, transition.event, transition.to, transition.result, transition.profile_effect].join('|')));
-  for (const requiredTransition of [
-    '|authenticated_first_visit|active|ACTIVATED|CREATE_ATOMICALLY',
-    'pending|authenticated_first_visit|active|ACTIVATED|CREATE_ATOMICALLY',
-    'active|authenticated_first_visit|active|REUSED|REUSE',
-    'suspended|authenticated_first_visit|suspended|REJECTED_SUSPENDED|PRESERVE'
-  ]) {
-    requireCondition(transitions.has(requiredTransition), `membership transition missing: ${requiredTransition}`);
-  }
+  const transitionSignature = (transition) => JSON.stringify([
+    transition.from,
+    transition.event,
+    transition.to,
+    transition.result,
+    transition.profile_effect,
+    transition.authorization
+  ]);
+  const transitionSignatures = lifecycle.transitions.map(transitionSignature);
+  const expectedTransitionSignatures = expectedMembershipTransitions.map(transitionSignature);
+  requireCondition(
+    lifecycle.transitions.length === expectedMembershipTransitions.length && sameValues(transitionSignatures, expectedTransitionSignatures),
+    'membership lifecycle exact transition set changed'
+  );
+  requireCondition(new Set(transitionSignatures).size === transitionSignatures.length, 'membership lifecycle transitions must be unique');
+  requireCondition(
+    !lifecycle.transitions.some((transition) => transition.from === 'suspended' && transition.event === 'authenticated_first_visit' && transition.to === 'active'),
+    'suspended membership must never self-activate'
+  );
 
   const request = documents['contracts/v1/activation/activation-request.example.json'];
   requireCondition(!Object.hasOwn(request, 'user_id'), 'activation request must not accept user_id');
@@ -361,7 +460,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 16,
+    semantic_check_groups: 19,
     failures
   };
 }
