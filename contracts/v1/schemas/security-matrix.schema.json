@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:security-matrix",
+  "title": "RLS, grant, and function matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "schemas",
+    "relations",
+    "functions",
+    "invariants"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "schemas": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "data_api",
+          "product_tables_allowed"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "public",
+              "platform_shared",
+              "platform_private",
+              "discordos",
+              "fitness",
+              "mazer"
+            ]
+          },
+          "data_api": {
+            "enum": [
+              "exposed",
+              "not_exposed"
+            ]
+          },
+          "product_tables_allowed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 10,
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "functions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/function"
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editable_user_metadata_authorization_forbidden",
+        "public_execute_on_definer_forbidden",
+        "fixed_search_path_required_for_definer",
+        "auth_uid_check_required_for_definer",
+        "membership_is_not_entitlement"
+      ],
+      "properties": {
+        "editable_user_metadata_authorization_forbidden": {
+          "const": true
+        },
+        "public_execute_on_definer_forbidden": {
+          "const": true
+        },
+        "fixed_search_path_required_for_definer": {
+          "const": true
+        },
+        "auth_uid_check_required_for_definer": {
+          "const": true
+        },
+        "membership_is_not_entitlement": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "grants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role",
+        "supabase_auth_admin"
+      ],
+      "properties": {
+        "PUBLIC": {
+          "$ref": "#/$defs/operations"
+        },
+        "anon": {
+          "$ref": "#/$defs/operations"
+        },
+        "authenticated": {
+          "$ref": "#/$defs/operations"
+        },
+        "service_role": {
+          "$ref": "#/$defs/operations"
+        },
+        "supabase_auth_admin": {
+          "$ref": "#/$defs/operations"
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ]
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "command",
+        "role",
+        "using",
+        "with_check"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "enum": [
+            "SELECT",
+            "INSERT",
+            "UPDATE",
+            "DELETE"
+          ]
+        },
+        "role": {
+          "enum": [
+            "anon",
+            "authenticated"
+          ]
+        },
+        "using": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "with_check": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "rls_enabled",
+        "rls_forced",
+        "grants",
+        "policies"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^(platform_shared|platform_private|discordos|fitness|mazer)\\.[a-z_]+$"
+        },
+        "kind": {
+          "enum": [
+            "shared_identity",
+            "shared_service",
+            "private_ledger",
+            "private_adjudication",
+            "product_profile",
+            "product_entitlement"
+          ]
+        },
+        "rls_enabled": {
+          "const": true
+        },
+        "rls_forced": {
+          "const": true
+        },
+        "grants": {
+          "$ref": "#/$defs/grants"
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/policy"
+          }
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "security",
+        "exposure",
+        "fixed_search_path",
+        "auth_uid_check",
+        "user_id_argument_allowed",
+        "execute_grants",
+        "execute_revoked_from",
+        "atomic_relations"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^(platform_shared|platform_private)\\.[a-z_]+$"
+        },
+        "security": {
+          "enum": [
+            "DEFINER",
+            "INVOKER"
+          ]
+        },
+        "exposure": {
+          "enum": [
+            "allowlisted_rpc",
+            "trigger_only"
+          ]
+        },
+        "fixed_search_path": {
+          "type": "string"
+        },
+        "auth_uid_check": {
+          "type": "boolean"
+        },
+        "user_id_argument_allowed": {
+          "type": "boolean"
+        },
+        "execute_grants": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "authenticated",
+              "service_role",
+              "supabase_auth_admin"
+            ]
+          }
+        },
+        "execute_revoked_from": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "PUBLIC",
+              "anon",
+              "authenticated",
+              "service_role"
+            ]
+          }
+        },
+        "atomic_relations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

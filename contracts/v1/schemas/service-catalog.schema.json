@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:service-catalog",
+  "title": "Service catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "membership_is_billing_entitlement",
+    "services"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "membership_is_billing_entitlement": {
+      "const": false
+    },
+    "services": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "schema",
+          "discoverable",
+          "global_signup_may_create_pending",
+          "activation_mode",
+          "product_profile",
+          "entitlement_contract",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/service"
+          },
+          "schema": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/service"
+          },
+          "discoverable": {
+            "type": "boolean"
+          },
+          "global_signup_may_create_pending": {
+            "type": "boolean"
+          },
+          "activation_mode": {
+            "enum": [
+              "authenticated_first_visit",
+              "controlled"
+            ]
+          },
+          "product_profile": {
+            "type": "string",
+            "pattern": "^(discordos|fitness|mazer)\\.user_profiles$"
+          },
+          "entitlement_contract": {
+            "type": "string",
+            "pattern": "^(discordos|fitness|mazer)\\.entitlements$"
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          }
+        }
+      }
+    }
+  }
+}

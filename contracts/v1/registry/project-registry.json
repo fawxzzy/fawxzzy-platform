@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "target": {
+    "name": "fawxzzy-platform",
+    "role": "target",
+    "ref": "bxtcuhkotumitoqtrcej",
+    "availability": "active",
+    "status": "CURRENT"
+  },
+  "sources": [
+    {
+      "name": "DiscordOS",
+      "role": "source",
+      "ref": "nwexsktuuenfdegzrbut",
+      "availability": "active",
+      "status": "CURRENT"
+    },
+    {
+      "name": "Fitness",
+      "role": "source",
+      "ref": "lpswxoyfniocuhljgzbc",
+      "availability": "active",
+      "status": "CURRENT"
+    },
+    {
+      "name": "Mazer",
+      "role": "source",
+      "ref": "geknvnrmktchljnyddwp",
+      "availability": "active",
+      "status": "CURRENT"
+    }
+  ],
+  "operation_gates": [
+    {
+      "operation": "target_writes",
+      "status": "BLOCKED",
+      "reason": "contract-only packet"
+    },
+    {
+      "operation": "data_import",
+      "status": "BLOCKED",
+      "reason": "transport plan and rehearsal proof required"
+    },
+    {
+      "operation": "auth_import",
+      "status": "BLOCKED",
+      "reason": "identity adjudication and controlled reauthentication required"
+    },
+    {
+      "operation": "vercel_env_cutover",
+      "status": "BLOCKED",
+      "reason": "target parity and action-time approval required"
+    },
+    {
+      "operation": "production_deploy",
+      "status": "BLOCKED",
+      "reason": "production deployment is outside this packet"
+    },
+    {
+      "operation": "source_pause",
+      "status": "BLOCKED",
+      "reason": "source projects must remain active"
+    },
+    {
+      "operation": "source_deletion",
+      "status": "BLOCKED",
+      "reason": "separate destructive approval and retirement proof required"
+    }
+  ],
+  "invariants": {
+    "refs_only": true,
+    "credentials_present": false,
+    "source_projects_must_remain_active": true,
+    "remote_link_state_present": false
+  }
+}

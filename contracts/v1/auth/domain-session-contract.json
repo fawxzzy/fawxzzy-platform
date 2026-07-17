@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "origins": [
+    {
+      "role": "hub",
+      "origin": "https://fawxzzy.com",
+      "browser_session": "no_shared_session_assumption"
+    },
+    {
+      "role": "account",
+      "origin": "https://account.fawxzzy.com",
+      "browser_session": "per_origin"
+    },
+    {
+      "role": "fitness",
+      "origin": "https://fitness.fawxzzy.com",
+      "browser_session": "per_origin"
+    },
+    {
+      "role": "mazer",
+      "origin": "https://mazer.fawxzzy.com",
+      "browser_session": "per_origin"
+    }
+  ],
+  "auth_configuration": {
+    "site_url": "https://account.fawxzzy.com",
+    "exact_redirect_urls": [
+      "https://account.fawxzzy.com/auth/callback",
+      "https://fitness.fawxzzy.com/auth/callback",
+      "https://mazer.fawxzzy.com/auth/callback"
+    ],
+    "exact_recovery_urls": [
+      "https://account.fawxzzy.com/auth/recovery",
+      "https://fitness.fawxzzy.com/auth/recovery",
+      "https://mazer.fawxzzy.com/auth/recovery"
+    ],
+    "production_wildcards_allowed": false,
+    "preview_redirects": {
+      "status": "BLOCKED",
+      "urls": []
+    }
+  },
+  "session_model": {
+    "phase": 1,
+    "shared_auth_identity": true,
+    "shared_database_contracts": true,
+    "browser_sessions": "per_origin",
+    "cross_origin_sso": {
+      "status": "BLOCKED",
+      "disposition": "deferred_future_phase"
+    }
+  },
+  "smtp": {
+    "production_custom_smtp": "REQUIRED",
+    "provider_selection": "OWNER_DECISION",
+    "credentials_present": false,
+    "live_configuration_allowed": false
+  }
+}

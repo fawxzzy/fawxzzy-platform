@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "rules": {
+    "one_target_auth_user_per_person": true,
+    "normalized_email_is_not_adjudication": true,
+    "automatic_source_merge_forbidden": true,
+    "controlled_reauthentication_required": true
+  },
+  "entries": [],
+  "ledger": {
+    "relation": "platform_private.source_identity_ledger",
+    "append_only": true,
+    "source_provenance_required": true,
+    "semantic_cross_product_merge_forbidden": true
+  },
+  "collision_summary": {
+    "kind": "normalized_email",
+    "sources": [
+      "fitness",
+      "mazer"
+    ],
+    "count": 1,
+    "status": "OWNER_DECISION",
+    "pii_included": false
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:migration-gate-state",
+  "title": "Migration gate state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "sql_generation",
+    "semantic_cross_product_merges",
+    "operation_gates",
+    "required_evidence"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "sql_generation": {
+      "const": "next_separately_authorized_packet"
+    },
+    "semantic_cross_product_merges": {
+      "const": "forbidden"
+    },
+    "operation_gates": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/blocked_gate"
+      }
+    },
+    "required_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          }
+        }
+      }
+    }
+  }
+}

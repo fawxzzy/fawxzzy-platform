@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:project-registry",
+  "title": "Project registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "target",
+    "sources",
+    "operation_gates",
+    "invariants"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "target": {
+      "$ref": "#/$defs/project"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/project"
+      }
+    },
+    "operation_gates": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/blocked_gate"
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refs_only",
+        "credentials_present",
+        "source_projects_must_remain_active",
+        "remote_link_state_present"
+      ],
+      "properties": {
+        "refs_only": {
+          "const": true
+        },
+        "credentials_present": {
+          "const": false
+        },
+        "source_projects_must_remain_active": {
+          "const": true
+        },
+        "remote_link_state_present": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "ref",
+        "availability",
+        "status"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "enum": [
+            "target",
+            "source"
+          ]
+        },
+        "ref": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        },
+        "availability": {
+          "const": "active"
+        },
+        "status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        }
+      }
+    }
+  }
+}

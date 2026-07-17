@@ -1,0 +1,37 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "membership_is_billing_entitlement": false,
+  "services": [
+    {
+      "id": "discordos",
+      "schema": "discordos",
+      "discoverable": false,
+      "global_signup_may_create_pending": false,
+      "activation_mode": "controlled",
+      "product_profile": "discordos.user_profiles",
+      "entitlement_contract": "discordos.entitlements",
+      "status": "CURRENT"
+    },
+    {
+      "id": "fitness",
+      "schema": "fitness",
+      "discoverable": true,
+      "global_signup_may_create_pending": true,
+      "activation_mode": "authenticated_first_visit",
+      "product_profile": "fitness.user_profiles",
+      "entitlement_contract": "fitness.entitlements",
+      "status": "CURRENT"
+    },
+    {
+      "id": "mazer",
+      "schema": "mazer",
+      "discoverable": true,
+      "global_signup_may_create_pending": true,
+      "activation_mode": "authenticated_first_visit",
+      "product_profile": "mazer.user_profiles",
+      "entitlement_contract": "mazer.entitlements",
+      "status": "CURRENT"
+    }
+  ]
+}

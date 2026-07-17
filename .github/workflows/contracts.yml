@@ -1,0 +1,32 @@
+name: contracts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/shared-identity-contract
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Validate schemas and semantics
+        run: npm run validate
+      - name: Run negative and deterministic tests
+        run: npm test
+      - name: Run full repository verification
+        run: npm run verify

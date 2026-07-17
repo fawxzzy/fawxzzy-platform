@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:activation-request",
+  "title": "Service activation request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "request_id",
+    "service",
+    "requested_at"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "request_id": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/uuid"
+    },
+    "service": {
+      "enum": [
+        "fitness",
+        "mazer"
+      ]
+    },
+    "requested_at": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/timestamp"
+    }
+  }
+}

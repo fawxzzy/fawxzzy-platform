@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:domain-session-contract",
+  "title": "Domain, redirect, session, and SMTP contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "origins",
+    "auth_configuration",
+    "session_model",
+    "smtp"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "origins": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "origin",
+          "browser_session"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "hub",
+              "account",
+              "fitness",
+              "mazer"
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "pattern": "^https://(account\\.|fitness\\.|mazer\\.)?fawxzzy\\.com$"
+          },
+          "browser_session": {
+            "enum": [
+              "per_origin",
+              "no_shared_session_assumption"
+            ]
+          }
+        }
+      }
+    },
+    "auth_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site_url",
+        "exact_redirect_urls",
+        "exact_recovery_urls",
+        "production_wildcards_allowed",
+        "preview_redirects"
+      ],
+      "properties": {
+        "site_url": {
+          "const": "https://account.fawxzzy.com"
+        },
+        "exact_redirect_urls": {
+          "$ref": "#/$defs/urls"
+        },
+        "exact_recovery_urls": {
+          "$ref": "#/$defs/urls"
+        },
+        "production_wildcards_allowed": {
+          "const": false
+        },
+        "preview_redirects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "urls"
+          ],
+          "properties": {
+            "status": {
+              "const": "BLOCKED"
+            },
+            "urls": {
+              "const": []
+            }
+          }
+        }
+      }
+    },
+    "session_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase",
+        "shared_auth_identity",
+        "shared_database_contracts",
+        "browser_sessions",
+        "cross_origin_sso"
+      ],
+      "properties": {
+        "phase": {
+          "const": 1
+        },
+        "shared_auth_identity": {
+          "const": true
+        },
+        "shared_database_contracts": {
+          "const": true
+        },
+        "browser_sessions": {
+          "const": "per_origin"
+        },
+        "cross_origin_sso": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "disposition"
+          ],
+          "properties": {
+            "status": {
+              "const": "BLOCKED"
+            },
+            "disposition": {
+              "const": "deferred_future_phase"
+            }
+          }
+        }
+      }
+    },
+    "smtp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_custom_smtp",
+        "provider_selection",
+        "credentials_present",
+        "live_configuration_allowed"
+      ],
+      "properties": {
+        "production_custom_smtp": {
+          "const": "REQUIRED"
+        },
+        "provider_selection": {
+          "const": "OWNER_DECISION"
+        },
+        "credentials_present": {
+          "const": false
+        },
+        "live_configuration_allowed": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "urls": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^https://(account|fitness|mazer)\\.fawxzzy\\.com/auth/(callback|recovery)$"
+      }
+    }
+  }
+}

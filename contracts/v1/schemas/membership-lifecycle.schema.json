@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:membership-lifecycle",
+  "title": "Membership lifecycle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "states",
+    "transitions",
+    "invariants"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "states": {
+      "const": [
+        "pending",
+        "active",
+        "suspended"
+      ]
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "event",
+          "to",
+          "result",
+          "profile_effect"
+        ],
+        "properties": {
+          "from": {
+            "oneOf": [
+              {
+                "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/membership_state"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "event": {
+            "enum": [
+              "global_signup_discovery",
+              "authenticated_first_visit",
+              "suspend",
+              "controlled_reinstate"
+            ]
+          },
+          "to": {
+            "oneOf": [
+              {
+                "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/membership_state"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "enum": [
+              "CREATED_PENDING",
+              "ACTIVATED",
+              "REUSED",
+              "SUSPENDED",
+              "REJECTED_SUSPENDED",
+              "REINSTATED"
+            ]
+          },
+          "profile_effect": {
+            "enum": [
+              "NONE",
+              "CREATE_ATOMICALLY",
+              "REUSE",
+              "PRESERVE"
+            ]
+          }
+        }
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotent",
+        "activation_and_profile_atomic",
+        "suspended_never_self_activates",
+        "membership_is_not_entitlement"
+      ],
+      "properties": {
+        "idempotent": {
+          "const": true
+        },
+        "activation_and_profile_atomic": {
+          "const": true
+        },
+        "suspended_never_self_activates": {
+          "const": true
+        },
+        "membership_is_not_entitlement": {
+          "const": true
+        }
+      }
+    }
+  }
+}

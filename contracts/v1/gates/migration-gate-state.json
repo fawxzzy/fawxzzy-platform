@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "sql_generation": "next_separately_authorized_packet",
+  "semantic_cross_product_merges": "forbidden",
+  "operation_gates": [
+    {
+      "operation": "target_writes",
+      "status": "BLOCKED",
+      "reason": "no executable target migration in this packet"
+    },
+    {
+      "operation": "data_import",
+      "status": "BLOCKED",
+      "reason": "content-addressed transport manifests and rehearsal required"
+    },
+    {
+      "operation": "auth_import",
+      "status": "BLOCKED",
+      "reason": "identity adjudication and controlled reauthentication required"
+    },
+    {
+      "operation": "vercel_env_cutover",
+      "status": "BLOCKED",
+      "reason": "application parity is unproven"
+    },
+    {
+      "operation": "production_deploy",
+      "status": "BLOCKED",
+      "reason": "production mutation is not authorized"
+    },
+    {
+      "operation": "source_pause",
+      "status": "BLOCKED",
+      "reason": "source traffic and rollback capability must be preserved"
+    },
+    {
+      "operation": "source_deletion",
+      "status": "BLOCKED",
+      "reason": "retirement gate and action-time approval required"
+    }
+  ],
+  "required_evidence": [
+    {
+      "name": "source schema and data manifests",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "identity collision adjudication",
+      "status": "OWNER_DECISION"
+    },
+    {
+      "name": "generated SQL review and local verification",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "rehearsal parity and rollback proof",
+      "status": "REQUIRED"
+    }
+  ]
+}

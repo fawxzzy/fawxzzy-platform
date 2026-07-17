@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state",
+  "title": "Cutover and retirement gate state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "source_projects_must_remain_active",
+    "cutover_gates",
+    "retirement_gates",
+    "operation_gates"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "source_projects_must_remain_active": {
+      "const": true
+    },
+    "cutover_gates": {
+      "$ref": "#/$defs/gates"
+    },
+    "retirement_gates": {
+      "$ref": "#/$defs/gates"
+    },
+    "operation_gates": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/blocked_gate"
+      }
+    }
+  },
+  "$defs": {
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "states": [
+    "pending",
+    "active",
+    "suspended"
+  ],
+  "transitions": [
+    {
+      "from": null,
+      "event": "global_signup_discovery",
+      "to": "pending",
+      "result": "CREATED_PENDING",
+      "profile_effect": "NONE"
+    },
+    {
+      "from": null,
+      "event": "authenticated_first_visit",
+      "to": "active",
+      "result": "ACTIVATED",
+      "profile_effect": "CREATE_ATOMICALLY"
+    },
+    {
+      "from": "pending",
+      "event": "authenticated_first_visit",
+      "to": "active",
+      "result": "ACTIVATED",
+      "profile_effect": "CREATE_ATOMICALLY"
+    },
+    {
+      "from": "active",
+      "event": "authenticated_first_visit",
+      "to": "active",
+      "result": "REUSED",
+      "profile_effect": "REUSE"
+    },
+    {
+      "from": "active",
+      "event": "suspend",
+      "to": "suspended",
+      "result": "SUSPENDED",
+      "profile_effect": "PRESERVE"
+    },
+    {
+      "from": "suspended",
+      "event": "authenticated_first_visit",
+      "to": "suspended",
+      "result": "REJECTED_SUSPENDED",
+      "profile_effect": "PRESERVE"
+    },
+    {
+      "from": "suspended",
+      "event": "controlled_reinstate",
+      "to": "active",
+      "result": "REINSTATED",
+      "profile_effect": "REUSE"
+    }
+  ],
+  "invariants": {
+    "idempotent": true,
+    "activation_and_profile_atomic": true,
+    "suspended_never_self_activates": true,
+    "membership_is_not_entitlement": true
+  }
+}
