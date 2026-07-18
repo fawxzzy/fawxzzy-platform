@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
+import { generatedInertArtifactContractV1, root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
 import {
   generatedFitnessFunctionSearchPathContractV1,
   generatedFunctionPrivilegeContractV1,
   verifyEffectiveFunctionAcls,
   verifyGeneratedFitnessFunctionSearchPaths,
+  verifyGeneratedArtifactPathBoundary,
   verifyGeneratedFunctionPrivileges,
   verifySchemaCreationOrder
 } from '../scripts/verify-target-bootstrap.mjs';
+
+const inertArtifactDirectory = `${root}/${generatedInertArtifactContractV1.directory}`;
 
 test('catalog simulation applies create, replace, and drop in order', () => {
   const catalog = simulateCatalog(splitSqlStatements(`
@@ -55,7 +58,7 @@ test('actual generated product slices lead with their idempotent namespace creat
     ['00000000000001_mazer_schema_inert.sql', 'mazer'],
     ['00000000000002_fitness_schema_inert.sql', 'fitness']
   ]) {
-    const statements = splitSqlStatements(fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8'));
+    const statements = splitSqlStatements(fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'));
     assert.match(statements[0], new RegExp(`create\\s+schema\\s+if\\s+not\\s+exists\\s+${schema}`, 'i'));
   }
 });
@@ -86,10 +89,10 @@ test('versioned generated function privilege contract freezes the complete curre
     'fitness.repack_session_exercise_positions_after_delete()'
   ]);
   assert.ok(Object.values(generatedFunctionPrivilegeContractV1.functions).every((entry) => entry.allowed_execute_roles.length === 0));
-  const files = fs.readdirSync(`${root}/supabase/migrations`)
+  const files = fs.readdirSync(inertArtifactDirectory)
     .filter((filename) => filename.endsWith('.sql'))
     .sort()
-    .map((filename) => [filename, fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8')]);
+    .map((filename) => [filename, fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8')]);
   assert.deepEqual(verifyGeneratedFunctionPrivileges(files, generatedFunctionPrivilegeContractV1), []);
 });
 
@@ -104,6 +107,25 @@ test('versioned Fitness function search_path contract freezes the complete effec
     'fitness.repack_session_exercise_positions_after_delete()'
   ]);
   const filename = generatedFitnessFunctionSearchPathContractV1.source_file;
-  const text = fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8');
+  const text = fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8');
   assert.deepEqual(verifyGeneratedFitnessFunctionSearchPaths(filename, text), []);
+});
+
+test('generated artifact path verifier rejects executable, missing, duplicate, and drifted representations', () => {
+  const expected = generatedInertArtifactContractV1.filenames.map((filename) => `${generatedInertArtifactContractV1.directory}/${filename}`);
+  assert.deepEqual(verifyGeneratedArtifactPathBoundary(expected), []);
+
+  const cases = [
+    expected.slice(1),
+    [...expected, expected[0]],
+    [...expected.slice(1), `bootstrap/artifacts/review-sql/${generatedInertArtifactContractV1.filenames[0]}`],
+    [...expected, `supabase/migrations/${generatedInertArtifactContractV1.filenames[0]}`],
+    [...expected, `${generatedInertArtifactContractV1.directory}/copy.sql`]
+  ];
+  for (const paths of cases) assert.notEqual(verifyGeneratedArtifactPathBoundary(paths).length, 0, paths.join('\n'));
+});
+
+test('an APPLY_ADMITTED comment cannot make an executable migration path inert', () => {
+  const executablePath = `supabase/migrations/${generatedInertArtifactContractV1.filenames[0]}`;
+  assert.match(verifyGeneratedArtifactPathBoundary([executablePath]).join('\n'), /standard Supabase migration discovery/);
 });

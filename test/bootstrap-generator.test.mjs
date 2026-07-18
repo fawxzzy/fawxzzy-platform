@@ -1,22 +1,35 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import {
+  generatedInertArtifactContractV1,
   generateTargetBootstrap,
   namespaceRewrite,
   parseFunctionDefinition,
   parseFunctionPrivilegeStatement,
   parseFunctionSearchPath,
+  resolveGeneratedInertArtifactPath,
   root,
   splitSqlStatements,
   verifyFitnessFunctionSearchPaths
 } from '../scripts/generate-target-bootstrap.mjs';
 
+const inertArtifactDirectory = `${root}/${generatedInertArtifactContractV1.directory}`;
+
+function listSqlFiles(directory) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = `${directory}/${entry.name}`;
+    return entry.isDirectory() ? listSqlFiles(entryPath) : entry.isFile() && entry.name.endsWith('.sql') ? [entryPath] : [];
+  }).sort();
+}
+
 function digestOutputs() {
   const paths = [
     ...fs.readdirSync(`${root}/bootstrap/manifests`).sort().map((name) => `bootstrap/manifests/${name}`),
-    ...fs.readdirSync(`${root}/supabase/migrations`).sort().map((name) => `supabase/migrations/${name}`)
+    ...fs.readdirSync(inertArtifactDirectory).sort().map((name) => `${generatedInertArtifactContractV1.directory}/${name}`)
   ];
   const hash = crypto.createHash('sha256');
   for (const relativePath of paths) hash.update(relativePath).update('\0').update(fs.readFileSync(`${root}/${relativePath}`));
@@ -36,9 +49,19 @@ test('two generator runs are byte-identical', () => {
 });
 
 test('every generated SQL artifact carries the non-apply marker', () => {
-  for (const filename of fs.readdirSync(`${root}/supabase/migrations`)) {
-    assert.match(fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8'), /^-- APPLY_ADMITTED=false\n/);
+  for (const filename of fs.readdirSync(inertArtifactDirectory)) {
+    assert.match(fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'), /^-- APPLY_ADMITTED=false\n/);
   }
+});
+
+test('generated SQL is path-level inert and closed to the exact artifact namespace', () => {
+  assert.deepEqual(listSqlFiles(`${root}/supabase/migrations`), []);
+  assert.deepEqual(fs.readdirSync(inertArtifactDirectory).sort(), generatedInertArtifactContractV1.filenames);
+  for (const filename of generatedInertArtifactContractV1.filenames) {
+    assert.equal(resolveGeneratedInertArtifactPath(filename), path.join(inertArtifactDirectory, filename));
+  }
+  assert.throws(() => resolveGeneratedInertArtifactPath('../escape.sql'), /undeclared generated inert artifact/);
+  assert.throws(() => resolveGeneratedInertArtifactPath('copy.sql'), /undeclared generated inert artifact/);
 });
 
 test('Fitness namespace rewriting canonicalizes only the function-header search_path clause', () => {
@@ -103,7 +126,7 @@ test('Fitness search_path regeneration preserves every non-Fitness generated SQL
     '00000000000004_platform_security_overlay_inert.sql': '591673cf965aaa19c2cf5dcdfc3458fae43173bfa435dc03b0c0c49589709541'
   };
   for (const [filename, digest] of Object.entries(expected)) {
-    const actual = crypto.createHash('sha256').update(fs.readFileSync(`${root}/supabase/migrations/${filename}`)).digest('hex');
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(`${inertArtifactDirectory}/${filename}`)).digest('hex');
     assert.equal(actual, digest, filename);
   }
 });
@@ -122,7 +145,7 @@ test('generated function ACL closure is exact, unique, and follows the final def
   for (const [filename, signatureCounts] of expected) {
     const signatures = [...signatureCounts.keys()].sort();
     const fallback = filename.includes('_fitness_') ? 'fitness' : 'discordos';
-    const statements = splitSqlStatements(fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8'));
+    const statements = splitSqlStatements(fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'));
     const definitions = new Map();
     const privileges = new Map();
     statements.forEach((statement, index) => {

@@ -7,6 +7,7 @@ import {
   analyzeFunctionDependencyStatement,
   classifyStatement,
   findHeldFunctionReferences,
+  generatedInertArtifactContractV1,
   generateTargetBootstrap,
   gitBlobSha1,
   parseFunctionDefinition,
@@ -16,7 +17,9 @@ import {
   splitSqlStatements,
   verifyFitnessFunctionSearchPaths
 } from './generate-target-bootstrap.mjs';
+import { listWorkingTreeFiles } from './lib/repository.mjs';
 
+const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
 const expectedGeneratedFiles = [
   '00000000000001_mazer_schema_inert.sql',
   '00000000000002_fitness_schema_inert.sql',
@@ -188,7 +191,7 @@ function readJson(relativePath) {
 function digestPackageOutputs() {
   const paths = [
     ...expectedManifestFiles.map((name) => `bootstrap/manifests/${name}`),
-    ...expectedGeneratedFiles.map((name) => `supabase/migrations/${name}`)
+    ...expectedGeneratedFiles.map((name) => `${expectedGeneratedArtifactDirectory}/${name}`)
   ];
   const records = paths.map((relativePath) => ({
     path: relativePath,
@@ -514,8 +517,29 @@ export function inspectInertSql(filename, text, heldFunctionTargets = [], expect
   return failures.sort();
 }
 
+export function verifyGeneratedArtifactPathBoundary(relativeSqlPaths, contract = generatedInertArtifactContractV1) {
+  const failures = [];
+  const normalized = relativeSqlPaths.map((relativePath) => relativePath.replaceAll('\\', '/'));
+  const sorted = [...normalized].sort((left, right) => left.localeCompare(right));
+  const expectedPaths = expectedGeneratedFiles.map((filename) => `${expectedGeneratedArtifactDirectory}/${filename}`);
+  const inertArtifactPaths = sorted.filter((relativePath) => relativePath.startsWith(`${expectedGeneratedArtifactDirectory}/`));
+  const expectedFilenameOccurrences = sorted.filter((relativePath) => expectedGeneratedFiles.includes(path.posix.basename(relativePath)));
+  const standardMigrationPaths = sorted.filter((relativePath) => /^supabase\/migrations(?:\/|$)/.test(relativePath));
+
+  fail(failures, contract.version === '1.0.0', 'generated inert artifact contract version drift');
+  fail(failures, contract.directory === expectedGeneratedArtifactDirectory, 'generated inert artifact directory drift');
+  fail(failures, canonicalJson(contract.filenames) === canonicalJson(expectedGeneratedFiles), 'generated inert artifact filename contract drift');
+  fail(failures, new Set(normalized).size === normalized.length, 'generated inert artifact path denominator contains a duplicate');
+  fail(failures, standardMigrationPaths.length === 0, `standard Supabase migration discovery must contain zero SQL files, found ${standardMigrationPaths.join(', ')}`);
+  fail(failures, canonicalJson(inertArtifactPaths) === canonicalJson(expectedPaths), 'generated inert artifact path denominator drift');
+  fail(failures, canonicalJson(expectedFilenameOccurrences) === canonicalJson(expectedPaths), 'generated inert artifact exists outside its admitted non-executable namespace');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 function verifyGeneratedSql(config, dispositions, failures) {
-  const directory = path.join(root, 'supabase', 'migrations');
+  const repositorySqlPaths = listWorkingTreeFiles(root).filter((relativePath) => relativePath.endsWith('.sql'));
+  failures.push(...verifyGeneratedArtifactPathBoundary(repositorySqlPaths));
+  const directory = path.join(root, ...expectedGeneratedArtifactDirectory.split('/'));
   const actualFiles = fs.readdirSync(directory).filter((name) => name.endsWith('.sql')).sort();
   fail(failures, canonicalJson(actualFiles) === canonicalJson(expectedGeneratedFiles), 'generated SQL path denominator drift');
   let resolvedDenyPolicyCount = 0;
@@ -555,7 +579,7 @@ function verifyNoForbiddenIdentities(config, failures) {
   const newPackagePaths = [
     'bootstrap/generator/config.v1.json',
     ...expectedManifestFiles.map((name) => `bootstrap/manifests/${name}`),
-    ...expectedGeneratedFiles.map((name) => `supabase/migrations/${name}`),
+    ...expectedGeneratedFiles.map((name) => `${expectedGeneratedArtifactDirectory}/${name}`),
     'scripts/generate-target-bootstrap.mjs',
     'scripts/verify-target-bootstrap.mjs',
     'test/ddl-parser.test.mjs',
@@ -608,6 +632,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
     checks: [
       'immutable_source_identity', 'frozen_chain_recomputation', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
+      'path_level_inertness',
       'schema_creation_order', 'discordos_public_rpc_hold', 'held_function_dependency_closure',
       'provider_managed_skip', 'private_schema_exposure', 'effective_function_acl', 'effective_function_search_path', 'no_network_hooks',
       'no_provider_commands', 'no_project_refs', 'deterministic_generation'

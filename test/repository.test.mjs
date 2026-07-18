@@ -59,7 +59,26 @@ test('nested work and outputs paths cannot bypass repository checks', () => {
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: path is outside')));
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: Supabase secret key detected')));
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: machine-specific absolute path detected')));
-  assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/migration.sql: SQL is outside the inert bootstrap boundary')));
+  assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/migration.sql: SQL is outside the inert source and review-artifact boundary')));
+});
+
+test('blocked bootstrap SQL is admitted only in the exact non-executable artifact namespace', () => {
+  const marker = '-- APPLY_ADMITTED=false\nselect 1;\n';
+  assert.deepEqual(validateRepositoryEntries([{
+    relativePath: 'bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql',
+    content: marker
+  }]), []);
+
+  for (const relativePath of [
+    'supabase/migrations/00000000000001_mazer_schema_inert.sql',
+    'bootstrap/artifacts/review-sql/00000000000001_mazer_schema_inert.sql',
+    'bootstrap/artifacts/inert-sql/copy.sql',
+    'migrations/00000000000001_mazer_schema_inert.sql'
+  ]) {
+    const failures = validateRepositoryEntries([{ relativePath, content: marker }]);
+    assert.ok(failures.some((failure) => failure.includes('path is outside the repository allowlist')), relativePath);
+    assert.ok(failures.some((failure) => failure.includes('SQL is outside the inert source and review-artifact boundary')), relativePath);
+  }
 });
 
 test('root local exclusions apply only to directories while same-named files stay visible', () => {

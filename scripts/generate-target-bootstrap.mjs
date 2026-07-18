@@ -7,7 +7,42 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(scriptDirectory, '..');
 const configPath = path.join(root, 'bootstrap', 'generator', 'config.v1.json');
 const manifestsDirectory = path.join(root, 'bootstrap', 'manifests');
-const outputDirectory = path.join(root, 'supabase', 'migrations');
+export const generatedInertArtifactContractV1 = Object.freeze({
+  version: '1.0.0',
+  directory: 'bootstrap/artifacts/inert-sql',
+  filenames: Object.freeze([
+    '00000000000001_mazer_schema_inert.sql',
+    '00000000000002_fitness_schema_inert.sql',
+    '00000000000003_discordos_schema_inert.sql',
+    '00000000000004_platform_security_overlay_inert.sql'
+  ])
+});
+const outputDirectory = path.join(root, ...generatedInertArtifactContractV1.directory.split('/'));
+const standardMigrationDirectory = path.join(root, 'supabase', 'migrations');
+
+export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = root) {
+  if (!generatedInertArtifactContractV1.filenames.includes(filename)) {
+    throw new Error(`undeclared generated inert artifact: ${filename}`);
+  }
+  const directory = path.resolve(repositoryRoot, ...generatedInertArtifactContractV1.directory.split('/'));
+  const resolved = path.resolve(directory, filename);
+  if (path.dirname(resolved) !== directory) throw new Error(`generated inert artifact escaped its directory: ${filename}`);
+  return resolved;
+}
+
+function listSqlFiles(directory, prefix = '') {
+  if (!fs.existsSync(directory)) return [];
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`${relativePath}: link-like SQL discovery entry is unsupported`);
+    if (entry.isDirectory()) files.push(...listSqlFiles(absolutePath, relativePath));
+    else if (entry.isFile() && entry.name.endsWith('.sql')) files.push(relativePath);
+    else if (!entry.isFile()) throw new Error(`${relativePath}: unsupported SQL discovery entry type`);
+  }
+  return files;
+}
 
 export function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -1073,11 +1108,19 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
 }
 
 function writeGenerated(files) {
+  const actualFiles = [...files.keys()].sort();
+  if (canonicalJson(actualFiles) !== canonicalJson(generatedInertArtifactContractV1.filenames)) {
+    throw new Error('generated inert artifact filename denominator drift');
+  }
+  const executableSql = listSqlFiles(standardMigrationDirectory);
+  if (executableSql.length > 0) {
+    throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${executableSql.join(', ')}`);
+  }
   fs.mkdirSync(outputDirectory, { recursive: true });
   for (const existing of fs.readdirSync(outputDirectory)) {
     if (existing.endsWith('.sql') && !files.has(existing)) throw new Error(`undeclared generated SQL exists: ${existing}`);
   }
-  for (const [filename, content] of files) fs.writeFileSync(path.join(outputDirectory, filename), content, 'utf8');
+  for (const [filename, content] of files) fs.writeFileSync(resolveGeneratedInertArtifactPath(filename), content, 'utf8');
 }
 
 function writeManifest(name, value) {

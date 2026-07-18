@@ -26,7 +26,9 @@ Generation is fail-closed. Fitness and Mazer `public` product identities are rew
 
 Public DiscordOS RPC definitions are a separate control-plane boundary. Both `CREATE FUNCTION` and `CREATE OR REPLACE FUNCTION` forms are held regardless of case or whitespace. When a function definition is held, the generator transitively holds every source statement that resolves or references it, including grants, revokes, comments, triggers, policies, calls, and dependent function definitions. The generated DiscordOS database slice therefore retains admitted non-RPC schema objects while emitting no `public.discordos_*` function.
 
-The generated files begin with `APPLY_ADMITTED=false`. They are reviewable derived inputs for later contained replay work. They do not establish target readiness or apply authority.
+The four generated SQL files live only under `bootstrap/artifacts/inert-sql`. They are inert review artifacts, not Supabase migrations, and the repository admits no blocked SQL under `supabase/migrations` or an alternate executable migration directory. The files still begin with `APPLY_ADMITTED=false` as machine-readable package state, but a SQL comment is not an execution guard and cannot substitute for path-level inertness. The generator and verifier freeze the exact four paths, reject missing, duplicate, renamed, copied, or escaped representations, and fail when ordinary Supabase migration discovery finds any SQL.
+
+A future admitted execution packet must explicitly promote or copy reviewed, digest-verified artifact bytes into a separate execution-only migration bundle under new action-time authority. This source packet must not create that bundle, configure migration-path indirection, or retain a second executable representation.
 
 Repository validation excludes only the exact root-local directories `node_modules`, `outputs`, and `work`; a regular file with one of those names remains visible to path and content validation. An exact excluded root link is accepted only when its target is provably a directory, and it is never traversed. Git metadata is handled as its own exact root entry. Unknown, nested, broken, or file-target links and unsupported filesystem entry types fail closed rather than being traversed or silently omitted.
 
@@ -52,7 +54,7 @@ The accepted constraint denominator is 281 units: 158 named catalog identities a
 
 ## Consequences
 
-This package can be reviewed and reproduced without a Supabase session or runtime installation. It cannot be applied safely. Supabase applies migration files in timestamp order, so namespace-before-object order is an explicit generated invariant rather than an assumption about pre-existing target state. A later packet must close contained replay, provider prerequisites, target security, Data API/Auth control-plane, identity/data load, Edge/Cron activation, application cutover, and retirement gates in order.
+This package can be reviewed and reproduced without a Supabase session or runtime installation. It cannot be applied safely. Supabase applies files discovered under `supabase/migrations` in timestamp order, so blocked review artifacts remain outside that directory while their internal namespace-before-object order stays an explicit generated invariant. A later packet must close contained replay, provider prerequisites, target security, Data API/Auth control-plane, identity/data load, Edge/Cron activation, application cutover, and retirement gates in order.
 
 ## Primary references checked
 
