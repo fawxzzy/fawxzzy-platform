@@ -64,7 +64,7 @@ test('security verifier accepts a deny-by-default inert schema unit', () => {
   assert.deepEqual(inspectInertSql('positive.sql', sql), []);
 });
 
-test('effective function ACL verifier rejects missing, duplicate, unmatched, extra, and unauthorized privileges', () => {
+test('effective function ACL verifier rejects missing, unmatched, extra, and explicit privilege reintroduction', () => {
   const expected = ['fitness.example(uuid)'];
   const expectedCounts = { 'fitness.example(uuid)': 1 };
   const definition = 'create function fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;';
@@ -73,10 +73,12 @@ test('effective function ACL verifier rejects missing, duplicate, unmatched, ext
   assert.deepEqual(verifyEffectiveFunctionAcls(filename, `${marker}${definition}\n${exact}\n`, expected, expectedCounts), []);
   for (const sql of [
     `${marker}${definition}\n`,
-    `${marker}${definition}\n${exact}\n${exact}\n`,
     `${marker}revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;\n${definition}\n`,
-    `${marker}${definition}\nrevoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated;\n`,
-    `${marker}${definition}\ngrant execute on function fitness.example(uuid) to authenticated;\n`
+    `${marker}${definition}\nrevoke execute on function fitness.example(uuid) from anon, authenticated, service_role;\n`,
+    `${marker}${definition}\n${exact}\ngrant execute on function fitness.example(uuid) to authenticated;\n`,
+    `${marker}${definition}\n${exact}\ngrant execute on all functions in schema fitness to authenticated;\n`,
+    `${marker}${definition}\n${exact}\ngrant execute on function fitness.example(uuid) to undeclared_role;\n`,
+    `${marker}${definition}\n${exact}\ngrant execute on all routines in schema fitness to authenticated;\n`
   ]) {
     assert.notEqual(verifyEffectiveFunctionAcls(filename, sql, expected, expectedCounts).length, 0, sql);
   }
@@ -84,4 +86,85 @@ test('effective function ACL verifier rejects missing, duplicate, unmatched, ext
     verifyEffectiveFunctionAcls(filename, `${marker}${definition}\ncreate or replace function fitness.example(target_id uuid) returns void language sql as $$ select 2 $$;\n${exact}\n`, expected, expectedCounts).length,
     0
   );
+});
+
+test('effective function ACL verifier respects ordered schema and default privilege settlement', () => {
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  const definition = 'create function fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;';
+  const expected = ['fitness.example(uuid)'];
+  const counts = { 'fitness.example(uuid)': 1 };
+  const schemaSettled = `${marker}${definition}
+    grant execute on all functions in schema fitness to authenticated;
+    revoke all privileges on all functions in schema fitness from PUBLIC, anon, authenticated, service_role;
+  `;
+  assert.deepEqual(verifyEffectiveFunctionAcls(filename, schemaSettled, expected, counts), []);
+
+  const defaultSettled = `${marker}
+    alter default privileges in schema fitness grant execute on functions to authenticated;
+    ${definition}
+    revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;
+  `;
+  assert.deepEqual(verifyEffectiveFunctionAcls(filename, defaultSettled, expected, counts), []);
+
+  const defaultExposed = `${marker}
+    alter default privileges in schema fitness grant execute on functions to authenticated;
+    ${definition}
+    revoke execute on function fitness.example(uuid) from PUBLIC;
+  `;
+  assert.notEqual(verifyEffectiveFunctionAcls(filename, defaultExposed, expected, counts).length, 0);
+
+  const laterSettled = `${marker}${definition}
+    revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;
+    grant execute on function fitness.example(uuid) to authenticated;
+    revoke execute on function fitness.example(uuid) from authenticated;
+  `;
+  assert.deepEqual(verifyEffectiveFunctionAcls(filename, laterSettled, expected, counts), []);
+});
+
+test('effective function ACL verifier preserves overload and mixed OR REPLACE identities', () => {
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  const sql = `${marker}
+    CrEaTe FuNcTiOn fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;
+    CREATE FUNCTION fitness.example(label text) returns void language sql as $$ select 1 $$;
+    cReAtE OR\n RePlAcE FUNCTION fitness.example(target_id uuid) returns void language sql as $$ select 2 $$;
+    revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;
+    revoke execute on function fitness.example(text) from PUBLIC, anon, authenticated, service_role;
+  `;
+  assert.deepEqual(
+    verifyEffectiveFunctionAcls(
+      filename,
+      sql,
+      ['fitness.example(text)', 'fitness.example(uuid)'],
+      { 'fitness.example(text)': 1, 'fitness.example(uuid)': 2 }
+    ),
+    []
+  );
+});
+
+test('effective function ACL verifier fails closed on malformed and owner-dependent privileges', () => {
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  const definition = 'create function fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;';
+  const expected = ['fitness.example(uuid)'];
+  const counts = { 'fitness.example(uuid)': 1 };
+  for (const statement of [
+    'grant execute on all functions in schema ;',
+    'alter default privileges for role owner in schema fitness grant execute on functions to authenticated;',
+    'grant execute on all routines in schema fitness to authenticated;',
+    'revoke execute on function fitness.example(table%type) from PUBLIC;'
+  ]) {
+    const sql = `${marker}${definition}
+      revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;
+      ${statement}
+    `;
+    assert.notEqual(verifyEffectiveFunctionAcls(filename, sql, expected, counts).length, 0, statement);
+  }
+});
+
+test('a newly added function is rejected even when explicitly revoked', () => {
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  const sql = `${marker}
+    create function fitness.undeclared() returns void language sql as $$ select 1 $$;
+    revoke execute on function fitness.undeclared() from PUBLIC, anon, authenticated, service_role;
+  `;
+  assert.notEqual(verifyEffectiveFunctionAcls(filename, sql, [], {}).length, 0);
 });

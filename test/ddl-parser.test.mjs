@@ -5,6 +5,7 @@ import {
   buildGenerationPlan,
   classifyStatement,
   parseFunctionDefinition,
+  parseFunctionPrivilegeEffect,
   parseFunctionPrivilegeStatement,
   splitSqlStatements
 } from '../scripts/generate-target-bootstrap.mjs';
@@ -71,7 +72,9 @@ test('function signature parser canonicalizes names, arrays, defaults, and exact
     parseFunctionPrivilegeStatement('revoke execute on function fitness.example(uuid, uuid[], timestamptz) from PUBLIC, anon, authenticated, service_role;', 'fitness'),
     {
       malformed: false,
+      scope: 'function',
       action: 'revoke',
+      privilege: 'execute',
       identity: 'fitness.example',
       signature: 'fitness.example(uuid, uuid[], timestamptz)',
       argument_types: ['uuid', 'uuid[]', 'timestamptz'],
@@ -83,6 +86,50 @@ test('function signature parser canonicalizes names, arrays, defaults, and exact
     /ambiguous argument/
   );
   assert.equal(parseFunctionPrivilegeStatement('grant execute on function ;', 'public')?.malformed, true);
+});
+
+test('function privilege parser closes specific, schema-wide, and default scopes', () => {
+  assert.deepEqual(
+    parseFunctionPrivilegeEffect('ReVoKe ALL ON ALL FUNCTIONS IN SCHEMA DiscordOS, Fitness FROM PUBLIC, authenticated;', 'public'),
+    {
+      malformed: false,
+      scope: 'schema_all',
+      action: 'revoke',
+      privilege: 'execute',
+      schemas: ['discordos', 'fitness'],
+      roles: ['authenticated', 'public']
+    }
+  );
+  assert.deepEqual(
+    parseFunctionPrivilegeEffect('ALTER DEFAULT PRIVILEGES IN SCHEMA fitness GRANT EXECUTE ON FUNCTIONS TO authenticated;', 'public'),
+    {
+      malformed: false,
+      scope: 'schema_default',
+      action: 'grant',
+      privilege: 'execute',
+      schemas: ['fitness'],
+      roles: ['authenticated']
+    }
+  );
+  assert.deepEqual(
+    parseFunctionPrivilegeEffect('alter default privileges revoke all privileges on functions from PUBLIC;', 'public'),
+    {
+      malformed: false,
+      scope: 'schema_default',
+      action: 'revoke',
+      privilege: 'execute',
+      schemas: null,
+      roles: ['public']
+    }
+  );
+  for (const sql of [
+    'grant execute on all routines in schema fitness to authenticated;',
+    'alter default privileges for role owner in schema fitness grant execute on functions to authenticated;',
+    'grant execute on all functions in schema fitness to authenticated with grant option;',
+    'revoke execute on function fitness.example(uuid) from authenticated cascade;'
+  ]) {
+    assert.equal(parseFunctionPrivilegeEffect(sql, 'fitness')?.malformed, true, sql);
+  }
 });
 
 test('generation plan closes held function dependencies transitively', () => {

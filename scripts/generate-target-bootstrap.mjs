@@ -303,35 +303,94 @@ export function parseFunctionDefinition(statement, fallbackSchema = 'public') {
   };
 }
 
-export function parseFunctionPrivilegeStatement(statement, fallbackSchema = 'public') {
+function parseIdentifierList(value) {
+  const identifier = namePattern();
+  const values = value.split(',').map((entry) => entry.trim());
+  if (values.length === 0 || values.some((entry) => !new RegExp(`^${identifier}$`).test(entry))) {
+    throw new Error('privilege statement: malformed identifier list');
+  }
+  const normalized = values.map((entry) => quotedName(entry).toLowerCase());
+  if (new Set(normalized).size !== normalized.length) throw new Error('privilege statement: duplicate identifier');
+  return normalized.sort();
+}
+
+function privilegeKeywordMatches(action, keyword) {
+  return (action === 'grant' && keyword === 'to') || (action === 'revoke' && keyword === 'from');
+}
+
+export function parseFunctionPrivilegeEffect(statement, fallbackSchema = 'public') {
   const clean = withoutLeadingComments(statement).trim().replace(/;\s*$/, '');
-  if (!/^(?:grant|revoke)\s+execute\s+on\s+function\b/i.test(clean)) return null;
+  const hasFunctionPrivilegeIntent = /^(?:grant|revoke)\b[\s\S]*\bon\s+(?:all\s+)?(?:functions?|routines?|procedures?)\b/i.test(clean)
+    || /^alter\s+default\s+privileges\b[\s\S]*\bon\s+(?:functions?|routines?|procedures?)\b/i.test(clean);
+  if (!hasFunctionPrivilegeIntent) return null;
+
+  const malformed = (reason) => ({ malformed: true, reason });
   const name = namePattern();
   const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
-  const match = new RegExp(`^(grant|revoke)\\s+execute\\s+on\\s+function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
-  if (!match) return { malformed: true };
+  const privilege = '(execute|all(?:\\s+privileges)?)';
   try {
-    const identity = normalizeQualifiedName(match[2], fallbackSchema);
-    const { argumentTypes, closeIndex } = parseFunctionArguments(clean, match[0].lastIndexOf('('));
-    const action = match[1].toLowerCase();
-    const keyword = action === 'grant' ? 'to' : 'from';
-    const roleMatch = new RegExp(`^${keyword}\\s+(.+)$`, 'i').exec(clean.slice(closeIndex + 1).trim());
-    if (!roleMatch) return { malformed: true };
-    const role = namePattern();
-    const roles = roleMatch[1].split(',').map((value) => value.trim());
-    if (roles.length === 0 || roles.some((value) => !new RegExp(`^${role}$`).test(value))) return { malformed: true };
-    const normalizedRoles = roles.map((value) => quotedName(value).toLowerCase()).sort();
-    return {
-      malformed: false,
-      action,
-      identity,
-      signature: `${identity}(${argumentTypes.join(', ')})`,
-      argument_types: argumentTypes,
-      roles: normalizedRoles
-    };
-  } catch {
-    return { malformed: true };
+    const specific = new RegExp(`^(grant|revoke)\\s+${privilege}\\s+on\\s+function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
+    if (specific) {
+      const identity = normalizeQualifiedName(specific[3], fallbackSchema);
+      const { argumentTypes, closeIndex } = parseFunctionArguments(clean, specific[0].lastIndexOf('('));
+      const action = specific[1].toLowerCase();
+      const tail = /^(to|from)\s+(.+)$/i.exec(clean.slice(closeIndex + 1).trim());
+      if (!tail || !privilegeKeywordMatches(action, tail[1].toLowerCase())) return malformed('function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'function',
+        action,
+        privilege: 'execute',
+        identity,
+        signature: `${identity}(${argumentTypes.join(', ')})`,
+        argument_types: argumentTypes,
+        roles: parseIdentifierList(tail[2])
+      };
+    }
+
+    const schemaWide = new RegExp(`^(grant|revoke)\\s+${privilege}\\s+on\\s+all\\s+functions\\s+in\\s+schema\\s+(.+?)\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
+    if (schemaWide) {
+      const action = schemaWide[1].toLowerCase();
+      const keyword = schemaWide[4].toLowerCase();
+      if (!privilegeKeywordMatches(action, keyword)) return malformed('schema-wide function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'schema_all',
+        action,
+        privilege: 'execute',
+        schemas: parseIdentifierList(schemaWide[3]),
+        roles: parseIdentifierList(schemaWide[5])
+      };
+    }
+
+    if (/^alter\s+default\s+privileges\b/i.test(clean)) {
+      if (/^alter\s+default\s+privileges\s+for\s+(?:role|user)\b/i.test(clean)) {
+        return malformed('default function privilege owner is unsupported without an execution-role contract');
+      }
+      const defaults = new RegExp(`^alter\\s+default\\s+privileges(?:\\s+in\\s+schema\\s+(.+?))?\\s+(grant|revoke)\\s+${privilege}\\s+on\\s+functions\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
+      if (!defaults) return malformed('unsupported default function privilege statement');
+      const action = defaults[2].toLowerCase();
+      const keyword = defaults[4].toLowerCase();
+      if (!privilegeKeywordMatches(action, keyword)) return malformed('default function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'schema_default',
+        action,
+        privilege: 'execute',
+        schemas: defaults[1] ? parseIdentifierList(defaults[1]) : null,
+        roles: parseIdentifierList(defaults[5])
+      };
+    }
+  } catch (error) {
+    return malformed(error.message);
   }
+  return malformed('unsupported function privilege statement');
+}
+
+export function parseFunctionPrivilegeStatement(statement, fallbackSchema = 'public') {
+  const effect = parseFunctionPrivilegeEffect(statement, fallbackSchema);
+  if (!effect || effect.malformed || effect.scope === 'function') return effect;
+  return null;
 }
 
 export function analyzeFunctionDependencyStatement(statement, fallbackSchema = 'public') {

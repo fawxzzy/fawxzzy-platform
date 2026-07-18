@@ -10,7 +10,7 @@ import {
   generateTargetBootstrap,
   gitBlobSha1,
   parseFunctionDefinition,
-  parseFunctionPrivilegeStatement,
+  parseFunctionPrivilegeEffect,
   root,
   sha256,
   splitSqlStatements
@@ -31,34 +31,19 @@ const expectedManifestFiles = [
   'source-migrations.v1.json',
   'source-objects.v1.json'
 ];
-const exactFunctionRevokeRoles = ['anon', 'authenticated', 'public', 'service_role'];
-const exactGeneratedFunctionAcls = Object.freeze({
-  '00000000000001_mazer_schema_inert.sql': Object.freeze([]),
-  '00000000000002_fitness_schema_inert.sql': Object.freeze([
-    'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)',
-    'fitness.reorder_routine_day_exercises(uuid, uuid, uuid[])',
-    'fitness.reorder_routine_days(uuid, uuid, uuid[])',
-    'fitness.repack_routine_day_exercise_positions_after_delete()',
-    'fitness.repack_session_exercise_positions_after_delete()'
-  ].sort()),
-  '00000000000003_discordos_schema_inert.sql': Object.freeze([
-    'discordos.set_updated_at()'
-  ]),
-  '00000000000004_platform_security_overlay_inert.sql': Object.freeze([])
-});
-const exactGeneratedFunctionDefinitionCounts = Object.freeze({
-  '00000000000001_mazer_schema_inert.sql': Object.freeze({}),
-  '00000000000002_fitness_schema_inert.sql': Object.freeze({
-    'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)': 2,
-    'fitness.reorder_routine_day_exercises(uuid, uuid, uuid[])': 2,
-    'fitness.reorder_routine_days(uuid, uuid, uuid[])': 1,
-    'fitness.repack_routine_day_exercise_positions_after_delete()': 3,
-    'fitness.repack_session_exercise_positions_after_delete()': 3
-  }),
-  '00000000000003_discordos_schema_inert.sql': Object.freeze({
-    'discordos.set_updated_at()': 1
-  }),
-  '00000000000004_platform_security_overlay_inert.sql': Object.freeze({})
+const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
+export const generatedFunctionPrivilegeContractV1 = Object.freeze({
+  version: '1.0.0',
+  admitted_schemas: Object.freeze(['discordos', 'discordos_private', 'fitness', 'mazer', 'platform_private', 'platform_shared', 'public']),
+  governed_roles: exactGeneratedFunctionRoles,
+  functions: Object.freeze({
+    'discordos.set_updated_at()': Object.freeze({ source_file: '00000000000003_discordos_schema_inert.sql', definition_count: 1, allowed_execute_roles: Object.freeze([]) }),
+    'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 2, allowed_execute_roles: Object.freeze([]) }),
+    'fitness.reorder_routine_day_exercises(uuid, uuid, uuid[])': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 2, allowed_execute_roles: Object.freeze([]) }),
+    'fitness.reorder_routine_days(uuid, uuid, uuid[])': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 1, allowed_execute_roles: Object.freeze([]) }),
+    'fitness.repack_routine_day_exercise_positions_after_delete()': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 3, allowed_execute_roles: Object.freeze([]) }),
+    'fitness.repack_session_exercise_positions_after_delete()': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 3, allowed_execute_roles: Object.freeze([]) })
+  })
 });
 const exactExpected = {
   migrations: 122,
@@ -354,56 +339,126 @@ export function verifySchemaCreationOrder(files) {
   return failures.sort();
 }
 
-export function verifyEffectiveFunctionAcls(filename, text, expectedSignatures = [], expectedDefinitionCounts = {}) {
+function applyPrivilegeAction(roles, action, targets) {
+  for (const role of targets) {
+    if (action === 'grant') roles.add(role);
+    else roles.delete(role);
+  }
+}
+
+function functionSchema(signature) {
+  return signature.slice(0, signature.indexOf('.'));
+}
+
+function fallbackSchemaForFile(filename) {
+  if (filename.includes('_fitness_')) return 'fitness';
+  if (filename.includes('_mazer_')) return 'mazer';
+  if (filename.includes('_discordos_')) return 'discordos';
+  return 'public';
+}
+
+export function verifyGeneratedFunctionPrivileges(files, contract = generatedFunctionPrivilegeContractV1) {
   const failures = [];
-  const fallbackSchema = filename.includes('_fitness_') ? 'fitness' : filename.includes('_mazer_') ? 'mazer' : filename.includes('_discordos_') ? 'discordos' : 'public';
+  const admittedSchemas = new Set(contract.admitted_schemas);
+  const governedRoles = new Set(contract.governed_roles);
+  const defaultRoles = new Map(contract.admitted_schemas.map((schema) => [schema, new Set(['public'])]));
   const functions = new Map();
-  for (const statement of splitSqlStatements(text)) {
-    const definition = parseFunctionDefinition(statement, fallbackSchema);
-    if (definition) {
-      const existing = functions.get(definition.signature);
-      if (existing && !definition.or_replace) failures.push(`${filename}: duplicate CREATE FUNCTION for ${definition.signature}`);
-      if (existing) existing.definition_count += 1;
-      else functions.set(definition.signature, {
-        definition_count: 1,
-        effective_roles: new Set(['public']),
-        privilege_statements: []
-      });
-    }
-    const privilege = parseFunctionPrivilegeStatement(statement, fallbackSchema);
-    if (!privilege) continue;
-    if (privilege.malformed) {
-      failures.push(`${filename}: malformed function privilege statement`);
-      continue;
-    }
-    const state = functions.get(privilege.signature);
-    if (!state) {
-      failures.push(`${filename}: function privilege target is absent or appears before creation: ${privilege.signature}`);
-      continue;
-    }
-    state.privilege_statements.push({ action: privilege.action, roles: privilege.roles });
-    for (const role of privilege.roles) {
-      if (privilege.action === 'grant') state.effective_roles.add(role);
-      else state.effective_roles.delete(role);
+  for (const [filename, text] of files) {
+    const fallbackSchema = fallbackSchemaForFile(filename);
+    for (const statement of splitSqlStatements(text)) {
+      let definition = null;
+      try {
+        definition = parseFunctionDefinition(statement, fallbackSchema);
+      } catch (error) {
+        failures.push(`${filename}: malformed or ambiguous function definition (${error.message})`);
+      }
+      if (definition) {
+        const schema = functionSchema(definition.signature);
+        if (!admittedSchemas.has(schema)) failures.push(`${filename}: function schema is outside the admitted denominator: ${definition.signature}`);
+        const existing = functions.get(definition.signature);
+        if (existing && !definition.or_replace) failures.push(`${filename}: duplicate CREATE FUNCTION for ${definition.signature}`);
+        if (existing) {
+          existing.definition_count += 1;
+          existing.definition_files.add(filename);
+        } else {
+          functions.set(definition.signature, {
+            definition_count: 1,
+            definition_files: new Set([filename]),
+            effective_roles: new Set(defaultRoles.get(schema) ?? ['public'])
+          });
+        }
+      }
+
+      const privilege = parseFunctionPrivilegeEffect(statement, fallbackSchema);
+      if (!privilege) continue;
+      if (privilege.malformed) {
+        failures.push(`${filename}: malformed or unsupported function privilege statement (${privilege.reason ?? 'unknown'})`);
+        continue;
+      }
+      const unknownRoles = privilege.roles.filter((role) => !governedRoles.has(role));
+      if (unknownRoles.length > 0) {
+        failures.push(`${filename}: function privilege contains undeclared roles: ${unknownRoles.join(', ')}`);
+        continue;
+      }
+      if (privilege.scope === 'function') {
+        const state = functions.get(privilege.signature);
+        if (!state) {
+          failures.push(`${filename}: function privilege target is absent or appears before creation: ${privilege.signature}`);
+          continue;
+        }
+        applyPrivilegeAction(state.effective_roles, privilege.action, privilege.roles);
+        continue;
+      }
+
+      const schemas = privilege.schemas ?? contract.admitted_schemas;
+      const unknownSchemas = schemas.filter((schema) => !admittedSchemas.has(schema));
+      if (unknownSchemas.length > 0) {
+        failures.push(`${filename}: function privilege contains undeclared schemas: ${unknownSchemas.join(', ')}`);
+        continue;
+      }
+      if (privilege.scope === 'schema_all') {
+        for (const [signature, state] of functions) {
+          if (schemas.includes(functionSchema(signature))) applyPrivilegeAction(state.effective_roles, privilege.action, privilege.roles);
+        }
+      } else if (privilege.scope === 'schema_default') {
+        for (const schema of schemas) applyPrivilegeAction(defaultRoles.get(schema), privilege.action, privilege.roles);
+      } else {
+        failures.push(`${filename}: unknown function privilege scope`);
+      }
     }
   }
 
   const actualSignatures = [...functions.keys()].sort();
-  const expected = [...expectedSignatures].sort();
-  fail(failures, canonicalJson(actualSignatures) === canonicalJson(expected), `${filename}: generated function signature denominator drift`);
+  const expected = Object.keys(contract.functions).sort();
+  fail(failures, canonicalJson(actualSignatures) === canonicalJson(expected), 'generated function signature denominator drift');
   for (const signature of expected) {
     const state = functions.get(signature);
     if (!state) continue;
-    if (Object.hasOwn(expectedDefinitionCounts, signature)) {
-      fail(failures, state.definition_count === expectedDefinitionCounts[signature], `${filename}: ${signature} definition count drift`);
-    }
-    fail(failures, state.privilege_statements.length === 1, `${filename}: ${signature} must have exactly one function privilege statement`);
-    const privilege = state.privilege_statements[0];
-    fail(failures, privilege?.action === 'revoke', `${filename}: ${signature} has an unauthorized EXECUTE grant`);
-    fail(failures, canonicalJson(privilege?.roles ?? []) === canonicalJson(exactFunctionRevokeRoles), `${filename}: ${signature} revoke role denominator drift`);
-    fail(failures, exactFunctionRevokeRoles.every((role) => !state.effective_roles.has(role)), `${filename}: ${signature} retains effective application-role EXECUTE`);
+    const expectedState = contract.functions[signature];
+    fail(failures, state.definition_count === expectedState.definition_count, `${signature}: definition count drift`);
+    fail(failures, canonicalJson([...state.definition_files].sort()) === canonicalJson([expectedState.source_file]), `${signature}: definition file drift`);
+    const actualRoles = [...state.effective_roles].filter((role) => governedRoles.has(role)).sort();
+    fail(failures, canonicalJson(actualRoles) === canonicalJson([...expectedState.allowed_execute_roles].sort()), `${signature}: effective EXECUTE role settlement drift`);
   }
   return failures.sort();
+}
+
+export function verifyEffectiveFunctionAcls(filename, text, expectedSignatures = [], expectedDefinitionCounts = {}, options = {}) {
+  const functions = Object.fromEntries(expectedSignatures.map((signature) => [signature, Object.freeze({
+    source_file: filename,
+    definition_count: expectedDefinitionCounts[signature] ?? 1,
+    allowed_execute_roles: Object.freeze([...(options.allowed_execute_roles?.[signature] ?? [])].sort())
+  })]));
+  const admittedSchemas = options.admitted_schemas ?? [...new Set([
+    fallbackSchemaForFile(filename),
+    ...expectedSignatures.map(functionSchema)
+  ])].sort();
+  return verifyGeneratedFunctionPrivileges([[filename, text]], {
+    version: 'test-v1',
+    admitted_schemas: admittedSchemas,
+    governed_roles: options.governed_roles ?? exactGeneratedFunctionRoles,
+    functions
+  });
 }
 
 export function inspectInertSql(filename, text, heldFunctionTargets = [], expectedFunctionSignatures = [], expectedFunctionDefinitionCounts = {}) {
@@ -443,17 +498,20 @@ function verifyGeneratedSql(config, dispositions, failures) {
   for (const filename of actualFiles) {
     const text = fs.readFileSync(path.join(directory, filename), 'utf8');
     orderedFiles.push([filename, text]);
+    const expectedFunctions = Object.entries(generatedFunctionPrivilegeContractV1.functions)
+      .filter(([, contract]) => contract.source_file === filename);
     failures.push(...inspectInertSql(
       filename,
       text,
       heldFunctionTargets,
-      exactGeneratedFunctionAcls[filename],
-      exactGeneratedFunctionDefinitionCounts[filename]
+      expectedFunctions.map(([signature]) => signature),
+      Object.fromEntries(expectedFunctions.map(([signature, contract]) => [signature, contract.definition_count]))
     ));
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_blob), `${filename}: provider-canonical 043 blob leaked into output`);
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_sha256), `${filename}: provider-canonical 043 digest leaked into output`);
     resolvedDenyPolicyCount += [...text.matchAll(/create\s+policy\s+[A-Za-z0-9_]+_deny_public_api_access\b/gi)].length;
   }
+  failures.push(...verifyGeneratedFunctionPrivileges(orderedFiles, generatedFunctionPrivilegeContractV1));
   failures.push(...verifySchemaCreationOrder(orderedFiles));
   fail(failures, resolvedDenyPolicyCount === 10, `resolved deny policy output must be 10, found ${resolvedDenyPolicyCount}`);
 }
