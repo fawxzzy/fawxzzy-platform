@@ -6,7 +6,19 @@ import { fileURLToPath } from 'node:url';
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(scriptDirectory, '..');
 const configPath = path.join(root, 'bootstrap', 'generator', 'config.v1.json');
-const manifestsDirectory = path.join(root, 'bootstrap', 'manifests');
+export const generatedManifestContractV1 = Object.freeze({
+  version: '1.0.0',
+  directory: 'bootstrap/manifests',
+  filenames: Object.freeze([
+    'source-migrations.v1.json',
+    'source-objects.v1.json',
+    'dynamic-units.v1.json',
+    'data-effects.v1.json',
+    'collisions.v1.json',
+    'dispositions.v1.json',
+    'namespace-plan.v1.json'
+  ])
+});
 export const generatedInertArtifactContractV1 = Object.freeze({
   version: '1.0.0',
   directory: 'bootstrap/artifacts/inert-sql',
@@ -39,13 +51,124 @@ function realpath(absolutePath) {
   return fs.realpathSync.native?.(absolutePath) ?? fs.realpathSync(absolutePath);
 }
 
+function decodeMountInfoField(value, label) {
+  if (typeof value !== 'string' || value.length === 0) throw new Error(`Linux mountinfo ${label} is empty`);
+  const decoded = value.replace(/\\([0-7]{3})/g, (_, octal) => String.fromCharCode(Number.parseInt(octal, 8)));
+  if (decoded.includes('\\')) throw new Error(`Linux mountinfo ${label} contains an unsupported escape`);
+  return decoded;
+}
+
+function normalizePosixAbsolute(value, label) {
+  if (!value.startsWith('/')) throw new Error(`Linux mountinfo ${label} is not absolute: ${value}`);
+  const normalized = path.posix.normalize(value);
+  if (normalized !== value) throw new Error(`Linux mountinfo ${label} is ambiguous: ${value}`);
+  return normalized;
+}
+
+function isPosixPathWithin(parent, candidate) {
+  const relative = path.posix.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith('../') && relative !== '..' && !path.posix.isAbsolute(relative));
+}
+
+export function parseLinuxMountInfo(text) {
+  if (typeof text !== 'string' || text.length === 0) throw new Error('Linux mountinfo is empty or unreadable');
+  const rawLines = text.split('\n');
+  if (rawLines.at(-1) === '') rawLines.pop();
+  if (rawLines.length === 0 || rawLines.some((line) => line.length === 0)) {
+    throw new Error('Linux mountinfo contains an empty or ambiguous record');
+  }
+
+  const mountIds = new Set();
+  const mountPoints = new Set();
+  return rawLines.map((line, index) => {
+    const fields = line.split(' ');
+    if (fields.some((field) => field.length === 0)) throw new Error(`Linux mountinfo record ${index + 1} has ambiguous spacing`);
+    const separator = fields.indexOf('-');
+    if (separator < 6 || fields.length < separator + 4 || fields.indexOf('-', separator + 1) !== -1) {
+      throw new Error(`Linux mountinfo record ${index + 1} is malformed`);
+    }
+    const mountId = fields[0];
+    const parentId = fields[1];
+    if (!/^[1-9][0-9]*$/.test(mountId) || !/^[1-9][0-9]*$/.test(parentId) || !/^\d+:\d+$/.test(fields[2])) {
+      throw new Error(`Linux mountinfo record ${index + 1} has an invalid identity`);
+    }
+    const mountRoot = normalizePosixAbsolute(decodeMountInfoField(fields[3], `record ${index + 1} root`), `record ${index + 1} root`);
+    const mountPoint = normalizePosixAbsolute(decodeMountInfoField(fields[4], `record ${index + 1} mount point`), `record ${index + 1} mount point`);
+    if (mountIds.has(mountId)) throw new Error(`Linux mountinfo contains duplicate mount id ${mountId}`);
+    if (mountPoints.has(mountPoint)) throw new Error(`Linux mountinfo contains duplicate or conflicting mount point ${mountPoint}`);
+    mountIds.add(mountId);
+    mountPoints.add(mountPoint);
+    return Object.freeze({
+      mountId,
+      parentId,
+      device: fields[2],
+      root: mountRoot,
+      mountPoint,
+      filesystem: fields[separator + 1],
+      source: decodeMountInfoField(fields[separator + 2], `record ${index + 1} source`)
+    });
+  });
+}
+
+export function readLinuxMountInfo(reader = (filename, encoding) => fs.readFileSync(filename, encoding)) {
+  try {
+    return reader('/proc/self/mountinfo', 'utf8');
+  } catch (error) {
+    throw new Error(`Linux mountinfo is unreadable: ${error?.message ?? 'unknown error'}`);
+  }
+}
+
+export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysicalPaths, mountInfoText) {
+  const repository = normalizePosixAbsolute(repositoryPhysicalPath, 'repository path');
+  const planned = [...new Set(plannedPhysicalPaths.map((candidate) => normalizePosixAbsolute(candidate, 'planned path')))];
+  if (!planned.includes(repository)) planned.unshift(repository);
+  for (const candidate of planned) {
+    if (!isPosixPathWithin(repository, candidate)) throw new Error(`planned publication path escaped the Linux repository mount: ${candidate}`);
+  }
+
+  const mounts = parseLinuxMountInfo(mountInfoText);
+  const containing = mounts
+    .filter((entry) => isPosixPathWithin(entry.mountPoint, repository))
+    .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId));
+  if (containing.length === 0) throw new Error('Linux mountinfo does not identify the repository mount');
+  const repositoryMount = containing[0];
+  if (repositoryMount.root !== '/') {
+    throw new Error(`Linux repository is a bind/subtree mount alias: ${repositoryMount.mountPoint}`);
+  }
+
+  for (const entry of mounts) {
+    if (entry.mountId !== repositoryMount.mountId && isPosixPathWithin(repository, entry.mountPoint)) {
+      throw new Error(`Linux repository contains a nested mount point: ${entry.mountPoint}`);
+    }
+    if (entry.mountId !== repositoryMount.mountId
+      && entry.device === repositoryMount.device
+      && entry.root === repositoryMount.root) {
+      throw new Error(`Linux mountinfo contains an alias of the repository mount: ${entry.mountPoint}`);
+    }
+  }
+
+  for (const candidate of planned) {
+    const governing = mounts
+      .filter((entry) => isPosixPathWithin(entry.mountPoint, candidate))
+      .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId))[0];
+    if (!governing || governing.mountId !== repositoryMount.mountId) {
+      throw new Error(`planned publication path crosses a Linux mount identity: ${candidate}`);
+    }
+  }
+  return Object.freeze({ repositoryMountId: repositoryMount.mountId, plannedPathCount: planned.length });
+}
+
 function validateRepositoryRoot(repositoryRoot) {
   const lexical = path.resolve(repositoryRoot);
   const stats = lstatIfPresent(lexical);
   if (!stats) throw new Error(`generated artifact repository root is missing: ${lexical}`);
   if (stats.isSymbolicLink()) throw new Error(`generated artifact repository root is link-like: ${lexical}`);
   if (!stats.isDirectory()) throw new Error(`generated artifact repository root is not a directory: ${lexical}`);
-  return { lexical, physical: realpath(lexical) };
+  const physical = realpath(lexical);
+  if (!isSamePath(lexical, physical)) {
+    throw new Error(`generated artifact repository root contains a physical alias or link-like ancestor: ${lexical}`);
+  }
+  return { lexical, physical };
 }
 
 function validatePathChain(repository, targetPath, finalType, label) {
@@ -85,11 +208,16 @@ function validatePathChain(repository, targetPath, finalType, label) {
   }
 }
 
-export function validateGeneratedInertArtifactLayout(repositoryRoot = root) {
+export function validateGeneratedInertArtifactLayout(repositoryRoot = root, options = {}) {
   const repository = validateRepositoryRoot(repositoryRoot);
   const output = path.resolve(repository.lexical, ...generatedInertArtifactContractV1.directory.split('/'));
+  const manifests = path.resolve(repository.lexical, ...generatedManifestContractV1.directory.split('/'));
   const standardMigrations = path.resolve(repository.lexical, 'supabase', 'migrations');
   validatePathChain(repository, standardMigrations, 'directory', 'standard Supabase migration discovery');
+  validatePathChain(repository, manifests, 'directory', 'generated manifest directory');
+  for (const filename of generatedManifestContractV1.filenames) {
+    validatePathChain(repository, path.join(manifests, filename), 'file', `generated manifest ${filename}`);
+  }
   validatePathChain(repository, output, 'directory', 'generated inert artifact directory');
   for (const filename of generatedInertArtifactContractV1.filenames) {
     validatePathChain(repository, path.join(output, filename), 'file', `generated inert artifact ${filename}`);
@@ -97,10 +225,29 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root) {
 
   const outputStats = lstatIfPresent(output);
   const standardStats = lstatIfPresent(standardMigrations);
-  if (outputStats && standardStats && isSamePath(realpath(output), realpath(standardMigrations))) {
+  if (outputStats && standardStats && (isSamePath(realpath(output), realpath(standardMigrations))
+    || (() => {
+      const left = fs.statSync(output);
+      const right = fs.statSync(standardMigrations);
+      return left.dev === right.dev && left.ino === right.ino;
+    })())) {
     throw new Error('generated inert artifacts physically alias standard Supabase migration discovery');
   }
-  return { repository: repository.lexical, output, standardMigrations };
+
+  const plannedPaths = [
+    repository.physical,
+    path.resolve(repository.physical, 'supabase', 'migrations'),
+    path.resolve(repository.physical, ...generatedManifestContractV1.directory.split('/')),
+    ...generatedManifestContractV1.filenames.map((filename) => path.resolve(repository.physical, ...generatedManifestContractV1.directory.split('/'), filename)),
+    path.resolve(repository.physical, ...generatedInertArtifactContractV1.directory.split('/')),
+    ...generatedInertArtifactContractV1.filenames.map((filename) => path.resolve(repository.physical, ...generatedInertArtifactContractV1.directory.split('/'), filename))
+  ];
+  let linuxMount = null;
+  if ((options.platform ?? process.platform) === 'linux') {
+    const mountInfoText = options.mountInfoText ?? readLinuxMountInfo(options.mountInfoReader);
+    linuxMount = validateLinuxMountLayout(repository.physical, plannedPaths, mountInfoText);
+  }
+  return { repository: repository.lexical, manifests, output, standardMigrations, linuxMount };
 }
 
 export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = root) {
@@ -1193,41 +1340,77 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
   return files;
 }
 
-export function writeGeneratedInertArtifacts(files, repositoryRoot = root) {
+function requireExactFilenameDenominator(files, contract, label) {
+  if (!(files instanceof Map)) throw new Error(`${label} publication input must be a Map`);
   const actualFiles = [...files.keys()].sort();
-  if (canonicalJson(actualFiles) !== canonicalJson(generatedInertArtifactContractV1.filenames)) {
-    throw new Error('generated inert artifact filename denominator drift');
+  if (canonicalJson(actualFiles) !== canonicalJson([...contract.filenames].sort())) {
+    throw new Error(`${label} filename denominator drift`);
   }
-  let layout = validateGeneratedInertArtifactLayout(repositoryRoot);
+}
+
+function validateClosedGeneratedDirectory(directory, filenames, label) {
+  const stats = lstatIfPresent(directory);
+  if (!stats) return;
+  if (stats.isSymbolicLink()) throw new Error(`${label} is link-like`);
+  if (!stats.isDirectory()) throw new Error(`${label} is not a directory`);
+  const expected = new Set(filenames);
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) throw new Error(`${label} contains a link-like entry: ${entry.name}`);
+    if (!entry.isFile()) throw new Error(`${label} contains an unsupported filesystem entry type: ${entry.name}`);
+    if (!expected.has(entry.name)) throw new Error(`${label} contains an undeclared file: ${entry.name}`);
+  }
+}
+
+function validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options = {}) {
+  requireExactFilenameDenominator(manifests, generatedManifestContractV1, 'generated manifest');
+  requireExactFilenameDenominator(inertSql, generatedInertArtifactContractV1, 'generated inert artifact');
+  const layout = validateGeneratedInertArtifactLayout(repositoryRoot, options);
+  validateClosedGeneratedDirectory(layout.manifests, generatedManifestContractV1.filenames, 'generated manifest directory');
+  validateClosedGeneratedDirectory(layout.output, generatedInertArtifactContractV1.filenames, 'generated inert artifact directory');
   const executableSql = listSqlFiles(layout.standardMigrations);
   if (executableSql.length > 0) {
     throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${executableSql.join(', ')}`);
   }
-  fs.mkdirSync(layout.output, { recursive: true });
-  layout = validateGeneratedInertArtifactLayout(repositoryRoot);
-  for (const entry of fs.readdirSync(layout.output, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`generated inert artifact directory contains a link-like entry: ${entry.name}`);
-    if (!entry.isFile()) throw new Error(`generated inert artifact directory contains an unsupported filesystem entry type: ${entry.name}`);
-    if (!files.has(entry.name)) throw new Error(`undeclared generated inert artifact exists: ${entry.name}`);
+  const standardEntries = lstatIfPresent(layout.standardMigrations)
+    ? fs.readdirSync(layout.standardMigrations, { withFileTypes: true })
+    : [];
+  if (standardEntries.length > 0) {
+    throw new Error(`standard Supabase migration discovery is not empty: ${standardEntries.map((entry) => entry.name).sort().join(', ')}`);
   }
-  for (const filename of generatedInertArtifactContractV1.filenames) {
-    layout = validateGeneratedInertArtifactLayout(repositoryRoot);
-    const discoveredSql = listSqlFiles(layout.standardMigrations);
-    if (discoveredSql.length > 0) {
-      throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${discoveredSql.join(', ')}`);
-    }
-    fs.writeFileSync(path.join(layout.output, filename), files.get(filename), 'utf8');
-  }
-  layout = validateGeneratedInertArtifactLayout(repositoryRoot);
-  const finalExecutableSql = listSqlFiles(layout.standardMigrations);
-  if (finalExecutableSql.length > 0) {
-    throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${finalExecutableSql.join(', ')}`);
-  }
+  return layout;
 }
 
-function writeManifest(name, value) {
-  fs.mkdirSync(manifestsDirectory, { recursive: true });
-  fs.writeFileSync(path.join(manifestsDirectory, name), canonicalJson(value), 'utf8');
+export function writeTargetBootstrapArtifacts(manifests, inertSql, repositoryRoot = root, options = {}) {
+  requireExactFilenameDenominator(manifests, generatedManifestContractV1, 'generated manifest');
+  requireExactFilenameDenominator(inertSql, generatedInertArtifactContractV1, 'generated inert artifact');
+  const publicationPlan = [
+    ...generatedManifestContractV1.filenames.map((filename) => ({
+      contract: 'manifest',
+      filename,
+      content: canonicalJson(manifests.get(filename))
+    })),
+    ...generatedInertArtifactContractV1.filenames.map((filename) => ({
+      contract: 'inert-sql',
+      filename,
+      content: inertSql.get(filename)
+    }))
+  ];
+  if (publicationPlan.some((entry) => typeof entry.content !== 'string')) {
+    throw new Error('generated publication plan contains non-text content');
+  }
+
+  // Discovery and every destination-chain check complete before directory creation or file publication.
+  let layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  fs.mkdirSync(layout.manifests, { recursive: true });
+  fs.mkdirSync(layout.output, { recursive: true });
+
+  // Under the serialized local-writer contract this is the immediate, complete pre-publication revalidation.
+  layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  for (const entry of publicationPlan) {
+    const directory = entry.contract === 'manifest' ? layout.manifests : layout.output;
+    fs.writeFileSync(path.join(directory, entry.filename), entry.content, 'utf8');
+  }
+  validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
 }
 
 function sourceManifest(records, config) {
@@ -1254,24 +1437,24 @@ export function generateTargetBootstrap() {
   const generationPlan = buildGenerationPlan(records, config);
   const heldEvidence = heldStatementEvidence(generationPlan);
   const generatedSql = buildGeneratedSql(records, config, securityMatrix, generationPlan);
+  const generatedManifests = new Map();
 
-  validateGeneratedInertArtifactLayout(root);
-  writeManifest('source-migrations.v1.json', sourceManifest(records, config));
-  writeManifest('source-objects.v1.json', {
+  generatedManifests.set('source-migrations.v1.json', sourceManifest(records, config));
+  generatedManifests.set('source-objects.v1.json', {
     version: '1.0.0', status: 'CURRENT', apply_admitted: false, expected_counts: config.expected, ...objects
   });
-  writeManifest('dynamic-units.v1.json', {
+  generatedManifests.set('dynamic-units.v1.json', {
     version: '1.0.0', status: 'BLOCKED', apply_admitted: false,
     unresolved_count: dynamicUnits.length,
     resolved_fitness_deny_policy_count: config.resolved_dynamic_policy_source.expanded_policy_count,
     units: dynamicUnits
   });
-  writeManifest('data-effects.v1.json', {
+  generatedManifests.set('data-effects.v1.json', {
     version: '1.0.0', status: 'BLOCKED', apply_admitted: false,
     held_count: dataEffects.length,
     effects: dataEffects
   });
-  writeManifest('collisions.v1.json', {
+  generatedManifests.set('collisions.v1.json', {
     version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
     exact_cross_source_name_collisions: 0,
     groups: [
@@ -1283,7 +1466,7 @@ export function generateTargetBootstrap() {
       { id: 'fitness-entitlement-ownership', classification: 'ownership_auth_conflict', disposition: 'forward_transform', status: 'BLOCKED' }
     ]
   });
-  writeManifest('dispositions.v1.json', {
+  generatedManifests.set('dispositions.v1.json', {
     version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
     source_raw_bytes: 'provenance_input_only',
     namespace_rewrites: { fitness: 'fitness', mazer: 'mazer', discordos: 'discordos' },
@@ -1306,7 +1489,7 @@ export function generateTargetBootstrap() {
     held_functions: heldEvidence.heldFunctions,
     held_statements: heldEvidence.heldStatements
   });
-  writeManifest('namespace-plan.v1.json', {
+  generatedManifests.set('namespace-plan.v1.json', {
     version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
     public: { product_tables_allowed: false, rpc: 'blocked_pending_control_plane_and_security_proof' },
     platform_shared: { exposure: 'intended_application_schema', contents: 'explicit_shared_identity_service_contracts_only' },
@@ -1317,7 +1500,7 @@ export function generateTargetBootstrap() {
     mazer: { exposure: 'intended_application_schema', contents: 'mazer_product_objects' },
     provider_managed: config.schemas.provider_managed
   });
-  writeGeneratedInertArtifacts(generatedSql);
+  writeTargetBootstrapArtifacts(generatedManifests, generatedSql);
 
   const report = {
     ok: true,

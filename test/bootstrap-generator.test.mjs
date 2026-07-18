@@ -6,16 +6,20 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   generatedInertArtifactContractV1,
+  generatedManifestContractV1,
   generateTargetBootstrap,
   namespaceRewrite,
+  parseLinuxMountInfo,
   parseFunctionDefinition,
   parseFunctionPrivilegeStatement,
   parseFunctionSearchPath,
+  readLinuxMountInfo,
   resolveGeneratedInertArtifactPath,
   root,
   splitSqlStatements,
-  writeGeneratedInertArtifacts,
-  verifyFitnessFunctionSearchPaths
+  validateLinuxMountLayout,
+  verifyFitnessFunctionSearchPaths,
+  writeTargetBootstrapArtifacts
 } from '../scripts/generate-target-bootstrap.mjs';
 
 const inertArtifactDirectory = `${root}/${generatedInertArtifactContractV1.directory}`;
@@ -49,6 +53,14 @@ function withTemporaryDirectory(run) {
 
 function fixtureGeneratedFiles() {
   return new Map(generatedInertArtifactContractV1.filenames.map((filename) => [filename, `-- ${filename}\n`]));
+}
+
+function fixtureManifestFiles() {
+  return new Map(generatedManifestContractV1.filenames.map((filename) => [filename, { filename, fixture: true }]));
+}
+
+function writeFixtureArtifacts(files, repositoryRoot, options = {}) {
+  return writeTargetBootstrapArtifacts(fixtureManifestFiles(), files, repositoryRoot, options);
 }
 
 function createDirectoryLink(target, link) {
@@ -96,12 +108,12 @@ test('non-link inert artifact creation and idempotent regeneration preserve exac
     const standardMigrations = path.join(repositoryRoot, 'supabase', 'migrations');
     fs.mkdirSync(standardMigrations, { recursive: true });
     const files = fixtureGeneratedFiles();
-    writeGeneratedInertArtifacts(files, repositoryRoot);
+    writeFixtureArtifacts(files, repositoryRoot);
     const first = new Map(generatedInertArtifactContractV1.filenames.map((filename) => [
       filename,
       fs.readFileSync(path.join(outputPath(repositoryRoot), filename), 'utf8')
     ]));
-    writeGeneratedInertArtifacts(files, repositoryRoot);
+    writeFixtureArtifacts(files, repositoryRoot);
     const second = new Map(generatedInertArtifactContractV1.filenames.map((filename) => [
       filename,
       fs.readFileSync(path.join(outputPath(repositoryRoot), filename), 'utf8')
@@ -118,7 +130,7 @@ test('linked inert artifact directories fail before any write', () => {
     fs.mkdirSync(path.dirname(outputPath(repositoryRoot)), { recursive: true });
     fs.mkdirSync(linkedTarget);
     createDirectoryLink(linkedTarget, outputPath(repositoryRoot));
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
     assertDirectoryEmpty(linkedTarget);
   });
 });
@@ -129,7 +141,7 @@ test('an inert artifact directory linked to standard migration discovery writes 
     fs.mkdirSync(standardMigrations, { recursive: true });
     fs.mkdirSync(path.dirname(outputPath(repositoryRoot)), { recursive: true });
     createDirectoryLink(standardMigrations, outputPath(repositoryRoot));
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like|physically alias/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like|physically alias/);
     assertDirectoryEmpty(standardMigrations);
   });
 });
@@ -141,7 +153,7 @@ test('an inert artifact directory linked outside the repository writes nothing',
     fs.mkdirSync(path.dirname(outputPath(repositoryRoot)), { recursive: true });
     fs.mkdirSync(outside);
     createDirectoryLink(outside, outputPath(repositoryRoot));
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like|physical path escape/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like|physical path escape/);
     assertDirectoryEmpty(outside);
   });
 });
@@ -153,7 +165,7 @@ test('linked declared artifact files fail before any artifact write', () => {
     const linkedFile = path.join(outputPath(repositoryRoot), generatedInertArtifactContractV1.filenames[0]);
     fs.writeFileSync(outsideFile, 'sentinel\n', 'utf8');
     fs.linkSync(outsideFile, linkedFile);
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /multiply-linked/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /multiply-linked/);
     assert.equal(fs.readFileSync(outsideFile, 'utf8'), 'sentinel\n');
     assert.equal(fs.readdirSync(outputPath(repositoryRoot)).length, 1);
   });
@@ -174,7 +186,7 @@ test('broken declared artifact links fail before any write without host link pri
       return originalWrite(...args);
     };
     try {
-      assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
+      assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
     } finally {
       fs.lstatSync = originalLstat;
       fs.writeFileSync = originalWrite;
@@ -191,7 +203,7 @@ test('linked standard migration discovery fails before creating inert output', (
     fs.mkdirSync(standardParent, { recursive: true });
     fs.mkdirSync(linkTarget);
     createDirectoryLink(linkTarget, path.join(standardParent, 'migrations'));
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
     assert.equal(fs.existsSync(outputPath(repositoryRoot)), false);
     assertDirectoryEmpty(linkTarget);
   });
@@ -203,7 +215,22 @@ test('link-like repository roots fail before any write', () => {
     const linkedRepository = path.join(temporaryRoot, 'linked-repository');
     fs.mkdirSync(physicalRepository);
     createDirectoryLink(physicalRepository, linkedRepository);
-    assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), linkedRepository), /repository root is link-like/);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), linkedRepository), /repository root is link-like/);
+    assertDirectoryEmpty(physicalRepository);
+  });
+});
+
+test('repository roots reached through a link-like ancestor fail before any write', () => {
+  withTemporaryDirectory((temporaryRoot) => {
+    const physicalParent = path.join(temporaryRoot, 'physical-parent');
+    const physicalRepository = path.join(physicalParent, 'repository');
+    const linkedParent = path.join(temporaryRoot, 'linked-parent');
+    fs.mkdirSync(physicalRepository, { recursive: true });
+    createDirectoryLink(physicalParent, linkedParent);
+    assert.throws(
+      () => writeFixtureArtifacts(fixtureGeneratedFiles(), path.join(linkedParent, 'repository')),
+      /physical alias or link-like ancestor/
+    );
     assertDirectoryEmpty(physicalRepository);
   });
 });
@@ -223,7 +250,7 @@ test('unsupported declared artifact entry types fail before any write', () => {
       return originalWrite(...args);
     };
     try {
-      assert.throws(() => writeGeneratedInertArtifacts(fixtureGeneratedFiles(), repositoryRoot), /unsupported filesystem entry type/);
+      assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /unsupported filesystem entry type/);
     } finally {
       fs.lstatSync = originalLstat;
       fs.writeFileSync = originalWrite;
@@ -231,6 +258,139 @@ test('unsupported declared artifact entry types fail before any write', () => {
     assert.equal(writeCount, 0);
     assertDirectoryEmpty(outputPath(repositoryRoot));
   });
+});
+
+test('linked manifest directories fail before any manifest or SQL write', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const linkedTarget = path.join(repositoryRoot, 'linked-manifests');
+    const manifests = path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'));
+    fs.mkdirSync(path.dirname(manifests), { recursive: true });
+    fs.mkdirSync(linkedTarget);
+    createDirectoryLink(linkedTarget, manifests);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
+    assertDirectoryEmpty(linkedTarget);
+    assert.equal(fs.existsSync(outputPath(repositoryRoot)), false);
+  });
+});
+
+test('an unsafe last-declared manifest destination produces zero publication writes', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const manifests = path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'));
+    const lastManifest = generatedManifestContractV1.filenames.at(-1);
+    const outsideFile = path.join(repositoryRoot, 'outside.json');
+    fs.mkdirSync(manifests, { recursive: true });
+    fs.writeFileSync(outsideFile, 'sentinel\n', 'utf8');
+    fs.linkSync(outsideFile, path.join(manifests, lastManifest));
+    const originalWrite = fs.writeFileSync;
+    let writeCount = 0;
+    fs.writeFileSync = (...args) => {
+      writeCount += 1;
+      return originalWrite(...args);
+    };
+    try {
+      assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /multiply-linked/);
+    } finally {
+      fs.writeFileSync = originalWrite;
+    }
+    assert.equal(writeCount, 0);
+    assert.equal(fs.readFileSync(outsideFile, 'utf8'), 'sentinel\n');
+    assert.equal(fs.existsSync(outputPath(repositoryRoot)), false);
+  });
+});
+
+test('an unsafe final SQL destination produces zero manifest or SQL writes', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const lastSql = generatedInertArtifactContractV1.filenames.at(-1);
+    const outsideFile = path.join(repositoryRoot, 'outside.sql');
+    fs.mkdirSync(outputPath(repositoryRoot), { recursive: true });
+    fs.writeFileSync(outsideFile, 'sentinel\n', 'utf8');
+    fs.linkSync(outsideFile, path.join(outputPath(repositoryRoot), lastSql));
+    const originalWrite = fs.writeFileSync;
+    let writeCount = 0;
+    fs.writeFileSync = (...args) => {
+      writeCount += 1;
+      return originalWrite(...args);
+    };
+    try {
+      assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /multiply-linked/);
+    } finally {
+      fs.writeFileSync = originalWrite;
+    }
+    assert.equal(writeCount, 0);
+    assert.equal(fs.readFileSync(outsideFile, 'utf8'), 'sentinel\n');
+    assert.equal(fs.existsSync(path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'))), false);
+  });
+});
+
+test('complete discovery rejects a late undeclared output before rewriting manifests', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const manifests = path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'));
+    fs.mkdirSync(manifests, { recursive: true });
+    for (const filename of generatedManifestContractV1.filenames) {
+      fs.writeFileSync(path.join(manifests, filename), 'sentinel\n', 'utf8');
+    }
+    fs.mkdirSync(outputPath(repositoryRoot), { recursive: true });
+    fs.mkdirSync(path.join(outputPath(repositoryRoot), 'late-unsafe-entry'));
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /unsupported filesystem entry type/);
+    for (const filename of generatedManifestContractV1.filenames) {
+      assert.equal(fs.readFileSync(path.join(manifests, filename), 'utf8'), 'sentinel\n');
+    }
+  });
+});
+
+test('nested standard-migration links fail before creating publication directories', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const standardMigrations = path.join(repositoryRoot, 'supabase', 'migrations');
+    const outside = path.join(repositoryRoot, 'outside-standard');
+    fs.mkdirSync(standardMigrations, { recursive: true });
+    fs.mkdirSync(outside);
+    createDirectoryLink(outside, path.join(standardMigrations, 'nested-link'));
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /link-like/);
+    assert.equal(fs.existsSync(path.join(repositoryRoot, 'bootstrap')), false);
+    assertDirectoryEmpty(outside);
+  });
+});
+
+test('non-SQL standard-migration residue fails before creating publication directories', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const standardMigrations = path.join(repositoryRoot, 'supabase', 'migrations');
+    fs.mkdirSync(standardMigrations, { recursive: true });
+    fs.writeFileSync(path.join(standardMigrations, 'README.txt'), 'residue\n', 'utf8');
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot), /is not empty/);
+    assert.equal(fs.existsSync(path.join(repositoryRoot, 'bootstrap')), false);
+  });
+});
+
+const normalMountInfo = '24 1 8:1 / / rw,relatime - ext4 /dev/root rw\n';
+
+test('Linux mountinfo parser and classifier accept one unaliased repository mount', () => {
+  assert.equal(parseLinuxMountInfo(normalMountInfo).length, 1);
+  assert.deepEqual(
+    validateLinuxMountLayout('/workspace/repository', [
+      '/workspace/repository',
+      '/workspace/repository/bootstrap/manifests',
+      '/workspace/repository/bootstrap/artifacts/inert-sql',
+      '/workspace/repository/supabase/migrations'
+    ], normalMountInfo),
+    { repositoryMountId: '24', plannedPathCount: 4 }
+  );
+});
+
+test('Linux mountinfo fails closed on escaped binds, nested mounts, aliases, and path escapes', () => {
+  const escapedBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /source/repository /workspace/repository rw - ext4 /dev/root rw\n`;
+  const nestedMount = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/bootstrap rw - tmpfs tmpfs rw\n`;
+  const aliasMount = `${normalMountInfo.trimEnd()}\n25 24 8:1 / /alias rw - ext4 /dev/root rw\n`;
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], escapedBind), /bind\/subtree mount alias/);
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], nestedMount), /nested mount point/);
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], aliasMount), /alias of the repository mount/);
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/outside'], normalMountInfo), /escaped the Linux repository mount/);
+});
+
+test('Linux mountinfo fails closed on malformed, duplicate, conflicting, or unreadable input', () => {
+  assert.throws(() => parseLinuxMountInfo('malformed\n'), /malformed|invalid/);
+  assert.throws(() => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n24 1 8:1 / /other rw - ext4 /dev/root rw\n`), /duplicate mount id/);
+  assert.throws(() => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n25 24 8:2 / / rw - tmpfs tmpfs rw\n`), /duplicate or conflicting mount point/);
+  assert.throws(() => readLinuxMountInfo(() => { throw new Error('denied'); }), /unreadable/);
 });
 
 test('Fitness namespace rewriting canonicalizes only the function-header search_path clause', () => {
