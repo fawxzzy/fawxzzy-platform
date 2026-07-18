@@ -379,7 +379,7 @@ test('Linux mountinfo parser and classifier accept one unaliased repository moun
 test('Linux mountinfo fails closed on escaped binds, nested mounts, aliases, and path escapes', () => {
   const escapedBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /source/repository /workspace/repository rw - ext4 /dev/root rw\n`;
   const nestedMount = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/bootstrap rw - tmpfs tmpfs rw\n`;
-  const aliasMount = `${normalMountInfo.trimEnd()}\n25 24 8:1 / /alias rw - ext4 /dev/root rw\n`;
+  const aliasMount = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository rw - ext4 /dev/repository rw\n26 24 8:2 / /alias rw - ext4 /dev/repository rw\n`;
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], escapedBind), /bind\/subtree mount alias/);
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], nestedMount), /nested mount point/);
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], aliasMount), /alias of the repository mount/);
@@ -389,8 +389,19 @@ test('Linux mountinfo fails closed on escaped binds, nested mounts, aliases, and
 test('Linux mountinfo fails closed on malformed, duplicate, conflicting, or unreadable input', () => {
   assert.throws(() => parseLinuxMountInfo('malformed\n'), /malformed|invalid/);
   assert.throws(() => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n24 1 8:1 / /other rw - ext4 /dev/root rw\n`), /duplicate mount id/);
-  assert.throws(() => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n25 24 8:2 / / rw - tmpfs tmpfs rw\n`), /duplicate or conflicting mount point/);
+  assert.throws(
+    () => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], `${normalMountInfo.trimEnd()}\n25 24 8:2 / / rw - tmpfs tmpfs rw\n`),
+    /duplicate or conflicting repository mount point/
+  );
   assert.throws(() => readLinuxMountInfo(() => { throw new Error('denied'); }), /unreadable/);
+});
+
+test('Linux mountinfo ignores duplicate host mount points outside the repository', () => {
+  const hostStack = `${normalMountInfo.trimEnd()}\n25 24 0:8 / /proc/sys/fs/binfmt_misc rw - proc proc rw\n26 24 0:9 / /proc/sys/fs/binfmt_misc rw - binfmt_misc binfmt_misc rw\n`;
+  assert.equal(
+    validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], hostStack).repositoryMountId,
+    '24'
+  );
 });
 
 test('Fitness namespace rewriting canonicalizes only the function-header search_path clause', () => {

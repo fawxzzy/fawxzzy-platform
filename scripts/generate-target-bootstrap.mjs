@@ -79,7 +79,6 @@ export function parseLinuxMountInfo(text) {
   }
 
   const mountIds = new Set();
-  const mountPoints = new Set();
   return rawLines.map((line, index) => {
     const fields = line.split(' ');
     if (fields.some((field) => field.length === 0)) throw new Error(`Linux mountinfo record ${index + 1} has ambiguous spacing`);
@@ -95,9 +94,7 @@ export function parseLinuxMountInfo(text) {
     const mountRoot = normalizePosixAbsolute(decodeMountInfoField(fields[3], `record ${index + 1} root`), `record ${index + 1} root`);
     const mountPoint = normalizePosixAbsolute(decodeMountInfoField(fields[4], `record ${index + 1} mount point`), `record ${index + 1} mount point`);
     if (mountIds.has(mountId)) throw new Error(`Linux mountinfo contains duplicate mount id ${mountId}`);
-    if (mountPoints.has(mountPoint)) throw new Error(`Linux mountinfo contains duplicate or conflicting mount point ${mountPoint}`);
     mountIds.add(mountId);
-    mountPoints.add(mountPoint);
     return Object.freeze({
       mountId,
       parentId,
@@ -127,6 +124,16 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
   }
 
   const mounts = parseLinuxMountInfo(mountInfoText);
+  const relevantMountPoints = new Map();
+  for (const entry of mounts.filter((candidate) => isPosixPathWithin(candidate.mountPoint, repository)
+    || isPosixPathWithin(repository, candidate.mountPoint))) {
+    const entries = relevantMountPoints.get(entry.mountPoint) ?? [];
+    entries.push(entry);
+    relevantMountPoints.set(entry.mountPoint, entries);
+  }
+  for (const [mountPoint, entries] of relevantMountPoints) {
+    if (entries.length > 1) throw new Error(`Linux mountinfo contains a duplicate or conflicting repository mount point: ${mountPoint}`);
+  }
   const containing = mounts
     .filter((entry) => isPosixPathWithin(entry.mountPoint, repository))
     .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId));
@@ -140,7 +147,8 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
     if (entry.mountId !== repositoryMount.mountId && isPosixPathWithin(repository, entry.mountPoint)) {
       throw new Error(`Linux repository contains a nested mount point: ${entry.mountPoint}`);
     }
-    if (entry.mountId !== repositoryMount.mountId
+    if (repositoryMount.mountPoint !== '/'
+      && entry.mountId !== repositoryMount.mountId
       && entry.device === repositoryMount.device
       && entry.root === repositoryMount.root) {
       throw new Error(`Linux mountinfo contains an alias of the repository mount: ${entry.mountPoint}`);
