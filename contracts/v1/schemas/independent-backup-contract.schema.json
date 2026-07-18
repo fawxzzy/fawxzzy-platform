@@ -1,0 +1,528 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:independent-backup-contract",
+  "title": "Independent backup source contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "decision_id",
+    "lifecycle",
+    "project",
+    "policy",
+    "coverage_units",
+    "storage_body_boundary",
+    "receipt_contract",
+    "restore_quarantine",
+    "execution_gates"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "decision_id": {
+      "const": "FP-MAN-015"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_state",
+        "allowed_states",
+        "execution_status"
+      ],
+      "properties": {
+        "current_state": {
+          "const": "SOURCE_READY"
+        },
+        "allowed_states": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/lifecycle_state"
+          }
+        },
+        "execution_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref",
+        "plan",
+        "compute"
+      ],
+      "properties": {
+        "name": {
+          "const": "Fawxzzy shared Supabase project"
+        },
+        "ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "plan": {
+          "const": "Pro"
+        },
+        "compute": {
+          "const": "Micro"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination",
+        "automation",
+        "encryption",
+        "schedule",
+        "retention",
+        "objectives",
+        "cost",
+        "provider_physical_backup_complement"
+      ],
+      "properties": {
+        "destination": {
+          "$ref": "#/$defs/destination"
+        },
+        "automation": {
+          "$ref": "#/$defs/automation"
+        },
+        "encryption": {
+          "$ref": "#/$defs/encryption"
+        },
+        "schedule": {
+          "$ref": "#/$defs/schedule"
+        },
+        "retention": {
+          "$ref": "#/$defs/retention"
+        },
+        "objectives": {
+          "$ref": "#/$defs/objectives"
+        },
+        "cost": {
+          "$ref": "#/$defs/cost"
+        },
+        "provider_physical_backup_complement": {
+          "$ref": "#/$defs/physical_backup"
+        }
+      }
+    },
+    "coverage_units": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/coverage_unit"
+      }
+    },
+    "storage_body_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "separate_recovery_contract_required_when_nonempty",
+        "empty_denominator_status",
+        "nonempty_without_current_receipt_status"
+      ],
+      "properties": {
+        "separate_recovery_contract_required_when_nonempty": {
+          "const": true
+        },
+        "empty_denominator_status": {
+          "const": "NOT_APPLICABLE"
+        },
+        "nonempty_without_current_receipt_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "receipt_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_serialization",
+        "digest_algorithm",
+        "aggregate_only",
+        "required_fields",
+        "forbidden_classes"
+      ],
+      "properties": {
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "digest_algorithm": {
+          "const": "SHA-256"
+        },
+        "aggregate_only": {
+          "const": true
+        },
+        "required_fields": {
+          "type": "array",
+          "minItems": 21,
+          "maxItems": 21,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden_classes": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "restore_quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "external_effect_units",
+        "all_disabled_before_readback",
+        "application_traffic_allowed",
+        "synthetic_canaries_only",
+        "parity_units",
+        "failed_clone_deletion_requires_separate_authority"
+      ],
+      "properties": {
+        "external_effect_units": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/external_effect_unit"
+          }
+        },
+        "all_disabled_before_readback": {
+          "const": true
+        },
+        "application_traffic_allowed": {
+          "const": false
+        },
+        "synthetic_canaries_only": {
+          "const": true
+        },
+        "parity_units": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "auth",
+              "catalog",
+              "data",
+              "security"
+            ]
+          }
+        },
+        "failed_clone_deletion_requires_separate_authority": {
+          "const": true
+        }
+      }
+    },
+    "execution_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_setup",
+        "credential_or_key_installation",
+        "workflow_publication",
+        "backup_generation_or_upload",
+        "restore_rehearsal",
+        "target_schema_auth_or_data_bootstrap",
+        "cutover",
+        "source_pause_or_deletion",
+        "production"
+      ],
+      "properties": {
+        "provider_setup": {
+          "const": "BLOCKED"
+        },
+        "credential_or_key_installation": {
+          "const": "BLOCKED"
+        },
+        "workflow_publication": {
+          "const": "BLOCKED"
+        },
+        "backup_generation_or_upload": {
+          "const": "BLOCKED"
+        },
+        "restore_rehearsal": {
+          "const": "BLOCKED"
+        },
+        "target_schema_auth_or_data_bootstrap": {
+          "const": "BLOCKED"
+        },
+        "cutover": {
+          "const": "BLOCKED"
+        },
+        "source_pause_or_deletion": {
+          "const": "BLOCKED"
+        },
+        "production": {
+          "const": "BLOCKED"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "lifecycle_state": {
+      "enum": [
+        "PLANNED",
+        "SOURCE_READY",
+        "EXECUTION_BLOCKED",
+        "BACKUP_CURRENT",
+        "RESTORE_REHEARSED",
+        "DRIFTED"
+      ]
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "region",
+        "bucket_visibility",
+        "object_lock_required",
+        "retention_mode"
+      ],
+      "properties": {
+        "provider": {
+          "const": "Backblaze B2"
+        },
+        "region": {
+          "const": "Canada East"
+        },
+        "bucket_visibility": {
+          "const": "private"
+        },
+        "object_lock_required": {
+          "const": true
+        },
+        "retention_mode": {
+          "const": "COMPLIANCE"
+        }
+      }
+    },
+    "automation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheduler",
+        "independent_watchdog_required",
+        "workflow_publication_status"
+      ],
+      "properties": {
+        "scheduler": {
+          "const": "private_github_actions"
+        },
+        "independent_watchdog_required": {
+          "const": true
+        },
+        "workflow_publication_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "encryption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_class",
+        "streaming_before_upload",
+        "persistent_plaintext_allowed",
+        "automation_material",
+        "offline_private_identity_count",
+        "distinct_encrypted_media_required",
+        "offsite_identity_count"
+      ],
+      "properties": {
+        "tool_class": {
+          "const": "age"
+        },
+        "streaming_before_upload": {
+          "const": true
+        },
+        "persistent_plaintext_allowed": {
+          "const": false
+        },
+        "automation_material": {
+          "const": "public_recipients_only"
+        },
+        "offline_private_identity_count": {
+          "const": 2
+        },
+        "distinct_encrypted_media_required": {
+          "const": true
+        },
+        "offsite_identity_count": {
+          "const": 1
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "full_export_interval_hours",
+        "freshness_limit_hours"
+      ],
+      "properties": {
+        "full_export_interval_hours": {
+          "const": 6
+        },
+        "freshness_limit_hours": {
+          "const": 8
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "standard_days",
+        "first_accepted_monthly_days"
+      ],
+      "properties": {
+        "standard_days": {
+          "const": 35
+        },
+        "first_accepted_monthly_days": {
+          "const": 400
+        }
+      }
+    },
+    "objectives": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rpo_seconds",
+        "quarantined_restore_data_plane_rto_seconds",
+        "production_service_rto_status",
+        "production_service_rto_seconds"
+      ],
+      "properties": {
+        "rpo_seconds": {
+          "const": 28800
+        },
+        "quarantined_restore_data_plane_rto_seconds": {
+          "const": 43200
+        },
+        "production_service_rto_status": {
+          "const": "UNKNOWN"
+        },
+        "production_service_rto_seconds": {
+          "type": "null"
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_increment_usd_monthly",
+        "warning_usd_monthly",
+        "manual_approval_ceiling_usd_monthly",
+        "budget_stop_control_required",
+        "monthly_reporting_units"
+      ],
+      "properties": {
+        "expected_increment_usd_monthly": {
+          "const": 0
+        },
+        "warning_usd_monthly": {
+          "const": 5
+        },
+        "manual_approval_ceiling_usd_monthly": {
+          "const": 15
+        },
+        "budget_stop_control_required": {
+          "const": true
+        },
+        "monthly_reporting_units": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backup_freshness",
+              "projected_cost",
+              "runner_usage",
+              "storage_growth"
+            ]
+          }
+        }
+      }
+    },
+    "physical_backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "frequency",
+        "retention_days",
+        "storage_object_bodies_included"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "frequency": {
+          "const": "daily"
+        },
+        "retention_days": {
+          "const": 7
+        },
+        "storage_object_bodies_included": {
+          "const": false
+        }
+      }
+    },
+    "coverage_unit": {
+      "enum": [
+        "application_schemas_and_catalog",
+        "roles_memberships_grants_and_default_acls",
+        "migration_ledger",
+        "application_data",
+        "auth_identity_data_and_password_hashes",
+        "auth_control_plane_metadata",
+        "storage_metadata",
+        "storage_object_bodies"
+      ]
+    },
+    "external_effect_unit": {
+      "enum": [
+        "app_environment",
+        "auth_delivery_and_hooks",
+        "database_webhooks",
+        "dns_and_aliases",
+        "edge_schedules",
+        "pg_cron",
+        "pg_net",
+        "queues",
+        "realtime",
+        "storage_events",
+        "subscriptions",
+        "wrappers"
+      ]
+    }
+  }
+}
