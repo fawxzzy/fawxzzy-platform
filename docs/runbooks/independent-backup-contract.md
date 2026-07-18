@@ -58,14 +58,14 @@ The deterministic validator requires:
 5. streaming `age` encryption with no persistent plaintext;
 6. at least two distinct public recipient IDs;
 7. an immutable destination version plus current compliance-mode Object Lock evidence;
-8. 35-day retention, or 400 days for the first accepted monthly export;
+8. a UTC-month accepted-export ordinal bound to an immutable accepted-exports manifest digest, with 35-day retention generally and 400 days when the manifest-backed ordinal proves the first accepted export of the month;
 9. all eight coverage units with aggregate counts and private digests;
 10. current independent-watchdog and provider Physical-backup evidence;
 11. current budget-stop control, the four-unit monthly report, and projected cost at or below the $15 manual-approval ceiling;
 12. a canonical `FP-MAN-015` decision reference;
 13. production-service RTO remaining `UNKNOWN`.
 
-Malformed, missing, future-dated, stale, over-ceiling, incomplete, or digest-mismatched evidence fails closed. A projected cost over $5 is a warning; a cost over $15, or unavailable reliable budget-stop control, requires a new manual approval before execution continues.
+The JSON Schema closes the complete receipt and every nested evidence object; unrecognized properties cannot be accepted merely because they evade heuristic field-name checks. Calendar-invalid timestamps, malformed or missing monthly-selection evidence, negative recovery durations, future-dated, stale, over-ceiling, incomplete, or digest-mismatched evidence fail closed. A projected cost over $5 is a warning; a cost over $15, or unavailable reliable budget-stop control, requires a new manual approval before execution continues.
 
 ## Restore-to-new-project quarantine
 

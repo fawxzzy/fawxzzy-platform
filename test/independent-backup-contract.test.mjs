@@ -29,7 +29,12 @@ function buildReceipt({ restore = false } = {}) {
     snapshot_at: '2026-07-18T17:30:00Z',
     completed_at: '2026-07-18T17:40:00Z',
     retention_until: '2026-08-22T17:40:00Z',
-    first_accepted_monthly: false,
+    monthly_selection: {
+      status: 'CURRENT',
+      month_utc: '2026-07',
+      accepted_export_ordinal: 2,
+      accepted_exports_manifest_sha256: digest('monthly-selection')
+    },
     plaintext_sha256: digest('plaintext'),
     ciphertext_sha256: digest('ciphertext'),
     migration_ledger_sha256: digest('migration-ledger'),
@@ -128,6 +133,26 @@ test('stale and future-dated evidence fail closed', () => {
   assert(validate(future).failures.includes('backup completion cannot be future-dated'));
 });
 
+test('calendar-invalid timestamps fail closed instead of normalizing', () => {
+  const receipt = buildReceipt();
+  receipt.snapshot_at = '2026-02-30T17:30:00Z';
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+  assert(validate(receipt).failures.includes('snapshot_at: invalid UTC timestamp'));
+});
+
+test('receipt and every nested evidence object are closed-world', () => {
+  const root = buildReceipt();
+  root.unclassified_evidence = { account: 'opaque-record' };
+  root.manifest_sha256 = independentBackupManifestDigest(root);
+  assert(root.unclassified_evidence);
+  assert(validate(root).failures.some((failure) => failure.includes('receipt schema /: must NOT have additional properties')));
+
+  const nested = buildReceipt();
+  nested.encryption.unclassified_evidence = { account: 'opaque-record' };
+  nested.manifest_sha256 = independentBackupManifestDigest(nested);
+  assert(validate(nested).failures.some((failure) => failure.includes('receipt schema /encryption: must NOT have additional properties')));
+});
+
 test('missing streaming encryption evidence fails closed', () => {
   const receipt = buildReceipt();
   receipt.encryption.streaming_before_upload = false;
@@ -142,15 +167,25 @@ test('non-compliance Object Lock fails closed', () => {
   assert(validate(receipt).failures.includes('Object Lock compliance evidence is required'));
 });
 
-test('retention shorter than policy fails closed including monthly boundary', () => {
+test('retention and independently evidenced monthly classification fail closed', () => {
   const receipt = buildReceipt();
   receipt.retention_until = '2026-08-22T17:39:59Z';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('retention does not cover the 35-day standard'));
   const monthly = buildReceipt();
-  monthly.first_accepted_monthly = true;
+  monthly.monthly_selection.accepted_export_ordinal = 1;
   monthly.manifest_sha256 = independentBackupManifestDigest(monthly);
-  assert(validate(monthly).failures.includes('monthly retention does not cover 400 days'));
+  assert(validate(monthly).failures.includes('first accepted monthly export retention does not cover 400 days'));
+
+  const wrongMonth = buildReceipt();
+  wrongMonth.monthly_selection.month_utc = '2026-06';
+  wrongMonth.manifest_sha256 = independentBackupManifestDigest(wrongMonth);
+  assert(validate(wrongMonth).failures.includes('monthly selection must correlate to the backup completion month'));
+
+  const missingEvidence = buildReceipt();
+  missingEvidence.monthly_selection.accepted_exports_manifest_sha256 = null;
+  missingEvidence.manifest_sha256 = independentBackupManifestDigest(missingEvidence);
+  assert(validate(missingEvidence).failures.includes('monthly selection requires an independently verifiable accepted-exports manifest'));
 });
 
 test('missing or over-ceiling cost controls fail closed', () => {
@@ -217,9 +252,19 @@ test('restore objective overruns and deletion overreach fail closed', () => {
   receipt.restore.failed_clone_deletion_authority_status = 'CURRENT';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   const result = validate(receipt);
-  assert(result.failures.includes('restore rehearsal exceeds the RPO objective'));
-  assert(result.failures.includes('restore rehearsal exceeds the quarantined data-plane RTO objective'));
+  assert(result.failures.includes('restore rehearsal has an invalid or over-objective RPO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement'));
   assert(result.failures.includes('failed clone deletion requires separate authority'));
+});
+
+test('negative measured restore durations fail closed', () => {
+  const receipt = buildReceipt({ restore: true });
+  receipt.restore.measured_rpo_seconds = -1;
+  receipt.restore.measured_data_plane_rto_seconds = -1;
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+  const result = validate(receipt);
+  assert(result.failures.includes('restore rehearsal has an invalid or over-objective RPO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement'));
 });
 
 test('manifest tampering is detected', () => {

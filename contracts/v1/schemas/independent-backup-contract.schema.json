@@ -168,8 +168,8 @@
         },
         "required_fields": {
           "type": "array",
-          "minItems": 21,
-          "maxItems": 21,
+          "minItems": 22,
+          "maxItems": 22,
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -523,6 +523,543 @@
         "subscriptions",
         "wrappers"
       ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "safe_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state",
+        "project",
+        "source_commit",
+        "postgres_version",
+        "tool_versions",
+        "snapshot_at",
+        "completed_at",
+        "retention_until",
+        "monthly_selection",
+        "plaintext_sha256",
+        "ciphertext_sha256",
+        "migration_ledger_sha256",
+        "manifest_sha256",
+        "ciphertext_bytes",
+        "destination_version",
+        "encryption",
+        "key_recipient_ids",
+        "object_lock",
+        "freshness",
+        "coverage",
+        "aggregate_counts",
+        "owner_decision",
+        "watchdog",
+        "provider_physical_backup",
+        "cost",
+        "production_service_rto",
+        "restore"
+      ],
+      "properties": {
+        "lifecycle_state": {
+          "enum": [
+            "BACKUP_CURRENT",
+            "RESTORE_REHEARSED"
+          ]
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "postgres_version": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "tool_versions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,31}$": {
+              "$ref": "#/$defs/safe_reference"
+            }
+          }
+        },
+        "snapshot_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "retention_until": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "monthly_selection": {
+          "$ref": "#/$defs/monthly_selection"
+        },
+        "plaintext_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ciphertext_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "migration_ledger_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ciphertext_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "destination_version": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "encryption": {
+          "$ref": "#/$defs/receipt_encryption"
+        },
+        "key_recipient_ids": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/safe_reference"
+          }
+        },
+        "object_lock": {
+          "$ref": "#/$defs/receipt_object_lock"
+        },
+        "freshness": {
+          "$ref": "#/$defs/receipt_freshness"
+        },
+        "coverage": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/receipt_coverage"
+          }
+        },
+        "aggregate_counts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,63}$": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "owner_decision": {
+          "$ref": "#/$defs/receipt_owner_decision"
+        },
+        "watchdog": {
+          "$ref": "#/$defs/receipt_watchdog"
+        },
+        "provider_physical_backup": {
+          "$ref": "#/$defs/receipt_physical_backup"
+        },
+        "cost": {
+          "$ref": "#/$defs/receipt_cost"
+        },
+        "production_service_rto": {
+          "$ref": "#/$defs/receipt_production_rto"
+        },
+        "restore": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/receipt_restore"
+            }
+          ]
+        }
+      }
+    },
+    "monthly_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "month_utc",
+        "accepted_export_ordinal",
+        "accepted_exports_manifest_sha256"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "month_utc": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "accepted_export_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accepted_exports_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "receipt_encryption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "tool_class",
+        "streaming_before_upload",
+        "persistent_plaintext",
+        "automation_material"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "tool_class": {
+          "const": "age"
+        },
+        "streaming_before_upload": {
+          "const": true
+        },
+        "persistent_plaintext": {
+          "const": false
+        },
+        "automation_material": {
+          "const": "public_recipients_only"
+        }
+      }
+    },
+    "receipt_object_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "mode"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "mode": {
+          "const": "COMPLIANCE"
+        }
+      }
+    },
+    "receipt_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "maximum_age_seconds"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "maximum_age_seconds": {
+          "const": 28800
+        }
+      }
+    },
+    "receipt_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "status",
+        "aggregate_count",
+        "private_digest",
+        "body_recovery_receipt_status",
+        "body_recovery_receipt_sha256"
+      ],
+      "properties": {
+        "unit": {
+          "$ref": "#/$defs/coverage_unit"
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "aggregate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "private_digest": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "body_recovery_receipt_status": {
+          "enum": [
+            "CURRENT",
+            "NOT_APPLICABLE",
+            "BLOCKED",
+            null
+          ]
+        },
+        "body_recovery_receipt_sha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        }
+      }
+    },
+    "receipt_owner_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "receipt_sha256",
+        "accepted_at"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-015"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "accepted_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        }
+      }
+    },
+    "receipt_watchdog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "independent_from_scheduler",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "independent_from_scheduler": {
+          "const": true
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "receipt_physical_backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "retention_days",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "retention_days": {
+          "const": 7
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "receipt_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "budget_stop_control_status",
+        "projected_usd_monthly",
+        "monthly_report_status",
+        "reported_units"
+      ],
+      "properties": {
+        "budget_stop_control_status": {
+          "const": "CURRENT"
+        },
+        "projected_usd_monthly": {
+          "type": "number",
+          "minimum": 0
+        },
+        "monthly_report_status": {
+          "const": "CURRENT"
+        },
+        "reported_units": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backup_freshness",
+              "projected_cost",
+              "runner_usage",
+              "storage_growth"
+            ]
+          }
+        }
+      }
+    },
+    "receipt_production_rto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "seconds"
+      ],
+      "properties": {
+        "status": {
+          "const": "UNKNOWN"
+        },
+        "seconds": {
+          "type": "null"
+        }
+      }
+    },
+    "receipt_restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "traffic_released",
+        "synthetic_canary_status",
+        "external_effects",
+        "parity",
+        "measured_rpo_seconds",
+        "measured_data_plane_rto_seconds",
+        "failed_clone_deletion_authority_status"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "traffic_released": {
+          "const": false
+        },
+        "synthetic_canary_status": {
+          "const": "CURRENT"
+        },
+        "external_effects": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/receipt_external_effect"
+          }
+        },
+        "parity": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/receipt_parity"
+          }
+        },
+        "measured_rpo_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "measured_data_plane_rto_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_clone_deletion_authority_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "receipt_external_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "status",
+        "disabled",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "unit": {
+          "$ref": "#/$defs/external_effect_unit"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "disabled": {
+          "const": true
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "receipt_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "status",
+        "aggregate_count",
+        "private_digest"
+      ],
+      "properties": {
+        "unit": {
+          "enum": [
+            "auth",
+            "catalog",
+            "data",
+            "security"
+          ]
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "aggregate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "private_digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
     }
   }
 }

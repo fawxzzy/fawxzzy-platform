@@ -1,4 +1,8 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import Ajv2020 from 'ajv/dist/2020.js';
 import { validateSanitizedReceipt } from './recovery.mjs';
 
 export const independentBackupContractPath = 'contracts/v1/recovery/independent-backup-contract.json';
@@ -43,7 +47,7 @@ const monthlyReportingUnits = Object.freeze(['backup_freshness', 'projected_cost
 const receiptRequiredFields = Object.freeze([
   'aggregate_counts', 'ciphertext_bytes', 'ciphertext_sha256', 'completed_at', 'cost', 'coverage',
   'destination_version', 'freshness', 'key_recipient_ids', 'manifest_sha256', 'migration_ledger_sha256',
-  'object_lock', 'owner_decision', 'plaintext_sha256', 'postgres_version', 'project', 'retention_until',
+  'monthly_selection', 'object_lock', 'owner_decision', 'plaintext_sha256', 'postgres_version', 'project', 'retention_until',
   'snapshot_at', 'source_commit', 'tool_versions', 'watchdog'
 ]);
 const forbiddenClasses = Object.freeze([
@@ -55,6 +59,15 @@ const commitSha = /^[0-9a-f]{40}$/;
 const stableId = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
 const safeReference = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const schemaPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'contracts', 'v1', 'schemas', 'independent-backup-contract.schema.json');
+const sourceSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+const receiptSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-receipt',
+  $ref: '#/$defs/receipt',
+  $defs: sourceSchema.$defs
+};
+const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -90,11 +103,17 @@ function parseTimestamp(value, label, failures) {
     return null;
   }
   const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) {
+  const canonical = Number.isFinite(parsed) ? new Date(parsed).toISOString().replace('.000Z', 'Z') : null;
+  if (!Number.isFinite(parsed) || canonical !== value) {
     failures.push(`${label}: invalid UTC timestamp`);
     return null;
   }
   return parsed;
+}
+
+function validateReceiptShape(receipt) {
+  if (receiptShapeValidator(receipt)) return [];
+  return (receiptShapeValidator.errors ?? []).map((error) => `receipt schema ${error.instancePath || '/'}: ${error.message}`);
 }
 
 function requireCondition(condition, message, failures) {
@@ -142,6 +161,7 @@ export function validateIndependentBackupContract(contract) {
 export function validateIndependentBackupReceipt(contract, receipt, options = {}) {
   const failures = [...validateIndependentBackupContract(contract).failures];
   if (!receipt) return { ok: false, failures: [...failures, 'backup receipt is missing'].sort() };
+  failures.push(...validateReceiptShape(receipt));
   failures.push(...validateSanitizedReceipt(receipt, 'independent backup receipt'));
   const now = parseTimestamp(options.now, 'validation clock', failures);
   const snapshotAt = parseTimestamp(receipt.snapshot_at, 'snapshot_at', failures);
@@ -164,7 +184,12 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(safeReference.test(receipt.destination_version ?? ''), 'immutable destination version is missing or unsafe', failures);
   requireCondition(receipt.object_lock?.status === 'CURRENT' && receipt.object_lock?.mode === 'COMPLIANCE', 'Object Lock compliance evidence is required', failures);
   requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.standard_days * 86400000, 'retention does not cover the 35-day standard', failures);
-  if (receipt.first_accepted_monthly === true) requireCondition(retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'monthly retention does not cover 400 days', failures);
+  const monthlySelection = receipt.monthly_selection;
+  const expectedMonth = completedAt === null ? null : new Date(completedAt).toISOString().slice(0, 7);
+  requireCondition(monthlySelection?.status === 'CURRENT' && monthlySelection?.month_utc === expectedMonth, 'monthly selection must correlate to the backup completion month', failures);
+  requireCondition(Number.isInteger(monthlySelection?.accepted_export_ordinal) && monthlySelection.accepted_export_ordinal >= 1, 'monthly selection requires a positive accepted-export ordinal', failures);
+  requireCondition(hexSha256.test(monthlySelection?.accepted_exports_manifest_sha256 ?? ''), 'monthly selection requires an independently verifiable accepted-exports manifest', failures);
+  if (monthlySelection?.accepted_export_ordinal === 1) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
   requireCondition(Array.isArray(receipt.coverage) && sameSet(receipt.coverage.map((entry) => entry.unit), coverageUnits), 'receipt coverage denominator changed', failures);
   for (const entry of receipt.coverage ?? []) {
     const isStorageBodies = entry.unit === 'storage_object_bodies';
@@ -197,8 +222,8 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     requireCondition(new Set(effectDigests).size === externalEffectUnits.length, 'restore external-effect evidence digests must be distinct', failures);
     requireCondition(Array.isArray(receipt.restore?.parity) && sameSet(receipt.restore.parity.map((entry) => entry.unit), parityUnits), 'restore parity denominator changed', failures);
     requireCondition(receipt.restore?.parity?.every((entry) => entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '')), 'restore parity evidence is incomplete', failures);
-    requireCondition(Number.isInteger(receipt.restore?.measured_rpo_seconds) && receipt.restore.measured_rpo_seconds <= contract.policy.objectives.rpo_seconds, 'restore rehearsal exceeds the RPO objective', failures);
-    requireCondition(Number.isInteger(receipt.restore?.measured_data_plane_rto_seconds) && receipt.restore.measured_data_plane_rto_seconds <= contract.policy.objectives.quarantined_restore_data_plane_rto_seconds, 'restore rehearsal exceeds the quarantined data-plane RTO objective', failures);
+    requireCondition(Number.isInteger(receipt.restore?.measured_rpo_seconds) && receipt.restore.measured_rpo_seconds >= 0 && receipt.restore.measured_rpo_seconds <= contract.policy.objectives.rpo_seconds, 'restore rehearsal has an invalid or over-objective RPO measurement', failures);
+    requireCondition(Number.isInteger(receipt.restore?.measured_data_plane_rto_seconds) && receipt.restore.measured_data_plane_rto_seconds >= 0 && receipt.restore.measured_data_plane_rto_seconds <= contract.policy.objectives.quarantined_restore_data_plane_rto_seconds, 'restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement', failures);
     requireCondition(receipt.restore?.failed_clone_deletion_authority_status === 'BLOCKED', 'failed clone deletion requires separate authority', failures);
   }
 
