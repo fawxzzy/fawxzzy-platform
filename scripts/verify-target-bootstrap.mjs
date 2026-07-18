@@ -10,6 +10,7 @@ import {
   generatedInertArtifactContractV1,
   generateTargetBootstrap,
   gitBlobSha1,
+  parseCreatorDefaultAclStatement,
   parseFunctionDefinition,
   parseFunctionPrivilegeEffect,
   root,
@@ -36,10 +37,127 @@ const expectedManifestFiles = [
   'source-objects.v1.json'
 ];
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
+const exactCreatorDefaultAclRoles = Object.freeze(['postgres', 'supabase_admin']);
+const exactCreatorDefaultAclSchemas = Object.freeze([
+  'discordos', 'discordos_private', 'fitness', 'mazer', 'platform_private', 'platform_shared'
+]);
+const exactCreatorDefaultAclGrantees = Object.freeze(['PUBLIC', 'anon', 'authenticated', 'service_role']);
+const exactCreatorDefaultAclObjectClasses = Object.freeze({
+  TABLES: Object.freeze(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN']),
+  SEQUENCES: Object.freeze(['USAGE', 'SELECT', 'UPDATE']),
+  FUNCTIONS: Object.freeze(['EXECUTE'])
+});
+export const creatorDefaultAclContractV1 = Object.freeze({
+  version: '1.0.0',
+  status: 'BLOCKED',
+  apply_admitted: false,
+  creator_roles: exactCreatorDefaultAclRoles,
+  schemas: exactCreatorDefaultAclSchemas,
+  object_classes: exactCreatorDefaultAclObjectClasses,
+  grantees: exactCreatorDefaultAclGrantees,
+  unit_count: 36,
+  executable_unit_count: 12,
+  signature_assertion_unit_count: 6,
+  blocked_unit_count: 18,
+  role_dispositions: Object.freeze({ postgres: 'REQUIRED', supabase_admin: 'BLOCKED' }),
+  blocked_creator_role: 'supabase_admin',
+  blocked_creator_disposition: 'NOT_EXECUTABLE',
+  blocked_creator_class: 'BLOCKED_PROVIDER_ROLE',
+  evidence_receipts: Object.freeze([
+    Object.freeze({ id: 'FP-TGT-SECURITY-BASELINE-001', status: 'BLOCKED', sqlstate: '42501', transaction_rollback: 'CURRENT' }),
+    Object.freeze({
+      id: 'FP-TGT-PROVIDER-DEFAULT-ACL-001',
+      status: 'CURRENT',
+      automatic_exposure_control: 'unchecked_save_disabled',
+      historical_supabase_admin_client_default_tuples: 36,
+      management_api_reconciliation_field: 'NOT_APPLICABLE'
+    })
+  ]),
+  placement: 'after_schema_prerequisites_before_first_governed_object_creation'
+});
+export const applicationCreatorBoundaryV1 = Object.freeze({
+  version: '1.0.0',
+  status: 'BLOCKED',
+  blocker_class: 'BLOCKED_PROVIDER_SUPPORT_REQUIRED',
+  residual_containment: 'CONTAINABLE_WITH_HARD_GATES',
+  owner_role: 'postgres',
+  schemas: exactCreatorDefaultAclSchemas,
+  governed_object_classes: Object.freeze(['TABLES', 'SEQUENCES', 'FUNCTIONS']),
+  create_revoked_from: Object.freeze(['supabase_admin']),
+  public_objects_allowed: false,
+  runtime_owner_assertion: 'REQUIRED',
+  provider_role_isolation_proof: 'UNKNOWN'
+});
+export const publicObjectBoundaryV1 = Object.freeze({
+  version: '1.0.0',
+  status: 'BLOCKED',
+  application_object_count: 0,
+  forbidden_object_classes: Object.freeze(['TABLES', 'VIEWS', 'MATERIALIZED_VIEWS', 'SEQUENCES', 'TYPES', 'FUNCTIONS']),
+  provider_helper_exception: Object.freeze({
+    status: 'BLOCKED',
+    evidence_receipt: 'FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001',
+    identity: 'UNKNOWN',
+    owner: 'UNKNOWN',
+    search_path: 'UNKNOWN',
+    execute_acl: 'UNKNOWN',
+    disabled_trigger: 'UNKNOWN',
+    admission: 'exact_manifest_required_before_readiness'
+  })
+});
+export const dataApiGateV1 = Object.freeze({
+  version: '1.0.0',
+  status: 'BLOCKED',
+  containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
+  bootstrap_starts_disabled: true,
+  pre_mutation_readback: 'REQUIRED',
+  current_evidence: Object.freeze({
+    receipt: 'FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001',
+    automatic_exposure: 'unchecked',
+    selected_schema_count: 2,
+    selected_schema_denominator: 2,
+    selected_schema_names: 'UNKNOWN',
+    table_count: 0,
+    exposed_function_count: 0,
+    function_denominator: 1,
+    api_enable_state: 'UNKNOWN'
+  }),
+  maximum_exposed_schemas: Object.freeze(['platform_shared', 'discordos', 'mazer', 'fitness']),
+  never_exposed_schemas: Object.freeze(['discordos_private', 'platform_private', 'public', 'extensions', 'auth', 'storage', 'realtime']),
+  public_absent_from_extra_search_path: true,
+  automatic_exposure: 'unchecked',
+  negative_probe_gate: 'REQUIRED',
+  negative_probes: Object.freeze([
+    'current_user_or_owner_drift_aborts',
+    'supabase_admin_application_default_tuple_aborts',
+    'supabase_admin_owned_application_object_aborts',
+    'public_application_object_aborts',
+    'forbidden_exposed_schema_aborts',
+    'public_extra_search_path_aborts',
+    'automatic_exposure_enabled_aborts',
+    'unexpected_data_api_state_aborts'
+  ]),
+  exact_rollback_gate: 'REQUIRED',
+  rollback_requirements: Object.freeze([
+    'capture_exact_database_owner_acl_preimage',
+    'capture_exact_data_api_enable_exposed_and_search_path_preimage',
+    'database_changes_transactional_with_exact_rollback',
+    'control_plane_changes_expected_state_guarded',
+    'restore_and_reread_exact_preimage_on_failure'
+  ]),
+  setting_mutation_admitted: false
+});
+export const targetPostgresqlContractV1 = Object.freeze({
+  status: 'REQUIRED',
+  major_version: 17,
+  live_target_version: 'UNKNOWN',
+  maintain_default_privilege: 'REQUIRED',
+  official_reference: 'https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html'
+});
 export const generatedFunctionPrivilegeContractV1 = Object.freeze({
   version: '1.0.0',
   admitted_schemas: Object.freeze(['discordos', 'discordos_private', 'fitness', 'mazer', 'platform_private', 'platform_shared', 'public']),
   governed_roles: exactGeneratedFunctionRoles,
+  default_privilege_creator_roles: Object.freeze(['postgres']),
   functions: Object.freeze({
     'discordos.set_updated_at()': Object.freeze({ source_file: '00000000000003_discordos_schema_inert.sql', definition_count: 1, allowed_execute_roles: Object.freeze([]) }),
     'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 2, allowed_execute_roles: Object.freeze([]) }),
@@ -377,6 +495,7 @@ export function verifyGeneratedFunctionPrivileges(files, contract = generatedFun
   const failures = [];
   const admittedSchemas = new Set(contract.admitted_schemas);
   const governedRoles = new Set(contract.governed_roles);
+  const creatorRoles = new Set(contract.default_privilege_creator_roles ?? []);
   const defaultRoles = new Map(contract.admitted_schemas.map((schema) => [schema, new Set(['public'])]));
   const functions = new Map();
   for (const [filename, text] of files) {
@@ -416,6 +535,10 @@ export function verifyGeneratedFunctionPrivileges(files, contract = generatedFun
         failures.push(`${filename}: function privilege contains undeclared roles: ${unknownRoles.join(', ')}`);
         continue;
       }
+      if (privilege.creator_role && !creatorRoles.has(privilege.creator_role)) {
+        failures.push(`${filename}: function default privilege contains undeclared creator role: ${privilege.creator_role}`);
+        continue;
+      }
       if (privilege.scope === 'function') {
         const state = functions.get(privilege.signature);
         if (!state) {
@@ -437,7 +560,12 @@ export function verifyGeneratedFunctionPrivileges(files, contract = generatedFun
           if (schemas.includes(functionSchema(signature))) applyPrivilegeAction(state.effective_roles, privilege.action, privilege.roles);
         }
       } else if (privilege.scope === 'schema_default') {
-        for (const schema of schemas) applyPrivilegeAction(defaultRoles.get(schema), privilege.action, privilege.roles);
+        // Creator-specific defaults are verified independently against the closed 36-unit contract.
+        // Exact per-function revokes remain authoritative because PostgreSQL per-schema defaults
+        // cannot subtract a privilege granted by a global creator default.
+        if (!privilege.creator_role) {
+          for (const schema of schemas) applyPrivilegeAction(defaultRoles.get(schema), privilege.action, privilege.roles);
+        }
       } else {
         failures.push(`${filename}: unknown function privilege scope`);
       }
@@ -495,7 +623,7 @@ export function inspectInertSql(filename, text, heldFunctionTargets = [], expect
   fail(failures, text.startsWith('-- APPLY_ADMITTED=false\n'), `${filename}: missing inert marker`);
   fail(failures, !text.includes('\r'), `${filename}: CR byte detected`);
   fail(failures, !/\bcreate\s+(?:or\s+replace\s+)?(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?(?:auth|storage|extensions|realtime)\s*\./i.test(text), `${filename}: provider-managed object recreation detected`);
-  fail(failures, !/\bcreate\s+(?:or\s+replace\s+)?(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?public\s*\./i.test(text), `${filename}: public product object creation detected`);
+  fail(failures, !/\bcreate\s+(?:or\s+replace\s+)?(?:table|materialized\s+view|view|function|sequence|type)\s+(?:if\s+not\s+exists\s+)?public\s*\./i.test(text), `${filename}: public application object creation detected`);
   fail(failures, !/\bcreate\s+extension\b/i.test(text), `${filename}: extension activation detected`);
   fail(failures, !/\bcron\.schedule\s*\(|\bnet\.http_(?:get|post|delete)\s*\(/i.test(text), `${filename}: Cron or network effect detected`);
   fail(failures, !/https?:\/\//i.test(text), `${filename}: network hook detected`);
@@ -514,6 +642,200 @@ export function inspectInertSql(filename, text, heldFunctionTargets = [], expect
     const heldReferences = findHeldFunctionReferences(statement, heldFunctionTargets, fallbackSchema);
     fail(failures, heldReferences.length === 0, `${filename}: statement references held function ${heldReferences.join(', ')}`);
   }
+  return failures.sort();
+}
+
+export function verifyCreatorDefaultAcls(
+  files,
+  contract = creatorDefaultAclContractV1,
+  targetPostgresql = targetPostgresqlContractV1,
+  manifestContract = contract,
+  manifestPostgresql = targetPostgresql
+) {
+  const failures = [];
+  fail(failures, canonicalJson(contract) === canonicalJson(creatorDefaultAclContractV1), 'creator default ACL config contract drift');
+  const { units: manifestUnits = [], ...manifestBase } = manifestContract ?? {};
+  fail(failures, canonicalJson(manifestBase) === canonicalJson(creatorDefaultAclContractV1), 'creator default ACL manifest contract drift');
+  fail(failures, canonicalJson(targetPostgresql) === canonicalJson(targetPostgresqlContractV1), 'target PostgreSQL config contract drift');
+  fail(failures, canonicalJson(manifestPostgresql) === canonicalJson(targetPostgresqlContractV1), 'target PostgreSQL manifest contract drift');
+
+  const expectedDispositions = [];
+  for (const creatorRole of exactCreatorDefaultAclRoles) {
+    for (const schema of exactCreatorDefaultAclSchemas) {
+      for (const [objectClass, privileges] of Object.entries(exactCreatorDefaultAclObjectClasses)) {
+        const executable = creatorRole === 'postgres' && objectClass !== 'FUNCTIONS';
+        const signatureAssertion = creatorRole === 'postgres' && objectClass === 'FUNCTIONS';
+        expectedDispositions.push({
+          creator_role: creatorRole,
+          schema,
+          object_class: objectClass,
+          privileges: [...privileges],
+          grantees: [...exactCreatorDefaultAclGrantees],
+          status: creatorRole === 'postgres' ? 'REQUIRED' : 'BLOCKED',
+          execution_disposition: executable
+            ? 'EXECUTABLE_INERT_SOURCE'
+            : signatureAssertion ? 'ASSERT_SIGNATURE_SPECIFIC_REVOKE' : 'NOT_EXECUTABLE',
+          ...(creatorRole === 'supabase_admin' ? { blocker_class: 'BLOCKED_PROVIDER_ROLE' } : {}),
+          effect_sha256: sha256(canonicalJson({
+            creator_role: creatorRole,
+            schema,
+            object_class: objectClass,
+            privileges,
+            grantees: exactCreatorDefaultAclGrantees
+          }))
+        });
+      }
+    }
+  }
+  fail(failures, canonicalJson(manifestUnits) === canonicalJson(expectedDispositions), 'creator default ACL 36-unit disposition matrix drift');
+  fail(failures, manifestUnits.filter((unit) => unit.status === 'BLOCKED' && unit.execution_disposition === 'NOT_EXECUTABLE').length === 18, 'supabase_admin held default ACL denominator must be 18');
+  fail(failures, manifestUnits.filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length === 6, 'postgres signature-specific function ACL assertion denominator must be 6');
+
+  const actual = [];
+  const createdSchemas = new Set(['public', 'auth', 'storage', 'extensions', 'realtime']);
+  let ordinal = 0;
+  let firstGovernedObjectOrdinal = Number.POSITIVE_INFINITY;
+  for (const [filename, text] of files) {
+    for (const statement of splitSqlStatements(text)) {
+      ordinal += 1;
+      const clean = statement.replace(/^(?:\s|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)+/, '').trim();
+      const schemaCreate = /^create\s+schema\s+(?:if\s+not\s+exists\s+)?("?[A-Za-z_][A-Za-z0-9_$]*"?)/i.exec(clean);
+      if (schemaCreate) createdSchemas.add(schemaCreate[1].replaceAll('"', '').toLowerCase());
+      if (/^create\s+(?:or\s+replace\s+)?(?:table|sequence|function)\b/i.test(clean)) {
+        firstGovernedObjectOrdinal = Math.min(firstGovernedObjectOrdinal, ordinal);
+      }
+      if (!/^alter\s+default\s+privileges\b/i.test(clean)) continue;
+      const unit = parseCreatorDefaultAclStatement(statement);
+      if (!unit || unit.malformed) {
+        failures.push(`${filename}: malformed or unsupported creator default ACL (${unit?.reason ?? 'unknown'})`);
+        continue;
+      }
+      if (unit.creator_role === 'supabase_admin') {
+        failures.push(`${filename}: blocked supabase_admin creator default ACL entered executable SQL`);
+      }
+      if (!createdSchemas.has(unit.schema)) {
+        failures.push(`${filename}: creator default ACL schema prerequisite is absent: ${unit.schema}`);
+      }
+      if (ordinal >= firstGovernedObjectOrdinal) {
+        failures.push(`${filename}: creator default ACL appears after governed object creation`);
+      }
+      actual.push({
+        creator_role: unit.creator_role,
+        schema: unit.schema,
+        object_class: unit.object_class,
+        privileges: unit.privileges,
+        grantees: unit.grantees
+      });
+    }
+  }
+
+  const identities = actual.map((unit) => `${unit.creator_role}:${unit.schema}:${unit.object_class}`);
+  const expectedExecutable = expectedDispositions
+    .filter((unit) => unit.execution_disposition === 'EXECUTABLE_INERT_SOURCE')
+    .map(({ status, execution_disposition, effect_sha256, ...unit }) => ({
+      ...unit,
+      grantees: unit.grantees.map((role) => role.toLowerCase())
+    }));
+  fail(failures, actual.length === creatorDefaultAclContractV1.executable_unit_count, `executable creator default ACL unit count must be 12, found ${actual.length}`);
+  fail(failures, new Set(identities).size === identities.length, 'creator default ACL unit identity denominator contains a duplicate');
+  fail(failures, canonicalJson(actual) === canonicalJson(expectedExecutable), 'executable postgres creator default ACL matrix drift');
+  return failures.sort();
+}
+
+export function verifyApplicationCreatorBoundary(files, contract = applicationCreatorBoundaryV1, manifestContract = contract) {
+  const failures = [];
+  fail(failures, canonicalJson(contract) === canonicalJson(applicationCreatorBoundaryV1), 'application creator config contract drift');
+  fail(failures, canonicalJson(manifestContract) === canonicalJson(applicationCreatorBoundaryV1), 'application creator manifest contract drift');
+  const schemas = new Set(exactCreatorDefaultAclSchemas);
+  const schemaOwnerAssertions = new Map(exactCreatorDefaultAclSchemas.map((schema) => [schema, 0]));
+  const schemaCreateRevokes = new Map(exactCreatorDefaultAclSchemas.map((schema) => [schema, 0]));
+  const authorizedSchemaCreates = new Map(exactCreatorDefaultAclSchemas.map((schema) => [schema, 0]));
+
+  let currentRole = null;
+  let setRoleCount = 0;
+  let currentUserGuardCount = 0;
+  for (const [filename, text] of files) {
+    for (const statement of splitSqlStatements(text)) {
+      const clean = statement.replace(/^(?:\s|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)+/, '').trim();
+      const setRole = /^set\s+(?:local\s+)?role\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s*;?$/i.exec(clean);
+      if (/^(?:set\s+(?:local\s+)?role\b|reset\s+role\b|set\s+session\s+authorization\b|reset\s+session\s+authorization\b)/i.test(clean) && !setRole) {
+        failures.push(`${filename}: unsupported execution-role control statement`);
+        currentRole = null;
+      }
+      if (setRole) {
+        setRoleCount += 1;
+        currentRole = setRole[1].replaceAll('"', '').toLowerCase();
+        if (currentRole !== 'postgres') failures.push(`${filename}: generated execution role drift: ${currentRole}`);
+      }
+      if (/^do\s+\$current_user_guard\$[\s\S]*\bcurrent_user\s*<>\s*'postgres'[\s\S]*\$current_user_guard\$\s*;?$/i.test(clean)) {
+        currentUserGuardCount += 1;
+        if (currentRole !== 'postgres') failures.push(`${filename}: current_user guard is not preceded by SET ROLE postgres`);
+      }
+
+      const schemaCreate = /^create\s+schema\s+(?:if\s+not\s+exists\s+)?("?[A-Za-z_][A-Za-z0-9_$]*"?)\s+authorization\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s*;?$/i.exec(clean);
+      if (schemaCreate) {
+        const schema = schemaCreate[1].replaceAll('"', '').toLowerCase();
+        const owner = schemaCreate[2].replaceAll('"', '').toLowerCase();
+        if (schemas.has(schema)) {
+          if (owner !== 'postgres') failures.push(`${filename}: application schema authorization owner drift: ${schema} -> ${owner}`);
+          authorizedSchemaCreates.set(schema, authorizedSchemaCreates.get(schema) + 1);
+        }
+      }
+
+      const ownerChange = /^alter\s+schema\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s+owner\s+to\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s*;?$/i.exec(clean);
+      if (ownerChange) {
+        const schema = ownerChange[1].replaceAll('"', '').toLowerCase();
+        const owner = ownerChange[2].replaceAll('"', '').toLowerCase();
+        if (schemas.has(schema)) {
+          if (owner !== 'postgres') failures.push(`${filename}: application schema owner drift: ${schema} -> ${owner}`);
+          schemaOwnerAssertions.set(schema, schemaOwnerAssertions.get(schema) + 1);
+        }
+      }
+
+      const createRevoke = /^revoke\s+create\s+on\s+schema\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s+from\s+supabase_admin\s*;?$/i.exec(clean);
+      if (createRevoke) {
+        const schema = createRevoke[1].replaceAll('"', '').toLowerCase();
+        if (schemas.has(schema)) schemaCreateRevokes.set(schema, schemaCreateRevokes.get(schema) + 1);
+      }
+      if (/^grant\s+[^;]*\bcreate\b[^;]*\bon\s+schema\s+[^;]*\bto\s+[^;]*\bsupabase_admin\b/i.test(clean)) {
+        failures.push(`${filename}: supabase_admin CREATE entered generated SQL`);
+      }
+
+      const governedCreate = /^create\s+(?:or\s+replace\s+)?(?:table|sequence|function)\s+(?:if\s+not\s+exists\s+)?("?[A-Za-z_][A-Za-z0-9_$]*"?)\s*\./i.exec(clean);
+      if (governedCreate && schemas.has(governedCreate[1].replaceAll('"', '').toLowerCase())) {
+        if (currentRole !== 'postgres') failures.push(`${filename}: governed application object is not created under postgres role`);
+        if (currentUserGuardCount !== 1) failures.push(`${filename}: governed application object precedes the exact current_user guard`);
+      }
+      const objectOwner = /^alter\s+(?:table|sequence|function)\b[\s\S]*\bowner\s+to\s+("?[A-Za-z_][A-Za-z0-9_$]*"?)\s*;?$/i.exec(clean);
+      if (objectOwner && objectOwner[1].replaceAll('"', '').toLowerCase() !== 'postgres') {
+        failures.push(`${filename}: application object owner drift: ${objectOwner[1]}`);
+      }
+    }
+  }
+
+  for (const schema of exactCreatorDefaultAclSchemas) {
+    fail(failures, authorizedSchemaCreates.get(schema) >= 1, `${schema}: missing postgres schema authorization`);
+    fail(failures, schemaOwnerAssertions.get(schema) === 1, `${schema}: postgres schema owner assertion count drift`);
+    fail(failures, schemaCreateRevokes.get(schema) === 1, `${schema}: supabase_admin CREATE revocation count drift`);
+  }
+  fail(failures, setRoleCount === 1, `SET ROLE postgres assertion count must be 1, found ${setRoleCount}`);
+  fail(failures, currentUserGuardCount === 1, `current_user assertion count must be 1, found ${currentUserGuardCount}`);
+  return failures.sort();
+}
+
+export function verifyHeldControlPlaneContracts(config, namespacePlan) {
+  const failures = [];
+  fail(failures, canonicalJson(config.public_object_boundary) === canonicalJson(publicObjectBoundaryV1), 'public object boundary config drift');
+  fail(failures, canonicalJson(namespacePlan.public_object_boundary) === canonicalJson(publicObjectBoundaryV1), 'public object boundary manifest drift');
+  fail(failures, canonicalJson(config.data_api_gate) === canonicalJson(dataApiGateV1), 'Data API gate config drift');
+  fail(failures, canonicalJson(namespacePlan.data_api_gate) === canonicalJson(dataApiGateV1), 'Data API gate manifest drift');
+  fail(failures, canonicalJson(config.schemas.application) === canonicalJson(exactCreatorDefaultAclSchemas), 'application schema vocabulary drift');
+  fail(failures, !config.schemas.application.includes('public'), 'public must not be an application schema');
+  fail(failures, config.data_api_gate.current_evidence.selected_schema_names === 'UNKNOWN', 'incomplete selected schema evidence must remain UNKNOWN');
+  fail(failures, config.data_api_gate.current_evidence.api_enable_state === 'UNKNOWN', 'incomplete Data API enable evidence must remain UNKNOWN');
+  fail(failures, config.data_api_gate.setting_mutation_admitted === false, 'Data API setting mutation must remain blocked');
+  fail(failures, !config.data_api_gate.maximum_exposed_schemas.includes('public'), 'public entered the maximum exposed schema allowlist');
+  fail(failures, config.data_api_gate.never_exposed_schemas.includes('public'), 'public missing from never-exposed schemas');
   return failures.sort();
 }
 
@@ -536,7 +858,7 @@ export function verifyGeneratedArtifactPathBoundary(relativeSqlPaths, contract =
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
-function verifyGeneratedSql(config, dispositions, failures) {
+function verifyGeneratedSql(config, namespacePlan, dispositions, failures) {
   const repositorySqlPaths = listWorkingTreeFiles(root).filter((relativePath) => relativePath.endsWith('.sql'));
   failures.push(...verifyGeneratedArtifactPathBoundary(repositorySqlPaths));
   const directory = path.join(root, ...expectedGeneratedArtifactDirectory.split('/'));
@@ -565,6 +887,18 @@ function verifyGeneratedSql(config, dispositions, failures) {
     resolvedDenyPolicyCount += [...text.matchAll(/create\s+policy\s+[A-Za-z0-9_]+_deny_public_api_access\b/gi)].length;
   }
   failures.push(...verifyGeneratedFunctionPrivileges(orderedFiles, generatedFunctionPrivilegeContractV1));
+  failures.push(...verifyCreatorDefaultAcls(
+    orderedFiles,
+    config.creator_default_acl,
+    config.target_postgresql,
+    namespacePlan.creator_default_acl,
+    namespacePlan.target_postgresql
+  ));
+  failures.push(...verifyApplicationCreatorBoundary(
+    orderedFiles,
+    config.application_creator_boundary,
+    namespacePlan.application_creator_boundary
+  ));
   failures.push(...verifySchemaCreationOrder(orderedFiles));
   fail(failures, resolvedDenyPolicyCount === 10, `resolved deny policy output must be 10, found ${resolvedDenyPolicyCount}`);
 }
@@ -608,10 +942,12 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
   const dataEffects = readJson('bootstrap/manifests/data-effects.v1.json');
   const dispositions = readJson('bootstrap/manifests/dispositions.v1.json');
+  const namespacePlan = readJson('bootstrap/manifests/namespace-plan.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
-  verifyGeneratedSql(config, dispositions, failures);
+  failures.push(...verifyHeldControlPlaneContracts(config, namespacePlan));
+  verifyGeneratedSql(config, namespacePlan, dispositions, failures);
   verifyNoForbiddenIdentities(config, failures);
 
   let deterministicDigest = digestPackageOutputs().digest;
@@ -633,7 +969,9 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'immutable_source_identity', 'frozen_chain_recomputation', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
       'path_level_inertness',
-      'schema_creation_order', 'discordos_public_rpc_hold', 'held_function_dependency_closure',
+      'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
+      'public_object_boundary', 'data_api_gate',
+      'discordos_public_rpc_hold', 'held_function_dependency_closure',
       'provider_managed_skip', 'private_schema_exposure', 'effective_function_acl', 'effective_function_search_path', 'no_network_hooks',
       'no_provider_commands', 'no_project_refs', 'deterministic_generation'
     ],
@@ -649,6 +987,12 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       held_data_effects: dataEffects.effects.length,
       dynamic_templates: dynamic.units.length,
       held_cron_units: 1
+    },
+    creator_default_acl_counts: {
+      units: namespacePlan.creator_default_acl.units.length,
+      executable: namespacePlan.creator_default_acl.units.filter((unit) => unit.execution_disposition === 'EXECUTABLE_INERT_SOURCE').length,
+      signature_assertions: namespacePlan.creator_default_acl.units.filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length,
+      blocked: namespacePlan.creator_default_acl.units.filter((unit) => unit.execution_disposition === 'NOT_EXECUTABLE').length
     },
     derived_counts: dispositions.derived_counts,
     deterministic_digest: deterministicDigest,

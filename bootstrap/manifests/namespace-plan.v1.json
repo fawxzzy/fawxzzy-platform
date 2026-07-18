@@ -2,6 +2,927 @@
   "version": "1.0.0",
   "status": "REQUIRED",
   "apply_admitted": false,
+  "target_postgresql": {
+    "status": "REQUIRED",
+    "major_version": 17,
+    "live_target_version": "UNKNOWN",
+    "maintain_default_privilege": "REQUIRED",
+    "official_reference": "https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html"
+  },
+  "creator_default_acl": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "apply_admitted": false,
+    "creator_roles": [
+      "postgres",
+      "supabase_admin"
+    ],
+    "schemas": [
+      "discordos",
+      "discordos_private",
+      "fitness",
+      "mazer",
+      "platform_private",
+      "platform_shared"
+    ],
+    "object_classes": {
+      "TABLES": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN"
+      ],
+      "SEQUENCES": [
+        "USAGE",
+        "SELECT",
+        "UPDATE"
+      ],
+      "FUNCTIONS": [
+        "EXECUTE"
+      ]
+    },
+    "grantees": [
+      "PUBLIC",
+      "anon",
+      "authenticated",
+      "service_role"
+    ],
+    "unit_count": 36,
+    "executable_unit_count": 12,
+    "signature_assertion_unit_count": 6,
+    "blocked_unit_count": 18,
+    "role_dispositions": {
+      "postgres": "REQUIRED",
+      "supabase_admin": "BLOCKED"
+    },
+    "blocked_creator_role": "supabase_admin",
+    "blocked_creator_disposition": "NOT_EXECUTABLE",
+    "blocked_creator_class": "BLOCKED_PROVIDER_ROLE",
+    "evidence_receipts": [
+      {
+        "id": "FP-TGT-SECURITY-BASELINE-001",
+        "status": "BLOCKED",
+        "sqlstate": "42501",
+        "transaction_rollback": "CURRENT"
+      },
+      {
+        "id": "FP-TGT-PROVIDER-DEFAULT-ACL-001",
+        "status": "CURRENT",
+        "automatic_exposure_control": "unchecked_save_disabled",
+        "historical_supabase_admin_client_default_tuples": 36,
+        "management_api_reconciliation_field": "NOT_APPLICABLE"
+      }
+    ],
+    "placement": "after_schema_prerequisites_before_first_governed_object_creation",
+    "units": [
+      {
+        "creator_role": "postgres",
+        "schema": "discordos",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "bac0b78a22d11bf1bf69003ed57a832863ddf3f524d5746a5bd5253fc17d9dd2"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "discordos",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "ed9449c8a94d52907e5c1139aa7a40d70c0ea2caf26223258eeb7366ad022364"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "discordos",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "56dd8c9ed5397aa46afb182d0bff70b1cc75ac0b53e16edc99ca6fe7beb8e856"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "discordos_private",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "703858958cc9cfa06cf69212700ad6bfd90fc09ea25226b34f5efcf0128706bc"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "discordos_private",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "51ff4f3a895088b6803baed768c10a503dda813ebe68603c264c228afeef1b64"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "discordos_private",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "3393b087ba288516a19eab7992abf0d3641b8652b4f43a40cae466346fab583a"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "fitness",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "a12d26301ddcefe406e611d00b5778dbd278b04a257dbbdde3a483e43e754442"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "fitness",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "5e7f25b9a1c959a862a0f87a0085cac11dfc78fa6ad62ceab6ef0a47c6d1b726"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "fitness",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "de72a67117b8702ad014c7d2f916c21f3ce1d9734fb151325bc702d1a1373c6d"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "mazer",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "2410808f47af737b78eeb6ccc8311e6dc8aee3104ec3628883ad8aeb883ea1cb"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "mazer",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "74d3a3be13f5f38a491861d723c443e8985e52cec79f7632a69e0e2147f973ce"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "mazer",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "5a1c2ce62ed2141b2142c76f770baac243d45f03423790c52671448f008123df"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_private",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "81133475d327aee92dbe37983224514dce30f4ef880dc0fe37f63607d2c85605"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_private",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "c4d2bb5b168cf39c36ffd7a57499d565bc44e52ae06bc6176f047494264be254"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_private",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "1fa0effbf11bdda645a98660ecd1219ff9097ad1646b149440e012d93f551de2"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_shared",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "7a8da0405e990a217e2bc728766ec7fb5f4dee5dedefdf6146fdf560b9445779"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_shared",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "EXECUTABLE_INERT_SOURCE",
+        "effect_sha256": "21eaa35681c0e086c5ca319546cdf73d2c545c655959565a8e359bdb0cdf4ab9"
+      },
+      {
+        "creator_role": "postgres",
+        "schema": "platform_shared",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "REQUIRED",
+        "execution_disposition": "ASSERT_SIGNATURE_SPECIFIC_REVOKE",
+        "effect_sha256": "d7268274b8fa8728b9dc28b3b7fc7046fe34ecfd1a3ebc5961b138004dffd327"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "d7ff3a6ea98481ab7b7ce99b7bdc753b500fe36904fa13ab7de1d68a7845ac87"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "651f716330ec557fb14086eacea6dc410615bc63baebc1146b6f73726c87bf88"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "3d5872b3f5d4c46fa33d2849081971558c4b853647301bdd5d111ef9ac839605"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos_private",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "ad2dab2a050f222028d3b05634f060187f200bd012ef4978117c4329f933c462"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos_private",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "bbb6f2dfe470caaaeb27c73a33e110e8c904ee36caa78a4f34f9f7db3e7c1615"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "discordos_private",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "3fbf6ea7386d3b87517f6ed4e2cc6d12015a3989373d659e4021e76b1fe26ca9"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "fitness",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "f64f14a21152a70c4e31d9bacf47a6420fed8adb4385edbe5027ae14870560f4"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "fitness",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "537f4b9b554de6c3b2ab4a7357410464b9c602aa12e0f2f59b808a1566778cfd"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "fitness",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "6f9d1a4faa24b03801a4d63b7627a82605cbb0298fbd5c6937fbce8df2b9b818"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "mazer",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "7c523a6b09a07a24b0962179b1266750818b88eac8e6732bc3fadb7cb0971b2d"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "mazer",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "8d43e36d40999a20d77773862c0b26d0f4171a3fc2f009d26569c6af772a660c"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "mazer",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "9a1be741dc9aa4ada9df732eb231a160e8d2fb85d6a295df170a98a0d27d1c6d"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_private",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "6c1710295f6bc48db05595eabbb0cf6941537a160429b3741ee7a7de85e00255"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_private",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "a4528f341fddff8ada3f7bc0a36a17d09b68dcdfd8919ae580d250a711daefd7"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_private",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "54742aceceba447d26aee6a13abbd966819f35174c5dc9f26b2ecb301e646932"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_shared",
+        "object_class": "TABLES",
+        "privileges": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+          "MAINTAIN"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "bd68f5b975baf1ff7e20c9bbb400b503f68c95736e54ff9bf5dc1e4bf22e2932"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_shared",
+        "object_class": "SEQUENCES",
+        "privileges": [
+          "USAGE",
+          "SELECT",
+          "UPDATE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "c2011a08debeda4ad9f2be24c3e742f00431a73291ea88e396983cd02cc73513"
+      },
+      {
+        "creator_role": "supabase_admin",
+        "schema": "platform_shared",
+        "object_class": "FUNCTIONS",
+        "privileges": [
+          "EXECUTE"
+        ],
+        "grantees": [
+          "PUBLIC",
+          "anon",
+          "authenticated",
+          "service_role"
+        ],
+        "status": "BLOCKED",
+        "execution_disposition": "NOT_EXECUTABLE",
+        "blocker_class": "BLOCKED_PROVIDER_ROLE",
+        "effect_sha256": "d67bdebcc23583621afb2c4f1ca01dce4beed95aab9fe82c69d5bcb18931b44b"
+      }
+    ]
+  },
+  "application_creator_boundary": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "blocker_class": "BLOCKED_PROVIDER_SUPPORT_REQUIRED",
+    "residual_containment": "CONTAINABLE_WITH_HARD_GATES",
+    "owner_role": "postgres",
+    "schemas": [
+      "discordos",
+      "discordos_private",
+      "fitness",
+      "mazer",
+      "platform_private",
+      "platform_shared"
+    ],
+    "governed_object_classes": [
+      "TABLES",
+      "SEQUENCES",
+      "FUNCTIONS"
+    ],
+    "create_revoked_from": [
+      "supabase_admin"
+    ],
+    "public_objects_allowed": false,
+    "runtime_owner_assertion": "REQUIRED",
+    "provider_role_isolation_proof": "UNKNOWN"
+  },
+  "public_object_boundary": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "application_object_count": 0,
+    "forbidden_object_classes": [
+      "TABLES",
+      "VIEWS",
+      "MATERIALIZED_VIEWS",
+      "SEQUENCES",
+      "TYPES",
+      "FUNCTIONS"
+    ],
+    "provider_helper_exception": {
+      "status": "BLOCKED",
+      "evidence_receipt": "FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001",
+      "identity": "UNKNOWN",
+      "owner": "UNKNOWN",
+      "search_path": "UNKNOWN",
+      "execute_acl": "UNKNOWN",
+      "disabled_trigger": "UNKNOWN",
+      "admission": "exact_manifest_required_before_readiness"
+    }
+  },
+  "data_api_gate": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
+    "bootstrap_starts_disabled": true,
+    "pre_mutation_readback": "REQUIRED",
+    "current_evidence": {
+      "receipt": "FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001",
+      "automatic_exposure": "unchecked",
+      "selected_schema_count": 2,
+      "selected_schema_denominator": 2,
+      "selected_schema_names": "UNKNOWN",
+      "table_count": 0,
+      "exposed_function_count": 0,
+      "function_denominator": 1,
+      "api_enable_state": "UNKNOWN"
+    },
+    "maximum_exposed_schemas": [
+      "platform_shared",
+      "discordos",
+      "mazer",
+      "fitness"
+    ],
+    "never_exposed_schemas": [
+      "discordos_private",
+      "platform_private",
+      "public",
+      "extensions",
+      "auth",
+      "storage",
+      "realtime"
+    ],
+    "public_absent_from_extra_search_path": true,
+    "automatic_exposure": "unchecked",
+    "negative_probe_gate": "REQUIRED",
+    "negative_probes": [
+      "current_user_or_owner_drift_aborts",
+      "supabase_admin_application_default_tuple_aborts",
+      "supabase_admin_owned_application_object_aborts",
+      "public_application_object_aborts",
+      "forbidden_exposed_schema_aborts",
+      "public_extra_search_path_aborts",
+      "automatic_exposure_enabled_aborts",
+      "unexpected_data_api_state_aborts"
+    ],
+    "exact_rollback_gate": "REQUIRED",
+    "rollback_requirements": [
+      "capture_exact_database_owner_acl_preimage",
+      "capture_exact_data_api_enable_exposed_and_search_path_preimage",
+      "database_changes_transactional_with_exact_rollback",
+      "control_plane_changes_expected_state_guarded",
+      "restore_and_reread_exact_preimage_on_failure"
+    ],
+    "setting_mutation_admitted": false
+  },
   "public": {
     "product_tables_allowed": false,
     "rpc": "blocked_pending_control_plane_and_security_proof"

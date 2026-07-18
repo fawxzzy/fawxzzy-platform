@@ -4,6 +4,7 @@ import {
   analyzeFunctionDependencyStatement,
   buildGenerationPlan,
   classifyStatement,
+  parseCreatorDefaultAclStatement,
   parseFunctionDefinition,
   parseFunctionPrivilegeEffect,
   parseFunctionPrivilegeStatement,
@@ -122,13 +123,46 @@ test('function privilege parser closes specific, schema-wide, and default scopes
       roles: ['public']
     }
   );
+  assert.deepEqual(
+    parseFunctionPrivilegeEffect('alter default privileges for role postgres in schema fitness revoke execute on functions from PUBLIC;', 'public'),
+    {
+      malformed: false,
+      scope: 'schema_default',
+      action: 'revoke',
+      privilege: 'execute',
+      creator_role: 'postgres',
+      schemas: ['fitness'],
+      roles: ['public']
+    }
+  );
   for (const sql of [
     'grant execute on all routines in schema fitness to authenticated;',
-    'alter default privileges for role owner in schema fitness grant execute on functions to authenticated;',
     'grant execute on all functions in schema fitness to authenticated with grant option;',
     'revoke execute on function fitness.example(uuid) from authenticated cascade;'
   ]) {
     assert.equal(parseFunctionPrivilegeEffect(sql, 'fitness')?.malformed, true, sql);
+  }
+});
+
+test('creator default ACL parser freezes creator, schema, class, privileges, and grantees', () => {
+  assert.deepEqual(
+    parseCreatorDefaultAclStatement('AlTeR DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA fitness REVOKE SELECT, MAINTAIN ON TABLES FROM PUBLIC, anon, authenticated, service_role;'),
+    {
+      malformed: false,
+      creator_role: 'postgres',
+      schema: 'fitness',
+      object_class: 'TABLES',
+      privileges: ['SELECT', 'MAINTAIN'],
+      grantees: ['public', 'anon', 'authenticated', 'service_role']
+    }
+  );
+  for (const sql of [
+    'alter default privileges in schema fitness revoke execute on functions from PUBLIC;',
+    'alter default privileges for role postgres in schema fitness grant execute on functions to PUBLIC;',
+    'alter default privileges for role postgres in schema fitness revoke execute, execute on functions from PUBLIC;',
+    'alter default privileges for role postgres in schema fitness revoke execute on functions from PUBLIC, PUBLIC;'
+  ]) {
+    assert.equal(parseCreatorDefaultAclStatement(sql)?.malformed, true, sql);
   }
 });
 

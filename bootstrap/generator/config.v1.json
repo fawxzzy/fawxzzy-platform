@@ -2,6 +2,187 @@
   "version": "1.0.0",
   "status": "CURRENT",
   "apply_admitted": false,
+  "target_postgresql": {
+    "status": "REQUIRED",
+    "major_version": 17,
+    "live_target_version": "UNKNOWN",
+    "maintain_default_privilege": "REQUIRED",
+    "official_reference": "https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html"
+  },
+  "creator_default_acl": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "apply_admitted": false,
+    "creator_roles": [
+      "postgres",
+      "supabase_admin"
+    ],
+    "schemas": [
+      "discordos",
+      "discordos_private",
+      "fitness",
+      "mazer",
+      "platform_private",
+      "platform_shared"
+    ],
+    "object_classes": {
+      "TABLES": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN"
+      ],
+      "SEQUENCES": [
+        "USAGE",
+        "SELECT",
+        "UPDATE"
+      ],
+      "FUNCTIONS": [
+        "EXECUTE"
+      ]
+    },
+    "grantees": [
+      "PUBLIC",
+      "anon",
+      "authenticated",
+      "service_role"
+    ],
+    "unit_count": 36,
+    "executable_unit_count": 12,
+    "signature_assertion_unit_count": 6,
+    "blocked_unit_count": 18,
+    "role_dispositions": {
+      "postgres": "REQUIRED",
+      "supabase_admin": "BLOCKED"
+    },
+    "blocked_creator_role": "supabase_admin",
+    "blocked_creator_disposition": "NOT_EXECUTABLE",
+    "blocked_creator_class": "BLOCKED_PROVIDER_ROLE",
+    "evidence_receipts": [
+      {
+        "id": "FP-TGT-SECURITY-BASELINE-001",
+        "status": "BLOCKED",
+        "sqlstate": "42501",
+        "transaction_rollback": "CURRENT"
+      },
+      {
+        "id": "FP-TGT-PROVIDER-DEFAULT-ACL-001",
+        "status": "CURRENT",
+        "automatic_exposure_control": "unchecked_save_disabled",
+        "historical_supabase_admin_client_default_tuples": 36,
+        "management_api_reconciliation_field": "NOT_APPLICABLE"
+      }
+    ],
+    "placement": "after_schema_prerequisites_before_first_governed_object_creation"
+  },
+  "application_creator_boundary": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "blocker_class": "BLOCKED_PROVIDER_SUPPORT_REQUIRED",
+    "residual_containment": "CONTAINABLE_WITH_HARD_GATES",
+    "owner_role": "postgres",
+    "schemas": [
+      "discordos",
+      "discordos_private",
+      "fitness",
+      "mazer",
+      "platform_private",
+      "platform_shared"
+    ],
+    "governed_object_classes": [
+      "TABLES",
+      "SEQUENCES",
+      "FUNCTIONS"
+    ],
+    "create_revoked_from": [
+      "supabase_admin"
+    ],
+    "public_objects_allowed": false,
+    "runtime_owner_assertion": "REQUIRED",
+    "provider_role_isolation_proof": "UNKNOWN"
+  },
+  "public_object_boundary": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "application_object_count": 0,
+    "forbidden_object_classes": [
+      "TABLES",
+      "VIEWS",
+      "MATERIALIZED_VIEWS",
+      "SEQUENCES",
+      "TYPES",
+      "FUNCTIONS"
+    ],
+    "provider_helper_exception": {
+      "status": "BLOCKED",
+      "evidence_receipt": "FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001",
+      "identity": "UNKNOWN",
+      "owner": "UNKNOWN",
+      "search_path": "UNKNOWN",
+      "execute_acl": "UNKNOWN",
+      "disabled_trigger": "UNKNOWN",
+      "admission": "exact_manifest_required_before_readiness"
+    }
+  },
+  "data_api_gate": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
+    "bootstrap_starts_disabled": true,
+    "pre_mutation_readback": "REQUIRED",
+    "current_evidence": {
+      "receipt": "FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001",
+      "automatic_exposure": "unchecked",
+      "selected_schema_count": 2,
+      "selected_schema_denominator": 2,
+      "selected_schema_names": "UNKNOWN",
+      "table_count": 0,
+      "exposed_function_count": 0,
+      "function_denominator": 1,
+      "api_enable_state": "UNKNOWN"
+    },
+    "maximum_exposed_schemas": [
+      "platform_shared",
+      "discordos",
+      "mazer",
+      "fitness"
+    ],
+    "never_exposed_schemas": [
+      "discordos_private",
+      "platform_private",
+      "public",
+      "extensions",
+      "auth",
+      "storage",
+      "realtime"
+    ],
+    "public_absent_from_extra_search_path": true,
+    "automatic_exposure": "unchecked",
+    "negative_probe_gate": "REQUIRED",
+    "negative_probes": [
+      "current_user_or_owner_drift_aborts",
+      "supabase_admin_application_default_tuple_aborts",
+      "supabase_admin_owned_application_object_aborts",
+      "public_application_object_aborts",
+      "forbidden_exposed_schema_aborts",
+      "public_extra_search_path_aborts",
+      "automatic_exposure_enabled_aborts",
+      "unexpected_data_api_state_aborts"
+    ],
+    "exact_rollback_gate": "REQUIRED",
+    "rollback_requirements": [
+      "capture_exact_database_owner_acl_preimage",
+      "capture_exact_data_api_enable_exposed_and_search_path_preimage",
+      "database_changes_transactional_with_exact_rollback",
+      "control_plane_changes_expected_state_guarded",
+      "restore_and_reread_exact_preimage_on_failure"
+    ],
+    "setting_mutation_admitted": false
+  },
   "evidence": {
     "artifact": "FP-TGT-MIGRATION-DAG-RO-002-bootstrap-refresh-2026-07-17.md",
     "artifact_sha256": "a2fbcc56df902ac1ed6f68fa7625daf4959c77756929c7a48fbf5c59bb5542cc",
@@ -60,11 +241,12 @@
   },
   "schemas": {
     "application": [
-      "public",
-      "platform_shared",
       "discordos",
+      "discordos_private",
       "fitness",
-      "mazer"
+      "mazer",
+      "platform_private",
+      "platform_shared"
     ],
     "private": [
       "platform_private",

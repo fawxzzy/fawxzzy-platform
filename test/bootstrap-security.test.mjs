@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
+  applicationCreatorBoundaryV1,
+  creatorDefaultAclContractV1,
+  dataApiGateV1,
   inspectInertSql,
+  publicObjectBoundaryV1,
+  targetPostgresqlContractV1,
+  verifyApplicationCreatorBoundary,
+  verifyCreatorDefaultAcls,
+  verifyHeldControlPlaneContracts,
   verifyEffectiveFunctionAcls,
   verifyGeneratedFitnessFunctionSearchPaths
 } from '../scripts/verify-target-bootstrap.mjs';
@@ -17,6 +26,7 @@ test('security verifier rejects data, Cron, network, extension, provider, and pu
     'create extension pg_cron;',
     'create table auth.shadow(id bigint);',
     'create table public.product_table(id bigint);',
+    'create materialized view public.product_rollup as select 1;',
     'CrEaTe\n OR   RePlAcE\tFuNcTiOn PUBLIC  .  DISCORDOS_LEAK() returns void language sql as $$ select 1 $$;',
     'select 1; -- https://example.invalid/hook'
   ];
@@ -66,6 +76,137 @@ test('security verifier rejects private exposure, PUBLIC execute, provider comma
 test('security verifier accepts a deny-by-default inert schema unit', () => {
   const sql = `${marker}create schema if not exists fitness;\nrevoke all on schema fitness from PUBLIC, anon, authenticated;\n`;
   assert.deepEqual(inspectInertSql('positive.sql', sql), []);
+});
+
+function creatorAclFixture() {
+  const schemas = creatorDefaultAclContractV1.schemas;
+  const privileges = creatorDefaultAclContractV1.object_classes;
+  const statements = [
+    'set role postgres;',
+    `do $current_user_guard$ begin if current_user <> 'postgres' then raise exception 'target bootstrap requires postgres current_user'; end if; end $current_user_guard$;`,
+    ...schemas.flatMap((schema) => [
+      `create schema if not exists ${schema} authorization postgres;`,
+      `alter schema ${schema} owner to postgres;`,
+      `revoke create on schema ${schema} from supabase_admin;`
+    ]),
+    ...schemas.flatMap((schema) => Object.entries(privileges).filter(([objectClass]) => objectClass !== 'FUNCTIONS').map(([objectClass, values]) =>
+      `alter default privileges for role postgres in schema ${schema} revoke ${values.join(', ')} on ${objectClass.toLowerCase()} from ${creatorDefaultAclContractV1.grantees.join(', ')};`)),
+    'create table fitness.example(id bigint);'
+  ];
+  const units = [];
+  for (const creatorRole of creatorDefaultAclContractV1.creator_roles) {
+    for (const schema of schemas) {
+      for (const [objectClass, values] of Object.entries(privileges)) {
+        const executable = creatorRole === 'postgres' && objectClass !== 'FUNCTIONS';
+        const signatureAssertion = creatorRole === 'postgres' && objectClass === 'FUNCTIONS';
+        units.push({
+          creator_role: creatorRole,
+          schema,
+          object_class: objectClass,
+          privileges: [...values],
+          grantees: [...creatorDefaultAclContractV1.grantees],
+          status: creatorRole === 'postgres' ? 'REQUIRED' : 'BLOCKED',
+          execution_disposition: executable
+            ? 'EXECUTABLE_INERT_SOURCE'
+            : signatureAssertion ? 'ASSERT_SIGNATURE_SPECIFIC_REVOKE' : 'NOT_EXECUTABLE',
+          ...(creatorRole === 'supabase_admin' ? { blocker_class: 'BLOCKED_PROVIDER_ROLE' } : {}),
+          effect_sha256: crypto.createHash('sha256').update(`${JSON.stringify({
+            creator_role: creatorRole,
+            schema,
+            object_class: objectClass,
+            privileges: values,
+            grantees: creatorDefaultAclContractV1.grantees
+          }, null, 2)}\n`).digest('hex')
+        });
+      }
+    }
+  }
+  return {
+    files: [['01.sql', `${marker}${statements.join('\n')}\n`]],
+    manifest: { ...creatorDefaultAclContractV1, units }
+  };
+}
+
+test('creator default ACL verifier freezes 12 executable, 6 signature, and 18 provider-blocked units', () => {
+  const fixture = creatorAclFixture();
+  assert.deepEqual(verifyCreatorDefaultAcls(
+    fixture.files,
+    creatorDefaultAclContractV1,
+    targetPostgresqlContractV1,
+    fixture.manifest,
+    targetPostgresqlContractV1
+  ), []);
+
+  const baseSql = fixture.files[0][1];
+  const firstAcl = /alter default privileges for role postgres[^;]+;/i.exec(baseSql)[0];
+  const cases = [
+    baseSql.replace(/alter default privileges for role postgres[^;]+;/i, ''),
+    baseSql.replace(/(alter default privileges for role postgres[^;]+;)/i, '$1\n$1'),
+    baseSql.replace('for role postgres in schema discordos', 'for role supabase_admin in schema discordos'),
+    baseSql.replace('SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN', 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'),
+    baseSql.replace('PUBLIC, anon, authenticated, service_role', 'PUBLIC, anon, authenticated'),
+    baseSql.replace(firstAcl, '').replace('create table fitness.example(id bigint);', `create table fitness.example(id bigint);\n${firstAcl}`)
+  ];
+  for (const sql of cases) {
+    assert.notEqual(verifyCreatorDefaultAcls(
+      [['01.sql', sql]],
+      creatorDefaultAclContractV1,
+      targetPostgresqlContractV1,
+      fixture.manifest,
+      targetPostgresqlContractV1
+    ).length, 0, sql.slice(0, 120));
+  }
+
+  const relabeled = structuredClone(fixture.manifest);
+  relabeled.units.find((unit) => unit.creator_role === 'supabase_admin').status = 'REQUIRED';
+  assert.match(verifyCreatorDefaultAcls(
+    fixture.files,
+    creatorDefaultAclContractV1,
+    targetPostgresqlContractV1,
+    relabeled,
+    targetPostgresqlContractV1
+  ).join('\n'), /disposition matrix drift|held default ACL denominator/);
+});
+
+test('application creator boundary rejects provider CREATE and owner or creator drift', () => {
+  const fixture = creatorAclFixture();
+  assert.deepEqual(verifyApplicationCreatorBoundary(fixture.files, applicationCreatorBoundaryV1, applicationCreatorBoundaryV1), []);
+  for (const sql of [
+    fixture.files[0][1].replace('revoke create on schema fitness from supabase_admin;', 'grant create on schema fitness to supabase_admin;'),
+    fixture.files[0][1].replace('alter schema fitness owner to postgres;', 'alter schema fitness owner to supabase_admin;'),
+    fixture.files[0][1].replace('set role postgres;', 'set role supabase_admin;'),
+    fixture.files[0][1].replace('create table fitness.example', 'reset role;\ncreate table fitness.example'),
+    fixture.files[0][1].replace(/do \$current_user_guard\$[\s\S]*?\$current_user_guard\$;/, ''),
+    fixture.files[0][1].replace('create table fitness.example', 'set role supabase_admin;\ncreate table fitness.example')
+  ]) {
+    assert.notEqual(verifyApplicationCreatorBoundary([['01.sql', sql]], applicationCreatorBoundaryV1, applicationCreatorBoundaryV1).length, 0);
+  }
+});
+
+test('held public and Data API contracts reject vocabulary, exposure, evidence, and mutation drift', () => {
+  const config = {
+    schemas: { application: [...creatorDefaultAclContractV1.schemas] },
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  const manifest = {
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  assert.deepEqual(verifyHeldControlPlaneContracts(config, manifest), []);
+  for (const mutate of [
+    (value) => value.schemas.application.push('public'),
+    (value) => { value.data_api_gate.setting_mutation_admitted = true; },
+    (value) => { value.data_api_gate.current_evidence.selected_schema_names = ['public', 'fitness']; },
+    (value) => value.data_api_gate.maximum_exposed_schemas.push('public'),
+    (value) => value.data_api_gate.negative_probes.pop(),
+    (value) => value.data_api_gate.rollback_requirements.pop(),
+    (value) => { value.public_object_boundary.application_object_count = 1; }
+  ]) {
+    const drifted = structuredClone(config);
+    mutate(drifted);
+    assert.notEqual(verifyHeldControlPlaneContracts(drifted, manifest).length, 0);
+  }
 });
 
 test('effective function ACL verifier rejects missing, unmatched, extra, and explicit privilege reintroduction', () => {

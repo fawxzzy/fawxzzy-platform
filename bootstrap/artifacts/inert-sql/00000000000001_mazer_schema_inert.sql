@@ -1,7 +1,43 @@
 -- APPLY_ADMITTED=false
 -- INERT SOURCE PACKAGE: review and contained replay are required before any apply.
 
-create schema if not exists mazer;
+set role postgres;
+
+do $current_user_guard$ begin if current_user <> 'postgres' then raise exception 'target bootstrap requires postgres current_user'; end if; end $current_user_guard$;
+
+-- Required namespace prerequisites for the blocked creator-boundary contract.
+create schema if not exists discordos authorization postgres;
+alter schema discordos owner to postgres;
+revoke create on schema discordos from supabase_admin;
+create schema if not exists discordos_private authorization postgres;
+alter schema discordos_private owner to postgres;
+revoke create on schema discordos_private from supabase_admin;
+create schema if not exists fitness authorization postgres;
+alter schema fitness owner to postgres;
+revoke create on schema fitness from supabase_admin;
+create schema if not exists mazer authorization postgres;
+alter schema mazer owner to postgres;
+revoke create on schema mazer from supabase_admin;
+create schema if not exists platform_private authorization postgres;
+alter schema platform_private owner to postgres;
+revoke create on schema platform_private from supabase_admin;
+create schema if not exists platform_shared authorization postgres;
+alter schema platform_shared owner to postgres;
+revoke create on schema platform_shared from supabase_admin;
+
+-- Exactly 12 postgres table/sequence default-ACL units are emitted; six function units require signature-specific revocation and 18 supabase_admin units remain held evidence.
+alter default privileges for role postgres in schema discordos revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema discordos revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema discordos_private revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema discordos_private revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema fitness revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema fitness revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema mazer revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema mazer revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema platform_private revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema platform_private revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema platform_shared revoke SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN on tables from PUBLIC, anon, authenticated, service_role;
+alter default privileges for role postgres in schema platform_shared revoke USAGE, SELECT, UPDATE on sequences from PUBLIC, anon, authenticated, service_role;
 
 -- source supabase/migrations/20260709045557_mazer_progression_state.sql blob c388edfb799b4f90ba2e28efbe3065bbc2e8e4c1 raw_sha256 8df9389fd41e293814fbf8f65caef0555a077e55314d9ac58ef04dc78eb3411a
 create table if not exists mazer.mazer_progression_states (

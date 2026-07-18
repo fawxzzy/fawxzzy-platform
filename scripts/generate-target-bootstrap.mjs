@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(scriptDirectory, '..');
 const configPath = path.join(root, 'bootstrap', 'generator', 'config.v1.json');
+const securityMatrixRelativePath = 'contracts/v1/security/rls-grant-function-matrix.json';
 export const generatedManifestContractV1 = Object.freeze({
   version: '1.0.0',
   directory: 'bootstrap/manifests',
@@ -49,6 +50,52 @@ function lstatIfPresent(absolutePath) {
 
 function realpath(absolutePath) {
   return fs.realpathSync.native?.(absolutePath) ?? fs.realpathSync(absolutePath);
+}
+
+function pathIdentity(absolutePath) {
+  const stats = fs.statSync(absolutePath);
+  return Object.freeze({
+    physical: realpath(absolutePath),
+    device: String(stats.dev),
+    inode: String(stats.ino),
+    type: stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : 'unsupported'
+  });
+}
+
+function observePlannedPath(repository, targetPath, label) {
+  const target = path.resolve(targetPath);
+  let existing = target;
+  while (!lstatIfPresent(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing || !isPathWithin(repository.lexical, parent)) {
+      throw new Error(`${label} has no observable repository ancestor: ${target}`);
+    }
+    existing = parent;
+  }
+  const identity = pathIdentity(existing);
+  if (identity.type === 'unsupported') throw new Error(`${label} has an unsupported physical identity: ${existing}`);
+  return Object.freeze({
+    label,
+    target,
+    target_exists: existing === target,
+    existing,
+    ...identity
+  });
+}
+
+function canonicalIdentityModel(repository, paths) {
+  const repositoryIdentity = pathIdentity(repository.lexical);
+  const planned = paths.map(({ target, label }) => observePlannedPath(repository, target, label));
+  const observed = new Map();
+  for (const entry of planned.filter((candidate) => candidate.target_exists)) {
+    const key = `${entry.device}:${entry.inode}`;
+    const prior = observed.get(key);
+    if (prior && !isSamePath(prior.target, entry.target)) {
+      throw new Error(`${entry.label} physically aliases ${prior.label}: ${entry.target}`);
+    }
+    observed.set(key, entry);
+  }
+  return Object.freeze({ repository: repositoryIdentity, planned: Object.freeze(planned) });
 }
 
 function decodeMountInfoField(value, label) {
@@ -118,15 +165,17 @@ export function readLinuxMountInfo(reader = (filename, encoding) => fs.readFileS
 export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysicalPaths, mountInfoText) {
   const repository = normalizePosixAbsolute(repositoryPhysicalPath, 'repository path');
   const planned = [...new Set(plannedPhysicalPaths.map((candidate) => normalizePosixAbsolute(candidate, 'planned path')))];
-  if (!planned.includes(repository)) planned.unshift(repository);
+  if (planned.length === 0) throw new Error('Linux planned path denominator is empty');
   for (const candidate of planned) {
     if (!isPosixPathWithin(repository, candidate)) throw new Error(`planned publication path escaped the Linux repository mount: ${candidate}`);
   }
 
   const mounts = parseLinuxMountInfo(mountInfoText);
+  const intersectsPlanned = (mountPoint) => planned.some((candidate) => isPosixPathWithin(mountPoint, candidate)
+    || isPosixPathWithin(candidate, mountPoint));
   const relevantMountPoints = new Map();
   for (const entry of mounts.filter((candidate) => isPosixPathWithin(candidate.mountPoint, repository)
-    || isPosixPathWithin(repository, candidate.mountPoint))) {
+    || intersectsPlanned(candidate.mountPoint))) {
     const entries = relevantMountPoints.get(entry.mountPoint) ?? [];
     entries.push(entry);
     relevantMountPoints.set(entry.mountPoint, entries);
@@ -144,11 +193,12 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
   }
 
   for (const entry of mounts) {
-    if (entry.mountId !== repositoryMount.mountId && isPosixPathWithin(repository, entry.mountPoint)) {
-      throw new Error(`Linux repository contains a nested mount point: ${entry.mountPoint}`);
+    if (entry.mountId !== repositoryMount.mountId
+      && isPosixPathWithin(repository, entry.mountPoint)
+      && intersectsPlanned(entry.mountPoint)) {
+      throw new Error(`Linux planned path intersects a nested mount point: ${entry.mountPoint}`);
     }
-    if (repositoryMount.mountPoint !== '/'
-      && entry.mountId !== repositoryMount.mountId
+    if (entry.mountId !== repositoryMount.mountId
       && entry.device === repositoryMount.device
       && entry.root === repositoryMount.root) {
       throw new Error(`Linux mountinfo contains an alias of the repository mount: ${entry.mountPoint}`);
@@ -173,10 +223,10 @@ function validateRepositoryRoot(repositoryRoot) {
   if (stats.isSymbolicLink()) throw new Error(`generated artifact repository root is link-like: ${lexical}`);
   if (!stats.isDirectory()) throw new Error(`generated artifact repository root is not a directory: ${lexical}`);
   const physical = realpath(lexical);
-  if (!isSamePath(lexical, physical)) {
+  if (!isSamePath(lexical, physical) || (process.platform === 'win32' && lexical !== physical)) {
     throw new Error(`generated artifact repository root contains a physical alias or link-like ancestor: ${lexical}`);
   }
-  return { lexical, physical };
+  return { lexical, physical, identity: pathIdentity(lexical) };
 }
 
 function validatePathChain(repository, targetPath, finalType, label) {
@@ -221,7 +271,13 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
   const output = path.resolve(repository.lexical, ...generatedInertArtifactContractV1.directory.split('/'));
   const manifests = path.resolve(repository.lexical, ...generatedManifestContractV1.directory.split('/'));
   const standardMigrations = path.resolve(repository.lexical, 'supabase', 'migrations');
+  const sourceInputs = path.resolve(repository.lexical, 'bootstrap', 'sources');
+  const generatorConfig = path.resolve(repository.lexical, 'bootstrap', 'generator', 'config.v1.json');
+  const securityMatrix = path.resolve(repository.lexical, ...securityMatrixRelativePath.split('/'));
   validatePathChain(repository, standardMigrations, 'directory', 'standard Supabase migration discovery');
+  validatePathChain(repository, sourceInputs, 'directory', 'immutable source discovery');
+  validatePathChain(repository, generatorConfig, 'file', 'generator configuration input');
+  validatePathChain(repository, securityMatrix, 'file', 'security matrix input');
   validatePathChain(repository, manifests, 'directory', 'generated manifest directory');
   for (const filename of generatedManifestContractV1.filenames) {
     validatePathChain(repository, path.join(manifests, filename), 'file', `generated manifest ${filename}`);
@@ -242,20 +298,34 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
     throw new Error('generated inert artifacts physically alias standard Supabase migration discovery');
   }
 
-  const plannedPaths = [
-    repository.physical,
-    path.resolve(repository.physical, 'supabase', 'migrations'),
-    path.resolve(repository.physical, ...generatedManifestContractV1.directory.split('/')),
-    ...generatedManifestContractV1.filenames.map((filename) => path.resolve(repository.physical, ...generatedManifestContractV1.directory.split('/'), filename)),
-    path.resolve(repository.physical, ...generatedInertArtifactContractV1.directory.split('/')),
-    ...generatedInertArtifactContractV1.filenames.map((filename) => path.resolve(repository.physical, ...generatedInertArtifactContractV1.directory.split('/'), filename))
+  const plannedPathEntries = [
+    { target: standardMigrations, label: 'standard Supabase migration discovery' },
+    { target: sourceInputs, label: 'immutable source discovery' },
+    { target: generatorConfig, label: 'generator configuration input' },
+    { target: securityMatrix, label: 'security matrix input' },
+    { target: manifests, label: 'generated manifest directory' },
+    ...generatedManifestContractV1.filenames.map((filename) => ({ target: path.join(manifests, filename), label: `generated manifest ${filename}` })),
+    { target: output, label: 'generated inert artifact directory' },
+    ...generatedInertArtifactContractV1.filenames.map((filename) => ({ target: path.join(output, filename), label: `generated inert artifact ${filename}` }))
   ];
+  const identityModel = canonicalIdentityModel(repository, plannedPathEntries);
+  const plannedPaths = plannedPathEntries.map(({ target }) => path.resolve(repository.physical, path.relative(repository.lexical, target)));
   let linuxMount = null;
   if ((options.platform ?? process.platform) === 'linux') {
     const mountInfoText = options.mountInfoText ?? readLinuxMountInfo(options.mountInfoReader);
     linuxMount = validateLinuxMountLayout(repository.physical, plannedPaths, mountInfoText);
   }
-  return { repository: repository.lexical, manifests, output, standardMigrations, linuxMount };
+  return {
+    repository: repository.lexical,
+    manifests,
+    output,
+    standardMigrations,
+    sourceInputs,
+    generatorConfig,
+    securityMatrix,
+    identityModel,
+    linuxMount
+  };
 }
 
 export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = root) {
@@ -716,6 +786,95 @@ function parseIdentifierList(value) {
   return normalized.sort();
 }
 
+function parseOrderedIdentifierList(value, label) {
+  const identifier = namePattern();
+  const values = value.split(',').map((entry) => entry.trim());
+  if (values.length === 0 || values.some((entry) => !new RegExp(`^${identifier}$`).test(entry))) {
+    throw new Error(`${label}: malformed identifier list`);
+  }
+  const normalized = values.map((entry) => quotedName(entry));
+  if (new Set(normalized.map((entry) => entry.toLowerCase())).size !== normalized.length) {
+    throw new Error(`${label}: duplicate identifier`);
+  }
+  return normalized;
+}
+
+export function parseCreatorDefaultAclStatement(statement) {
+  const clean = withoutLeadingComments(statement).trim().replace(/;\s*$/, '');
+  if (!/^alter\s+default\s+privileges\b/i.test(clean)) return null;
+  const name = namePattern();
+  const match = new RegExp(`^alter\\s+default\\s+privileges\\s+for\\s+role\\s+(${name})\\s+in\\s+schema\\s+(${name})\\s+revoke\\s+(.+?)\\s+on\\s+(tables|sequences|functions)\\s+from\\s+(.+)$`, 'i').exec(clean);
+  if (!match) return { malformed: true, reason: 'unsupported creator default ACL statement' };
+  try {
+    const privileges = match[3].split(',').map((entry) => entry.trim().toUpperCase());
+    if (privileges.length === 0 || privileges.some((entry) => !/^[A-Z]+$/.test(entry))) {
+      throw new Error('creator default ACL privilege list is malformed');
+    }
+    if (new Set(privileges).size !== privileges.length) throw new Error('creator default ACL privilege list contains a duplicate');
+    return {
+      malformed: false,
+      creator_role: quotedName(match[1]).toLowerCase(),
+      schema: quotedName(match[2]).toLowerCase(),
+      object_class: match[4].toUpperCase(),
+      privileges,
+      grantees: parseOrderedIdentifierList(match[5], 'creator default ACL grantees').map((entry) => entry.toLowerCase())
+    };
+  } catch (error) {
+    return { malformed: true, reason: error.message };
+  }
+}
+
+export function buildCreatorDefaultAclUnits(config) {
+  const contract = config.creator_default_acl;
+  if (!contract || contract.version !== '1.0.0' || contract.status !== 'BLOCKED' || contract.apply_admitted !== false) {
+    throw new Error('creator default ACL contract metadata drift');
+  }
+  if (config.target_postgresql?.major_version !== 17 || config.target_postgresql?.maintain_default_privilege !== 'REQUIRED') {
+    throw new Error('creator default ACL requires the pinned PostgreSQL 17 MAINTAIN contract');
+  }
+  const units = [];
+  for (const creatorRole of contract.creator_roles) {
+    for (const schema of contract.schemas) {
+      for (const [objectClass, privileges] of Object.entries(contract.object_classes)) {
+        const executable = creatorRole === 'postgres' && objectClass !== 'FUNCTIONS';
+        const signatureAssertion = creatorRole === 'postgres' && objectClass === 'FUNCTIONS';
+        units.push(Object.freeze({
+          creator_role: creatorRole,
+          schema,
+          object_class: objectClass,
+          privileges: Object.freeze([...privileges]),
+          grantees: Object.freeze([...contract.grantees]),
+          status: creatorRole === 'postgres' ? 'REQUIRED' : 'BLOCKED',
+          execution_disposition: executable
+            ? 'EXECUTABLE_INERT_SOURCE'
+            : signatureAssertion ? 'ASSERT_SIGNATURE_SPECIFIC_REVOKE' : contract.blocked_creator_disposition,
+          ...(creatorRole === 'supabase_admin' ? { blocker_class: contract.blocked_creator_class } : {}),
+          effect_sha256: sha256(canonicalJson({ creator_role: creatorRole, schema, object_class: objectClass, privileges, grantees: contract.grantees })),
+          sql: executable
+            ? `alter default privileges for role ${creatorRole} in schema ${schema} revoke ${privileges.join(', ')} on ${objectClass.toLowerCase()} from ${contract.grantees.join(', ')};`
+            : null
+        }));
+      }
+    }
+  }
+  if (units.length !== contract.unit_count) {
+    throw new Error(`creator default ACL unit count drift: expected ${contract.unit_count}, found ${units.length}`);
+  }
+  if (units.filter((unit) => unit.sql).length !== contract.executable_unit_count
+    || units.filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length !== contract.signature_assertion_unit_count
+    || units.filter((unit) => unit.status === 'BLOCKED').length !== contract.blocked_unit_count) {
+    throw new Error('creator default ACL executable/blocked disposition count drift');
+  }
+  return Object.freeze(units);
+}
+
+function creatorDefaultAclManifest(config) {
+  return {
+    ...config.creator_default_acl,
+    units: buildCreatorDefaultAclUnits(config).map(({ sql, ...unit }) => unit)
+  };
+}
+
 function privilegeKeywordMatches(action, keyword) {
   return (action === 'grant' && keyword === 'to') || (action === 'revoke' && keyword === 'from');
 }
@@ -766,21 +925,19 @@ export function parseFunctionPrivilegeEffect(statement, fallbackSchema = 'public
     }
 
     if (/^alter\s+default\s+privileges\b/i.test(clean)) {
-      if (/^alter\s+default\s+privileges\s+for\s+(?:role|user)\b/i.test(clean)) {
-        return malformed('default function privilege owner is unsupported without an execution-role contract');
-      }
-      const defaults = new RegExp(`^alter\\s+default\\s+privileges(?:\\s+in\\s+schema\\s+(.+?))?\\s+(grant|revoke)\\s+${privilege}\\s+on\\s+functions\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
+      const defaults = new RegExp(`^alter\\s+default\\s+privileges(?:\\s+for\\s+role\\s+(${name}))?(?:\\s+in\\s+schema\\s+(.+?))?\\s+(grant|revoke)\\s+${privilege}\\s+on\\s+functions\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
       if (!defaults) return malformed('unsupported default function privilege statement');
-      const action = defaults[2].toLowerCase();
-      const keyword = defaults[4].toLowerCase();
+      const action = defaults[3].toLowerCase();
+      const keyword = defaults[5].toLowerCase();
       if (!privilegeKeywordMatches(action, keyword)) return malformed('default function privilege statement: action keyword mismatch');
       return {
         malformed: false,
         scope: 'schema_default',
         action,
         privilege: 'execute',
-        schemas: defaults[1] ? parseIdentifierList(defaults[1]) : null,
-        roles: parseIdentifierList(defaults[5])
+        ...(defaults[1] ? { creator_role: quotedName(defaults[1]).toLowerCase() } : {}),
+        schemas: defaults[2] ? parseIdentifierList(defaults[2]) : null,
+        roles: parseIdentifierList(defaults[6])
       };
     }
   } catch (error) {
@@ -1287,8 +1444,21 @@ function heldStatementEvidence(plan) {
 function buildGeneratedSql(records, config, securityMatrix, plan) {
   const files = new Map();
   const prefix = '-- APPLY_ADMITTED=false\n-- INERT SOURCE PACKAGE: review and contained replay are required before any apply.\n';
+  const creatorDefaultAclUnits = buildCreatorDefaultAclUnits(config);
+  const executableCreatorDefaultAclUnits = creatorDefaultAclUnits.filter((unit) => unit.sql);
   for (const app of ['mazer', 'fitness', 'discordos']) {
-    const chunks = app === 'mazer' || app === 'fitness' ? [`create schema if not exists ${app};`] : [];
+    const chunks = app === 'mazer' ? [
+      'set role postgres;',
+      `do $current_user_guard$ begin if current_user <> 'postgres' then raise exception 'target bootstrap requires postgres current_user'; end if; end $current_user_guard$;`,
+      '-- Required namespace prerequisites for the blocked creator-boundary contract.\n'
+        + `${config.creator_default_acl.schemas.map((schema) => [
+          `create schema if not exists ${schema} authorization postgres;`,
+          `alter schema ${schema} owner to postgres;`,
+          `revoke create on schema ${schema} from supabase_admin;`
+        ].join('\n')).join('\n')}`,
+      `-- Exactly ${executableCreatorDefaultAclUnits.length} postgres table/sequence default-ACL units are emitted; six function units require signature-specific revocation and 18 supabase_admin units remain held evidence.\n`
+        + executableCreatorDefaultAclUnits.map((unit) => unit.sql).join('\n')
+    ] : app === 'fitness' ? [`create schema if not exists ${app};`] : [];
     const functionSignatures = new Set();
     const executableStatements = [];
     for (const record of records.filter((candidate) => candidate.app === app)) {
@@ -1333,10 +1503,9 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
   const overlayLines = [
     prefix.trimEnd(),
     '-- Target-only namespace and security expectation overlay.',
-    ...config.schemas.application.filter((schema) => schema !== 'public').map((schema) => `create schema if not exists ${schema};`),
-    ...config.schemas.private.map((schema) => `create schema if not exists ${schema};`),
+    ...['platform_shared', 'discordos', 'fitness', 'mazer', 'platform_private', 'discordos_private'].map((schema) => `create schema if not exists ${schema};`),
     '',
-    ...[...config.schemas.application, ...config.schemas.private].map((schema) => `revoke all on schema ${schema} from PUBLIC, anon, authenticated;`),
+    ...['public', 'platform_shared', 'discordos', 'fitness', 'mazer', 'platform_private', 'discordos_private'].map((schema) => `revoke all on schema ${schema} from PUBLIC, anon, authenticated;`),
     '',
     '-- Closed contract relation expectations; definitions remain blocked until generated from reviewed schemas.',
     ...securityMatrix.relations.map((relation) => `-- ${relation.name} RLS=${relation.rls_enabled} FORCE_RLS=${relation.rls_forced} GRANTS=${sha256(canonicalJson(relation.grants))}`),
@@ -1414,6 +1583,12 @@ export function writeTargetBootstrapArtifacts(manifests, inertSql, repositoryRoo
 
   // Under the serialized local-writer contract this is the immediate, complete pre-publication revalidation.
   layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  const admittedIdentityModel = canonicalJson(layout.identityModel);
+  if (options.beforePublication) options.beforePublication(layout);
+  layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  if (canonicalJson(layout.identityModel) !== admittedIdentityModel) {
+    throw new Error('generated publication path identity drifted after validation');
+  }
   for (const entry of publicationPlan) {
     const directory = entry.contract === 'manifest' ? layout.manifests : layout.output;
     fs.writeFileSync(path.join(directory, entry.filename), entry.content, 'utf8');
@@ -1499,6 +1674,11 @@ export function generateTargetBootstrap() {
   });
   generatedManifests.set('namespace-plan.v1.json', {
     version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
+    target_postgresql: config.target_postgresql,
+    creator_default_acl: creatorDefaultAclManifest(config),
+    application_creator_boundary: config.application_creator_boundary,
+    public_object_boundary: config.public_object_boundary,
+    data_api_gate: config.data_api_gate,
     public: { product_tables_allowed: false, rpc: 'blocked_pending_control_plane_and_security_proof' },
     platform_shared: { exposure: 'intended_application_schema', contents: 'explicit_shared_identity_service_contracts_only' },
     platform_private: { exposure: 'unexposed', contents: 'privileged_platform_helpers' },
@@ -1522,6 +1702,10 @@ export function generateTargetBootstrap() {
     held_function_definition_statements: heldEvidence.heldFunctions.length,
     held_function_identities: generationPlan.held_functions.length,
     held_function_dependencies: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'held_function_dependency').length,
+    creator_default_acl_units: buildCreatorDefaultAclUnits(config).length,
+    executable_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.sql).length,
+    signature_assertion_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length,
+    blocked_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.status === 'BLOCKED').length,
     generated_files: [...generatedSql.keys()].sort()
   };
   return report;

@@ -3,9 +3,13 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { generatedInertArtifactContractV1, root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
 import {
+  applicationCreatorBoundaryV1,
+  creatorDefaultAclContractV1,
   generatedFitnessFunctionSearchPathContractV1,
   generatedFunctionPrivilegeContractV1,
   verifyEffectiveFunctionAcls,
+  verifyApplicationCreatorBoundary,
+  verifyCreatorDefaultAcls,
   verifyGeneratedFitnessFunctionSearchPaths,
   verifyGeneratedArtifactPathBoundary,
   verifyGeneratedFunctionPrivileges,
@@ -53,14 +57,27 @@ test('filename-order replay creates each product namespace before its first qual
   ])[0], /fitness schema is referenced before creation/);
 });
 
-test('actual generated product slices lead with their idempotent namespace creation', () => {
-  for (const [filename, schema] of [
-    ['00000000000001_mazer_schema_inert.sql', 'mazer'],
-    ['00000000000002_fitness_schema_inert.sql', 'fitness']
-  ]) {
-    const statements = splitSqlStatements(fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'));
-    assert.match(statements[0], new RegExp(`create\\s+schema\\s+if\\s+not\\s+exists\\s+${schema}`, 'i'));
-  }
+test('actual generated stream establishes creator and default-ACL boundaries before governed objects', () => {
+  const files = generatedInertArtifactContractV1.filenames.map((filename) => [
+    filename,
+    fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8')
+  ]);
+  const config = JSON.parse(fs.readFileSync(`${root}/bootstrap/generator/config.v1.json`, 'utf8'));
+  const namespacePlan = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/namespace-plan.v1.json`, 'utf8'));
+  assert.deepEqual(verifyCreatorDefaultAcls(
+    files,
+    config.creator_default_acl,
+    config.target_postgresql,
+    namespacePlan.creator_default_acl,
+    namespacePlan.target_postgresql
+  ), []);
+  assert.deepEqual(verifyApplicationCreatorBoundary(
+    files,
+    config.application_creator_boundary,
+    namespacePlan.application_creator_boundary
+  ), []);
+  assert.equal(namespacePlan.creator_default_acl.units.length, creatorDefaultAclContractV1.unit_count);
+  assert.equal(namespacePlan.application_creator_boundary.blocker_class, applicationCreatorBoundaryV1.blocker_class);
 });
 
 test('effective ACL replay preserves revocation across CREATE OR REPLACE', () => {

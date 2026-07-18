@@ -28,6 +28,8 @@ Public DiscordOS RPC definitions are a separate control-plane boundary. Both `CR
 
 The four generated SQL files live only under `bootstrap/artifacts/inert-sql`. They are inert review artifacts, not Supabase migrations, and the repository admits no blocked SQL under `supabase/migrations` or an alternate executable migration directory. The files still begin with `APPLY_ADMITTED=false` as machine-readable package state, but a SQL comment is not an execution guard and cannot substitute for path-level inertness. The generator and verifier freeze the exact four paths, reject missing, duplicate, renamed, copied, or escaped representations, and fail when ordinary Supabase migration discovery finds any SQL.
 
+Publication validation uses one physical-identity model for the repository, immutable source/configuration inputs, standard migration discovery, generated manifests, and inert SQL targets. Linux mount identity always rejects another mount of the governed repository, including when `/` is the governing mount, while nested mounts block only when they intersect a planned input, discovery, or publication path. Unrelated sibling mounts and unrelated mounted `node_modules` do not block. Link-like paths, case-fold aliases on Windows, observable device/inode aliases, parent/child escapes, and identity drift between final validation and publication fail closed.
+
 A future admitted execution packet must explicitly promote or copy reviewed, digest-verified artifact bytes into a separate execution-only migration bundle under new action-time authority. This source packet must not create that bundle, configure migration-path indirection, or retain a second executable representation.
 
 Repository validation excludes only the exact root-local directories `node_modules`, `outputs`, and `work`; a regular file with one of those names remains visible to path and content validation. An exact excluded root link is accepted only when its target is provably a directory, and it is never traversed. Git metadata is handled as its own exact root entry. Unknown, nested, broken, or file-target links and unsupported filesystem entry types fail closed rather than being traversed or silently omitted.
@@ -45,6 +47,12 @@ The merged identity contract remains authoritative for target-only relation, gra
 - no top-level data effect, Cron activation, network hook, project binding, provider command, or credential value is emitted;
 - membership remains distinct from billing entitlement;
 - the global-number transformation remains `BLOCKED`.
+
+PostgreSQL 17 is the required source contract; the live target version remains `UNKNOWN`. The 36 creator/schema/object-class entries are an assertion and disposition matrix, not 36 executable statements. Twelve `postgres` TABLES/SEQUENCES units enter inert SQL. Six `postgres` FUNCTIONS units require the existing same-transaction, signature-specific EXECUTE revocation because PostgreSQL schema-scoped default revokes cannot subtract the global/built-in function default. The 18 `supabase_admin` units are `BLOCKED_PROVIDER_ROLE` / `NOT_EXECUTABLE`, bound to sanitized receipts `FP-TGT-SECURITY-BASELINE-001` (SQLSTATE `42501`, exact rollback) and `FP-TGT-PROVIDER-DEFAULT-ACL-001`. No generated artifact contains `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin`.
+
+The compensating source invariant asserts `current_user=postgres`, creates and owns all six application schemas as `postgres`, revokes schema `CREATE` from `supabase_admin`, and requires governed application tables, sequences, and functions to be created under `postgres`. `public` is not an application schema. Zero application tables, views, materialized views, sequences, types, or functions are admitted there. The terminal containment classification is `CONTAINABLE_WITH_HARD_GATES`, but bootstrap readiness remains `BLOCKED_PROVIDER_SUPPORT_REQUIRED` until action-time owner/default-ACL/public-object assertions, the exact provider-helper manifest, negative probes, and rollback proof pass.
+
+Data API state is held source contract, not a provider mutation. Bootstrap starts with the Data API disabled; a later authorized packet must safely read the exact enable state and selected schema names before any setting change. `public` must be absent from Exposed schemas and Extra search path. The maximum exposed allowlist is `platform_shared`, `discordos`, `mazer`, and `fitness`; private and provider schemas are never exposed; automatic exposure remains unchecked. Sanitized dashboard evidence reports 2/2 selected schemas, zero tables, and 0/1 exposed functions, but the selected names and API enable state remain `UNKNOWN`.
 
 Supabase now treats table grants as an explicit concern separate from RLS policy design, so the target direction is explicit grants with deny-by-default schema posture. SECURITY DEFINER helpers must stay private or be narrowly allowlisted with fixed search paths and caller checks. These are source expectations only; Data API exposed-schema settings remain a later control-plane gate.
 
@@ -64,3 +72,7 @@ This package can be reviewed and reproduced without a Supabase session or runtim
 - [Supabase API grants and function exposure](https://supabase.com/docs/guides/api/securing-your-api)
 - [Supabase provider-managed schema restrictions](https://supabase.com/changelog/34270-restricting-access-on-auth-storage-and-realtime-schemas-on-april-21-2025)
 - [Supabase explicit table grants change](https://github.com/orgs/supabase/discussions/35654)
+- [PostgreSQL 17 ALTER DEFAULT PRIVILEGES](https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html)
+- [PostgreSQL 17 privileges](https://www.postgresql.org/docs/17/ddl-priv.html)
+- [Supabase Postgres roles](https://supabase.com/docs/guides/database/postgres/roles)
+- [Supabase PostgreSQL 17 platform transition](https://supabase.com/changelog/46080-self-hosted-supabase-upgrading-from-pg-15-to-17-breaking-change)

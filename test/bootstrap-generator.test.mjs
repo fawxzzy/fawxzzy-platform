@@ -7,9 +7,11 @@ import test from 'node:test';
 import {
   generatedInertArtifactContractV1,
   generatedManifestContractV1,
+  buildCreatorDefaultAclUnits,
   generateTargetBootstrap,
   namespaceRewrite,
   parseLinuxMountInfo,
+  parseCreatorDefaultAclStatement,
   parseFunctionDefinition,
   parseFunctionPrivilegeStatement,
   parseFunctionSearchPath,
@@ -91,6 +93,28 @@ test('every generated SQL artifact carries the non-apply marker', () => {
   for (const filename of fs.readdirSync(inertArtifactDirectory)) {
     assert.match(fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'), /^-- APPLY_ADMITTED=false\n/);
   }
+});
+
+test('creator default ACL generation holds the provider role and emits only postgres units', () => {
+  const config = JSON.parse(fs.readFileSync(`${root}/bootstrap/generator/config.v1.json`, 'utf8'));
+  const units = buildCreatorDefaultAclUnits(config);
+  assert.equal(units.length, 36);
+  assert.equal(units.filter((unit) => unit.sql).length, 12);
+  assert.equal(units.filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length, 6);
+  assert.equal(units.filter((unit) => unit.status === 'BLOCKED').length, 18);
+  assert.ok(units.filter((unit) => unit.status === 'BLOCKED').every((unit) => unit.creator_role === 'supabase_admin'
+    && unit.status === 'BLOCKED'
+    && unit.execution_disposition === 'NOT_EXECUTABLE'
+    && unit.blocker_class === 'BLOCKED_PROVIDER_ROLE'));
+  for (const unit of units.filter((candidate) => candidate.sql)) {
+    const parsed = parseCreatorDefaultAclStatement(unit.sql);
+    assert.equal(parsed.malformed, false);
+    assert.equal(parsed.creator_role, 'postgres');
+  }
+  const generatedSql = fs.readdirSync(inertArtifactDirectory)
+    .map((filename) => fs.readFileSync(`${inertArtifactDirectory}/${filename}`, 'utf8'))
+    .join('\n');
+  assert.doesNotMatch(generatedSql, /alter\s+default\s+privileges\s+for\s+role\s+supabase_admin/i);
 });
 
 test('generated SQL is path-level inert and closed to the exact artifact namespace', () => {
@@ -367,23 +391,38 @@ test('Linux mountinfo parser and classifier accept one unaliased repository moun
   assert.equal(parseLinuxMountInfo(normalMountInfo).length, 1);
   assert.deepEqual(
     validateLinuxMountLayout('/workspace/repository', [
-      '/workspace/repository',
       '/workspace/repository/bootstrap/manifests',
       '/workspace/repository/bootstrap/artifacts/inert-sql',
       '/workspace/repository/supabase/migrations'
     ], normalMountInfo),
-    { repositoryMountId: '24', plannedPathCount: 4 }
+    { repositoryMountId: '24', plannedPathCount: 3 }
   );
 });
 
-test('Linux mountinfo fails closed on escaped binds, nested mounts, aliases, and path escapes', () => {
+test('Linux mountinfo fails closed on escaped binds, relevant nested mounts, aliases, and path escapes', () => {
   const escapedBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /source/repository /workspace/repository rw - ext4 /dev/root rw\n`;
   const nestedMount = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/bootstrap rw - tmpfs tmpfs rw\n`;
   const aliasMount = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository rw - ext4 /dev/repository rw\n26 24 8:2 / /alias rw - ext4 /dev/repository rw\n`;
+  const rootGovernanceAlias = `${normalMountInfo.trimEnd()}\n25 24 8:1 / /elsewhere rw - ext4 /dev/root rw\n`;
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], escapedBind), /bind\/subtree mount alias/);
-  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], nestedMount), /nested mount point/);
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], nestedMount), /intersects a nested mount point/);
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], aliasMount), /alias of the repository mount/);
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], rootGovernanceAlias), /alias of the repository mount/);
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/outside'], normalMountInfo), /escaped the Linux repository mount/);
+});
+
+test('Linux nested and stacked mounts block only when they intersect planned paths', () => {
+  const unrelatedNodeModules = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/node_modules rw - tmpfs tmpfs rw\n`;
+  const unrelatedStack = `${unrelatedNodeModules.trimEnd()}\n26 24 8:3 / /workspace/repository/node_modules rw - tmpfs tmpfs rw\n`;
+  const relevantChild = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/bootstrap/sources/fitness rw - tmpfs tmpfs rw\n`;
+  const planned = [
+    '/workspace/repository/bootstrap/sources',
+    '/workspace/repository/bootstrap/manifests',
+    '/workspace/repository/bootstrap/artifacts/inert-sql'
+  ];
+  assert.equal(validateLinuxMountLayout('/workspace/repository', planned, unrelatedNodeModules).repositoryMountId, '24');
+  assert.equal(validateLinuxMountLayout('/workspace/repository', planned, unrelatedStack).repositoryMountId, '24');
+  assert.throws(() => validateLinuxMountLayout('/workspace/repository', planned, relevantChild), /intersects a nested mount point/);
 });
 
 test('Linux mountinfo fails closed on malformed, duplicate, conflicting, or unreadable input', () => {
@@ -402,6 +441,25 @@ test('Linux mountinfo ignores duplicate host mount points outside the repository
     validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], hostStack).repositoryMountId,
     '24'
   );
+});
+
+test('case-folded repository aliases and post-validation path drift fail closed', { skip: process.platform !== 'win32' }, () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const caseAlias = repositoryRoot.toUpperCase();
+    assert.notEqual(caseAlias, repositoryRoot);
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), caseAlias), /physical alias or link-like ancestor/);
+  });
+
+  withTemporaryDirectory((repositoryRoot) => {
+    const movedOutput = path.join(repositoryRoot, 'moved-output');
+    assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot, {
+      beforePublication(layout) {
+        fs.renameSync(layout.output, movedOutput);
+        createDirectoryLink(movedOutput, layout.output);
+      }
+    }), /link-like|identity drifted/);
+    assertDirectoryEmpty(movedOutput);
+  });
 });
 
 test('Fitness namespace rewriting canonicalizes only the function-header search_path clause', () => {
@@ -461,7 +519,7 @@ test('Fitness namespace rewriting and final-state validation fail closed on unsa
 
 test('Fitness search_path regeneration preserves every non-Fitness generated SQL identity', () => {
   const expected = {
-    '00000000000001_mazer_schema_inert.sql': '1f8eeee06bab1878b51e85cfdda09d766e17765d66366de69e406d8f58bd72ac',
+    '00000000000001_mazer_schema_inert.sql': 'fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313',
     '00000000000003_discordos_schema_inert.sql': '5b2783d8f6a78a2a9898c94559b31c168dcb1b5deebc1546365c1c8f09ade79f',
     '00000000000004_platform_security_overlay_inert.sql': '591673cf965aaa19c2cf5dcdfc3458fae43173bfa435dc03b0c0c49589709541'
   };
