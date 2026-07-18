@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
 import {
+  generatedFitnessFunctionSearchPathContractV1,
   generatedFunctionPrivilegeContractV1,
   verifyEffectiveFunctionAcls,
+  verifyGeneratedFitnessFunctionSearchPaths,
   verifyGeneratedFunctionPrivileges,
   verifySchemaCreationOrder
 } from '../scripts/verify-target-bootstrap.mjs';
@@ -89,4 +91,19 @@ test('versioned generated function privilege contract freezes the complete curre
     .sort()
     .map((filename) => [filename, fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8')]);
   assert.deepEqual(verifyGeneratedFunctionPrivileges(files, generatedFunctionPrivilegeContractV1), []);
+});
+
+test('versioned Fitness function search_path contract freezes the complete effective corpus', () => {
+  assert.equal(generatedFitnessFunctionSearchPathContractV1.version, '1.0.0');
+  assert.deepEqual(generatedFitnessFunctionSearchPathContractV1.effective_search_path, ['fitness', 'pg_temp']);
+  assert.deepEqual(generatedFitnessFunctionSearchPathContractV1.functions, [
+    'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)',
+    'fitness.reorder_routine_day_exercises(uuid, uuid, uuid[])',
+    'fitness.reorder_routine_days(uuid, uuid, uuid[])',
+    'fitness.repack_routine_day_exercise_positions_after_delete()',
+    'fitness.repack_session_exercise_positions_after_delete()'
+  ]);
+  const filename = generatedFitnessFunctionSearchPathContractV1.source_file;
+  const text = fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8');
+  assert.deepEqual(verifyGeneratedFitnessFunctionSearchPaths(filename, text), []);
 });

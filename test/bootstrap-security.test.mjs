@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { inspectInertSql, verifyEffectiveFunctionAcls } from '../scripts/verify-target-bootstrap.mjs';
+import {
+  inspectInertSql,
+  verifyEffectiveFunctionAcls,
+  verifyGeneratedFitnessFunctionSearchPaths
+} from '../scripts/verify-target-bootstrap.mjs';
 
 const marker = '-- APPLY_ADMITTED=false\n';
 
@@ -167,4 +171,41 @@ test('a newly added function is rejected even when explicitly revoked', () => {
     revoke execute on function fitness.undeclared() from PUBLIC, anon, authenticated, service_role;
   `;
   assert.notEqual(verifyEffectiveFunctionAcls(filename, sql, [], {}).length, 0);
+});
+
+test('Fitness function search_path verification freezes final effective paths and the function denominator', () => {
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  const contract = {
+    version: 'test-v1',
+    source_file: filename,
+    effective_search_path: ['fitness', 'pg_temp'],
+    functions: ['fitness.example(uuid)']
+  };
+  const definition = (clause, replace = false, name = 'example') => `
+    create ${replace ? 'or replace ' : ''}function fitness.${name}(target_id uuid)
+    returns void language plpgsql
+    ${clause}
+    as $$ begin null; end; $$;
+  `;
+  const initial = definition('', false);
+  const settled = definition('set search_path = fitness, pg_temp', true);
+  assert.deepEqual(verifyGeneratedFitnessFunctionSearchPaths(filename, `${marker}${initial}\n${settled}`, contract), []);
+
+  for (const clause of [
+    '',
+    'set search_path = public, pg_temp',
+    'set search_path = pg_temp, fitness',
+    'set search_path = fitness, pg_temp, extensions',
+    'set search_path to fitness, pg_temp',
+    'set search_path = fitness, pg_temp set search_path = fitness, pg_temp'
+  ]) {
+    const failures = verifyGeneratedFitnessFunctionSearchPaths(filename, `${marker}${definition(clause)}`, contract);
+    assert.notEqual(failures.length, 0, clause || 'missing');
+  }
+
+  const withFutureFunction = `${marker}
+    ${definition('set search_path = fitness, pg_temp')}
+    ${definition('set search_path = fitness, pg_temp', false, 'future_extra')}
+  `;
+  assert.match(verifyGeneratedFitnessFunctionSearchPaths(filename, withFutureFunction, contract).join('\n'), /denominator drift/);
 });

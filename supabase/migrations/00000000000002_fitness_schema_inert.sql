@@ -1558,7 +1558,7 @@ alter table fitness.routine_day_exercises
 create or replace function fitness.repack_session_exercise_positions_after_delete()
 returns trigger
 language plpgsql
-set search_path = public, pg_temp
+set search_path = fitness, pg_temp
 as $$
 begin
   with shifted as (
@@ -1581,7 +1581,7 @@ $$;
 create or replace function fitness.repack_routine_day_exercise_positions_after_delete()
 returns trigger
 language plpgsql
-set search_path = public, pg_temp
+set search_path = fitness, pg_temp
 as $$
 begin
   with shifted as (
@@ -1608,7 +1608,7 @@ create or replace function fitness.reorder_routine_day_exercises(
 )
 returns void
 language plpgsql
-set search_path = public, pg_temp
+set search_path = fitness, pg_temp
 as $$
 begin
   update fitness.routine_day_exercises as target
@@ -1640,7 +1640,7 @@ returns table (
   attempt_count int
 )
 language plpgsql
-set search_path = public, pg_temp
+set search_path = fitness, pg_temp
 as $$
 begin
   return query
@@ -3055,7 +3055,7 @@ create or replace function fitness.reorder_routine_days(
 )
 returns void
 language plpgsql
-set search_path = public, pg_temp
+set search_path = fitness, pg_temp
 as $$
 begin
   update fitness.routine_days as target

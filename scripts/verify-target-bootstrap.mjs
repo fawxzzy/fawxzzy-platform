@@ -13,7 +13,8 @@ import {
   parseFunctionPrivilegeEffect,
   root,
   sha256,
-  splitSqlStatements
+  splitSqlStatements,
+  verifyFitnessFunctionSearchPaths
 } from './generate-target-bootstrap.mjs';
 
 const expectedGeneratedFiles = [
@@ -44,6 +45,18 @@ export const generatedFunctionPrivilegeContractV1 = Object.freeze({
     'fitness.repack_routine_day_exercise_positions_after_delete()': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 3, allowed_execute_roles: Object.freeze([]) }),
     'fitness.repack_session_exercise_positions_after_delete()': Object.freeze({ source_file: '00000000000002_fitness_schema_inert.sql', definition_count: 3, allowed_execute_roles: Object.freeze([]) })
   })
+});
+export const generatedFitnessFunctionSearchPathContractV1 = Object.freeze({
+  version: '1.0.0',
+  source_file: '00000000000002_fitness_schema_inert.sql',
+  effective_search_path: Object.freeze(['fitness', 'pg_temp']),
+  functions: Object.freeze([
+    'fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz)',
+    'fitness.reorder_routine_day_exercises(uuid, uuid, uuid[])',
+    'fitness.reorder_routine_days(uuid, uuid, uuid[])',
+    'fitness.repack_routine_day_exercise_positions_after_delete()',
+    'fitness.repack_session_exercise_positions_after_delete()'
+  ])
 });
 const exactExpected = {
   migrations: 122,
@@ -461,6 +474,19 @@ export function verifyEffectiveFunctionAcls(filename, text, expectedSignatures =
   });
 }
 
+export function verifyGeneratedFitnessFunctionSearchPaths(filename, text, contract = generatedFitnessFunctionSearchPathContractV1) {
+  const failures = [];
+  fail(failures, filename === contract.source_file, `${filename}: Fitness function search_path file binding drift`);
+  fail(
+    failures,
+    canonicalJson(contract.effective_search_path) === canonicalJson(['fitness', 'pg_temp']),
+    `${filename}: Fitness function search_path contract value drift`
+  );
+  failures.push(...verifyFitnessFunctionSearchPaths(splitSqlStatements(text), contract.functions)
+    .map((message) => `${filename}: ${message}`));
+  return failures.sort();
+}
+
 export function inspectInertSql(filename, text, heldFunctionTargets = [], expectedFunctionSignatures = [], expectedFunctionDefinitionCounts = {}) {
   const failures = [];
   fail(failures, text.startsWith('-- APPLY_ADMITTED=false\n'), `${filename}: missing inert marker`);
@@ -507,6 +533,9 @@ function verifyGeneratedSql(config, dispositions, failures) {
       expectedFunctions.map(([signature]) => signature),
       Object.fromEntries(expectedFunctions.map(([signature, contract]) => [signature, contract.definition_count]))
     ));
+    if (filename === generatedFitnessFunctionSearchPathContractV1.source_file) {
+      failures.push(...verifyGeneratedFitnessFunctionSearchPaths(filename, text));
+    }
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_blob), `${filename}: provider-canonical 043 blob leaked into output`);
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_sha256), `${filename}: provider-canonical 043 digest leaked into output`);
     resolvedDenyPolicyCount += [...text.matchAll(/create\s+policy\s+[A-Za-z0-9_]+_deny_public_api_access\b/gi)].length;
@@ -580,7 +609,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'immutable_source_identity', 'frozen_chain_recomputation', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
       'schema_creation_order', 'discordos_public_rpc_hold', 'held_function_dependency_closure',
-      'provider_managed_skip', 'private_schema_exposure', 'effective_function_acl', 'no_network_hooks',
+      'provider_managed_skip', 'private_schema_exposure', 'effective_function_acl', 'effective_function_search_path', 'no_network_hooks',
       'no_provider_commands', 'no_project_refs', 'deterministic_generation'
     ],
     counts: {

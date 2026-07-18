@@ -303,6 +303,132 @@ export function parseFunctionDefinition(statement, fallbackSchema = 'public') {
   };
 }
 
+function findFunctionBodyBoundary(statement) {
+  let state = 'plain';
+  let blockDepth = 0;
+  let dollarTag = null;
+  for (let index = 0; index < statement.length; index += 1) {
+    const char = statement[index];
+    const next = statement[index + 1];
+    if (state === 'single') {
+      if (char === "'" && next === "'") index += 1;
+      else if (char === "'") state = 'plain';
+      continue;
+    }
+    if (state === 'double') {
+      if (char === '"' && next === '"') index += 1;
+      else if (char === '"') state = 'plain';
+      continue;
+    }
+    if (state === 'line-comment') {
+      if (char === '\n') state = 'plain';
+      continue;
+    }
+    if (state === 'block-comment') {
+      if (char === '/' && next === '*') {
+        blockDepth += 1;
+        index += 1;
+      } else if (char === '*' && next === '/') {
+        blockDepth -= 1;
+        index += 1;
+        if (blockDepth === 0) state = 'plain';
+      }
+      continue;
+    }
+    if (state === 'dollar') {
+      if (statement.startsWith(dollarTag, index)) {
+        index += dollarTag.length - 1;
+        state = 'plain';
+        dollarTag = null;
+      }
+      continue;
+    }
+    if (char === "'") {
+      const prefix = maskSqlStringsAndComments(statement.slice(0, index));
+      const asMatch = /\bas\s*$/i.exec(prefix);
+      if (asMatch) return { malformed: true, reason: 'single-quoted function bodies are unsupported' };
+      state = 'single';
+    } else if (char === '"') state = 'double';
+    else if (char === '-' && next === '-') {
+      state = 'line-comment';
+      index += 1;
+    } else if (char === '/' && next === '*') {
+      state = 'block-comment';
+      blockDepth = 1;
+      index += 1;
+    } else if (char === '$') {
+      const tag = dollarTagAt(statement, index);
+      if (!tag) continue;
+      const prefix = maskSqlStringsAndComments(statement.slice(0, index));
+      const asMatch = /\bas\s*$/i.exec(prefix);
+      if (asMatch) return { malformed: false, as_index: asMatch.index, body_index: index };
+      state = 'dollar';
+      dollarTag = tag;
+      index += tag.length - 1;
+    }
+  }
+  return { malformed: true, reason: 'unsupported or missing function body delimiter' };
+}
+
+export function parseFunctionSearchPath(statement, fallbackSchema = 'public') {
+  const definition = parseFunctionDefinition(statement, fallbackSchema);
+  if (!definition) return null;
+  const boundary = findFunctionBodyBoundary(statement);
+  if (boundary.malformed) return { malformed: true, reason: boundary.reason, definition };
+  const header = statement.slice(0, boundary.as_index);
+  const masked = maskSqlStringsAndComments(header);
+  const mentions = [...masked.matchAll(/\bsearch_path\b/gi)];
+  if (mentions.length === 0) {
+    return { malformed: false, present: false, definition };
+  }
+  if (mentions.length !== 1) {
+    return { malformed: true, reason: 'duplicate or ambiguous search_path clause', definition };
+  }
+  const clause = /\bset\s+search_path\s*=\s*([A-Za-z_][A-Za-z0-9_$]*)\s*,\s*([A-Za-z_][A-Za-z0-9_$]*)/i.exec(masked);
+  if (!clause || masked.slice(clause.index + clause[0].length).trim() !== '') {
+    return { malformed: true, reason: 'unsupported search_path clause', definition };
+  }
+  return {
+    malformed: false,
+    present: true,
+    definition,
+    schemas: [clause[1].toLowerCase(), clause[2].toLowerCase()],
+    clause_start: clause.index,
+    clause_end: clause.index + clause[0].length
+  };
+}
+
+export function verifyFitnessFunctionSearchPaths(statements, expectedSignatures = null) {
+  const failures = [];
+  const states = new Map();
+  for (const statement of statements) {
+    let searchPath;
+    try {
+      searchPath = parseFunctionSearchPath(statement, 'fitness');
+    } catch (error) {
+      failures.push(`malformed or ambiguous Fitness function definition (${error.message})`);
+      continue;
+    }
+    if (!searchPath || !searchPath.definition.identity.startsWith('fitness.')) continue;
+    if (searchPath.malformed) {
+      failures.push(`${searchPath.definition.signature}: ${searchPath.reason}`);
+      continue;
+    }
+    if (searchPath.present && canonicalJson(searchPath.schemas) !== canonicalJson(['fitness', 'pg_temp'])) {
+      failures.push(`${searchPath.definition.signature}: search_path must be exactly fitness, pg_temp`);
+    }
+    states.set(searchPath.definition.signature, searchPath);
+  }
+  const actualSignatures = [...states.keys()].sort();
+  if (expectedSignatures && canonicalJson(actualSignatures) !== canonicalJson([...expectedSignatures].sort())) {
+    failures.push('Fitness function search_path signature denominator drift');
+  }
+  for (const [signature, searchPath] of states) {
+    if (!searchPath.present) failures.push(`${signature}: final effective definition is missing search_path`);
+  }
+  return failures.sort();
+}
+
 function parseIdentifierList(value) {
   const identifier = namePattern();
   const values = value.split(',').map((entry) => entry.trim());
@@ -743,8 +869,22 @@ function buildDataEffects(records) {
   return effects;
 }
 
-function namespaceRewrite(sql, app) {
-  if (app === 'fitness') return sql.replace(/\bpublic\./gi, 'fitness.');
+export function namespaceRewrite(sql, app) {
+  if (app === 'fitness') {
+    const definition = parseFunctionDefinition(sql, 'public');
+    let rewritten = sql;
+    if (definition?.identity.startsWith('public.')) {
+      const searchPath = parseFunctionSearchPath(sql, 'public');
+      if (searchPath.malformed) throw new Error(`${definition.signature}: ${searchPath.reason}`);
+      if (searchPath.present) {
+        if (canonicalJson(searchPath.schemas) !== canonicalJson(['public', 'pg_temp'])) {
+          throw new Error(`${definition.signature}: source search_path must be exactly public, pg_temp`);
+        }
+        rewritten = `${sql.slice(0, searchPath.clause_start)}set search_path = fitness, pg_temp${sql.slice(searchPath.clause_end)}`;
+      }
+    }
+    return rewritten.replace(/\bpublic\./gi, 'fitness.');
+  }
   if (app === 'mazer') return sql.replace(/\bpublic\./gi, 'mazer.');
   return sql;
 }
@@ -874,17 +1014,23 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
   for (const app of ['mazer', 'fitness', 'discordos']) {
     const chunks = app === 'mazer' || app === 'fitness' ? [`create schema if not exists ${app};`] : [];
     const functionSignatures = new Set();
+    const executableStatements = [];
     for (const record of records.filter((candidate) => candidate.app === app)) {
       const statements = plan.units
         .filter((unit) => unit.record === record && !unit.blocker_class)
         .map((unit) => namespaceRewrite(unit.statement, record.app));
       if (statements.length === 0) continue;
+      executableStatements.push(...statements);
       const fallbackSchema = app === 'fitness' || app === 'mazer' ? app : 'discordos';
       for (const statement of statements) {
         const definition = parseFunctionDefinition(statement, fallbackSchema);
         if (definition) functionSignatures.add(definition.signature);
       }
       chunks.push(`-- source ${record.path} blob ${record.blob} raw_sha256 ${record.raw_sha256}\n${statements.join('\n\n')}`);
+    }
+    if (app === 'fitness') {
+      const searchPathFailures = verifyFitnessFunctionSearchPaths(executableStatements, [...functionSignatures]);
+      if (searchPathFailures.length > 0) throw new Error(`Fitness function search_path contract failed:\n${searchPathFailures.join('\n')}`);
     }
     if (functionSignatures.size > 0) {
       chunks.push(`-- Effective function ACL closure: no application role is authorized in this inert package.\n${[...functionSignatures]
