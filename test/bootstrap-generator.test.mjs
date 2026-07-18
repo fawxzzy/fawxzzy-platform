@@ -392,6 +392,98 @@ test('physical identity comparison preserves distinct 64-bit filesystem identifi
   });
 });
 
+test('direct inert-output identity comparison preserves exact device and inode values', () => {
+  const cases = [
+    {
+      name: 'adjacent large inodes that collide as Number',
+      output: { device: 9223372036854775807n, inode: 9007199254740992n },
+      migrations: { device: 9223372036854775807n, inode: 9007199254740993n },
+      aliases: false,
+      numberCollision: true
+    },
+    {
+      name: 'equal large device and inode',
+      output: { device: 9223372036854775807n, inode: 9007199254740993n },
+      migrations: { device: 9223372036854775807n, inode: 9007199254740993n },
+      aliases: true
+    },
+    {
+      name: 'same large device and different inode',
+      output: { device: 9223372036854775807n, inode: 9007199254740993n },
+      migrations: { device: 9223372036854775807n, inode: 9007199254740995n },
+      aliases: false
+    },
+    {
+      name: 'different large device and same inode',
+      output: { device: 9223372036854775806n, inode: 9007199254740993n },
+      migrations: { device: 9223372036854775807n, inode: 9007199254740993n },
+      aliases: false
+    },
+    {
+      name: 'normal small distinct identities',
+      output: { device: 7n, inode: 11n },
+      migrations: { device: 7n, inode: 12n },
+      aliases: false
+    },
+    {
+      name: 'normal small equal identities',
+      output: { device: 7n, inode: 11n },
+      migrations: { device: 7n, inode: 11n },
+      aliases: true
+    }
+  ];
+
+  for (const fixture of cases) {
+    withTemporaryDirectory((repositoryRoot) => {
+      assertOutsideRepository(repositoryRoot);
+      const output = outputPath(repositoryRoot);
+      const standardMigrations = path.join(repositoryRoot, 'supabase', 'migrations');
+      fs.mkdirSync(output, { recursive: true });
+      fs.mkdirSync(standardMigrations, { recursive: true });
+
+      const simulated = new Map([
+        [path.resolve(output), fixture.output],
+        [path.resolve(standardMigrations), fixture.migrations]
+      ]);
+      if (fixture.numberCollision) {
+        assert.equal(Number(fixture.output.inode), Number(fixture.migrations.inode));
+        assert.notEqual(fixture.output.inode, fixture.migrations.inode);
+      }
+
+      const originalStat = fs.statSync;
+      const observed = [];
+      fs.statSync = (candidate, options, ...args) => {
+        const stats = originalStat(candidate, options, ...args);
+        const identity = simulated.get(path.resolve(candidate));
+        if (!identity) return stats;
+        observed.push({ path: path.resolve(candidate), options });
+        const bigint = options?.bigint === true;
+        return new Proxy(stats, {
+          get(target, property) {
+            if (property === 'dev') return bigint ? identity.device : Number(identity.device);
+            if (property === 'ino') return bigint ? identity.inode : Number(identity.inode);
+            const value = Reflect.get(target, property, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          }
+        });
+      };
+      try {
+        const validate = () => validateGeneratedInertArtifactLayout(repositoryRoot);
+        if (fixture.aliases) {
+          assert.throws(validate, /physically alias standard Supabase migration discovery/, fixture.name);
+        } else {
+          assert.doesNotThrow(validate, fixture.name);
+        }
+        assert.ok(observed.some((entry) => entry.path === path.resolve(output)), `${fixture.name}: output identity was not read`);
+        assert.ok(observed.some((entry) => entry.path === path.resolve(standardMigrations)), `${fixture.name}: migrations identity was not read`);
+        assert.ok(observed.every((entry) => entry.options?.bigint === true), `${fixture.name}: identity read did not request bigint stats`);
+      } finally {
+        fs.statSync = originalStat;
+      }
+    });
+  }
+});
+
 test('complete discovery rejects a late undeclared output before rewriting manifests', () => {
   withTemporaryDirectory((repositoryRoot) => {
     assertOutsideRepository(repositoryRoot);

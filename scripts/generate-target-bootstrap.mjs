@@ -312,9 +312,9 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
   const standardStats = lstatIfPresent(standardMigrations);
   if (outputStats && standardStats && (isSamePath(realpath(output), realpath(standardMigrations))
     || (() => {
-      const left = fs.statSync(output);
-      const right = fs.statSync(standardMigrations);
-      return left.dev === right.dev && left.ino === right.ino;
+      const left = pathIdentity(output);
+      const right = pathIdentity(standardMigrations);
+      return left.device === right.device && left.inode === right.inode;
     })())) {
     throw new Error('generated inert artifacts physically alias standard Supabase migration discovery');
   }
