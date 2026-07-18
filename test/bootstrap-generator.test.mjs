@@ -411,6 +411,28 @@ test('Linux mountinfo fails closed on escaped binds, relevant nested mounts, ali
   assert.throws(() => validateLinuxMountLayout('/workspace/repository', ['/workspace/outside'], normalMountInfo), /escaped the Linux repository mount/);
 });
 
+test('Linux root-governed source aliases fail closed without rejecting unrelated same-device roots', () => {
+  const planned = [
+    '/workspace/repository/bootstrap/sources',
+    '/workspace/repository/bootstrap/manifests',
+    '/workspace/repository/bootstrap/artifacts/inert-sql'
+  ];
+  const exactRepositoryBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace/repository /alias rw - ext4 /dev/root rw\n`;
+  const ancestorRepositoryBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace /alias-workspace rw - ext4 /dev/root rw\n`;
+  const plannedSubtreeBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace/repository/bootstrap/sources/fitness /alias-fitness rw - ext4 /dev/root rw\n`;
+  const encodedRepositoryBind = `${normalMountInfo.trimEnd()}\n25 24 8:1 \\057workspace\\057repository /encoded-alias rw - ext4 /dev/root rw\n`;
+  const unrelatedSibling = `${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace/other /alias-other rw - ext4 /dev/root rw\n`;
+  const unrelatedNodeModules = `${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace/repository/node_modules /alias-node-modules rw - ext4 /dev/root rw\n`;
+  const differentDeviceRepositoryBind = `${normalMountInfo.trimEnd()}\n25 24 8:2 /workspace/repository /different-device-alias rw - ext4 /dev/other rw\n`;
+
+  for (const mountInfo of [exactRepositoryBind, ancestorRepositoryBind, plannedSubtreeBind, encodedRepositoryBind]) {
+    assert.throws(() => validateLinuxMountLayout('/workspace/repository', planned, mountInfo), /alias of the repository mount source/);
+  }
+  for (const mountInfo of [unrelatedSibling, unrelatedNodeModules, differentDeviceRepositoryBind]) {
+    assert.equal(validateLinuxMountLayout('/workspace/repository', planned, mountInfo).repositoryMountId, '24');
+  }
+});
+
 test('Linux nested and stacked mounts block only when they intersect planned paths', () => {
   const unrelatedNodeModules = `${normalMountInfo.trimEnd()}\n25 24 8:2 / /workspace/repository/node_modules rw - tmpfs tmpfs rw\n`;
   const unrelatedStack = `${unrelatedNodeModules.trimEnd()}\n26 24 8:3 / /workspace/repository/node_modules rw - tmpfs tmpfs rw\n`;
@@ -427,6 +449,14 @@ test('Linux nested and stacked mounts block only when they intersect planned pat
 
 test('Linux mountinfo fails closed on malformed, duplicate, conflicting, or unreadable input', () => {
   assert.throws(() => parseLinuxMountInfo('malformed\n'), /malformed|invalid/);
+  assert.throws(
+    () => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n25 24 8:1 /workspace/../workspace/repository /alias rw - ext4 /dev/root rw\n`),
+    /ambiguous/
+  );
+  assert.throws(
+    () => validateLinuxMountLayout('/workspace//repository', ['/workspace/repository/bootstrap'], normalMountInfo),
+    /ambiguous/
+  );
   assert.throws(() => parseLinuxMountInfo(`${normalMountInfo.trimEnd()}\n24 1 8:1 / /other rw - ext4 /dev/root rw\n`), /duplicate mount id/);
   assert.throws(
     () => validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], `${normalMountInfo.trimEnd()}\n25 24 8:2 / / rw - tmpfs tmpfs rw\n`),
@@ -441,6 +471,34 @@ test('Linux mountinfo ignores duplicate host mount points outside the repository
     validateLinuxMountLayout('/workspace/repository', ['/workspace/repository/bootstrap'], hostStack).repositoryMountId,
     '24'
   );
+});
+
+test('Linux mount drift after validation fails before publication writes', { skip: process.platform !== 'linux' }, () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    const driftedMountInfo = `${normalMountInfo.trimEnd()}\n25 24 8:1 ${repositoryRoot} /alias rw - ext4 /dev/root rw\n`;
+    const originalWrite = fs.writeFileSync;
+    let mountInfoReads = 0;
+    let writeCount = 0;
+    fs.writeFileSync = (...args) => {
+      writeCount += 1;
+      return originalWrite(...args);
+    };
+    try {
+      assert.throws(() => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot, {
+        platform: 'linux',
+        mountInfoReader() {
+          mountInfoReads += 1;
+          return mountInfoReads < 3 ? normalMountInfo : driftedMountInfo;
+        }
+      }), /alias of the repository mount source/);
+    } finally {
+      fs.writeFileSync = originalWrite;
+    }
+    assert.equal(mountInfoReads, 3);
+    assert.equal(writeCount, 0);
+    assertDirectoryEmpty(path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/')));
+    assertDirectoryEmpty(outputPath(repositoryRoot));
+  });
 });
 
 test('case-folded repository aliases and post-validation path drift fail closed', { skip: process.platform !== 'win32' }, () => {

@@ -117,6 +117,22 @@ function isPosixPathWithin(parent, candidate) {
   return relative === '' || (!relative.startsWith('../') && relative !== '..' && !path.posix.isAbsolute(relative));
 }
 
+function deriveLinuxMountSourcePath(mount, visiblePath, label) {
+  if (!isPosixPathWithin(mount.mountPoint, visiblePath)) {
+    throw new Error(`Linux mountinfo cannot derive ${label} outside governing mount ${mount.mountPoint}: ${visiblePath}`);
+  }
+  const relative = path.posix.relative(mount.mountPoint, visiblePath);
+  if (relative === '..' || relative.startsWith('../') || path.posix.isAbsolute(relative)) {
+    throw new Error(`Linux mountinfo ${label} source path is ambiguous: ${visiblePath}`);
+  }
+  const sourcePath = relative === '' ? mount.root : path.posix.join(mount.root, relative);
+  return normalizePosixAbsolute(sourcePath, `${label} source path`);
+}
+
+function posixPathsIntersect(left, right) {
+  return isPosixPathWithin(left, right) || isPosixPathWithin(right, left);
+}
+
 export function parseLinuxMountInfo(text) {
   if (typeof text !== 'string' || text.length === 0) throw new Error('Linux mountinfo is empty or unreadable');
   const rawLines = text.split('\n');
@@ -171,8 +187,7 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
   }
 
   const mounts = parseLinuxMountInfo(mountInfoText);
-  const intersectsPlanned = (mountPoint) => planned.some((candidate) => isPosixPathWithin(mountPoint, candidate)
-    || isPosixPathWithin(candidate, mountPoint));
+  const intersectsPlanned = (mountPoint) => planned.some((candidate) => posixPathsIntersect(mountPoint, candidate));
   const relevantMountPoints = new Map();
   for (const entry of mounts.filter((candidate) => isPosixPathWithin(candidate.mountPoint, repository)
     || intersectsPlanned(candidate.mountPoint))) {
@@ -188,6 +203,8 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
     .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId));
   if (containing.length === 0) throw new Error('Linux mountinfo does not identify the repository mount');
   const repositoryMount = containing[0];
+  const repositorySourcePath = deriveLinuxMountSourcePath(repositoryMount, repository, 'repository');
+  const plannedSourcePaths = planned.map((candidate) => deriveLinuxMountSourcePath(repositoryMount, candidate, 'planned path'));
   if (repositoryMount.root !== '/') {
     throw new Error(`Linux repository is a bind/subtree mount alias: ${repositoryMount.mountPoint}`);
   }
@@ -200,8 +217,9 @@ export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysical
     }
     if (entry.mountId !== repositoryMount.mountId
       && entry.device === repositoryMount.device
-      && entry.root === repositoryMount.root) {
-      throw new Error(`Linux mountinfo contains an alias of the repository mount: ${entry.mountPoint}`);
+      && (isPosixPathWithin(entry.root, repositorySourcePath)
+        || plannedSourcePaths.some((candidate) => posixPathsIntersect(entry.root, candidate)))) {
+      throw new Error(`Linux mountinfo contains an alias of the repository mount source: ${entry.mountPoint}`);
     }
   }
 
