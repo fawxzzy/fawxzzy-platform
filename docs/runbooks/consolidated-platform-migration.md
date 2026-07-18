@@ -92,8 +92,15 @@ Required evidence:
 - username collision, advisory-availability race, user-number concurrency, reuse, renumbering, and bot/service exclusion tests;
 - adjudicated Auth migration rehearsal proving password-hash preservation where accepted, target-owned signing identity, source-session invalidation, and controlled per-origin reauthentication;
 - exact redirect, recovery, and custom SMTP configuration plan with no live mutation.
+- current encrypted independent backup and retention receipts under FP-MAN-013;
+- one quarantined restore-to-new-project rehearsal with the closed external-effects denominator disabled;
+- aggregate catalog, security, application-data, Auth-identity, and Auth-control-plane parity;
+- measured RPO/RTO evidence and explicit objective acceptance;
+- a separate Storage object-body recovery receipt when the object denominator is non-zero.
 
 Exit: parity and rollback evidence are exact and reproducible.
+
+The provider's daily Physical backup is one recovery layer, not the independent encrypted export. Neither a database backup nor a database-only clone proves Storage object-body coverage. Exact cadence, retention, destination, key installation, alert channel, export/Auth mechanism, numerical objectives, provider readback, and restore cost remain action-time gates documented in `docs/runbooks/micro-recovery.md`.
 
 ## Gate 4: Bounded target migration
 

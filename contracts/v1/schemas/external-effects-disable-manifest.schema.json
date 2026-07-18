@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:external-effects-disable-manifest",
+  "title": "Restore clone external-effects disable manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "backup_id",
+    "project",
+    "restore_project_ref",
+    "quarantine",
+    "effects",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "backup_id": {
+      "type": "string",
+      "pattern": "^FP-RECOVERY-BACKUP-[A-Z0-9-]+$"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref"
+      ],
+      "properties": {
+        "name": {
+          "const": "Fawxzzy shared Supabase project"
+        },
+        "ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        }
+      }
+    },
+    "restore_project_ref": {
+      "anyOf": [
+        {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_egress_status",
+        "network_egress_denied",
+        "data_api_status",
+        "data_api_disabled",
+        "application_credentials_installed",
+        "traffic_released"
+      ],
+      "properties": {
+        "network_egress_status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "network_egress_denied": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "data_api_status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "data_api_disabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "application_credentials_installed": {
+          "const": false
+        },
+        "traffic_released": {
+          "const": false
+        }
+      }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit",
+          "status",
+          "disabled",
+          "evidence_digest"
+        ],
+        "properties": {
+          "unit": {
+            "enum": [
+              "application_traffic",
+              "auth_delivery_and_hooks",
+              "cron",
+              "database_network_calls",
+              "dns",
+              "edge_schedules",
+              "environment_routing",
+              "host_aliases",
+              "queues",
+              "realtime",
+              "storage_events",
+              "webhooks"
+            ]
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          },
+          "disabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "evidence_digest": {
+            "$ref": "#/$defs/nullable_digest"
+          }
+        }
+      }
+    },
+    "manifest_sha256": {
+      "$ref": "#/$defs/nullable_digest"
+    }
+  },
+  "$defs": {
+    "nullable_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

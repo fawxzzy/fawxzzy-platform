@@ -56,6 +56,22 @@
     {
       "name": "rehearsal parity and rollback proof",
       "status": "REQUIRED"
+    },
+    {
+      "name": "current encrypted independent backup manifest and retention receipt",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "quarantined restore-to-new-project rehearsal receipt",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "accepted measured RPO and RTO",
+      "status": "OWNER_DECISION"
+    },
+    {
+      "name": "Storage object-body recovery receipt when nonempty",
+      "status": "UNKNOWN"
     }
   ]
 }

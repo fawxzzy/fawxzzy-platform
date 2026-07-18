@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { validateRecoveryDocuments } from './recovery.mjs';
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(moduleDirectory, '..', '..');
@@ -17,7 +18,11 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
   ['contracts/v1/security/rls-grant-function-matrix.json', 'urn:fawxzzy:platform:schemas:v1:security-matrix'],
-  ['contracts/v1/auth/domain-session-contract.json', 'urn:fawxzzy:platform:schemas:v1:domain-session-contract']
+  ['contracts/v1/auth/domain-session-contract.json', 'urn:fawxzzy:platform:schemas:v1:domain-session-contract'],
+  ['contracts/v1/recovery/micro-recovery-contract.json', 'urn:fawxzzy:platform:schemas:v1:micro-recovery-contract'],
+  ['contracts/v1/recovery/backup-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:backup-manifest'],
+  ['contracts/v1/recovery/external-effects-disable-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:external-effects-disable-manifest'],
+  ['contracts/v1/recovery/restore-rehearsal-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:restore-rehearsal-receipt']
 ]);
 
 const expectedStatuses = Object.freeze([
@@ -448,6 +453,8 @@ export function validateSemantics(documents) {
   requireCondition(authTrigger?.exposure === 'trigger_only', 'Auth user creation function must remain trigger-only');
   requireCondition(authTrigger?.auth_uid_check === false && authTrigger?.subject_source === 'NEW.id', 'Auth insert trigger must derive its subject from NEW.id without auth.uid()');
 
+  failures.push(...validateRecoveryDocuments(documents).failures);
+
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -460,7 +467,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 19,
+    semantic_check_groups: 20,
     failures
   };
 }

@@ -1,0 +1,93 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "backup_id": "FP-RECOVERY-BACKUP-EXAMPLE-UNEXECUTED",
+  "project": {
+    "name": "Fawxzzy shared Supabase project",
+    "ref": "bxtcuhkotumitoqtrcej"
+  },
+  "restore_project_ref": null,
+  "quarantine": {
+    "network_egress_status": "UNKNOWN",
+    "network_egress_denied": null,
+    "data_api_status": "UNKNOWN",
+    "data_api_disabled": null,
+    "application_credentials_installed": false,
+    "traffic_released": false
+  },
+  "effects": [
+    {
+      "unit": "cron",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "queues",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "database_network_calls",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "webhooks",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "auth_delivery_and_hooks",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "edge_schedules",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "realtime",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "storage_events",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "application_traffic",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "dns",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "host_aliases",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    },
+    {
+      "unit": "environment_routing",
+      "status": "UNKNOWN",
+      "disabled": null,
+      "evidence_digest": null
+    }
+  ],
+  "manifest_sha256": null
+}
