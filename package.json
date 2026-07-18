@@ -8,9 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test",
+    "bootstrap:generate": "node scripts/generate-target-bootstrap.mjs",
+    "bootstrap:verify": "node scripts/verify-target-bootstrap.mjs",
+    "test": "node --test --test-concurrency=1",
     "validate": "node scripts/validate-contracts.mjs",
-    "verify": "node scripts/verify-repository.mjs"
+    "verify": "node scripts/verify-repository.mjs && node scripts/verify-target-bootstrap.mjs"
   },
   "devDependencies": {
     "ajv": "8.17.1"

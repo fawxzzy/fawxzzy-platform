@@ -1,0 +1,141 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "apply_admitted": false,
+  "unresolved_count": 11,
+  "resolved_fitness_deny_policy_count": 10,
+  "units": [
+    {
+      "id": "fitness:005_ui_core_fix_pack.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/005_ui_core_fix_pack.sql",
+      "source_blob": "236152389ab757d0a3d85f73968b8bd2b9f6eb72",
+      "source_raw_sha256": "cbe4a50db76cde4386c9d57105addddc1c4301977cb8ec88f62459fb8b46bb44",
+      "statement_ordinal": 7,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:005_ui_core_fix_pack.sql:dynamic:02",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/005_ui_core_fix_pack.sql",
+      "source_blob": "236152389ab757d0a3d85f73968b8bd2b9f6eb72",
+      "source_raw_sha256": "cbe4a50db76cde4386c9d57105addddc1c4301977cb8ec88f62459fb8b46bb44",
+      "statement_ordinal": 8,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:007_relax_rep_range_constraint.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/007_relax_rep_range_constraint.sql",
+      "source_blob": "abb4d26d6dbeee3023b8e00867008d07ab5f6d60",
+      "source_raw_sha256": "602443c368bbd4e2ba5990bfd35dbdfdd596814ff774ae43ce20be4f3bb66c8e",
+      "statement_ordinal": 2,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:008_exercises_table_and_rls.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/008_exercises_table_and_rls.sql",
+      "source_blob": "369431a8775f8102b9b725be81bb2b864eb6831e",
+      "source_raw_sha256": "10b80cac3fc490c3060969ddfc72e23cebf92ecc343b5312621f6a151dae93fa",
+      "statement_ordinal": 12,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:008_exercises_table_and_rls.sql:dynamic:02",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/008_exercises_table_and_rls.sql",
+      "source_blob": "369431a8775f8102b9b725be81bb2b864eb6831e",
+      "source_raw_sha256": "10b80cac3fc490c3060969ddfc72e23cebf92ecc343b5312621f6a151dae93fa",
+      "statement_ordinal": 13,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:011_exercises_id_uuid_backfill.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/011_exercises_id_uuid_backfill.sql",
+      "source_blob": "8353782d01a79c9c57fcd0760efff24e31577f91",
+      "source_raw_sha256": "938d7c1011518c003b1843a852ea2823375de1145b52645db605602aba1a5908",
+      "statement_ordinal": 2,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:011_exercises_id_uuid_backfill.sql:dynamic:02",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/011_exercises_id_uuid_backfill.sql",
+      "source_blob": "8353782d01a79c9c57fcd0760efff24e31577f91",
+      "source_raw_sha256": "938d7c1011518c003b1843a852ea2823375de1145b52645db605602aba1a5908",
+      "statement_ordinal": 7,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:011_exercises_id_uuid_backfill.sql:dynamic:03",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/011_exercises_id_uuid_backfill.sql",
+      "source_blob": "8353782d01a79c9c57fcd0760efff24e31577f91",
+      "source_raw_sha256": "938d7c1011518c003b1843a852ea2823375de1145b52645db605602aba1a5908",
+      "statement_ordinal": 8,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:20260515150000_059_discord_feedback_reports.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/20260515150000_059_discord_feedback_reports.sql",
+      "source_blob": "987dfdba9fcad5dcee8577dd8775a79ca1245b67",
+      "source_raw_sha256": "f3a5c65cd9aa8f2b06bee05ddc4095c79facbfa2dbf2f052f534bddd0d678e27",
+      "statement_ordinal": 6,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:20260515150000_059_discord_feedback_reports.sql:dynamic:02",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/20260515150000_059_discord_feedback_reports.sql",
+      "source_blob": "987dfdba9fcad5dcee8577dd8775a79ca1245b67",
+      "source_raw_sha256": "f3a5c65cd9aa8f2b06bee05ddc4095c79facbfa2dbf2f052f534bddd0d678e27",
+      "statement_ordinal": 7,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    },
+    {
+      "id": "fitness:20260516174200_discord_feedback_attachments.sql:dynamic:01",
+      "status": "BLOCKED",
+      "reason": "Runtime-selected catalog identity requires two identical contained replay readbacks.",
+      "source_app": "fitness",
+      "source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "source_path": "supabase/migrations/20260516174200_discord_feedback_attachments.sql",
+      "source_blob": "d4d5286334b7436c88ad450c378c8c6603304dbe",
+      "source_raw_sha256": "6a2c821e74994b785a372fa44dca821e81c331fdf39fe2559102754272b212d8",
+      "statement_ordinal": 3,
+      "transformation_id": "fitness:hold-dynamic-identity-v1"
+    }
+  ]
+}

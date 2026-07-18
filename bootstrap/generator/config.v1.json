@@ -1,0 +1,131 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "apply_admitted": false,
+  "evidence": {
+    "artifact": "FP-TGT-MIGRATION-DAG-RO-002-bootstrap-refresh-2026-07-17.md",
+    "artifact_sha256": "a2fbcc56df902ac1ed6f68fa7625daf4959c77756929c7a48fbf5c59bb5542cc",
+    "accepted_combined_manifest_sha256": "67109b789d0d83af7fc4739aee9ab0617285175114c5785e6acd893647c32bd9"
+  },
+  "sources": [
+    {
+      "app": "discordos",
+      "commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+      "tree": "f9b01b18d1ba9ad544c582d0dc88ee2ac285bbe8",
+      "migration_count": 17,
+      "chain_manifest_sha256": "6a6e9fa29651331d2addb0259bc61bc7c2f0795bd71b2a04971c96ff146a822e",
+      "source_schema": "discordos",
+      "target_schema": "discordos"
+    },
+    {
+      "app": "fitness",
+      "commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+      "tree": "b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1",
+      "migration_count": 101,
+      "chain_manifest_sha256": "f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775",
+      "source_schema": "public",
+      "target_schema": "fitness"
+    },
+    {
+      "app": "mazer",
+      "commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
+      "tree": "f0ff7cb74841b32fe423147a26ca58a860e6aa56",
+      "migration_count": 4,
+      "chain_manifest_sha256": "ded23731083cd97f1f50f700ccd8f1843a43e1b8bfef10727cca6ae851ed7fb6",
+      "source_schema": "public",
+      "target_schema": "mazer"
+    }
+  ],
+  "blocked_dependencies": [
+    {
+      "id": "fitness-global-number-forward-transform",
+      "decision": "BLOCKED",
+      "reason": "Unmerged Fitness PR and contained replay acceptance are required before generation.",
+      "source_candidate_head": "aee5159a4f644257d572e4dc6af5392b490eef9b"
+    }
+  ],
+  "expected": {
+    "migrations": 122,
+    "tables": 41,
+    "functions": 30,
+    "policies": 74,
+    "fitness_policies": 63,
+    "triggers": 10,
+    "index_identities": 134,
+    "constraint_units": 281,
+    "extension_dependencies": 3,
+    "held_data_effects": 358,
+    "dynamic_templates": 11,
+    "held_cron_units": 1
+  },
+  "schemas": {
+    "application": [
+      "public",
+      "platform_shared",
+      "discordos",
+      "fitness",
+      "mazer"
+    ],
+    "private": [
+      "platform_private",
+      "discordos_private"
+    ],
+    "provider_managed": [
+      "auth",
+      "storage",
+      "extensions",
+      "realtime"
+    ]
+  },
+  "dynamic_allowlist": [
+    {
+      "app": "fitness",
+      "path": "005_ui_core_fix_pack.sql",
+      "templates": 2
+    },
+    {
+      "app": "fitness",
+      "path": "007_relax_rep_range_constraint.sql",
+      "templates": 1
+    },
+    {
+      "app": "fitness",
+      "path": "008_exercises_table_and_rls.sql",
+      "templates": 2
+    },
+    {
+      "app": "fitness",
+      "path": "011_exercises_id_uuid_backfill.sql",
+      "templates": 3
+    },
+    {
+      "app": "fitness",
+      "path": "20260515150000_059_discord_feedback_reports.sql",
+      "templates": 2
+    },
+    {
+      "app": "fitness",
+      "path": "20260516174200_discord_feedback_attachments.sql",
+      "templates": 1
+    }
+  ],
+  "resolved_dynamic_policy_source": {
+    "app": "fitness",
+    "path": "20260709073257_harden_discord_internal_table_access.sql",
+    "expanded_policy_count": 10
+  },
+  "held_sources": {
+    "fitness_number_migrations": [
+      "044_real_user_numbers.sql",
+      "20260515090322_056_compact_public_member_numbers.sql"
+    ],
+    "discordos_scheduler_activation": "20260627202737_enable_discordos_message_poll_scheduler.sql",
+    "discordos_scheduler_helper": "20260627202816_add_discordos_message_poll_scheduler_helper.sql"
+  },
+  "fitness_provenance": {
+    "replay_safe_043_blob": "42a8bd9aef05ad8aeb5efd8db644bc70a711a78f",
+    "replay_safe_043_sha256": "f5231385f72b80ecac0c5f92616e2d1a692ee61b88cdca738386a1ddee077346",
+    "provider_canonical_043_blob": "ceb74dae0443e4f5b4ef83ae56e989f9ae6d1395",
+    "provider_canonical_043_sha256": "e0aa179c8d32e662ce747d8121bd6fcec893ec592e2daa5675a993358894c534"
+  }
+}

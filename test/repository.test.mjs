@@ -47,5 +47,5 @@ test('nested work and outputs paths cannot bypass repository checks', () => {
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: path is outside')));
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: Supabase secret key detected')));
   assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/data.json: machine-specific absolute path detected')));
-  assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/migration.sql: executable SQL is forbidden')));
+  assert.ok(failures.some((failure) => failure.includes('contracts/v1/outputs/migration.sql: SQL is outside the inert bootstrap boundary')));
 });

@@ -21,7 +21,7 @@ function toPosix(value) {
 export function listWorkingTreeFiles(directory = repositoryRoot, prefix = '') {
   const files = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-    if (entry.isDirectory() && prefix === '' && rootLocalExcludedDirectories.has(entry.name)) continue;
+    if (prefix === '' && rootLocalExcludedDirectories.has(entry.name)) continue;
     const absolutePath = path.join(directory, entry.name);
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
@@ -53,9 +53,12 @@ function allowedPath(relativePath) {
   if (/(^|\/)(?:work|outputs)(?:\/|$)/.test(relativePath)) return false;
   return allowedRootFiles.has(relativePath)
     || /^\.github\/workflows\/[a-z0-9-]+\.yml$/.test(relativePath)
+    || /^bootstrap\/(?:generator\/config\.v1\.json|manifests\/[a-z0-9-]+\.v1\.json)$/.test(relativePath)
+    || /^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
     || /^contracts\/v1\/[a-z0-9_./-]+\.json$/.test(relativePath)
     || /^docs\/(adr|runbooks)\/[a-z0-9-]+\.md$/.test(relativePath)
     || /^scripts\/[a-z0-9_./-]+\.mjs$/.test(relativePath)
+    || /^supabase\/migrations\/0000000000000[1-4]_[a-z0-9_]+\.sql$/.test(relativePath)
     || /^test\/[a-z0-9_./-]+\.test\.mjs$/.test(relativePath);
 }
 
@@ -90,7 +93,11 @@ export function validateRepositoryEntries(entries) {
 
   for (const { relativePath, content } of entries) {
     if (!allowedPath(relativePath)) failures.push(`${relativePath}: path is outside the repository allowlist`);
-    if (relativePath.endsWith('.sql')) failures.push(`${relativePath}: executable SQL is forbidden in this packet`);
+    if (relativePath.endsWith('.sql')
+      && !/^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
+      && !/^supabase\/migrations\/0000000000000[1-4]_[a-z0-9_]+\.sql$/.test(relativePath)) {
+      failures.push(`${relativePath}: SQL is outside the inert bootstrap boundary`);
+    }
     if (/(^|\/)\.env(?:\.|$)/.test(relativePath)) failures.push(`${relativePath}: environment files are forbidden`);
 
     failures.push(...inspectContent(relativePath, content));
@@ -128,7 +135,7 @@ export function validateRepository() {
   return {
     ok: failures.length === 0,
     file_count: files.length,
-    checks: ['path_allowlist', 'lf', 'json', 'secret_scan', 'machine_path_scan', 'no_sql'],
+    checks: ['path_allowlist', 'lf', 'json', 'secret_scan', 'machine_path_scan', 'sql_path_boundary'],
     failures: failures.sort((left, right) => left.localeCompare(right))
   };
 }

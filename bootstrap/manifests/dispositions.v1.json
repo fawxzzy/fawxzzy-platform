@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "status": "REQUIRED",
+  "apply_admitted": false,
+  "source_raw_bytes": "provenance_input_only",
+  "namespace_rewrites": {
+    "fitness": "fitness",
+    "mazer": "mazer",
+    "discordos": "discordos"
+  },
+  "provider_managed": "skip_recreation",
+  "data_effects": "blocked_data_reconciliation",
+  "dynamic_templates": "blocked_contained_replay",
+  "scheduler": "blocked_activation",
+  "fitness_number_transform": "blocked_unmerged_dependency_and_replay",
+  "runtime_and_control_plane": "blocked"
+}

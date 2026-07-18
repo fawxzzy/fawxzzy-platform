@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "status": "REQUIRED",
+  "apply_admitted": false,
+  "public": {
+    "product_tables_allowed": false,
+    "rpc": "blocked_pending_control_plane_and_security_proof"
+  },
+  "platform_shared": {
+    "exposure": "intended_application_schema",
+    "contents": "explicit_shared_identity_service_contracts_only"
+  },
+  "platform_private": {
+    "exposure": "unexposed",
+    "contents": "privileged_platform_helpers"
+  },
+  "discordos": {
+    "exposure": "intended_application_schema",
+    "contents": "discordos_product_objects"
+  },
+  "discordos_private": {
+    "exposure": "unexposed",
+    "contents": "discordos_internal_helpers"
+  },
+  "fitness": {
+    "exposure": "intended_application_schema",
+    "contents": "fitness_product_objects"
+  },
+  "mazer": {
+    "exposure": "intended_application_schema",
+    "contents": "mazer_product_objects"
+  },
+  "provider_managed": [
+    "auth",
+    "storage",
+    "extensions",
+    "realtime"
+  ]
+}

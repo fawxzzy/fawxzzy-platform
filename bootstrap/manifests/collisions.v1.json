@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "status": "REQUIRED",
+  "apply_admitted": false,
+  "exact_cross_source_name_collisions": 0,
+  "groups": [
+    {
+      "id": "discord-feedback-product-contracts",
+      "classification": "semantic_conflict",
+      "disposition": "quarantine"
+    },
+    {
+      "id": "discord-update-drafts-product-contracts",
+      "classification": "semantic_conflict",
+      "disposition": "quarantine"
+    },
+    {
+      "id": "fitness-local-versus-global-user-number",
+      "classification": "semantic_conflict",
+      "disposition": "forward_transform",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "fitness-global-profile-split",
+      "classification": "ownership_auth_conflict",
+      "disposition": "forward_transform",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "mazer-global-profile-split",
+      "classification": "ownership_auth_conflict",
+      "disposition": "forward_transform",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "fitness-entitlement-ownership",
+      "classification": "ownership_auth_conflict",
+      "disposition": "forward_transform",
+      "status": "BLOCKED"
+    }
+  ]
+}
