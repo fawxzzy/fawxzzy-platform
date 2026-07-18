@@ -319,6 +319,53 @@ test('CURRENT RPO and RTO objectives require an exact sanitized owner-decision r
   assert.ok(validateRecoveryDocuments(substitutedObjective, { mode: 'action', now: observedAt }).failures.some((failure) => failure.includes('must exactly match the owner-decision receipt reference')));
 });
 
+test('BLOCKED restore cannot bypass CURRENT or numerical RPO RTO owner-decision correlation', () => {
+  const scenarios = [
+    {
+      name: 'CURRENT status without owner decision',
+      mutate: (rpoRto) => { rpoRto.owner_decision = null; },
+      expected: 'require a canonical owner-decision receipt reference'
+    },
+    {
+      name: 'numerical objectives without CURRENT status',
+      mutate: (rpoRto) => {
+        rpoRto.status = 'BLOCKED';
+        rpoRto.measured_rpo_seconds = null;
+        rpoRto.measured_rto_seconds = null;
+        rpoRto.owner_decision = null;
+      },
+      expected: 'require a canonical owner-decision receipt reference'
+    },
+    {
+      name: 'malformed decision digest',
+      mutate: (rpoRto) => { rpoRto.owner_decision.receipt_sha256 = 'A'.repeat(64); },
+      expected: 'require a canonical owner-decision receipt digest'
+    },
+    {
+      name: 'substituted decision objective',
+      mutate: (rpoRto) => { rpoRto.owner_decision.objective_rpo_seconds = 7200; },
+      expected: 'must exactly match the owner-decision receipt reference'
+    },
+    {
+      name: 'decision after rehearsal acceptance',
+      mutate: (rpoRto) => { rpoRto.owner_decision.accepted_at = '2026-07-18T16:10:01Z'; },
+      expected: 'cannot follow restore acceptance'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const restore = documents[recoveryDocumentPaths.restore];
+    restore.status = 'BLOCKED';
+    scenario.mutate(restore.rpo_rto);
+    refreshActionDigests(documents);
+    const first = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    const second = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.deepEqual(first, second, scenario.name);
+    assert.ok(first.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+  }
+});
+
 test('freshness uses an explicit clock and classifies current stale future and unknown', () => {
   assert.deepEqual(evaluateFreshness({
     completedAt: '2026-07-18T16:30:00Z',

@@ -374,6 +374,28 @@ export function validateRecoveryDocuments(documents, options = {}) {
     requireCondition(restore.storage.body_recovery_status === 'CURRENT', 'non-empty restored Storage requires CURRENT body recovery');
     requireCondition(hexSha256.test(restore.storage.body_recovery_receipt_sha256 ?? ''), 'non-empty restored Storage requires a body-recovery receipt digest');
   }
+
+  const hasRpoRtoObjectives = restore.rpo_rto.objective_rpo_seconds !== null
+    || restore.rpo_rto.objective_rto_seconds !== null;
+  const requiresOwnerDecision = restore.rpo_rto.status === 'CURRENT' || hasRpoRtoObjectives;
+  if (requiresOwnerDecision) {
+    const ownerDecision = restore.rpo_rto.owner_decision;
+    const hasOwnerDecision = ownerDecision !== null && typeof ownerDecision === 'object' && !Array.isArray(ownerDecision);
+    requireCondition(hasOwnerDecision, 'CURRENT or numerical RPO/RTO objectives require a canonical owner-decision receipt reference');
+    if (hasOwnerDecision) {
+      requireCondition(stableDecisionId.test(ownerDecision.decision_id ?? ''), 'CURRENT or numerical RPO/RTO objectives require a canonical stable owner-decision ID');
+      requireCondition(hexSha256.test(ownerDecision.receipt_sha256 ?? ''), 'CURRENT or numerical RPO/RTO objectives require a canonical owner-decision receipt digest');
+      requireCondition(typeof ownerDecision.accepted_at === 'string' && timestamp.test(ownerDecision.accepted_at), 'CURRENT or numerical RPO/RTO objectives require an owner-decision acceptance timestamp');
+      requireCondition(
+        Number.isInteger(ownerDecision.objective_rpo_seconds)
+          && Number.isInteger(ownerDecision.objective_rto_seconds)
+          && ownerDecision.objective_rpo_seconds === restore.rpo_rto.objective_rpo_seconds
+          && ownerDecision.objective_rto_seconds === restore.rpo_rto.objective_rto_seconds,
+        'CURRENT or numerical RPO/RTO objectives must exactly match the owner-decision receipt reference'
+      );
+    }
+  }
+
   if (restore.status === 'CURRENT') {
     requireCondition(backup.status === 'CURRENT' && effects.status === 'CURRENT', 'accepted restore requires current backup and quarantine manifests');
     requireCondition(restore.parity.every((entry) => entry.status === 'CURRENT'), 'accepted restore cannot contain UNKNOWN parity');
@@ -382,21 +404,6 @@ export function validateRecoveryDocuments(documents, options = {}) {
     requireCondition(restore.clone.project_ref === effects.restore_project_ref && restore.clone.quarantine_status === 'CURRENT' && restore.clone.traffic_released === false, 'accepted restore clone must correlate to the quarantined project without traffic');
     requireCondition(restore.rpo_rto.status === 'CURRENT' && restore.rpo_rto.objective_rpo_seconds !== null && restore.rpo_rto.objective_rto_seconds !== null, 'accepted restore requires measured and accepted RPO/RTO objectives');
     requireCondition(restore.rpo_rto.measured_rpo_seconds <= restore.rpo_rto.objective_rpo_seconds && restore.rpo_rto.measured_rto_seconds <= restore.rpo_rto.objective_rto_seconds, 'accepted restore must satisfy RPO/RTO objectives');
-    const ownerDecision = restore.rpo_rto.owner_decision;
-    const hasOwnerDecision = ownerDecision !== null && typeof ownerDecision === 'object' && !Array.isArray(ownerDecision);
-    requireCondition(hasOwnerDecision, 'accepted restore requires a canonical owner-decision receipt reference');
-    if (hasOwnerDecision) {
-      requireCondition(stableDecisionId.test(ownerDecision.decision_id ?? ''), 'accepted restore requires a canonical stable owner-decision ID');
-      requireCondition(hexSha256.test(ownerDecision.receipt_sha256 ?? ''), 'accepted restore requires a canonical owner-decision receipt digest');
-      requireCondition(typeof ownerDecision.accepted_at === 'string' && timestamp.test(ownerDecision.accepted_at), 'accepted restore requires an owner-decision acceptance timestamp');
-      requireCondition(
-        Number.isInteger(ownerDecision.objective_rpo_seconds)
-          && Number.isInteger(ownerDecision.objective_rto_seconds)
-          && ownerDecision.objective_rpo_seconds === restore.rpo_rto.objective_rpo_seconds
-          && ownerDecision.objective_rto_seconds === restore.rpo_rto.objective_rto_seconds,
-        'accepted restore RPO/RTO objectives must exactly match the owner-decision receipt reference'
-      );
-    }
     requireCondition(restore.observation.status === 'CURRENT' && restore.observation.duration_seconds !== null && restore.observation.failure_count === 0, 'accepted restore requires a failure-free observation');
     requireCondition(restore.rollback.status === 'CURRENT', 'accepted restore requires current rollback evidence');
     requireCondition(restore.backup_manifest_sha256 === backupManifestDigest(backup), 'restore backup-manifest correlation mismatch');
