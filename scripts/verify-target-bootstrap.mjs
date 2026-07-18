@@ -4,9 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   canonicalJson,
+  analyzeFunctionDependencyStatement,
   classifyStatement,
+  findHeldFunctionReferences,
   generateTargetBootstrap,
   gitBlobSha1,
+  parseFunctionDefinition,
   root,
   sha256,
   splitSqlStatements
@@ -120,32 +123,88 @@ function verifyObjects(objects, config, failures) {
   fail(failures, canonicalJson(extensions) === canonicalJson(['pg_cron', 'pg_net', 'pgcrypto']), 'extension dependency identities drift');
 }
 
-function verifyHeldUnits(config, dynamic, dataEffects, failures) {
+function verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures) {
   fail(failures, dynamic.apply_admitted === false && dynamic.status === 'BLOCKED', 'dynamic units must remain fail-closed');
   fail(failures, dynamic.unresolved_count === exactExpected.dynamic_templates && dynamic.units.length === exactExpected.dynamic_templates, 'dynamic template denominator must be 11');
   fail(failures, dynamic.resolved_fitness_deny_policy_count === 10, 'resolved Fitness deny policy expansion must be 10');
   fail(failures, dynamic.units.every((unit) => unit.status === 'BLOCKED'), 'every dynamic template must remain BLOCKED');
   fail(failures, dataEffects.apply_admitted === false && dataEffects.status === 'BLOCKED', 'data effects must remain fail-closed');
   fail(failures, dataEffects.held_count === exactExpected.held_data_effects && dataEffects.effects.length === exactExpected.held_data_effects, 'held data-effect denominator must be 358');
-  const counts = dataEffects.effects.reduce((result, effect) => {
+  const effectCounts = dataEffects.effects.reduce((result, effect) => {
     const key = `${effect.source_app}:${effect.operation}`;
     result[key] = (result[key] ?? 0) + 1;
     return result;
   }, {});
-  fail(failures, counts['discordos:UPDATE'] === 1, 'DiscordOS held data effects must be one UPDATE');
-  fail(failures, counts['fitness:UPDATE'] === 351 && counts['fitness:INSERT'] === 5 && counts['fitness:DELETE'] === 1, 'Fitness held data-effect operation counts drift');
-  const scheduler = readJson('bootstrap/manifests/dispositions.v1.json');
-  fail(failures, scheduler.scheduler === 'blocked_activation', 'scheduler activation must remain blocked');
-  fail(failures, scheduler.fitness_number_transform === 'blocked_unmerged_dependency_and_replay', 'Fitness number transformation must remain blocked');
+  fail(failures, effectCounts['discordos:UPDATE'] === 1, 'DiscordOS held data effects must be one UPDATE');
+  fail(failures, effectCounts['fitness:UPDATE'] === 351 && effectCounts['fitness:INSERT'] === 5 && effectCounts['fitness:DELETE'] === 1, 'Fitness held data-effect operation counts drift');
+  fail(failures, dispositions.apply_admitted === false && dispositions.status === 'REQUIRED', 'dispositions must remain inert and REQUIRED');
+  fail(failures, dispositions.scheduler === 'blocked_activation', 'scheduler activation must remain blocked');
+  fail(failures, dispositions.fitness_number_transform === 'blocked_unmerged_dependency_and_replay', 'Fitness number transformation must remain blocked');
   fail(failures, config.blocked_dependencies.length === 1 && config.blocked_dependencies[0].decision === 'BLOCKED', 'blocked Fitness dependency drift');
+
+  const dispositionCounts = dispositions.derived_counts;
+  fail(failures, dispositionCounts.source_statement_count === dispositionCounts.executable_statement_count + dispositionCounts.held_statement_count, 'source statement disposition counts do not close');
+  fail(failures, dispositionCounts.held_statement_count === dispositions.held_statements.length, 'held statement count drift');
+  fail(failures, dispositionCounts.held_function_definition_statement_count === dispositions.held_functions.length, 'held function definition statement count drift');
+  const heldFunctionIdentities = new Set(dispositions.held_functions.map((unit) => `${unit.source_app}:${unit.source_identity}`));
+  fail(failures, dispositionCounts.held_function_identity_count === heldFunctionIdentities.size, 'held function identity count drift');
+  fail(failures, dispositionCounts.held_dependency_statement_count === dispositions.held_statements.filter((unit) => unit.blocker_class === 'held_function_dependency').length, 'held dependency statement count drift');
+  const publicRpcDefinitions = dispositions.held_statements.filter((unit) => unit.defined_function?.source_identity.match(/^public\.discordos_[a-z0-9_$]+$/));
+  fail(failures, publicRpcDefinitions.length >= 12, 'all DiscordOS public RPC definitions must be held');
+  fail(failures, dispositionCounts.held_discordos_public_rpc_definition_count === publicRpcDefinitions.length, 'DiscordOS public RPC definition count drift');
+  fail(failures, dispositionCounts.held_discordos_public_rpc_control_plane_definition_count === publicRpcDefinitions.filter((unit) => unit.blocker_class === 'discordos_public_rpc_control_plane').length, 'DiscordOS public RPC boundary count drift');
+  fail(failures, dispositions.held_statements.filter((unit) => unit.blocker_class === 'held_function_dependency').every((unit) => unit.referenced_held_functions.length > 0), 'held dependency evidence must identify its absent function');
+
+  const migrations = new Map(sourceManifest.migrations.map((migration) => [`${migration.app}:${migration.path}`, migration]));
+  const statementCache = new Map();
+  const seen = new Set();
+  for (const unit of dispositions.held_statements) {
+    const identity = `${unit.source_app}:${unit.source_path}:${unit.statement_ordinal}`;
+    fail(failures, !seen.has(identity), `${identity}: duplicate held disposition`);
+    seen.add(identity);
+    const migration = migrations.get(`${unit.source_app}:${unit.source_path}`);
+    fail(failures, Boolean(migration), `${identity}: held source migration missing`);
+    if (!migration) continue;
+    const cacheKey = migration.copied_path;
+    if (!statementCache.has(cacheKey)) {
+      statementCache.set(cacheKey, splitSqlStatements(fs.readFileSync(path.join(root, ...cacheKey.split('/')), 'utf8')));
+    }
+    const statement = statementCache.get(cacheKey)[unit.statement_ordinal - 1];
+    fail(failures, Boolean(statement), `${identity}: held source statement missing`);
+    if (!statement) continue;
+    fail(failures, sha256(Buffer.from(statement, 'utf8')) === unit.statement_sha256, `${identity}: held statement digest drift`);
+    fail(failures, Buffer.byteLength(statement, 'utf8') === unit.statement_byte_count, `${identity}: held statement byte count drift`);
+    fail(failures, unit.source_commit === migration.commit && unit.source_blob === migration.blob && unit.source_raw_sha256 === migration.raw_sha256, `${identity}: held provenance drift`);
+    const fallbackSchema = unit.source_app === 'discordos' ? 'discordos' : 'public';
+    const definition = parseFunctionDefinition(statement, fallbackSchema);
+    fail(failures, (definition?.identity ?? null) === (unit.defined_function?.source_identity ?? null), `${identity}: held function identity drift`);
+  }
 }
 
-export function inspectInertSql(filename, text) {
+export function verifySchemaCreationOrder(files) {
+  const failures = [];
+  const created = new Set(['public', 'auth', 'storage', 'extensions', 'realtime']);
+  for (const [filename, text] of files) {
+    for (const statement of splitSqlStatements(text)) {
+      const clean = statement.replace(/^(?:\s|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)+/, '').trim();
+      const create = /^create\s+schema\s+(?:if\s+not\s+exists\s+)?("?[A-Za-z_][A-Za-z0-9_$]*"?)/i.exec(clean);
+      if (create) created.add(create[1].replaceAll('"', '').toLowerCase());
+      for (const schema of ['mazer', 'fitness']) {
+        if (new RegExp(`\\b${schema}\\s*\\.`, 'i').test(clean) && !created.has(schema)) {
+          failures.push(`${filename}: ${schema} schema is referenced before creation`);
+        }
+      }
+    }
+  }
+  return failures.sort();
+}
+
+export function inspectInertSql(filename, text, heldFunctionTargets = []) {
   const failures = [];
   fail(failures, text.startsWith('-- APPLY_ADMITTED=false\n'), `${filename}: missing inert marker`);
   fail(failures, !text.includes('\r'), `${filename}: CR byte detected`);
-  fail(failures, !/\bcreate\s+(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?(?:auth|storage|extensions|realtime)\./i.test(text), `${filename}: provider-managed object recreation detected`);
-  fail(failures, !/\bcreate\s+(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?public\./i.test(text), `${filename}: public product object creation detected`);
+  fail(failures, !/\bcreate\s+(?:or\s+replace\s+)?(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?(?:auth|storage|extensions|realtime)\s*\./i.test(text), `${filename}: provider-managed object recreation detected`);
+  fail(failures, !/\bcreate\s+(?:or\s+replace\s+)?(?:table|schema|function|trigger|policy|index|sequence|type|view)\s+(?:if\s+not\s+exists\s+)?public\s*\./i.test(text), `${filename}: public product object creation detected`);
   fail(failures, !/\bcreate\s+extension\b/i.test(text), `${filename}: extension activation detected`);
   fail(failures, !/\bcron\.schedule\s*\(|\bnet\.http_(?:get|post|delete)\s*\(/i.test(text), `${filename}: Cron or network effect detected`);
   fail(failures, !/https?:\/\//i.test(text), `${filename}: network hook detected`);
@@ -154,24 +213,35 @@ export function inspectInertSql(filename, text) {
   fail(failures, !/\bgrant\s+execute\s+on\s+function\s+[^;]+\s+to\s+PUBLIC\b/i.test(text), `${filename}: PUBLIC function execute detected`);
   for (const statement of splitSqlStatements(text)) {
     const classification = classifyStatement(statement);
+    const fallbackSchema = filename.includes('_fitness_') ? 'fitness' : filename.includes('_mazer_') ? 'mazer' : filename.includes('_discordos_') ? 'discordos' : 'public';
+    const definition = parseFunctionDefinition(statement, fallbackSchema);
+    const dependency = analyzeFunctionDependencyStatement(statement, fallbackSchema);
     fail(failures, !classification.dataEffect, `${filename}: top-level data effect entered generated output`);
     fail(failures, !classification.cronActivation && !classification.networkEffect, `${filename}: runtime effect entered generated output`);
+    fail(failures, !definition?.identity.match(/^public\.discordos_[a-z0-9_$]+$/), `${filename}: public DiscordOS RPC definition entered generated output`);
+    fail(failures, !dependency.malformed, `${filename}: malformed or unknown function dependency entered generated output`);
+    const heldReferences = findHeldFunctionReferences(statement, heldFunctionTargets, fallbackSchema);
+    fail(failures, heldReferences.length === 0, `${filename}: statement references held function ${heldReferences.join(', ')}`);
   }
   return failures.sort();
 }
 
-function verifyGeneratedSql(config, failures) {
+function verifyGeneratedSql(config, dispositions, failures) {
   const directory = path.join(root, 'supabase', 'migrations');
   const actualFiles = fs.readdirSync(directory).filter((name) => name.endsWith('.sql')).sort();
   fail(failures, canonicalJson(actualFiles) === canonicalJson(expectedGeneratedFiles), 'generated SQL path denominator drift');
   let resolvedDenyPolicyCount = 0;
+  const orderedFiles = [];
+  const heldFunctionTargets = [...new Set(dispositions.held_functions.map((unit) => unit.target_identity))].sort();
   for (const filename of actualFiles) {
     const text = fs.readFileSync(path.join(directory, filename), 'utf8');
-    failures.push(...inspectInertSql(filename, text));
+    orderedFiles.push([filename, text]);
+    failures.push(...inspectInertSql(filename, text, heldFunctionTargets));
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_blob), `${filename}: provider-canonical 043 blob leaked into output`);
     fail(failures, !text.includes(config.fitness_provenance.provider_canonical_043_sha256), `${filename}: provider-canonical 043 digest leaked into output`);
     resolvedDenyPolicyCount += [...text.matchAll(/create\s+policy\s+[A-Za-z0-9_]+_deny_public_api_access\b/gi)].length;
   }
+  failures.push(...verifySchemaCreationOrder(orderedFiles));
   fail(failures, resolvedDenyPolicyCount === 10, `resolved deny policy output must be 10, found ${resolvedDenyPolicyCount}`);
 }
 
@@ -213,10 +283,11 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const objects = readJson('bootstrap/manifests/source-objects.v1.json');
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
   const dataEffects = readJson('bootstrap/manifests/data-effects.v1.json');
+  const dispositions = readJson('bootstrap/manifests/dispositions.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
   verifyObjects(objects, config, failures);
-  verifyHeldUnits(config, dynamic, dataEffects, failures);
-  verifyGeneratedSql(config, failures);
+  verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
+  verifyGeneratedSql(config, dispositions, failures);
   verifyNoForbiddenIdentities(config, failures);
 
   let deterministicDigest = digestPackageOutputs().digest;
@@ -237,6 +308,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
     checks: [
       'immutable_source_identity', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
+      'schema_creation_order', 'discordos_public_rpc_hold', 'held_function_dependency_closure',
       'provider_managed_skip', 'private_schema_exposure', 'no_network_hooks',
       'no_provider_commands', 'no_project_refs', 'deterministic_generation'
     ],
@@ -253,6 +325,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       dynamic_templates: dynamic.units.length,
       held_cron_units: 1
     },
+    derived_counts: dispositions.derived_counts,
     deterministic_digest: deterministicDigest,
     failures: failures.sort()
   };

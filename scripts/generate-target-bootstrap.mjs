@@ -200,6 +200,59 @@ export function simulateCatalog(statements) {
   return Object.fromEntries(Object.entries(catalog).map(([key, values]) => [key, [...values].sort()]));
 }
 
+function normalizeQualifiedName(value, fallbackSchema = 'public') {
+  const pieces = value.split('.').map((piece) => quotedName(piece.trim()).toLowerCase());
+  return pieces.length === 1 ? `${fallbackSchema}.${pieces[0]}` : `${pieces[0]}.${pieces[1]}`;
+}
+
+export function parseFunctionDefinition(statement, fallbackSchema = 'public') {
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const match = new RegExp(`^create\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})\\s*\\(`, 'i')
+    .exec(withoutLeadingComments(statement));
+  if (!match) return null;
+  return {
+    identity: normalizeQualifiedName(match[1], fallbackSchema),
+    or_replace: /^create\s+or\s+replace\s+function\b/i.test(withoutLeadingComments(statement))
+  };
+}
+
+export function analyzeFunctionDependencyStatement(statement, fallbackSchema = 'public') {
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const masked = maskSqlStringsAndComments(statement);
+  const references = new Set();
+  const expression = new RegExp(`\\b(?:on\\s+function|execute\\s+(?:function|procedure)|alter\\s+function|drop\\s+function)\\s+(?:if\\s+exists\\s+)?(${qualified})\\s*\\(`, 'gi');
+  for (const match of masked.matchAll(expression)) references.add(normalizeQualifiedName(match[1], fallbackSchema));
+  const hasDependencySyntax = /\b(?:on\s+function|execute\s+(?:function|procedure)|alter\s+function|drop\s+function)\b/i.test(masked);
+  return {
+    references: [...references].sort(),
+    malformed: hasDependencySyntax && references.size === 0
+  };
+}
+
+function functionIdentityForTarget(identity, app) {
+  if (app === 'fitness' && identity.startsWith('public.')) return `fitness.${identity.slice('public.'.length)}`;
+  if (app === 'mazer' && identity.startsWith('public.')) return `mazer.${identity.slice('public.'.length)}`;
+  return identity;
+}
+
+function referencePattern(identity) {
+  const [schema, name] = identity.split('.');
+  const escapedSchema = schema.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:"?${escapedSchema}"?\\s*\\.\\s*"?${escapedName}"?|(?<![A-Za-z0-9_$".])"?${escapedName}"?)\\s*\\(`, 'i');
+}
+
+export function findHeldFunctionReferences(statement, heldFunctions, fallbackSchema = 'public') {
+  const masked = maskSqlStringsAndComments(statement);
+  const definition = parseFunctionDefinition(statement, fallbackSchema);
+  return heldFunctions.filter((identity) => {
+    if (definition?.identity === identity) return true;
+    return referencePattern(identity).test(masked);
+  }).sort();
+}
+
 function relativeSourcePath(app, filename) {
   return `bootstrap/sources/${app}/supabase/migrations/${filename}`;
 }
@@ -520,30 +573,134 @@ function namespaceRewrite(sql, app) {
   return sql;
 }
 
-function safeSchemaStatements(record, config) {
+function initialStatementDisposition(record, statement, config, classification, definition, dependency) {
   const dynamicPaths = new Set(config.dynamic_allowlist.map((entry) => `${entry.app}/${entry.path}`));
   const heldNumberPaths = new Set(config.held_sources.fitness_number_migrations);
-  if (record.app === 'discordos' && record.filename >= config.held_sources.discordos_scheduler_activation) return [];
-  if (record.app === 'fitness' && heldNumberPaths.has(record.filename)) return [];
-  if (record.app === 'fitness' && record.filename === config.resolved_dynamic_policy_source.path) return [];
-
-  return record.statements.filter((statement) => {
-    const classification = classifyStatement(statement);
-    if (classification.dataEffect || classification.extensionDependency || classification.cronActivation || classification.networkEffect) return false;
-    if (classification.securityDefiner) return false;
-    if (dynamicPaths.has(`${record.app}/${record.filename}`) && classification.dynamicIdentity) return false;
-    if (classification.dynamicIdentity || /^do\b/i.test(classification.clean)) return false;
-    return true;
-  }).map((statement) => namespaceRewrite(statement, record.app));
+  if (record.app === 'discordos' && record.filename >= config.held_sources.discordos_scheduler_activation) {
+    return ['discordos_scheduler_boundary', 'DiscordOS scheduler and later runtime/control-plane units require a contained replay and activation packet.'];
+  }
+  if (record.app === 'fitness' && heldNumberPaths.has(record.filename)) {
+    return ['fitness_global_number_transform', 'Fitness number transformation is blocked on the source dependency and contained replay acceptance.'];
+  }
+  if (record.app === 'fitness' && record.filename === config.resolved_dynamic_policy_source.path) {
+    return ['resolved_dynamic_policy_expansion', 'The source dynamic policy unit is replaced by the exact ten-identity static expansion.'];
+  }
+  if (record.app === 'discordos' && definition?.identity.match(/^public\.discordos_[a-z0-9_$]+$/)) {
+    return ['discordos_public_rpc_control_plane', 'Public DiscordOS RPC creation is held pending explicit control-plane and security proof.'];
+  }
+  if (dependency.malformed) {
+    return ['malformed_function_dependency', 'Function dependency syntax could not be resolved deterministically.'];
+  }
+  if (classification.dataEffect) return ['data_effect', 'Top-level data effect requires a later data reconciliation wave.'];
+  if (classification.extensionDependency) return ['extension_activation', 'Extension creation is a provider/runtime dependency, not an admitted generated effect.'];
+  if (classification.cronActivation) return ['cron_activation', 'Cron activation requires a later runtime activation packet.'];
+  if (classification.networkEffect) return ['network_effect', 'Network effects are prohibited in the inert source package.'];
+  if (classification.securityDefiner) return ['security_definer', 'SECURITY DEFINER creation requires explicit target security proof.'];
+  if (dynamicPaths.has(`${record.app}/${record.filename}`) && classification.dynamicIdentity) {
+    return ['allowlisted_dynamic_identity', 'Allowlisted dynamic identity remains blocked pending two identical contained replay readbacks.'];
+  }
+  if (classification.dynamicIdentity) return ['unallowlisted_dynamic_identity', 'Dynamic identity is not admitted to executable output.'];
+  if (/^do\b/i.test(classification.clean)) return ['anonymous_code_block', 'Anonymous code blocks remain held until contained replay proves their complete effects.'];
+  return null;
 }
 
-function buildGeneratedSql(records, config, securityMatrix) {
+export function buildGenerationPlan(records, config) {
+  const units = records.flatMap((record) => record.statements.map((statement, index) => {
+    const fallbackSchema = record.app === 'discordos' ? 'discordos' : 'public';
+    const classification = classifyStatement(statement);
+    const definition = parseFunctionDefinition(statement, fallbackSchema);
+    const dependency = analyzeFunctionDependencyStatement(statement, fallbackSchema);
+    const initialDisposition = initialStatementDisposition(record, statement, config, classification, definition, dependency);
+    return {
+      record,
+      statement,
+      statement_ordinal: index + 1,
+      fallback_schema: fallbackSchema,
+      classification,
+      definition,
+      dependency,
+      blocker_class: initialDisposition?.[0] ?? null,
+      reason: initialDisposition?.[1] ?? null,
+      referenced_held_functions: []
+    };
+  }));
+
+  const heldFunctionsByApp = new Map();
+  for (const unit of units.filter((candidate) => candidate.blocker_class && candidate.definition)) {
+    if (!heldFunctionsByApp.has(unit.record.app)) heldFunctionsByApp.set(unit.record.app, new Set());
+    heldFunctionsByApp.get(unit.record.app).add(unit.definition.identity);
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const unit of units) {
+      if (unit.blocker_class) continue;
+      const heldFunctions = heldFunctionsByApp.get(unit.record.app) ?? new Set();
+      const identities = [...heldFunctions].sort();
+      const references = findHeldFunctionReferences(unit.statement, identities, unit.fallback_schema);
+      if (references.length === 0) continue;
+      unit.blocker_class = 'held_function_dependency';
+      unit.reason = 'Statement resolves or references a held function and cannot remain executable without its dependency.';
+      unit.referenced_held_functions = references;
+      if (unit.definition && !heldFunctions.has(unit.definition.identity)) {
+        heldFunctions.add(unit.definition.identity);
+        heldFunctionsByApp.set(unit.record.app, heldFunctions);
+        changed = true;
+      }
+    }
+  }
+
+  for (const unit of units.filter((candidate) => candidate.blocker_class)) {
+    if (unit.referenced_held_functions.length === 0) {
+      const heldFunctions = heldFunctionsByApp.get(unit.record.app) ?? new Set();
+      unit.referenced_held_functions = findHeldFunctionReferences(unit.statement, [...heldFunctions].sort(), unit.fallback_schema)
+        .filter((identity) => identity !== unit.definition?.identity);
+    }
+  }
+  return {
+    units,
+    held_functions: [...heldFunctionsByApp.entries()]
+      .flatMap(([app, identities]) => [...identities].map((identity) => `${app}:${identity}`))
+      .sort()
+  };
+}
+
+function heldStatementEvidence(plan) {
+  const heldStatements = plan.units.filter((unit) => unit.blocker_class).map((unit) => ({
+    id: `${unit.record.app}:${unit.record.filename}:held:${String(unit.statement_ordinal).padStart(4, '0')}`,
+    status: 'BLOCKED',
+    blocker_class: unit.blocker_class,
+    reason: unit.reason,
+    statement_sha256: sha256(Buffer.from(unit.statement, 'utf8')),
+    statement_byte_count: Buffer.byteLength(unit.statement, 'utf8'),
+    defined_function: unit.definition ? {
+      source_identity: unit.definition.identity,
+      target_identity: functionIdentityForTarget(unit.definition.identity, unit.record.app)
+    } : null,
+    referenced_held_functions: unit.referenced_held_functions.map((identity) => ({
+      source_identity: identity,
+      target_identity: functionIdentityForTarget(identity, unit.record.app)
+    })),
+    ...provenance(unit.record, unit.statement_ordinal, `${unit.record.app}:hold-${unit.blocker_class.replaceAll('_', '-')}-v1`)
+  }));
+  const heldFunctions = plan.units.filter((unit) => unit.blocker_class && unit.definition).map((unit) => ({
+    source_identity: unit.definition.identity,
+    target_identity: functionIdentityForTarget(unit.definition.identity, unit.record.app),
+    blocker_class: unit.blocker_class,
+    ...provenance(unit.record, unit.statement_ordinal, `${unit.record.app}:hold-function-v1`)
+  })).sort((left, right) => `${left.source_app}:${left.source_identity}`.localeCompare(`${right.source_app}:${right.source_identity}`));
+  return { heldStatements, heldFunctions };
+}
+
+function buildGeneratedSql(records, config, securityMatrix, plan) {
   const files = new Map();
   const prefix = '-- APPLY_ADMITTED=false\n-- INERT SOURCE PACKAGE: review and contained replay are required before any apply.\n';
   for (const app of ['mazer', 'fitness', 'discordos']) {
-    const chunks = [];
+    const chunks = app === 'mazer' || app === 'fitness' ? [`create schema if not exists ${app};`] : [];
     for (const record of records.filter((candidate) => candidate.app === app)) {
-      const statements = safeSchemaStatements(record, config);
+      const statements = plan.units
+        .filter((unit) => unit.record === record && !unit.blocker_class)
+        .map((unit) => namespaceRewrite(unit.statement, record.app));
       if (statements.length === 0) continue;
       chunks.push(`-- source ${record.path} blob ${record.blob} raw_sha256 ${record.raw_sha256}\n${statements.join('\n\n')}`);
     }
@@ -615,7 +772,9 @@ export function generateTargetBootstrap() {
   const objects = extractObjects(records, config);
   const dynamicUnits = buildDynamicUnits(records, config);
   const dataEffects = buildDataEffects(records);
-  const generatedSql = buildGeneratedSql(records, config, securityMatrix);
+  const generationPlan = buildGenerationPlan(records, config);
+  const heldEvidence = heldStatementEvidence(generationPlan);
+  const generatedSql = buildGeneratedSql(records, config, securityMatrix, generationPlan);
 
   writeManifest('source-migrations.v1.json', sourceManifest(records, config));
   writeManifest('source-objects.v1.json', {
@@ -653,7 +812,19 @@ export function generateTargetBootstrap() {
     dynamic_templates: 'blocked_contained_replay',
     scheduler: 'blocked_activation',
     fitness_number_transform: 'blocked_unmerged_dependency_and_replay',
-    runtime_and_control_plane: 'blocked'
+    runtime_and_control_plane: 'blocked',
+    derived_counts: {
+      source_statement_count: generationPlan.units.length,
+      executable_statement_count: generationPlan.units.filter((unit) => !unit.blocker_class).length,
+      held_statement_count: heldEvidence.heldStatements.length,
+      held_function_definition_statement_count: heldEvidence.heldFunctions.length,
+      held_function_identity_count: generationPlan.held_functions.length,
+      held_dependency_statement_count: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'held_function_dependency').length,
+      held_discordos_public_rpc_definition_count: heldEvidence.heldStatements.filter((unit) => unit.defined_function?.source_identity.match(/^public\.discordos_[a-z0-9_$]+$/)).length,
+      held_discordos_public_rpc_control_plane_definition_count: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'discordos_public_rpc_control_plane' && unit.defined_function).length
+    },
+    held_functions: heldEvidence.heldFunctions,
+    held_statements: heldEvidence.heldStatements
   });
   writeManifest('namespace-plan.v1.json', {
     version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
@@ -675,6 +846,11 @@ export function generateTargetBootstrap() {
     source_objects: Object.fromEntries(Object.entries(objects).map(([key, value]) => [key, key === 'constraint_units' ? value.expected_count : value.length])),
     dynamic_templates: dynamicUnits.length,
     held_data_effects: dataEffects.length,
+    executable_statements: generationPlan.units.filter((unit) => !unit.blocker_class).length,
+    held_statements: heldEvidence.heldStatements.length,
+    held_function_definition_statements: heldEvidence.heldFunctions.length,
+    held_function_identities: generationPlan.held_functions.length,
+    held_function_dependencies: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'held_function_dependency').length,
     generated_files: [...generatedSql.keys()].sort()
   };
   return report;

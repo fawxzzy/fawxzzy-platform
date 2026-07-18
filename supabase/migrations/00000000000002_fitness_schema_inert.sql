@@ -1,6 +1,8 @@
 -- APPLY_ADMITTED=false
 -- INERT SOURCE PACKAGE: review and contained replay are required before any apply.
 
+create schema if not exists fitness;
+
 -- source supabase/migrations/001_init.sql blob ea2be3c4175e5878ff364956120172712cd732fe raw_sha256 d4b0fd3f945a6caa979d280709af9138e384e67c27f3c37ae0307af111e5a88d
 create table if not exists fitness.sessions (
   id uuid primary key default gen_random_uuid(),
@@ -1662,19 +1664,6 @@ begin
 end;
 $$;
 
--- source supabase/migrations/20260506190000_048_security_definer_execute_revokes.sql blob ae1aeea09273d9726e57d84980c7ee69f85d8f8b raw_sha256 1ad972c2e856c77cf17d62f753723f482c57a22e096f1f2b567d4618dec700d6
-revoke execute on function fitness.assign_real_user_number_on_profile_insert() from public;
-
-revoke execute on function fitness.assign_real_user_number_on_profile_insert() from anon;
-
-revoke execute on function fitness.assign_real_user_number_on_profile_insert() from authenticated;
-
-revoke execute on function fitness.is_automation_auth_user(uuid) from public;
-
-revoke execute on function fitness.is_automation_auth_user(uuid) from anon;
-
-revoke execute on function fitness.is_automation_auth_user(uuid) from authenticated;
-
 -- source supabase/migrations/20260507130000_049_fk_covering_indexes.sql blob 31bbfdbf2f22d9082a16dd18951eb55fca048974 raw_sha256 0a74f57da9ad944bcb43db7083cbeff1a82e667305584b0188945f674445d002
 -- 049_fk_covering_indexes.sql
 -- Add covering indexes only for advisor-confirmed foreign keys that are still uncovered.
@@ -2107,14 +2096,6 @@ create index if not exists discord_verification_tokens_discord_user_id_idx
 
 alter table fitness.discord_verification_tokens enable row level security;
 
-revoke execute on function fitness.consume_discord_verification_token(text, text, text) from public;
-
-revoke execute on function fitness.consume_discord_verification_token(text, text, text) from anon;
-
-revoke execute on function fitness.consume_discord_verification_token(text, text, text) from authenticated;
-
-grant execute on function fitness.consume_discord_verification_token(text, text, text) to service_role;
-
 -- source supabase/migrations/20260515090309_055_discord_member_links.sql blob 0e0b4aa43a78a6fa25ef353c47772546a3446753 raw_sha256 cf648134f9df74e231605bf52c575b0e8053b86a6461d5f10f4b9bed4cef3467
 create table if not exists fitness.discord_member_links (
   id uuid primary key default gen_random_uuid(),
@@ -2138,14 +2119,6 @@ create table if not exists fitness.discord_member_links (
 );
 
 alter table fitness.discord_member_links enable row level security;
-
-revoke execute on function fitness.upsert_discord_member_link(uuid, text, text, integer, text, timestamptz, text, timestamptz, text) from public;
-
-revoke execute on function fitness.upsert_discord_member_link(uuid, text, text, integer, text, timestamptz, text, timestamptz, text) from anon;
-
-revoke execute on function fitness.upsert_discord_member_link(uuid, text, text, integer, text, timestamptz, text, timestamptz, text) from authenticated;
-
-grant execute on function fitness.upsert_discord_member_link(uuid, text, text, integer, text, timestamptz, text, timestamptz, text) to service_role;
 
 -- source supabase/migrations/20260515130000_057_discord_bug_reports.sql blob f1e89ec947c4b7ad4bc2c46aa37c5341b4f81975 raw_sha256 99f6529d580685bfe02373f9f0065b0084ffabca18e241c0bc1e7bb814511369
 create table if not exists fitness.discord_bug_reports (
@@ -2420,11 +2393,6 @@ alter table fitness.discord_member_links
 alter table fitness.discord_member_links
   add constraint discord_member_links_nickname_sync_status_check
   check (nickname_sync_status in ('not_attempted', 'needs_sync', 'synced', 'failed', 'skipped'));
-
-comment on function fitness.refresh_discord_member_link_member_number_snapshots() is
-  'Refreshes discord_member_links user_number and user_kind snapshots from profiles and marks Discord nickname sync rows as needs_sync without calling Discord directly.';
-
-select fitness.refresh_discord_member_link_member_number_snapshots();
 
 -- source supabase/migrations/20260516063128_discord_update_drafts.sql blob 8279d7d9791c6124417abd050f16225f35a3a24a raw_sha256 5fc1249e5ccfd48f05e7f7c584ebe16a8315a439ff6ba20c194493ae3de44a3e
 create table if not exists fitness.discord_update_drafts (
@@ -3518,49 +3486,6 @@ comment on table fitness.billing_purchases is
 
 comment on table fitness.user_entitlements is
   'Product-access truth derived from verified billing events, including recurring Pro access.';
-
--- source supabase/migrations/20260709072134_harden_discord_security_definer_execute.sql blob 155397074e69d6da30e9cf4fb5d081023fec5c62 raw_sha256 9c76a99c93d6166e36c36ff7b5b19c74f2c1d4fd58f2ad7557e0029d8e3e2587
-/*
-  FF-SEC-001: remove public Data API execution from internal Discord/member-number
-  SECURITY DEFINER maintenance functions.
-
-  These functions are trigger/operator maintenance paths, not client RPC APIs.
-  Keeping SECURITY DEFINER preserves behavior while revoking inherited PUBLIC
-  execution prevents anon/authenticated callers from invoking privileged code.
-*/
-
-revoke execute on function fitness.compact_human_member_numbers_after_profile_delete() from public;
-
-revoke execute on function fitness.compact_human_member_numbers_after_profile_delete() from anon;
-
-revoke execute on function fitness.compact_human_member_numbers_after_profile_delete() from authenticated;
-
-grant execute on function fitness.compact_human_member_numbers_after_profile_delete() to service_role;
-
-revoke execute on function fitness.compact_human_member_numbers_preserving_zero() from public;
-
-revoke execute on function fitness.compact_human_member_numbers_preserving_zero() from anon;
-
-revoke execute on function fitness.compact_human_member_numbers_preserving_zero() from authenticated;
-
-grant execute on function fitness.compact_human_member_numbers_preserving_zero() to service_role;
-
-revoke execute on function fitness.refresh_discord_member_link_member_number_snapshots() from public;
-
-revoke execute on function fitness.refresh_discord_member_link_member_number_snapshots() from anon;
-
-revoke execute on function fitness.refresh_discord_member_link_member_number_snapshots() from authenticated;
-
-grant execute on function fitness.refresh_discord_member_link_member_number_snapshots() to service_role;
-
-comment on function fitness.compact_human_member_numbers_after_profile_delete() is
-  'Internal trigger maintenance for compacting public human member numbers after profile deletion. Public/anon/authenticated EXECUTE is revoked; trigger execution remains internal.';
-
-comment on function fitness.compact_human_member_numbers_preserving_zero() is
-  'Internal maintenance for compacting positive human member numbers into public slots 1..N while preserving operator-reserved #0. Public/anon/authenticated EXECUTE is revoked.';
-
-comment on function fitness.refresh_discord_member_link_member_number_snapshots() is
-  'Internal maintenance for refreshing discord_member_links user_number/user_kind snapshots from profiles and marking nickname rows for sync. Public/anon/authenticated EXECUTE is revoked.';
 
 -- source supabase/migrations/20260709073000_billing_subscription_receipt_dedupe.sql blob 5d15f5b7232f40e750c696b536d5b08145c64037 raw_sha256 2ba64e3725d014abca605528175f551826f43da433caf8c30c27b96d804569ea
 create unique index if not exists billing_purchases_subscription_uq

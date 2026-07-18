@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
+import { verifySchemaCreationOrder } from '../scripts/verify-target-bootstrap.mjs';
 
 test('catalog simulation applies create, replace, and drop in order', () => {
   const catalog = simulateCatalog(splitSqlStatements(`
@@ -29,4 +30,25 @@ test('all replay-dependent identities remain fail-closed', () => {
   assert.ok(dynamic.units.every((unit) => unit.status === 'BLOCKED'));
   assert.equal(objects.constraint_units.status, 'BLOCKED');
   assert.equal(objects.constraint_units.unresolved_named_candidate_delta, 14);
+});
+
+test('filename-order replay creates each product namespace before its first qualified object', () => {
+  const marker = '-- APPLY_ADMITTED=false\n';
+  assert.deepEqual(verifySchemaCreationOrder([
+    ['01_mazer.sql', `${marker}create schema if not exists mazer; create table mazer.profiles(id bigint);`],
+    ['02_fitness.sql', `${marker}create schema if not exists fitness; create table fitness.profiles(id bigint);`]
+  ]), []);
+  assert.match(verifySchemaCreationOrder([
+    ['01_bad.sql', `${marker}create table fitness.profiles(id bigint);`]
+  ])[0], /fitness schema is referenced before creation/);
+});
+
+test('actual generated product slices lead with their idempotent namespace creation', () => {
+  for (const [filename, schema] of [
+    ['00000000000001_mazer_schema_inert.sql', 'mazer'],
+    ['00000000000002_fitness_schema_inert.sql', 'fitness']
+  ]) {
+    const statements = splitSqlStatements(fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8'));
+    assert.match(statements[0], new RegExp(`create\\s+schema\\s+if\\s+not\\s+exists\\s+${schema}`, 'i'));
+  }
 });

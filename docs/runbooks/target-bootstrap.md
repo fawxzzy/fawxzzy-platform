@@ -45,6 +45,13 @@ Two consecutive generator runs must leave every file under `bootstrap/manifests`
 | Held top-level data effects | 358 |
 | Unresolved dynamic templates | 11 |
 | Held Cron units | 1 |
+| Source statements | 1253 |
+| Executable schema statements | 721 |
+| Held source statements | 532 |
+| Held function definition statements | 28 |
+| Unique held function identities | 24 |
+| Held function-dependent statements | 67 |
+| Held DiscordOS public RPC definitions | 18 |
 
 Fitness must contribute exactly 63 policies after deterministic expansion of the ten deny policies. Mazer contributes 11.
 
@@ -56,19 +63,23 @@ The verifier fails if any generated target file admits or contains:
 - Cron scheduling or a network-capable database call;
 - extension activation or provider-managed object recreation;
 - a product object in `public`;
+- a `public.discordos_*` function in either `CREATE FUNCTION` or `CREATE OR REPLACE FUNCTION` form;
+- a Mazer or Fitness qualified object before the corresponding idempotent schema creation;
+- a grant, revoke, comment, trigger, policy, function, or other executable statement that resolves or references an absent held function;
+- malformed or unknown function dependency syntax;
 - private-schema grants to PUBLIC, `anon`, or `authenticated`;
 - PUBLIC execution on a function;
 - a project endpoint/reference, credential value, provider command, deployment hook, or runtime-install command;
 - the provider-canonical Fitness 043 provenance blob or digest;
 - the unmerged Fitness global-number candidate as an executable input.
 
-Raw historical migrations may contain effects or legacy grants because they are immutable provenance. Those statements must be enumerated in hold manifests and must not enter generated output.
+Raw historical migrations may contain effects or legacy grants because they are immutable provenance. Every omitted source statement is bound by source app, commit, path, blob, raw digest, statement ordinal, statement digest, transformation, blocker class, and reason. Those statements must not enter generated output.
 
 ## Review procedure
 
 1. Verify the raw migration manifest identities and the accepted combined-manifest binding.
 2. Confirm the seven manifest paths and four generated migration paths are the complete denominators.
-3. Review all blocker manifests. `apply_admitted` must remain false everywhere.
+3. Review all blocker manifests. `apply_admitted` must remain false everywhere. Confirm all 18 public DiscordOS RPC definitions and every dependent statement are held.
 4. Run focused parser, manifest, generator, replay, and security tests.
 5. Run full repository verification twice and compare complete output bytes.
 6. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.

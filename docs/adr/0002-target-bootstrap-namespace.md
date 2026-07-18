@@ -22,7 +22,9 @@ The target namespace is closed:
 - `platform_private` and `discordos_private` are unexposed helper schemas.
 - `auth`, `storage`, `extensions`, `realtime`, and other provider schemas are managed prerequisites and are never recreated from application history.
 
-Generation is fail-closed. Fitness and Mazer `public` product identities are rewritten to their owning product schema. The ten Fitness deny policies are expanded into exact static identities. Top-level data effects, all catalog-dependent dynamic identities, extension activation, the DiscordOS scheduler boundary, network-capable helpers, SECURITY DEFINER source functions, and Fitness number transformation are omitted or held. The DiscordOS generated database slice stops before the scheduler boundary.
+Generation is fail-closed. Fitness and Mazer `public` product identities are rewritten to their owning product schema, and each generated slice creates its owning schema idempotently before the first qualified product object. The ten Fitness deny policies are expanded into exact static identities. Top-level data effects, all catalog-dependent dynamic identities, extension activation, the DiscordOS scheduler boundary, network-capable helpers, SECURITY DEFINER source functions, and Fitness number transformation are held with source-statement provenance.
+
+Public DiscordOS RPC definitions are a separate control-plane boundary. Both `CREATE FUNCTION` and `CREATE OR REPLACE FUNCTION` forms are held regardless of case or whitespace. When a function definition is held, the generator transitively holds every source statement that resolves or references it, including grants, revokes, comments, triggers, policies, calls, and dependent function definitions. The generated DiscordOS database slice therefore retains admitted non-RPC schema objects while emitting no `public.discordos_*` function.
 
 The generated files begin with `APPLY_ADMITTED=false`. They are reviewable derived inputs for later contained replay work. They do not establish target readiness or apply authority.
 
@@ -31,6 +33,8 @@ The generated files begin with `APPLY_ADMITTED=false`. They are reviewable deriv
 The merged identity contract remains authoritative for target-only relation, grant, policy, and function expectations. This package emits schema and closed expectation overlays but does not invent missing table columns or function bodies. In particular:
 
 - no product object is created in `public`;
+- Mazer and Fitness schemas exist before filename-ordered replay reaches any qualified object in their slices;
+- every held function and dependent source statement is preserved in deterministic evidence, and no reference to an absent held function enters generated output;
 - private schemas receive no browser-role grants;
 - PUBLIC function execution is not admitted;
 - extension and provider-managed object creation is absent;
@@ -46,11 +50,13 @@ The accepted constraint denominator is 281 units: 158 named catalog identities a
 
 ## Consequences
 
-This package can be reviewed and reproduced without a Supabase session or runtime installation. It cannot be applied safely. A later packet must close contained replay, provider prerequisites, target security, Data API/Auth control-plane, identity/data load, Edge/Cron activation, application cutover, and retirement gates in order.
+This package can be reviewed and reproduced without a Supabase session or runtime installation. It cannot be applied safely. Supabase applies migration files in timestamp order, so namespace-before-object order is an explicit generated invariant rather than an assumption about pre-existing target state. A later packet must close contained replay, provider prerequisites, target security, Data API/Auth control-plane, identity/data load, Edge/Cron activation, application cutover, and retirement gates in order.
 
 ## Primary references checked
 
-- [Supabase local migrations](https://supabase.com/docs/guides/local-development/overview#database-migrations)
+- [Supabase database migrations](https://supabase.com/docs/guides/deployment/database-migrations)
 - [Supabase Cron](https://supabase.com/docs/guides/cron)
 - [Supabase function security](https://supabase.com/docs/guides/database/functions#security-definer-vs-invoker)
+- [Supabase API grants and function exposure](https://supabase.com/docs/guides/api/securing-your-api)
+- [Supabase provider-managed schema restrictions](https://supabase.com/changelog/34270-restricting-access-on-auth-storage-and-realtime-schemas-on-april-21-2025)
 - [Supabase explicit table grants change](https://github.com/orgs/supabase/discussions/35654)

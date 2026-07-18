@@ -1,6 +1,8 @@
 -- APPLY_ADMITTED=false
 -- INERT SOURCE PACKAGE: review and contained replay are required before any apply.
 
+create schema if not exists mazer;
+
 -- source supabase/migrations/20260709045557_mazer_progression_state.sql blob c388edfb799b4f90ba2e28efbe3065bbc2e8e4c1 raw_sha256 8df9389fd41e293814fbf8f65caef0555a077e55314d9ac58ef04dc78eb3411a
 create table if not exists mazer.mazer_progression_states (
   user_id uuid primary key references auth.users(id) on delete cascade,
