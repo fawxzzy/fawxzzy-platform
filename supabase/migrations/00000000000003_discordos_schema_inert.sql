@@ -413,3 +413,6 @@ comment on column discordos.discord_feedback_reports.details is
 
 comment on column discordos.discord_feedback_reports.steps_to_reproduce is
   'DiscordOS-owned extracted section override storage for bug/feature feedback cards.';
+
+-- Effective function ACL closure: no application role is authorized in this inert package.
+revoke execute on function discordos.set_updated_at() from PUBLIC, anon, authenticated, service_role;

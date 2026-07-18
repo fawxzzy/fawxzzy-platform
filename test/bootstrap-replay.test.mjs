@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { root, simulateCatalog, splitSqlStatements } from '../scripts/generate-target-bootstrap.mjs';
-import { verifySchemaCreationOrder } from '../scripts/verify-target-bootstrap.mjs';
+import { verifyEffectiveFunctionAcls, verifySchemaCreationOrder } from '../scripts/verify-target-bootstrap.mjs';
 
 test('catalog simulation applies create, replace, and drop in order', () => {
   const catalog = simulateCatalog(splitSqlStatements(`
@@ -51,4 +51,14 @@ test('actual generated product slices lead with their idempotent namespace creat
     const statements = splitSqlStatements(fs.readFileSync(`${root}/supabase/migrations/${filename}`, 'utf8'));
     assert.match(statements[0], new RegExp(`create\\s+schema\\s+if\\s+not\\s+exists\\s+${schema}`, 'i'));
   }
+});
+
+test('effective ACL replay preserves revocation across CREATE OR REPLACE', () => {
+  const marker = '-- APPLY_ADMITTED=false\n';
+  const sql = `${marker}
+    create function fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;
+    revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;
+    create or replace function fitness.example(target_id uuid) returns void language sql as $$ select 2 $$;
+  `;
+  assert.deepEqual(verifyEffectiveFunctionAcls('00000000000002_fitness_schema_inert.sql', sql, ['fitness.example(uuid)']), []);
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { inspectInertSql } from '../scripts/verify-target-bootstrap.mjs';
+import { inspectInertSql, verifyEffectiveFunctionAcls } from '../scripts/verify-target-bootstrap.mjs';
 
 const marker = '-- APPLY_ADMITTED=false\n';
 
@@ -62,4 +62,26 @@ test('security verifier rejects private exposure, PUBLIC execute, provider comma
 test('security verifier accepts a deny-by-default inert schema unit', () => {
   const sql = `${marker}create schema if not exists fitness;\nrevoke all on schema fitness from PUBLIC, anon, authenticated;\n`;
   assert.deepEqual(inspectInertSql('positive.sql', sql), []);
+});
+
+test('effective function ACL verifier rejects missing, duplicate, unmatched, extra, and unauthorized privileges', () => {
+  const expected = ['fitness.example(uuid)'];
+  const expectedCounts = { 'fitness.example(uuid)': 1 };
+  const definition = 'create function fitness.example(target_id uuid) returns void language sql as $$ select 1 $$;';
+  const exact = 'revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;';
+  const filename = '00000000000002_fitness_schema_inert.sql';
+  assert.deepEqual(verifyEffectiveFunctionAcls(filename, `${marker}${definition}\n${exact}\n`, expected, expectedCounts), []);
+  for (const sql of [
+    `${marker}${definition}\n`,
+    `${marker}${definition}\n${exact}\n${exact}\n`,
+    `${marker}revoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated, service_role;\n${definition}\n`,
+    `${marker}${definition}\nrevoke execute on function fitness.example(uuid) from PUBLIC, anon, authenticated;\n`,
+    `${marker}${definition}\ngrant execute on function fitness.example(uuid) to authenticated;\n`
+  ]) {
+    assert.notEqual(verifyEffectiveFunctionAcls(filename, sql, expected, expectedCounts).length, 0, sql);
+  }
+  assert.notEqual(
+    verifyEffectiveFunctionAcls(filename, `${marker}${definition}\ncreate or replace function fitness.example(target_id uuid) returns void language sql as $$ select 2 $$;\n${exact}\n`, expected, expectedCounts).length,
+    0
+  );
 });

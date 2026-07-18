@@ -69,6 +69,7 @@ The verifier fails if any generated target file admits or contains:
 - malformed or unknown function dependency syntax;
 - private-schema grants to PUBLIC, `anon`, or `authenticated`;
 - PUBLIC execution on a function;
+- an emitted function without exactly one signature-specific revocation from `PUBLIC`, `anon`, `authenticated`, and `service_role`; the verifier starts from PostgreSQL's implicit PUBLIC EXECUTE default, preserves ACLs across `CREATE OR REPLACE`, and rejects missing, duplicate, unmatched, extra, or unauthorized privilege statements;
 - a project endpoint/reference, credential value, provider command, deployment hook, or runtime-install command;
 - the provider-canonical Fitness 043 provenance blob or digest;
 - the unmerged Fitness global-number candidate as an executable input.
@@ -83,9 +84,10 @@ Raw historical migrations may contain effects or legacy grants because they are 
    - Reject substituted bytes or identities, stale acceptance values, missing bindings, and any copied source outside its exact app migration root.
 2. Confirm the seven manifest paths and four generated migration paths are the complete denominators.
 3. Review all blocker manifests. `apply_admitted` must remain false everywhere. Confirm all 18 public DiscordOS RPC definitions and every dependent statement are held.
-4. Run focused parser, manifest, generator, replay, and security tests.
-5. Run full repository verification twice and compare complete output bytes.
-6. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.
+4. Confirm the generated function ACL closure covers exactly six signatures: five Fitness identities across eleven definition statements and the DiscordOS `set_updated_at()` trigger helper. No application-role regrant is admitted.
+5. Run focused parser, manifest, generator, replay, and security tests.
+6. Run full repository verification twice and compare complete output bytes.
+7. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.
 
 Repository-wide validation must enumerate same-named root files even when `node_modules`, `outputs`, or `work` directories are excluded. It may omit an exact excluded root link only after proving its target is a directory and without traversing it; unknown, nested, broken, or file-target links and unsupported entry types must fail closed.
 

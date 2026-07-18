@@ -205,16 +205,133 @@ function normalizeQualifiedName(value, fallbackSchema = 'public') {
   return pieces.length === 1 ? `${fallbackSchema}.${pieces[0]}` : `${pieces[0]}.${pieces[1]}`;
 }
 
+function findClosingParenthesis(text, openIndex) {
+  const masked = maskSqlStringsAndComments(text);
+  let depth = 0;
+  for (let index = openIndex; index < masked.length; index += 1) {
+    if (masked[index] === '(') depth += 1;
+    else if (masked[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+      if (depth < 0) break;
+    }
+  }
+  throw new Error('function signature: unmatched argument parenthesis');
+}
+
+function splitTopLevelArguments(text) {
+  if (text.trim() === '') return [];
+  const masked = maskSqlStringsAndComments(text);
+  const values = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < masked.length; index += 1) {
+    if (masked[index] === '(' || masked[index] === '[') depth += 1;
+    else if (masked[index] === ')' || masked[index] === ']') depth -= 1;
+    else if (masked[index] === ',' && depth === 0) {
+      values.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+    if (depth < 0) throw new Error('function signature: unmatched argument delimiter');
+  }
+  if (depth !== 0) throw new Error('function signature: unmatched argument delimiter');
+  values.push(text.slice(start).trim());
+  if (values.some((value) => value === '')) throw new Error('function signature: empty argument');
+  return values;
+}
+
+function stripArgumentDefault(argument) {
+  const masked = maskSqlStringsAndComments(argument);
+  let depth = 0;
+  for (let index = 0; index < masked.length; index += 1) {
+    if (masked[index] === '(' || masked[index] === '[') depth += 1;
+    else if (masked[index] === ')' || masked[index] === ']') depth -= 1;
+    if (depth !== 0) continue;
+    if (masked[index] === '=') return argument.slice(0, index).trim();
+    if (/^default\b/i.test(masked.slice(index)) && (index === 0 || /\s/.test(masked[index - 1]))) {
+      return argument.slice(0, index).trim();
+    }
+  }
+  return argument.trim();
+}
+
+function canonicalFunctionArgumentType(argument) {
+  let declaration = stripArgumentDefault(argument);
+  if (/^(?:out|inout|variadic)\b/i.test(declaration)) {
+    throw new Error(`function signature: unsupported argument mode in ${declaration}`);
+  }
+  declaration = declaration.replace(/^in\s+/i, '').trim();
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const multiword = '(?:double\\s+precision|character\\s+varying|bit\\s+varying|timestamp\\s+(?:with|without)\\s+time\\s+zone|time\\s+(?:with|without)\\s+time\\s+zone)';
+  const type = `(?:${multiword}|${qualified})(?:\\s*\\(\\s*\\d+(?:\\s*,\\s*\\d+)?\\s*\\))?(?:\\s*\\[\\s*\\])*`;
+  const direct = new RegExp(`^(${type})$`, 'i').exec(declaration);
+  const named = new RegExp(`^${name}\\s+(${type})$`, 'i').exec(declaration);
+  const matched = direct ?? named;
+  if (!matched) throw new Error(`function signature: ambiguous argument ${declaration}`);
+  return matched[1]
+    .replaceAll('"', '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\.\s*/g, '.')
+    .replace(/\s*\[\s*\]/g, '[]')
+    .replace(/\s*\(\s*/g, '(')
+    .replace(/\s*,\s*/g, ',')
+    .replace(/\s*\)/g, ')');
+}
+
+function parseFunctionArguments(text, openIndex) {
+  const closeIndex = findClosingParenthesis(text, openIndex);
+  const argumentTypes = splitTopLevelArguments(text.slice(openIndex + 1, closeIndex))
+    .map(canonicalFunctionArgumentType);
+  return { argumentTypes, closeIndex };
+}
+
 export function parseFunctionDefinition(statement, fallbackSchema = 'public') {
   const name = namePattern();
   const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
-  const match = new RegExp(`^create\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})\\s*\\(`, 'i')
-    .exec(withoutLeadingComments(statement));
+  const clean = withoutLeadingComments(statement);
+  const match = new RegExp(`^create\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
   if (!match) return null;
+  const identity = normalizeQualifiedName(match[1], fallbackSchema);
+  const { argumentTypes } = parseFunctionArguments(clean, match[0].lastIndexOf('('));
   return {
-    identity: normalizeQualifiedName(match[1], fallbackSchema),
-    or_replace: /^create\s+or\s+replace\s+function\b/i.test(withoutLeadingComments(statement))
+    identity,
+    signature: `${identity}(${argumentTypes.join(', ')})`,
+    argument_types: argumentTypes,
+    or_replace: /^create\s+or\s+replace\s+function\b/i.test(clean)
   };
+}
+
+export function parseFunctionPrivilegeStatement(statement, fallbackSchema = 'public') {
+  const clean = withoutLeadingComments(statement).trim().replace(/;\s*$/, '');
+  if (!/^(?:grant|revoke)\s+execute\s+on\s+function\b/i.test(clean)) return null;
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const match = new RegExp(`^(grant|revoke)\\s+execute\\s+on\\s+function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
+  if (!match) return { malformed: true };
+  try {
+    const identity = normalizeQualifiedName(match[2], fallbackSchema);
+    const { argumentTypes, closeIndex } = parseFunctionArguments(clean, match[0].lastIndexOf('('));
+    const action = match[1].toLowerCase();
+    const keyword = action === 'grant' ? 'to' : 'from';
+    const roleMatch = new RegExp(`^${keyword}\\s+(.+)$`, 'i').exec(clean.slice(closeIndex + 1).trim());
+    if (!roleMatch) return { malformed: true };
+    const role = namePattern();
+    const roles = roleMatch[1].split(',').map((value) => value.trim());
+    if (roles.length === 0 || roles.some((value) => !new RegExp(`^${role}$`).test(value))) return { malformed: true };
+    const normalizedRoles = roles.map((value) => quotedName(value).toLowerCase()).sort();
+    return {
+      malformed: false,
+      action,
+      identity,
+      signature: `${identity}(${argumentTypes.join(', ')})`,
+      argument_types: argumentTypes,
+      roles: normalizedRoles
+    };
+  } catch {
+    return { malformed: true };
+  }
 }
 
 export function analyzeFunctionDependencyStatement(statement, fallbackSchema = 'public') {
@@ -697,12 +814,24 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
   const prefix = '-- APPLY_ADMITTED=false\n-- INERT SOURCE PACKAGE: review and contained replay are required before any apply.\n';
   for (const app of ['mazer', 'fitness', 'discordos']) {
     const chunks = app === 'mazer' || app === 'fitness' ? [`create schema if not exists ${app};`] : [];
+    const functionSignatures = new Set();
     for (const record of records.filter((candidate) => candidate.app === app)) {
       const statements = plan.units
         .filter((unit) => unit.record === record && !unit.blocker_class)
         .map((unit) => namespaceRewrite(unit.statement, record.app));
       if (statements.length === 0) continue;
+      const fallbackSchema = app === 'fitness' || app === 'mazer' ? app : 'discordos';
+      for (const statement of statements) {
+        const definition = parseFunctionDefinition(statement, fallbackSchema);
+        if (definition) functionSignatures.add(definition.signature);
+      }
       chunks.push(`-- source ${record.path} blob ${record.blob} raw_sha256 ${record.raw_sha256}\n${statements.join('\n\n')}`);
+    }
+    if (functionSignatures.size > 0) {
+      chunks.push(`-- Effective function ACL closure: no application role is authorized in this inert package.\n${[...functionSignatures]
+        .sort()
+        .map((signature) => `revoke execute on function ${signature} from PUBLIC, anon, authenticated, service_role;`)
+        .join('\n')}`);
     }
     if (app === 'fitness') {
       const denyTables = [

@@ -5,6 +5,7 @@ import {
   buildGenerationPlan,
   classifyStatement,
   parseFunctionDefinition,
+  parseFunctionPrivilegeStatement,
   splitSqlStatements
 } from '../scripts/generate-target-bootstrap.mjs';
 
@@ -39,7 +40,12 @@ test('statement classifier distinguishes data, extension, Cron, network, and dyn
 
 test('function parser accepts OR REPLACE across case and whitespace and resolves dependency statements', () => {
   const definition = parseFunctionDefinition('CrEaTe\n OR   RePlAcE\tFuNcTiOn PUBLIC  .  DISCORDOS_MIXED() returns void language sql as $$ select 1 $$;', 'discordos');
-  assert.deepEqual(definition, { identity: 'public.discordos_mixed', or_replace: true });
+  assert.deepEqual(definition, {
+    identity: 'public.discordos_mixed',
+    signature: 'public.discordos_mixed()',
+    argument_types: [],
+    or_replace: true
+  });
   for (const sql of [
     'grant execute on function public.discordos_mixed() to authenticated;',
     'revoke execute on function public.discordos_mixed() from PUBLIC;',
@@ -49,6 +55,34 @@ test('function parser accepts OR REPLACE across case and whitespace and resolves
     assert.deepEqual(analyzeFunctionDependencyStatement(sql, 'discordos').references, ['public.discordos_mixed']);
   }
   assert.equal(analyzeFunctionDependencyStatement('comment on function ;', 'discordos').malformed, true);
+});
+
+test('function signature parser canonicalizes names, arrays, defaults, and exact privilege roles', () => {
+  const definition = parseFunctionDefinition(`
+    create function public.example(
+      target_id uuid,
+      ordered_ids uuid[],
+      claim_time timestamptz default now()
+    ) returns void language sql as $$ select 1 $$;
+  `, 'public');
+  assert.equal(definition.signature, 'public.example(uuid, uuid[], timestamptz)');
+  assert.deepEqual(definition.argument_types, ['uuid', 'uuid[]', 'timestamptz']);
+  assert.deepEqual(
+    parseFunctionPrivilegeStatement('revoke execute on function fitness.example(uuid, uuid[], timestamptz) from PUBLIC, anon, authenticated, service_role;', 'fitness'),
+    {
+      malformed: false,
+      action: 'revoke',
+      identity: 'fitness.example',
+      signature: 'fitness.example(uuid, uuid[], timestamptz)',
+      argument_types: ['uuid', 'uuid[]', 'timestamptz'],
+      roles: ['anon', 'authenticated', 'public', 'service_role']
+    }
+  );
+  assert.throws(
+    () => parseFunctionDefinition('create function public.bad(arg table%type) returns void language sql as $$ select 1 $$;', 'public'),
+    /ambiguous argument/
+  );
+  assert.equal(parseFunctionPrivilegeStatement('grant execute on function ;', 'public')?.malformed, true);
 });
 
 test('generation plan closes held function dependencies transitively', () => {

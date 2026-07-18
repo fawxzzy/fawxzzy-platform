@@ -3567,6 +3567,13 @@ alter table fitness.routine_days
   add constraint routine_days_rest_optional_exclusive
   check (not (is_rest and is_optional));
 
+-- Effective function ACL closure: no application role is authorized in this inert package.
+revoke execute on function fitness.claim_session_follow_up_jobs(uuid, uuid, timestamptz, timestamptz) from PUBLIC, anon, authenticated, service_role;
+revoke execute on function fitness.reorder_routine_day_exercises(uuid, uuid, uuid[]) from PUBLIC, anon, authenticated, service_role;
+revoke execute on function fitness.reorder_routine_days(uuid, uuid, uuid[]) from PUBLIC, anon, authenticated, service_role;
+revoke execute on function fitness.repack_routine_day_exercise_positions_after_delete() from PUBLIC, anon, authenticated, service_role;
+revoke execute on function fitness.repack_session_exercise_positions_after_delete() from PUBLIC, anon, authenticated, service_role;
+
 -- resolved dynamic policy expansion: exactly 10 identities
 revoke all privileges on table fitness.discord_feedback_reports from PUBLIC, anon, authenticated;
 grant all privileges on table fitness.discord_feedback_reports to service_role;
