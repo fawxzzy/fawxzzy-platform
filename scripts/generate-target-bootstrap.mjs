@@ -53,7 +53,10 @@ function realpath(absolutePath) {
 }
 
 function pathIdentity(absolutePath) {
-  const stats = fs.statSync(absolutePath);
+  // Windows file identifiers can exceed Number.MAX_SAFE_INTEGER. Preserve the
+  // complete device/inode identity so distinct files cannot alias after numeric
+  // rounding.
+  const stats = fs.statSync(absolutePath, { bigint: true });
   return Object.freeze({
     physical: realpath(absolutePath),
     device: String(stats.dev),

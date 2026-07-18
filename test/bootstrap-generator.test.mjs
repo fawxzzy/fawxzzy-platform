@@ -19,6 +19,7 @@ import {
   resolveGeneratedInertArtifactPath,
   root,
   splitSqlStatements,
+  validateGeneratedInertArtifactLayout,
   validateLinuxMountLayout,
   verifyFitnessFunctionSearchPaths,
   writeTargetBootstrapArtifacts
@@ -75,6 +76,13 @@ function outputPath(repositoryRoot) {
 
 function assertDirectoryEmpty(directory) {
   assert.deepEqual(fs.existsSync(directory) ? fs.readdirSync(directory) : [], []);
+}
+
+function assertOutsideRepository(repositoryRoot) {
+  const logicalRelative = path.relative(root, repositoryRoot);
+  assert.ok(logicalRelative === '..' || logicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(logicalRelative));
+  const physicalRelative = path.relative(fs.realpathSync.native(root), fs.realpathSync.native(repositoryRoot));
+  assert.ok(physicalRelative === '..' || physicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(physicalRelative));
 }
 
 test('two generator runs are byte-identical', () => {
@@ -346,8 +354,47 @@ test('an unsafe final SQL destination produces zero manifest or SQL writes', () 
   });
 });
 
+test('physical identity comparison preserves distinct 64-bit filesystem identifiers', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    assertOutsideRepository(repositoryRoot);
+    const manifests = path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'));
+    const manifest = path.join(manifests, generatedManifestContractV1.filenames[0]);
+    fs.mkdirSync(manifests, { recursive: true });
+    fs.writeFileSync(manifest, 'sentinel\n', 'utf8');
+    assert.notEqual(fs.realpathSync.native(manifests), fs.realpathSync.native(manifest));
+
+    const originalStat = fs.statSync;
+    const simulatedDevice = 9223372036854775807n;
+    const simulatedInodes = new Map([
+      [path.resolve(manifests), 9007199254740992n],
+      [path.resolve(manifest), 9007199254740993n]
+    ]);
+    assert.equal(Number(simulatedInodes.get(path.resolve(manifests))), Number(simulatedInodes.get(path.resolve(manifest))));
+    fs.statSync = (candidate, options, ...args) => {
+      const stats = originalStat(candidate, options, ...args);
+      const simulatedInode = simulatedInodes.get(path.resolve(candidate));
+      if (simulatedInode === undefined) return stats;
+      const bigint = options?.bigint === true;
+      return new Proxy(stats, {
+        get(target, property) {
+          if (property === 'dev') return bigint ? simulatedDevice : Number(simulatedDevice);
+          if (property === 'ino') return bigint ? simulatedInode : Number(simulatedInode);
+          const value = Reflect.get(target, property, target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+      });
+    };
+    try {
+      assert.doesNotThrow(() => validateGeneratedInertArtifactLayout(repositoryRoot));
+    } finally {
+      fs.statSync = originalStat;
+    }
+  });
+});
+
 test('complete discovery rejects a late undeclared output before rewriting manifests', () => {
   withTemporaryDirectory((repositoryRoot) => {
+    assertOutsideRepository(repositoryRoot);
     const manifests = path.join(repositoryRoot, ...generatedManifestContractV1.directory.split('/'));
     fs.mkdirSync(manifests, { recursive: true });
     for (const filename of generatedManifestContractV1.filenames) {
