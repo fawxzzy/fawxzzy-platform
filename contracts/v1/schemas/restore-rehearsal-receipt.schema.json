@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:restore-rehearsal-receipt",
+  "title": "Sanitized restore-to-new-project rehearsal receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "backup_id",
+    "source_project",
+    "clone",
+    "backup_manifest_sha256",
+    "external_effects_manifest_sha256",
+    "parity",
+    "timeline",
+    "rpo_rto",
+    "storage",
+    "observation",
+    "rollback",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "backup_id": {
+      "type": "string",
+      "pattern": "^FP-RECOVERY-BACKUP-[A-Z0-9-]+$"
+    },
+    "source_project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref"
+      ],
+      "properties": {
+        "name": {
+          "const": "Fawxzzy shared Supabase project"
+        },
+        "ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        }
+      }
+    },
+    "clone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_ref",
+        "same_region_required",
+        "quarantine_status",
+        "traffic_released"
+      ],
+      "properties": {
+        "project_ref": {
+          "anyOf": [
+            {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "same_region_required": {
+          "const": true
+        },
+        "quarantine_status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "traffic_released": {
+          "const": false
+        }
+      }
+    },
+    "backup_manifest_sha256": {
+      "$ref": "#/$defs/nullable_digest"
+    },
+    "external_effects_manifest_sha256": {
+      "$ref": "#/$defs/nullable_digest"
+    },
+    "parity": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit",
+          "status",
+          "expected_count",
+          "actual_count",
+          "expected_private_digest",
+          "actual_private_digest"
+        ],
+        "properties": {
+          "unit": {
+            "enum": [
+              "application_data",
+              "auth_control_plane_configuration",
+              "auth_identity_data",
+              "catalog",
+              "security"
+            ]
+          },
+          "status": {
+            "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+          },
+          "expected_count": {
+            "$ref": "#/$defs/nullable_count"
+          },
+          "actual_count": {
+            "$ref": "#/$defs/nullable_count"
+          },
+          "expected_private_digest": {
+            "$ref": "#/$defs/nullable_digest"
+          },
+          "actual_private_digest": {
+            "$ref": "#/$defs/nullable_digest"
+          }
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_point_at",
+        "failure_declared_at",
+        "restore_started_at",
+        "restore_completed_at",
+        "accepted_at"
+      ],
+      "properties": {
+        "recovery_point_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "failure_declared_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "restore_started_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "restore_completed_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        },
+        "accepted_at": {
+          "$ref": "#/$defs/nullable_timestamp"
+        }
+      }
+    },
+    "rpo_rto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "measured_rpo_seconds",
+        "measured_rto_seconds",
+        "objective_rpo_seconds",
+        "objective_rto_seconds"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "measured_rpo_seconds": {
+          "$ref": "#/$defs/nullable_count"
+        },
+        "measured_rto_seconds": {
+          "$ref": "#/$defs/nullable_count"
+        },
+        "objective_rpo_seconds": {
+          "$ref": "#/$defs/nullable_count"
+        },
+        "objective_rto_seconds": {
+          "$ref": "#/$defs/nullable_count"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_count",
+        "body_recovery_status",
+        "body_recovery_receipt_sha256"
+      ],
+      "properties": {
+        "object_count": {
+          "$ref": "#/$defs/nullable_count"
+        },
+        "body_recovery_status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "body_recovery_receipt_sha256": {
+          "$ref": "#/$defs/nullable_digest"
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "duration_seconds",
+        "failure_count"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "duration_seconds": {
+          "$ref": "#/$defs/nullable_count"
+        },
+        "failure_count": {
+          "$ref": "#/$defs/nullable_count"
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source_unchanged",
+        "clone_disposal_requires_separate_authority"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "source_unchanged": {
+          "const": true
+        },
+        "clone_disposal_requires_separate_authority": {
+          "const": true
+        }
+      }
+    },
+    "receipt_sha256": {
+      "$ref": "#/$defs/nullable_digest"
+    }
+  },
+  "$defs": {
+    "nullable_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "nullable_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_timestamp": {
+      "anyOf": [
+        {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

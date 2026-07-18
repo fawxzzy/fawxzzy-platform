@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "decision_id": "FP-MAN-013",
+  "project": {
+    "name": "Fawxzzy shared Supabase project",
+    "ref": "bxtcuhkotumitoqtrcej",
+    "plan": "Pro",
+    "compute": "Micro",
+    "shared_auth_or_data_loaded": false
+  },
+  "posture": {
+    "daily_physical_backups": {
+      "status": "CURRENT",
+      "frequency": "daily",
+      "retention_days": 7,
+      "database_only": true,
+      "storage_object_bodies_included": false
+    },
+    "independent_encrypted_export": {
+      "status": "REQUIRED",
+      "required_before": "shared_auth_or_data_load",
+      "execution_status": "BLOCKED"
+    },
+    "pitr": {
+      "status": "BLOCKED",
+      "enabled": false,
+      "compute_resize_authorized": false
+    }
+  },
+  "independent_export": {
+    "client_side_streaming_encryption_before_destination": true,
+    "destination_receives_ciphertext_only": true,
+    "persistent_plaintext_allowed": false,
+    "key_reference_metadata_only": true,
+    "canonical_serialization": "lexicographic_object_keys_array_order_preserved_two_space_json_lf",
+    "digest_algorithm": "SHA-256",
+    "destination_must_be_versioned": true,
+    "destination_must_be_independently_governed": true,
+    "ciphertext_digest_required": true,
+    "ciphertext_byte_count_required": true,
+    "completion_time_required": true,
+    "retention_receipt_required": true
+  },
+  "coverage": [
+    {
+      "unit": "application_schemas_and_catalog",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "roles_memberships_grants_and_default_acls",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "application_data",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "auth_identity_data",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "auth_control_plane_configuration",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "storage_metadata",
+      "status": "REQUIRED",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    },
+    {
+      "unit": "storage_object_bodies",
+      "status": "NOT_APPLICABLE",
+      "mechanism_status": "UNKNOWN",
+      "aggregate_only_receipt": true
+    }
+  ],
+  "custom_schemas": [
+    "discordos",
+    "discordos_private",
+    "fitness",
+    "mazer",
+    "platform_private",
+    "platform_shared"
+  ],
+  "external_effects": {
+    "closed_denominator_required": true,
+    "all_disabled_before_restore_readback": true,
+    "traffic_release_before_acceptance_allowed": false
+  },
+  "storage_body_gate": {
+    "separate_contract_required_when_nonempty": true,
+    "nonzero_without_current_receipt_status": "BLOCKED"
+  },
+  "rpo_rto": {
+    "objective_status": "UNKNOWN",
+    "rpo_seconds": null,
+    "rto_seconds": null,
+    "measured_timeline_required": true,
+    "operator_acceptance_required": true
+  },
+  "alerts": {
+    "event_classes": [
+      "backup_failed",
+      "backup_stale",
+      "digest_mismatch",
+      "destination_write_failed",
+      "manifest_incomplete",
+      "restore_rehearsal_failed"
+    ],
+    "channel_status": "UNKNOWN",
+    "delivery_proof_status": "UNKNOWN"
+  },
+  "execution_gates": [
+    {
+      "gate": "backup_cadence",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "backup_retention",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "destination_provider",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "key_installation_and_rotation",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "alert_channel",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "logical_export_and_auth_mechanism",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "numerical_rpo_rto",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "provider_backup_readback",
+      "status": "UNKNOWN"
+    },
+    {
+      "gate": "restore_project_cost_and_capacity",
+      "status": "UNKNOWN"
+    }
+  ],
+  "required_receipts": [
+    "backup_manifest",
+    "external_effects_disable_manifest",
+    "restore_rehearsal_receipt",
+    "retention_receipt",
+    "alert_delivery_receipt"
+  ],
+  "authority": {
+    "source_contract_implementation": "CURRENT",
+    "provider_execution": "BLOCKED",
+    "backup_execution": "BLOCKED",
+    "restore_execution": "BLOCKED",
+    "schema_auth_or_data_load": "BLOCKED"
+  }
+}

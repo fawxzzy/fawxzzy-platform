@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:micro-recovery-contract",
+  "title": "Micro recovery source contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "decision_id",
+    "project",
+    "posture",
+    "independent_export",
+    "coverage",
+    "custom_schemas",
+    "external_effects",
+    "storage_body_gate",
+    "rpo_rto",
+    "alerts",
+    "execution_gates",
+    "required_receipts",
+    "authority"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "decision_id": {
+      "const": "FP-MAN-013"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref",
+        "plan",
+        "compute",
+        "shared_auth_or_data_loaded"
+      ],
+      "properties": {
+        "name": {
+          "const": "Fawxzzy shared Supabase project"
+        },
+        "ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "plan": {
+          "const": "Pro"
+        },
+        "compute": {
+          "const": "Micro"
+        },
+        "shared_auth_or_data_loaded": {
+          "const": false
+        }
+      }
+    },
+    "posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "daily_physical_backups",
+        "independent_encrypted_export",
+        "pitr"
+      ],
+      "properties": {
+        "daily_physical_backups": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "frequency",
+            "retention_days",
+            "database_only",
+            "storage_object_bodies_included"
+          ],
+          "properties": {
+            "status": {
+              "const": "CURRENT"
+            },
+            "frequency": {
+              "const": "daily"
+            },
+            "retention_days": {
+              "const": 7
+            },
+            "database_only": {
+              "const": true
+            },
+            "storage_object_bodies_included": {
+              "const": false
+            }
+          }
+        },
+        "independent_encrypted_export": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "required_before",
+            "execution_status"
+          ],
+          "properties": {
+            "status": {
+              "const": "REQUIRED"
+            },
+            "required_before": {
+              "const": "shared_auth_or_data_load"
+            },
+            "execution_status": {
+              "const": "BLOCKED"
+            }
+          }
+        },
+        "pitr": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "enabled",
+            "compute_resize_authorized"
+          ],
+          "properties": {
+            "status": {
+              "const": "BLOCKED"
+            },
+            "enabled": {
+              "const": false
+            },
+            "compute_resize_authorized": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "independent_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_side_streaming_encryption_before_destination",
+        "destination_receives_ciphertext_only",
+        "persistent_plaintext_allowed",
+        "key_reference_metadata_only",
+        "canonical_serialization",
+        "digest_algorithm",
+        "destination_must_be_versioned",
+        "destination_must_be_independently_governed",
+        "ciphertext_digest_required",
+        "ciphertext_byte_count_required",
+        "completion_time_required",
+        "retention_receipt_required"
+      ],
+      "properties": {
+        "client_side_streaming_encryption_before_destination": {
+          "const": true
+        },
+        "destination_receives_ciphertext_only": {
+          "const": true
+        },
+        "persistent_plaintext_allowed": {
+          "const": false
+        },
+        "key_reference_metadata_only": {
+          "const": true
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "digest_algorithm": {
+          "const": "SHA-256"
+        },
+        "destination_must_be_versioned": {
+          "const": true
+        },
+        "destination_must_be_independently_governed": {
+          "const": true
+        },
+        "ciphertext_digest_required": {
+          "const": true
+        },
+        "ciphertext_byte_count_required": {
+          "const": true
+        },
+        "completion_time_required": {
+          "const": true
+        },
+        "retention_receipt_required": {
+          "const": true
+        }
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit",
+          "status",
+          "mechanism_status",
+          "aggregate_only_receipt"
+        ],
+        "properties": {
+          "unit": {
+            "$ref": "#/$defs/coverage_unit"
+          },
+          "status": {
+            "enum": [
+              "REQUIRED",
+              "NOT_APPLICABLE"
+            ]
+          },
+          "mechanism_status": {
+            "const": "UNKNOWN"
+          },
+          "aggregate_only_receipt": {
+            "const": true
+          }
+        }
+      }
+    },
+    "custom_schemas": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "discordos",
+          "discordos_private",
+          "fitness",
+          "mazer",
+          "platform_private",
+          "platform_shared"
+        ]
+      }
+    },
+    "external_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "closed_denominator_required",
+        "all_disabled_before_restore_readback",
+        "traffic_release_before_acceptance_allowed"
+      ],
+      "properties": {
+        "closed_denominator_required": {
+          "const": true
+        },
+        "all_disabled_before_restore_readback": {
+          "const": true
+        },
+        "traffic_release_before_acceptance_allowed": {
+          "const": false
+        }
+      }
+    },
+    "storage_body_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "separate_contract_required_when_nonempty",
+        "nonzero_without_current_receipt_status"
+      ],
+      "properties": {
+        "separate_contract_required_when_nonempty": {
+          "const": true
+        },
+        "nonzero_without_current_receipt_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "rpo_rto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective_status",
+        "rpo_seconds",
+        "rto_seconds",
+        "measured_timeline_required",
+        "operator_acceptance_required"
+      ],
+      "properties": {
+        "objective_status": {
+          "const": "UNKNOWN"
+        },
+        "rpo_seconds": {
+          "type": "null"
+        },
+        "rto_seconds": {
+          "type": "null"
+        },
+        "measured_timeline_required": {
+          "const": true
+        },
+        "operator_acceptance_required": {
+          "const": true
+        }
+      }
+    },
+    "alerts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_classes",
+        "channel_status",
+        "delivery_proof_status"
+      ],
+      "properties": {
+        "event_classes": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backup_failed",
+              "backup_stale",
+              "digest_mismatch",
+              "destination_write_failed",
+              "manifest_incomplete",
+              "restore_rehearsal_failed"
+            ]
+          }
+        },
+        "channel_status": {
+          "const": "UNKNOWN"
+        },
+        "delivery_proof_status": {
+          "const": "UNKNOWN"
+        }
+      }
+    },
+    "execution_gates": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gate",
+          "status"
+        ],
+        "properties": {
+          "gate": {
+            "$ref": "#/$defs/execution_gate"
+          },
+          "status": {
+            "const": "UNKNOWN"
+          }
+        }
+      }
+    },
+    "required_receipts": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "alert_delivery_receipt",
+          "backup_manifest",
+          "external_effects_disable_manifest",
+          "restore_rehearsal_receipt",
+          "retention_receipt"
+        ]
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract_implementation",
+        "provider_execution",
+        "backup_execution",
+        "restore_execution",
+        "schema_auth_or_data_load"
+      ],
+      "properties": {
+        "source_contract_implementation": {
+          "const": "CURRENT"
+        },
+        "provider_execution": {
+          "const": "BLOCKED"
+        },
+        "backup_execution": {
+          "const": "BLOCKED"
+        },
+        "restore_execution": {
+          "const": "BLOCKED"
+        },
+        "schema_auth_or_data_load": {
+          "const": "BLOCKED"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "coverage_unit": {
+      "enum": [
+        "application_data",
+        "application_schemas_and_catalog",
+        "auth_control_plane_configuration",
+        "auth_identity_data",
+        "roles_memberships_grants_and_default_acls",
+        "storage_metadata",
+        "storage_object_bodies"
+      ]
+    },
+    "execution_gate": {
+      "enum": [
+        "alert_channel",
+        "backup_cadence",
+        "backup_retention",
+        "destination_provider",
+        "key_installation_and_rotation",
+        "logical_export_and_auth_mechanism",
+        "numerical_rpo_rto",
+        "provider_backup_readback",
+        "restore_project_cost_and_capacity"
+      ]
+    }
+  }
+}

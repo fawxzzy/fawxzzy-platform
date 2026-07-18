@@ -18,6 +18,14 @@
     {
       "name": "rollback rehearsal",
       "status": "REQUIRED"
+    },
+    {
+      "name": "current encrypted independent backup and retention receipts",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "quarantined restore-to-new-project rehearsal and accepted measured RPO RTO",
+      "status": "REQUIRED"
     }
   ],
   "retirement_gates": [
@@ -31,6 +39,10 @@
     },
     {
       "name": "restorable backup proof",
+      "status": "REQUIRED"
+    },
+    {
+      "name": "retention and Storage body recovery disposition",
       "status": "REQUIRED"
     },
     {

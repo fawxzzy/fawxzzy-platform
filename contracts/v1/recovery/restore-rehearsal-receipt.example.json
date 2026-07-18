@@ -1,0 +1,89 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "backup_id": "FP-RECOVERY-BACKUP-EXAMPLE-UNEXECUTED",
+  "source_project": {
+    "name": "Fawxzzy shared Supabase project",
+    "ref": "bxtcuhkotumitoqtrcej"
+  },
+  "clone": {
+    "project_ref": null,
+    "same_region_required": true,
+    "quarantine_status": "UNKNOWN",
+    "traffic_released": false
+  },
+  "backup_manifest_sha256": null,
+  "external_effects_manifest_sha256": null,
+  "parity": [
+    {
+      "unit": "catalog",
+      "status": "UNKNOWN",
+      "expected_count": null,
+      "actual_count": null,
+      "expected_private_digest": null,
+      "actual_private_digest": null
+    },
+    {
+      "unit": "security",
+      "status": "UNKNOWN",
+      "expected_count": null,
+      "actual_count": null,
+      "expected_private_digest": null,
+      "actual_private_digest": null
+    },
+    {
+      "unit": "application_data",
+      "status": "UNKNOWN",
+      "expected_count": null,
+      "actual_count": null,
+      "expected_private_digest": null,
+      "actual_private_digest": null
+    },
+    {
+      "unit": "auth_identity_data",
+      "status": "UNKNOWN",
+      "expected_count": null,
+      "actual_count": null,
+      "expected_private_digest": null,
+      "actual_private_digest": null
+    },
+    {
+      "unit": "auth_control_plane_configuration",
+      "status": "UNKNOWN",
+      "expected_count": null,
+      "actual_count": null,
+      "expected_private_digest": null,
+      "actual_private_digest": null
+    }
+  ],
+  "timeline": {
+    "recovery_point_at": null,
+    "failure_declared_at": null,
+    "restore_started_at": null,
+    "restore_completed_at": null,
+    "accepted_at": null
+  },
+  "rpo_rto": {
+    "status": "UNKNOWN",
+    "measured_rpo_seconds": null,
+    "measured_rto_seconds": null,
+    "objective_rpo_seconds": null,
+    "objective_rto_seconds": null
+  },
+  "storage": {
+    "object_count": null,
+    "body_recovery_status": "UNKNOWN",
+    "body_recovery_receipt_sha256": null
+  },
+  "observation": {
+    "status": "UNKNOWN",
+    "duration_seconds": null,
+    "failure_count": null
+  },
+  "rollback": {
+    "status": "BLOCKED",
+    "source_unchanged": true,
+    "clone_disposal_requires_separate_authority": true
+  },
+  "receipt_sha256": null
+}

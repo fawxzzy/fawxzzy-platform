@@ -117,4 +117,6 @@ Repository-wide validation must enumerate same-named root files even when `node_
 
 All of the following remain `BLOCKED`: target apply; contained replay acceptance; provider extension/version reconciliation; Data API and Auth control-plane settings; identity, Auth, and product data load; Storage body reread; Edge or Cron activation; application/Vercel cutover; source pause; deactivation; deletion; and retirement.
 
+Before shared Auth or application data load, FP-MAN-013 additionally requires a current encrypted independent backup manifest, retention receipt, quarantined restore-to-new-project rehearsal, aggregate catalog/security/data/Auth parity, and accepted measured RPO/RTO. Database recovery cannot satisfy Storage object-body recovery; a non-zero Storage denominator activates the separate body-recovery gate. See `docs/runbooks/micro-recovery.md`.
+
 A future apply packet must re-read the target and source preimages, use disposable no-egress rehearsals, close every dynamic identity through two identical catalog readbacks, prove rollback, and obtain explicit action-time authority. Only then may it promote or copy digest-verified reviewed artifact bytes into a separate execution-only migration bundle. This source packet grants none of that authority and must not create that bundle, migration-path indirection, or a duplicate executable representation.

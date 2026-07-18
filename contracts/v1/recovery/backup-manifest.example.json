@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "backup_id": "FP-RECOVERY-BACKUP-EXAMPLE-UNEXECUTED",
+  "project": {
+    "name": "Fawxzzy shared Supabase project",
+    "ref": "bxtcuhkotumitoqtrcej"
+  },
+  "backup_kind": "independent_encrypted_logical_export",
+  "execution": {
+    "status": "BLOCKED",
+    "started_at": null,
+    "completed_at": null
+  },
+  "coverage": [
+    {
+      "unit": "application_schemas_and_catalog",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "roles_memberships_grants_and_default_acls",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "application_data",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "auth_identity_data",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "auth_control_plane_configuration",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "storage_metadata",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    },
+    {
+      "unit": "storage_object_bodies",
+      "status": "UNKNOWN",
+      "aggregate_count": null,
+      "private_digest": null
+    }
+  ],
+  "encryption": {
+    "status": "UNKNOWN",
+    "boundary": "client_side_streaming_before_destination",
+    "destination_receives_ciphertext_only": true,
+    "persistent_plaintext": false,
+    "algorithm_class": null,
+    "key_reference": null,
+    "key_custody_status": "UNKNOWN"
+  },
+  "destination": {
+    "status": "UNKNOWN",
+    "class": null,
+    "provider_reference": null,
+    "object_version": null,
+    "immutability_status": "UNKNOWN"
+  },
+  "ciphertext": {
+    "bytes": null,
+    "sha256": null
+  },
+  "retention": {
+    "status": "UNKNOWN",
+    "retention_days": null,
+    "expires_at": null,
+    "never_delete_before_restore_acceptance": true
+  },
+  "freshness": {
+    "status": "UNKNOWN",
+    "maximum_age_seconds": null
+  },
+  "storage": {
+    "object_count": null,
+    "body_recovery_status": "UNKNOWN",
+    "body_recovery_receipt_sha256": null
+  },
+  "manifest_sha256": null
+}

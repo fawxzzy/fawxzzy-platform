@@ -37,9 +37,18 @@ Email/password is the phase-one method: verification off, leaked-password protec
 
 - `contracts/v1/schemas`: JSON Schema 2020-12 definitions
 - `contracts/v1`: versioned registries, lifecycle contracts, examples, security matrix, and gates
+- `contracts/v1/recovery`: blocked, sanitized backup and restore contracts for the approved Micro posture
 - `docs/adr`: durable architecture decisions
 - `docs/runbooks`: migration, cutover, rollback, and retirement program
 - `scripts` and `test`: deterministic schema, semantic, repository, and negative validation
+
+## Recovery boundary
+
+FP-MAN-013 keeps the shared target on Pro/Micro with provider daily Physical backups retained for seven days. Before shared Auth or application data is loaded, the platform requires an independently governed encrypted export and a quarantined restore-to-new-project rehearsal.
+
+Recovery receipts are aggregate-only and secret-free. Client-side streaming encryption must occur before destination delivery; persistent plaintext is forbidden. Database recovery does not imply Storage object-body recovery, Auth control-plane parity, Edge/Realtime configuration, or safe external effects. Those units stay separate and fail closed.
+
+Exact cadence, retention, destination, key installation, alert channel, export/Auth mechanism, numerical RPO/RTO, provider readback, and restore cost remain `UNKNOWN` execution gates. This repository contains no backup scheduler, provider command, restore automation, or credentials.
 
 ## Verification
 
@@ -56,6 +65,6 @@ Validation covers schemas, cross-contract semantics, deterministic output, LF an
 
 ## Lifecycle truth
 
-`target_writes`, `data_import`, `auth_import`, `vercel_env_cutover`, `production_deploy`, `source_pause`, and `source_deletion` are all `BLOCKED`. Source and target projects remain active. Migration SQL generation is the next separately authorized packet, not part of this repository bootstrap.
+`target_writes`, `data_import`, `auth_import`, `vercel_env_cutover`, `production_deploy`, `source_pause`, and `source_deletion` are all `BLOCKED`. Source and target projects remain active. Recovery execution and migration SQL generation are separately authorized packets, not part of this repository bootstrap.
 
 Status values are closed to `CURRENT`, `REQUIRED`, `OWNER_DECISION`, `BLOCKED`, `UNKNOWN`, and `NOT_APPLICABLE`.
