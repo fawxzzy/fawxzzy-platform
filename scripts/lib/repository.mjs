@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { repositoryRoot } from './contracts.mjs';
 
-const rootLocalExcludedDirectories = new Set(['.git', 'node_modules', 'outputs', 'work']);
+const rootLocalExcludedDirectories = new Set(['node_modules', 'outputs', 'work']);
 const allowedRootFiles = new Set([
   '.gitattributes',
   '.gitignore',
@@ -21,14 +21,31 @@ function toPosix(value) {
 export function listWorkingTreeFiles(directory = repositoryRoot, prefix = '') {
   const files = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-    if (prefix === '' && rootLocalExcludedDirectories.has(entry.name)) continue;
     const absolutePath = path.join(directory, entry.name);
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isSymbolicLink()) {
+      if (prefix === '' && rootLocalExcludedDirectories.has(entry.name)) {
+        let target;
+        try {
+          target = fs.statSync(absolutePath);
+        } catch {
+          throw new Error(`${relativePath}: excluded root link target is unavailable`);
+        }
+        if (!target.isDirectory()) throw new Error(`${relativePath}: excluded root link must target a directory`);
+        continue;
+      }
+      throw new Error(`${relativePath}: symbolic links and junctions are not supported`);
+    }
+    if (prefix === '' && entry.name === '.git') {
+      if (entry.isDirectory() || entry.isFile()) continue;
+      throw new Error('.git: unsupported repository metadata entry type');
+    }
+    if (prefix === '' && entry.isDirectory() && rootLocalExcludedDirectories.has(entry.name)) continue;
     if (entry.isDirectory()) {
       files.push(...listWorkingTreeFiles(absolutePath, relativePath));
     } else if (entry.isFile()) {
       files.push(toPosix(relativePath));
-    }
+    } else throw new Error(`${relativePath}: unsupported filesystem entry type`);
   }
   return files;
 }

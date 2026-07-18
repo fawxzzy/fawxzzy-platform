@@ -44,6 +44,111 @@ const exactExpected = {
   dynamic_templates: 11,
   held_cron_units: 1
 };
+const frozenSourceAcceptance = Object.freeze({
+  combined_manifest_sha256: '67109b789d0d83af7fc4739aee9ab0617285175114c5785e6acd893647c32bd9',
+  sources: Object.freeze({
+    discordos: Object.freeze({
+      app_label: 'DiscordOS',
+      commit: 'bd12f6713518b3f3af3761618e3d3e5f6979f167',
+      tree: 'f9b01b18d1ba9ad544c582d0dc88ee2ac285bbe8',
+      migration_count: 17,
+      chain_manifest_sha256: '6a6e9fa29651331d2addb0259bc61bc7c2f0795bd71b2a04971c96ff146a822e'
+    }),
+    fitness: Object.freeze({
+      app_label: 'Fitness',
+      commit: 'bab188a51819a6fb2f8aeabe73627d4ed63dcaa4',
+      tree: 'b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1',
+      migration_count: 101,
+      chain_manifest_sha256: 'f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775'
+    }),
+    mazer: Object.freeze({
+      app_label: 'Mazer',
+      commit: '3e96125da699aab21eb47c6635558b337ce0cf41',
+      tree: 'f0ff7cb74841b32fe423147a26ca58a860e6aa56',
+      migration_count: 4,
+      chain_manifest_sha256: 'ded23731083cd97f1f50f700ccd8f1843a43e1b8bfef10727cca6ae851ed7fb6'
+    })
+  })
+});
+
+function requiredString(value, label, pattern) {
+  if (typeof value !== 'string' || !pattern.test(value)) throw new Error(`${label}: missing or invalid binding`);
+  return value;
+}
+
+export function computeSourceChainSha256(records) {
+  if (!Array.isArray(records) || records.length === 0) throw new Error('source chain: missing migration bindings');
+  const ordered = [...records].sort((left, right) => left.order - right.order);
+  const lines = ordered.map((record, index) => {
+    if (record.order !== index + 1) throw new Error(`source chain: non-contiguous order at ${index + 1}`);
+    const sourcePath = requiredString(record.path, `source chain ${index + 1} path`, /^supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/);
+    const version = /^([0-9]+)_/.exec(path.posix.basename(sourcePath))?.[1];
+    requiredString(version, `source chain ${sourcePath} version`, /^[0-9]+$/);
+    const blob = requiredString(record.blob, `source chain ${sourcePath} blob`, /^[0-9a-f]{40}$/);
+    const rawSha256 = requiredString(record.raw_sha256, `source chain ${sourcePath} raw digest`, /^[0-9a-f]{64}$/);
+    if (!Number.isSafeInteger(record.byte_count) || record.byte_count < 0) throw new Error(`source chain ${sourcePath}: missing or invalid byte count`);
+    return `${version}|${sourcePath}|${blob}|${rawSha256}|${record.byte_count}\n`;
+  });
+  return sha256(lines.join(''));
+}
+
+export function computeCombinedSourceSha256(records) {
+  if (!Array.isArray(records) || records.length === 0) throw new Error('combined source chain: missing source bindings');
+  const ordered = [...records].sort((left, right) => left.app_label.localeCompare(right.app_label));
+  const labels = new Set();
+  const lines = ordered.map((record, index) => {
+    const label = requiredString(record.app_label, `combined source ${index + 1} app`, /^[A-Za-z][A-Za-z0-9]*$/);
+    if (labels.has(label)) throw new Error(`combined source ${label}: duplicate app binding`);
+    labels.add(label);
+    const commit = requiredString(record.commit, `combined source ${label} commit`, /^[0-9a-f]{40}$/);
+    const tree = requiredString(record.tree, `combined source ${label} tree`, /^[0-9a-f]{40}$/);
+    const chainSha256 = requiredString(record.chain_manifest_sha256, `combined source ${label} chain digest`, /^[0-9a-f]{64}$/);
+    return `${label}|${commit}|${tree}|${chainSha256}\n`;
+  });
+  return sha256(lines.join(''));
+}
+
+export function verifyFrozenSourceAcceptance({
+  sourceRowsByApp,
+  sourceIdentities,
+  acceptedChains,
+  configuredCombinedSha256,
+  acceptedCombinedSha256
+}) {
+  const expectedApps = Object.keys(frozenSourceAcceptance.sources).sort();
+  const identityApps = sourceIdentities.map((source) => source.app).sort();
+  const rowApps = Object.keys(sourceRowsByApp ?? {}).sort();
+  const acceptedApps = Object.keys(acceptedChains ?? {}).sort();
+  if (canonicalJson(identityApps) !== canonicalJson(expectedApps)) throw new Error('frozen source acceptance: source identity denominator mismatch');
+  if (canonicalJson(rowApps) !== canonicalJson(expectedApps)) throw new Error('frozen source acceptance: source-row denominator mismatch');
+  if (canonicalJson(acceptedApps) !== canonicalJson(expectedApps)) throw new Error('frozen source acceptance: accepted-chain denominator mismatch');
+
+  const actualChains = {};
+  const combinedRecords = [];
+  for (const source of sourceIdentities) {
+    const frozen = frozenSourceAcceptance.sources[source.app];
+    for (const field of ['commit', 'tree', 'migration_count', 'chain_manifest_sha256']) {
+      if (source[field] !== frozen[field]) throw new Error(`frozen source acceptance: ${source.app} ${field} mismatch`);
+    }
+    if (sourceRowsByApp[source.app].length !== frozen.migration_count) throw new Error(`frozen source acceptance: ${source.app} migration count mismatch`);
+    const actualChainSha256 = computeSourceChainSha256(sourceRowsByApp[source.app]);
+    if (actualChainSha256 !== frozen.chain_manifest_sha256) throw new Error(`frozen source acceptance: ${source.app} copied-byte chain digest mismatch`);
+    if (acceptedChains[source.app] !== frozen.chain_manifest_sha256) throw new Error(`frozen source acceptance: ${source.app} accepted chain digest mismatch`);
+    actualChains[source.app] = actualChainSha256;
+    combinedRecords.push({
+      app_label: frozen.app_label,
+      commit: source.commit,
+      tree: source.tree,
+      chain_manifest_sha256: actualChainSha256
+    });
+  }
+
+  const actualCombinedSha256 = computeCombinedSourceSha256(combinedRecords);
+  if (configuredCombinedSha256 !== frozenSourceAcceptance.combined_manifest_sha256) throw new Error('frozen source acceptance: configured combined digest mismatch');
+  if (acceptedCombinedSha256 !== frozenSourceAcceptance.combined_manifest_sha256) throw new Error('frozen source acceptance: accepted combined digest mismatch');
+  if (actualCombinedSha256 !== frozenSourceAcceptance.combined_manifest_sha256) throw new Error('frozen source acceptance: recomputed combined digest mismatch');
+  return { actualChains, actualCombinedSha256 };
+}
 
 function readJson(relativePath) {
   const text = fs.readFileSync(path.join(root, ...relativePath.split('/')), 'utf8');
@@ -74,6 +179,7 @@ function verifySourceManifest(config, manifest, failures) {
   fail(failures, manifest.evidence_artifact.artifact_sha256 === config.evidence.artifact_sha256, 'evidence artifact digest drift');
   fail(failures, manifest.evidence_artifact.accepted_combined_manifest_sha256 === config.evidence.accepted_combined_manifest_sha256, 'accepted combined manifest digest drift');
   const sourceByApp = new Map(config.sources.map((source) => [source.app, source]));
+  const sourceRowsByApp = Object.fromEntries(config.sources.map((source) => [source.app, []]));
   const seen = new Set();
   for (const migration of manifest.migrations) {
     const source = sourceByApp.get(migration.app);
@@ -82,12 +188,20 @@ function verifySourceManifest(config, manifest, failures) {
     fail(failures, migration.commit === source.commit, `${migration.copied_path}: source commit drift`);
     fail(failures, migration.tree === source.tree, `${migration.copied_path}: source tree drift`);
     fail(failures, migration.path === `supabase/migrations/${path.posix.basename(migration.copied_path)}`, `${migration.copied_path}: source path mismatch`);
+    fail(failures, migration.copied_path === `bootstrap/sources/${source.app}/${migration.path}`, `${migration.copied_path}: copied source boundary mismatch`);
     const absolutePath = path.join(root, ...migration.copied_path.split('/'));
     const bytes = fs.readFileSync(absolutePath);
     fail(failures, bytes.length === migration.byte_count, `${migration.copied_path}: byte count drift`);
     fail(failures, sha256(bytes) === migration.raw_sha256, `${migration.copied_path}: raw digest drift`);
     fail(failures, gitBlobSha1(bytes) === migration.blob, `${migration.copied_path}: Git blob drift`);
     fail(failures, !bytes.includes(13), `${migration.copied_path}: CR byte detected`);
+    sourceRowsByApp[source.app].push({
+      order: migration.order,
+      path: migration.path,
+      blob: gitBlobSha1(bytes),
+      raw_sha256: sha256(bytes),
+      byte_count: bytes.length
+    });
     seen.add(migration.copied_path);
   }
   for (const source of config.sources) {
@@ -99,6 +213,17 @@ function verifySourceManifest(config, manifest, failures) {
   fail(failures, seen.size === exactExpected.migrations, 'source copied-path denominator is not unique');
   const packageRecords = manifest.migrations;
   fail(failures, sha256(canonicalJson(packageRecords)) === manifest.package_manifest_sha256, 'package manifest digest mismatch');
+  try {
+    verifyFrozenSourceAcceptance({
+      sourceRowsByApp,
+      sourceIdentities: config.sources,
+      acceptedChains: manifest.accepted_source_chain_sha256,
+      configuredCombinedSha256: config.evidence.accepted_combined_manifest_sha256,
+      acceptedCombinedSha256: manifest.evidence_artifact.accepted_combined_manifest_sha256
+    });
+  } catch (error) {
+    failures.push(error.message);
+  }
 }
 
 function verifyObjects(objects, config, failures) {
@@ -306,7 +431,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
     ok: failures.length === 0,
     apply_admitted: false,
     checks: [
-      'immutable_source_identity', 'combined_manifest_binding', 'source_object_denominators',
+      'immutable_source_identity', 'frozen_chain_recomputation', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
       'schema_creation_order', 'discordos_public_rpc_hold', 'held_function_dependency_closure',
       'provider_managed_skip', 'private_schema_exposure', 'no_network_hooks',

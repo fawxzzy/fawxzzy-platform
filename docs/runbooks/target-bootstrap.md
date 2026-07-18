@@ -78,11 +78,16 @@ Raw historical migrations may contain effects or legacy grants because they are 
 ## Review procedure
 
 1. Verify the raw migration manifest identities and the accepted combined-manifest binding.
+   - Recompute every source-chain digest from actual copied bytes using the canonical version, source path, Git blob, raw SHA-256, and byte-count line.
+   - Recompute the combined digest from the frozen app label, immutable commit, immutable root tree, and recomputed source-chain digest.
+   - Reject substituted bytes or identities, stale acceptance values, missing bindings, and any copied source outside its exact app migration root.
 2. Confirm the seven manifest paths and four generated migration paths are the complete denominators.
 3. Review all blocker manifests. `apply_admitted` must remain false everywhere. Confirm all 18 public DiscordOS RPC definitions and every dependent statement are held.
 4. Run focused parser, manifest, generator, replay, and security tests.
 5. Run full repository verification twice and compare complete output bytes.
 6. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.
+
+Repository-wide validation must enumerate same-named root files even when `node_modules`, `outputs`, or `work` directories are excluded. It may omit an exact excluded root link only after proving its target is a directory and without traversing it; unknown, nested, broken, or file-target links and unsupported entry types must fail closed.
 
 ## Later execution gates
 
