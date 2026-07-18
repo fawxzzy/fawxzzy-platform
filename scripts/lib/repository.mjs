@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { repositoryRoot } from './contracts.mjs';
 
-const rootLocalExcludedDirectories = new Set(['.git', 'node_modules', 'outputs', 'work']);
+const rootLocalExcludedDirectories = new Set(['node_modules', 'outputs', 'work']);
 const allowedRootFiles = new Set([
   '.gitattributes',
   '.gitignore',
@@ -21,14 +21,31 @@ function toPosix(value) {
 export function listWorkingTreeFiles(directory = repositoryRoot, prefix = '') {
   const files = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-    if (entry.isDirectory() && prefix === '' && rootLocalExcludedDirectories.has(entry.name)) continue;
     const absolutePath = path.join(directory, entry.name);
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isSymbolicLink()) {
+      if (prefix === '' && rootLocalExcludedDirectories.has(entry.name)) {
+        let target;
+        try {
+          target = fs.statSync(absolutePath);
+        } catch {
+          throw new Error(`${relativePath}: excluded root link target is unavailable`);
+        }
+        if (!target.isDirectory()) throw new Error(`${relativePath}: excluded root link must target a directory`);
+        continue;
+      }
+      throw new Error(`${relativePath}: symbolic links and junctions are not supported`);
+    }
+    if (prefix === '' && entry.name === '.git') {
+      if (entry.isDirectory() || entry.isFile()) continue;
+      throw new Error('.git: unsupported repository metadata entry type');
+    }
+    if (prefix === '' && entry.isDirectory() && rootLocalExcludedDirectories.has(entry.name)) continue;
     if (entry.isDirectory()) {
       files.push(...listWorkingTreeFiles(absolutePath, relativePath));
     } else if (entry.isFile()) {
       files.push(toPosix(relativePath));
-    }
+    } else throw new Error(`${relativePath}: unsupported filesystem entry type`);
   }
   return files;
 }
@@ -53,6 +70,9 @@ function allowedPath(relativePath) {
   if (/(^|\/)(?:work|outputs)(?:\/|$)/.test(relativePath)) return false;
   return allowedRootFiles.has(relativePath)
     || /^\.github\/workflows\/[a-z0-9-]+\.yml$/.test(relativePath)
+    || /^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)
+    || /^bootstrap\/(?:generator\/config\.v1\.json|manifests\/[a-z0-9-]+\.v1\.json)$/.test(relativePath)
+    || /^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
     || /^contracts\/v1\/[a-z0-9_./-]+\.json$/.test(relativePath)
     || /^docs\/(adr|runbooks)\/[a-z0-9-]+\.md$/.test(relativePath)
     || /^scripts\/[a-z0-9_./-]+\.mjs$/.test(relativePath)
@@ -90,7 +110,11 @@ export function validateRepositoryEntries(entries) {
 
   for (const { relativePath, content } of entries) {
     if (!allowedPath(relativePath)) failures.push(`${relativePath}: path is outside the repository allowlist`);
-    if (relativePath.endsWith('.sql')) failures.push(`${relativePath}: executable SQL is forbidden in this packet`);
+    if (relativePath.endsWith('.sql')
+      && !/^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
+      && !/^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)) {
+      failures.push(`${relativePath}: SQL is outside the inert source and review-artifact boundary`);
+    }
     if (/(^|\/)\.env(?:\.|$)/.test(relativePath)) failures.push(`${relativePath}: environment files are forbidden`);
 
     failures.push(...inspectContent(relativePath, content));
@@ -128,7 +152,7 @@ export function validateRepository() {
   return {
     ok: failures.length === 0,
     file_count: files.length,
-    checks: ['path_allowlist', 'lf', 'json', 'secret_scan', 'machine_path_scan', 'no_sql'],
+    checks: ['path_allowlist', 'lf', 'json', 'secret_scan', 'machine_path_scan', 'sql_path_boundary'],
     failures: failures.sort((left, right) => left.localeCompare(right))
   };
 }

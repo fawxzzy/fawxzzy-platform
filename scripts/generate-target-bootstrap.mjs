@@ -1,0 +1,1737 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+export const root = path.resolve(scriptDirectory, '..');
+const configPath = path.join(root, 'bootstrap', 'generator', 'config.v1.json');
+const securityMatrixRelativePath = 'contracts/v1/security/rls-grant-function-matrix.json';
+export const generatedManifestContractV1 = Object.freeze({
+  version: '1.0.0',
+  directory: 'bootstrap/manifests',
+  filenames: Object.freeze([
+    'source-migrations.v1.json',
+    'source-objects.v1.json',
+    'dynamic-units.v1.json',
+    'data-effects.v1.json',
+    'collisions.v1.json',
+    'dispositions.v1.json',
+    'namespace-plan.v1.json'
+  ])
+});
+export const generatedInertArtifactContractV1 = Object.freeze({
+  version: '1.0.0',
+  directory: 'bootstrap/artifacts/inert-sql',
+  filenames: Object.freeze([
+    '00000000000001_mazer_schema_inert.sql',
+    '00000000000002_fitness_schema_inert.sql',
+    '00000000000003_discordos_schema_inert.sql',
+    '00000000000004_platform_security_overlay_inert.sql'
+  ])
+});
+function isPathWithin(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function isSamePath(left, right) {
+  return path.relative(left, right) === '' && path.relative(right, left) === '';
+}
+
+function lstatIfPresent(absolutePath) {
+  try {
+    return fs.lstatSync(absolutePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function realpath(absolutePath) {
+  return fs.realpathSync.native?.(absolutePath) ?? fs.realpathSync(absolutePath);
+}
+
+function pathIdentity(absolutePath) {
+  // Windows file identifiers can exceed Number.MAX_SAFE_INTEGER. Preserve the
+  // complete device/inode identity so distinct files cannot alias after numeric
+  // rounding.
+  const stats = fs.statSync(absolutePath, { bigint: true });
+  return Object.freeze({
+    physical: realpath(absolutePath),
+    device: String(stats.dev),
+    inode: String(stats.ino),
+    type: stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : 'unsupported'
+  });
+}
+
+function observePlannedPath(repository, targetPath, label) {
+  const target = path.resolve(targetPath);
+  let existing = target;
+  while (!lstatIfPresent(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing || !isPathWithin(repository.lexical, parent)) {
+      throw new Error(`${label} has no observable repository ancestor: ${target}`);
+    }
+    existing = parent;
+  }
+  const identity = pathIdentity(existing);
+  if (identity.type === 'unsupported') throw new Error(`${label} has an unsupported physical identity: ${existing}`);
+  return Object.freeze({
+    label,
+    target,
+    target_exists: existing === target,
+    existing,
+    ...identity
+  });
+}
+
+function canonicalIdentityModel(repository, paths) {
+  const repositoryIdentity = pathIdentity(repository.lexical);
+  const planned = paths.map(({ target, label }) => observePlannedPath(repository, target, label));
+  const observed = new Map();
+  for (const entry of planned.filter((candidate) => candidate.target_exists)) {
+    const key = `${entry.device}:${entry.inode}`;
+    const prior = observed.get(key);
+    if (prior && !isSamePath(prior.target, entry.target)) {
+      throw new Error(`${entry.label} physically aliases ${prior.label}: ${entry.target}`);
+    }
+    observed.set(key, entry);
+  }
+  return Object.freeze({ repository: repositoryIdentity, planned: Object.freeze(planned) });
+}
+
+function decodeMountInfoField(value, label) {
+  if (typeof value !== 'string' || value.length === 0) throw new Error(`Linux mountinfo ${label} is empty`);
+  const decoded = value.replace(/\\([0-7]{3})/g, (_, octal) => String.fromCharCode(Number.parseInt(octal, 8)));
+  if (decoded.includes('\\')) throw new Error(`Linux mountinfo ${label} contains an unsupported escape`);
+  return decoded;
+}
+
+function normalizePosixAbsolute(value, label) {
+  if (!value.startsWith('/')) throw new Error(`Linux mountinfo ${label} is not absolute: ${value}`);
+  const normalized = path.posix.normalize(value);
+  if (normalized !== value) throw new Error(`Linux mountinfo ${label} is ambiguous: ${value}`);
+  return normalized;
+}
+
+function isPosixPathWithin(parent, candidate) {
+  const relative = path.posix.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith('../') && relative !== '..' && !path.posix.isAbsolute(relative));
+}
+
+function deriveLinuxMountSourcePath(mount, visiblePath, label) {
+  if (!isPosixPathWithin(mount.mountPoint, visiblePath)) {
+    throw new Error(`Linux mountinfo cannot derive ${label} outside governing mount ${mount.mountPoint}: ${visiblePath}`);
+  }
+  const relative = path.posix.relative(mount.mountPoint, visiblePath);
+  if (relative === '..' || relative.startsWith('../') || path.posix.isAbsolute(relative)) {
+    throw new Error(`Linux mountinfo ${label} source path is ambiguous: ${visiblePath}`);
+  }
+  const sourcePath = relative === '' ? mount.root : path.posix.join(mount.root, relative);
+  return normalizePosixAbsolute(sourcePath, `${label} source path`);
+}
+
+function posixPathsIntersect(left, right) {
+  return isPosixPathWithin(left, right) || isPosixPathWithin(right, left);
+}
+
+export function parseLinuxMountInfo(text) {
+  if (typeof text !== 'string' || text.length === 0) throw new Error('Linux mountinfo is empty or unreadable');
+  const rawLines = text.split('\n');
+  if (rawLines.at(-1) === '') rawLines.pop();
+  if (rawLines.length === 0 || rawLines.some((line) => line.length === 0)) {
+    throw new Error('Linux mountinfo contains an empty or ambiguous record');
+  }
+
+  const mountIds = new Set();
+  return rawLines.map((line, index) => {
+    const fields = line.split(' ');
+    if (fields.some((field) => field.length === 0)) throw new Error(`Linux mountinfo record ${index + 1} has ambiguous spacing`);
+    const separator = fields.indexOf('-');
+    if (separator < 6 || fields.length < separator + 4 || fields.indexOf('-', separator + 1) !== -1) {
+      throw new Error(`Linux mountinfo record ${index + 1} is malformed`);
+    }
+    const mountId = fields[0];
+    const parentId = fields[1];
+    if (!/^[1-9][0-9]*$/.test(mountId) || !/^[1-9][0-9]*$/.test(parentId) || !/^\d+:\d+$/.test(fields[2])) {
+      throw new Error(`Linux mountinfo record ${index + 1} has an invalid identity`);
+    }
+    const mountRoot = normalizePosixAbsolute(decodeMountInfoField(fields[3], `record ${index + 1} root`), `record ${index + 1} root`);
+    const mountPoint = normalizePosixAbsolute(decodeMountInfoField(fields[4], `record ${index + 1} mount point`), `record ${index + 1} mount point`);
+    if (mountIds.has(mountId)) throw new Error(`Linux mountinfo contains duplicate mount id ${mountId}`);
+    mountIds.add(mountId);
+    return Object.freeze({
+      mountId,
+      parentId,
+      device: fields[2],
+      root: mountRoot,
+      mountPoint,
+      filesystem: fields[separator + 1],
+      source: decodeMountInfoField(fields[separator + 2], `record ${index + 1} source`)
+    });
+  });
+}
+
+export function readLinuxMountInfo(reader = (filename, encoding) => fs.readFileSync(filename, encoding)) {
+  try {
+    return reader('/proc/self/mountinfo', 'utf8');
+  } catch (error) {
+    throw new Error(`Linux mountinfo is unreadable: ${error?.message ?? 'unknown error'}`);
+  }
+}
+
+export function validateLinuxMountLayout(repositoryPhysicalPath, plannedPhysicalPaths, mountInfoText) {
+  const repository = normalizePosixAbsolute(repositoryPhysicalPath, 'repository path');
+  const planned = [...new Set(plannedPhysicalPaths.map((candidate) => normalizePosixAbsolute(candidate, 'planned path')))];
+  if (planned.length === 0) throw new Error('Linux planned path denominator is empty');
+  for (const candidate of planned) {
+    if (!isPosixPathWithin(repository, candidate)) throw new Error(`planned publication path escaped the Linux repository mount: ${candidate}`);
+  }
+
+  const mounts = parseLinuxMountInfo(mountInfoText);
+  const intersectsPlanned = (mountPoint) => planned.some((candidate) => posixPathsIntersect(mountPoint, candidate));
+  const relevantMountPoints = new Map();
+  for (const entry of mounts.filter((candidate) => isPosixPathWithin(candidate.mountPoint, repository)
+    || intersectsPlanned(candidate.mountPoint))) {
+    const entries = relevantMountPoints.get(entry.mountPoint) ?? [];
+    entries.push(entry);
+    relevantMountPoints.set(entry.mountPoint, entries);
+  }
+  for (const [mountPoint, entries] of relevantMountPoints) {
+    if (entries.length > 1) throw new Error(`Linux mountinfo contains a duplicate or conflicting repository mount point: ${mountPoint}`);
+  }
+  const containing = mounts
+    .filter((entry) => isPosixPathWithin(entry.mountPoint, repository))
+    .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId));
+  if (containing.length === 0) throw new Error('Linux mountinfo does not identify the repository mount');
+  const repositoryMount = containing[0];
+  const repositorySourcePath = deriveLinuxMountSourcePath(repositoryMount, repository, 'repository');
+  const plannedSourcePaths = planned.map((candidate) => deriveLinuxMountSourcePath(repositoryMount, candidate, 'planned path'));
+  if (repositoryMount.root !== '/') {
+    throw new Error(`Linux repository is a bind/subtree mount alias: ${repositoryMount.mountPoint}`);
+  }
+
+  for (const entry of mounts) {
+    if (entry.mountId !== repositoryMount.mountId
+      && isPosixPathWithin(repository, entry.mountPoint)
+      && intersectsPlanned(entry.mountPoint)) {
+      throw new Error(`Linux planned path intersects a nested mount point: ${entry.mountPoint}`);
+    }
+    if (entry.mountId !== repositoryMount.mountId
+      && entry.device === repositoryMount.device
+      && (isPosixPathWithin(entry.root, repositorySourcePath)
+        || plannedSourcePaths.some((candidate) => posixPathsIntersect(entry.root, candidate)))) {
+      throw new Error(`Linux mountinfo contains an alias of the repository mount source: ${entry.mountPoint}`);
+    }
+  }
+
+  for (const candidate of planned) {
+    const governing = mounts
+      .filter((entry) => isPosixPathWithin(entry.mountPoint, candidate))
+      .sort((left, right) => right.mountPoint.length - left.mountPoint.length || left.mountId.localeCompare(right.mountId))[0];
+    if (!governing || governing.mountId !== repositoryMount.mountId) {
+      throw new Error(`planned publication path crosses a Linux mount identity: ${candidate}`);
+    }
+  }
+  return Object.freeze({ repositoryMountId: repositoryMount.mountId, plannedPathCount: planned.length });
+}
+
+function validateRepositoryRoot(repositoryRoot) {
+  const lexical = path.resolve(repositoryRoot);
+  const stats = lstatIfPresent(lexical);
+  if (!stats) throw new Error(`generated artifact repository root is missing: ${lexical}`);
+  if (stats.isSymbolicLink()) throw new Error(`generated artifact repository root is link-like: ${lexical}`);
+  if (!stats.isDirectory()) throw new Error(`generated artifact repository root is not a directory: ${lexical}`);
+  const physical = realpath(lexical);
+  if (!isSamePath(lexical, physical) || (process.platform === 'win32' && lexical !== physical)) {
+    throw new Error(`generated artifact repository root contains a physical alias or link-like ancestor: ${lexical}`);
+  }
+  return { lexical, physical, identity: pathIdentity(lexical) };
+}
+
+function validatePathChain(repository, targetPath, finalType, label) {
+  const target = path.resolve(targetPath);
+  if (!isPathWithin(repository.lexical, target)) throw new Error(`${label} escaped the repository root: ${target}`);
+
+  const relative = path.relative(repository.lexical, target);
+  const segments = relative === '' ? [] : relative.split(path.sep);
+  let cursor = repository.lexical;
+  let missingAncestor = false;
+  for (let index = 0; index < segments.length; index += 1) {
+    cursor = path.join(cursor, segments[index]);
+    const stats = lstatIfPresent(cursor);
+    if (!stats) {
+      missingAncestor = true;
+      continue;
+    }
+    if (missingAncestor) throw new Error(`${label} has an entry below a missing ancestor: ${cursor}`);
+    if (stats.isSymbolicLink()) throw new Error(`${label} contains a link-like entry: ${cursor}`);
+
+    const isFinal = index === segments.length - 1;
+    if (!isFinal || finalType === 'directory') {
+      if (!stats.isDirectory()) throw new Error(`${label} contains a non-directory ancestor: ${cursor}`);
+    } else if (stats.isFile()) {
+      if (Number.isInteger(stats.nlink) && stats.nlink > 1) {
+        throw new Error(`${label} contains a multiply-linked file: ${cursor}`);
+      }
+    } else {
+      throw new Error(`${label} contains an unsupported filesystem entry type: ${cursor}`);
+    }
+
+    const physical = realpath(cursor);
+    const expectedPhysical = path.resolve(repository.physical, ...segments.slice(0, index + 1));
+    if (!isPathWithin(repository.physical, physical) || !isSamePath(physical, expectedPhysical)) {
+      throw new Error(`${label} contains a physical path escape or link-like entry: ${cursor}`);
+    }
+  }
+}
+
+export function validateGeneratedInertArtifactLayout(repositoryRoot = root, options = {}) {
+  const repository = validateRepositoryRoot(repositoryRoot);
+  const output = path.resolve(repository.lexical, ...generatedInertArtifactContractV1.directory.split('/'));
+  const manifests = path.resolve(repository.lexical, ...generatedManifestContractV1.directory.split('/'));
+  const standardMigrations = path.resolve(repository.lexical, 'supabase', 'migrations');
+  const sourceInputs = path.resolve(repository.lexical, 'bootstrap', 'sources');
+  const generatorConfig = path.resolve(repository.lexical, 'bootstrap', 'generator', 'config.v1.json');
+  const securityMatrix = path.resolve(repository.lexical, ...securityMatrixRelativePath.split('/'));
+  validatePathChain(repository, standardMigrations, 'directory', 'standard Supabase migration discovery');
+  validatePathChain(repository, sourceInputs, 'directory', 'immutable source discovery');
+  validatePathChain(repository, generatorConfig, 'file', 'generator configuration input');
+  validatePathChain(repository, securityMatrix, 'file', 'security matrix input');
+  validatePathChain(repository, manifests, 'directory', 'generated manifest directory');
+  for (const filename of generatedManifestContractV1.filenames) {
+    validatePathChain(repository, path.join(manifests, filename), 'file', `generated manifest ${filename}`);
+  }
+  validatePathChain(repository, output, 'directory', 'generated inert artifact directory');
+  for (const filename of generatedInertArtifactContractV1.filenames) {
+    validatePathChain(repository, path.join(output, filename), 'file', `generated inert artifact ${filename}`);
+  }
+
+  const outputStats = lstatIfPresent(output);
+  const standardStats = lstatIfPresent(standardMigrations);
+  if (outputStats && standardStats && (isSamePath(realpath(output), realpath(standardMigrations))
+    || (() => {
+      const left = pathIdentity(output);
+      const right = pathIdentity(standardMigrations);
+      return left.device === right.device && left.inode === right.inode;
+    })())) {
+    throw new Error('generated inert artifacts physically alias standard Supabase migration discovery');
+  }
+
+  const plannedPathEntries = [
+    { target: standardMigrations, label: 'standard Supabase migration discovery' },
+    { target: sourceInputs, label: 'immutable source discovery' },
+    { target: generatorConfig, label: 'generator configuration input' },
+    { target: securityMatrix, label: 'security matrix input' },
+    { target: manifests, label: 'generated manifest directory' },
+    ...generatedManifestContractV1.filenames.map((filename) => ({ target: path.join(manifests, filename), label: `generated manifest ${filename}` })),
+    { target: output, label: 'generated inert artifact directory' },
+    ...generatedInertArtifactContractV1.filenames.map((filename) => ({ target: path.join(output, filename), label: `generated inert artifact ${filename}` }))
+  ];
+  const identityModel = canonicalIdentityModel(repository, plannedPathEntries);
+  const plannedPaths = plannedPathEntries.map(({ target }) => path.resolve(repository.physical, path.relative(repository.lexical, target)));
+  let linuxMount = null;
+  if ((options.platform ?? process.platform) === 'linux') {
+    const mountInfoText = options.mountInfoText ?? readLinuxMountInfo(options.mountInfoReader);
+    linuxMount = validateLinuxMountLayout(repository.physical, plannedPaths, mountInfoText);
+  }
+  return {
+    repository: repository.lexical,
+    manifests,
+    output,
+    standardMigrations,
+    sourceInputs,
+    generatorConfig,
+    securityMatrix,
+    identityModel,
+    linuxMount
+  };
+}
+
+export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = root) {
+  if (!generatedInertArtifactContractV1.filenames.includes(filename)) {
+    throw new Error(`undeclared generated inert artifact: ${filename}`);
+  }
+  const directory = path.resolve(repositoryRoot, ...generatedInertArtifactContractV1.directory.split('/'));
+  const resolved = path.resolve(directory, filename);
+  if (path.dirname(resolved) !== directory) throw new Error(`generated inert artifact escaped its directory: ${filename}`);
+  return resolved;
+}
+
+function listSqlFiles(directory, prefix = '') {
+  const directoryStats = lstatIfPresent(directory);
+  if (!directoryStats) return [];
+  if (directoryStats.isSymbolicLink()) throw new Error(`${prefix || directory}: link-like SQL discovery directory is unsupported`);
+  if (!directoryStats.isDirectory()) throw new Error(`${prefix || directory}: SQL discovery path is not a directory`);
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`${relativePath}: link-like SQL discovery entry is unsupported`);
+    if (entry.isDirectory()) files.push(...listSqlFiles(absolutePath, relativePath));
+    else if (entry.isFile() && entry.name.endsWith('.sql')) files.push(relativePath);
+    else if (!entry.isFile()) throw new Error(`${relativePath}: unsupported SQL discovery entry type`);
+  }
+  return files;
+}
+
+export function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+export function gitBlobSha1(bytes) {
+  return crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+}
+
+export function canonicalJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function dollarTagAt(sql, index) {
+  const match = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(index));
+  return match?.[0] ?? null;
+}
+
+export function splitSqlStatements(sql) {
+  const statements = [];
+  let start = 0;
+  let state = 'plain';
+  let blockDepth = 0;
+  let dollarTag = null;
+
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const next = sql[index + 1];
+    if (state === 'single') {
+      if (char === "'" && next === "'") index += 1;
+      else if (char === "'") state = 'plain';
+      continue;
+    }
+    if (state === 'double') {
+      if (char === '"' && next === '"') index += 1;
+      else if (char === '"') state = 'plain';
+      continue;
+    }
+    if (state === 'line-comment') {
+      if (char === '\n') state = 'plain';
+      continue;
+    }
+    if (state === 'block-comment') {
+      if (char === '/' && next === '*') {
+        blockDepth += 1;
+        index += 1;
+      } else if (char === '*' && next === '/') {
+        blockDepth -= 1;
+        index += 1;
+        if (blockDepth === 0) state = 'plain';
+      }
+      continue;
+    }
+    if (state === 'dollar') {
+      if (sql.startsWith(dollarTag, index)) {
+        index += dollarTag.length - 1;
+        state = 'plain';
+        dollarTag = null;
+      }
+      continue;
+    }
+    if (char === "'") state = 'single';
+    else if (char === '"') state = 'double';
+    else if (char === '-' && next === '-') {
+      state = 'line-comment';
+      index += 1;
+    } else if (char === '/' && next === '*') {
+      state = 'block-comment';
+      blockDepth = 1;
+      index += 1;
+    } else if (char === '$') {
+      const tag = dollarTagAt(sql, index);
+      if (tag) {
+        state = 'dollar';
+        dollarTag = tag;
+        index += tag.length - 1;
+      }
+    } else if (char === ';') {
+      const text = sql.slice(start, index + 1).trim();
+      if (text) statements.push(text);
+      start = index + 1;
+    }
+  }
+
+  const tail = sql.slice(start).trim();
+  if (tail) statements.push(tail);
+  if (state === 'single' || state === 'double' || state === 'block-comment' || state === 'dollar') {
+    throw new Error(`unterminated SQL lexical state: ${state}`);
+  }
+  return statements;
+}
+
+function withoutLeadingComments(statement) {
+  return statement.replace(/^(?:\s|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)+/, '').trim();
+}
+
+function maskSqlStringsAndComments(sql) {
+  let output = '';
+  let state = 'plain';
+  let blockDepth = 0;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const next = sql[index + 1];
+    if (state === 'single') {
+      if (char === "'" && next === "'") {
+        output += '  ';
+        index += 1;
+      } else if (char === "'") {
+        output += ' ';
+        state = 'plain';
+      } else output += char === '\n' ? '\n' : ' ';
+      continue;
+    }
+    if (state === 'line-comment') {
+      if (char === '\n') {
+        output += '\n';
+        state = 'plain';
+      } else output += ' ';
+      continue;
+    }
+    if (state === 'block-comment') {
+      if (char === '/' && next === '*') {
+        output += '  ';
+        blockDepth += 1;
+        index += 1;
+      } else if (char === '*' && next === '/') {
+        output += '  ';
+        blockDepth -= 1;
+        index += 1;
+        if (blockDepth === 0) state = 'plain';
+      } else output += char === '\n' ? '\n' : ' ';
+      continue;
+    }
+    if (char === "'") {
+      output += ' ';
+      state = 'single';
+    } else if (char === '-' && next === '-') {
+      output += '  ';
+      state = 'line-comment';
+      index += 1;
+    } else if (char === '/' && next === '*') {
+      output += '  ';
+      state = 'block-comment';
+      blockDepth = 1;
+      index += 1;
+    } else output += char;
+  }
+  return output;
+}
+
+export function classifyStatement(statement) {
+  const clean = withoutLeadingComments(statement);
+  const lower = clean.toLowerCase();
+  const dataEffect = /^(?:insert|update|delete|merge|truncate|copy)\b/.test(lower)
+    || (/^with\b/.test(lower) && /\b(?:insert\s+into|update|delete\s+from|merge\s+into)\b/.test(lower));
+  const dynamicIdentity = /^(?:do\b|create(?:\s+or\s+replace)?\s+function\b)/.test(lower)
+    && /\bexecute\s+(?:format\s*\(|['"])/.test(lower);
+  const extensionDependency = /^create\s+extension\b/.test(lower);
+  const cronActivation = /\bcron\.schedule\s*\(/.test(lower);
+  const networkEffect = /\bnet\.http_(?:get|post|delete)\s*\(/.test(lower);
+  const securityDefiner = /\bsecurity\s+definer\b/.test(lower);
+  return { clean, dataEffect, dynamicIdentity, extensionDependency, cronActivation, networkEffect, securityDefiner };
+}
+
+export function simulateCatalog(statements) {
+  const catalog = {
+    tables: new Set(),
+    functions: new Set(),
+    policies: new Set(),
+    triggers: new Set(),
+    indexes: new Set()
+  };
+  const name = '(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)';
+  const qualified = `${name}(?:\\.${name})?`;
+  const normalize = (value) => value.replaceAll('"', '').toLowerCase();
+  for (const statement of statements) {
+    const sql = maskSqlStringsAndComments(statement);
+    let match;
+    if ((match = new RegExp(`\\bcreate\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(${qualified})`, 'i').exec(sql))) catalog.tables.add(normalize(match[1]));
+    if ((match = new RegExp(`\\bdrop\\s+table\\s+(?:if\\s+exists\\s+)?(${qualified})`, 'i').exec(sql))) catalog.tables.delete(normalize(match[1]));
+    if ((match = new RegExp(`\\bcreate\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})`, 'i').exec(sql))) catalog.functions.add(normalize(match[1]));
+    if ((match = new RegExp(`\\bdrop\\s+function\\s+(?:if\\s+exists\\s+)?(${qualified})`, 'i').exec(sql))) catalog.functions.delete(normalize(match[1]));
+    if ((match = new RegExp(`\\bcreate\\s+(?:unique\\s+)?index\\s+(?:if\\s+not\\s+exists\\s+)?(${qualified})`, 'i').exec(sql))) catalog.indexes.add(normalize(match[1]));
+    if ((match = new RegExp(`\\bdrop\\s+index\\s+(?:if\\s+exists\\s+)?(${qualified})`, 'i').exec(sql))) catalog.indexes.delete(normalize(match[1]));
+    if ((match = new RegExp(`\\bcreate\\s+policy\\s+(${name})\\s+on\\s+(${qualified})`, 'i').exec(sql))) catalog.policies.add(`${normalize(match[2])}::${normalize(match[1])}`);
+    if ((match = new RegExp(`\\bdrop\\s+policy\\s+(?:if\\s+exists\\s+)?(${name})\\s+on\\s+(${qualified})`, 'i').exec(sql))) catalog.policies.delete(`${normalize(match[2])}::${normalize(match[1])}`);
+    if ((match = new RegExp(`\\bcreate\\s+trigger\\s+(${name})[\\s\\S]*?\\bon\\s+(${qualified})`, 'i').exec(sql))) catalog.triggers.add(`${normalize(match[2])}::${normalize(match[1])}`);
+    if ((match = new RegExp(`\\bdrop\\s+trigger\\s+(?:if\\s+exists\\s+)?(${name})\\s+on\\s+(${qualified})`, 'i').exec(sql))) catalog.triggers.delete(`${normalize(match[2])}::${normalize(match[1])}`);
+  }
+  return Object.fromEntries(Object.entries(catalog).map(([key, values]) => [key, [...values].sort()]));
+}
+
+function normalizeQualifiedName(value, fallbackSchema = 'public') {
+  const pieces = value.split('.').map((piece) => quotedName(piece.trim()).toLowerCase());
+  return pieces.length === 1 ? `${fallbackSchema}.${pieces[0]}` : `${pieces[0]}.${pieces[1]}`;
+}
+
+function findClosingParenthesis(text, openIndex) {
+  const masked = maskSqlStringsAndComments(text);
+  let depth = 0;
+  for (let index = openIndex; index < masked.length; index += 1) {
+    if (masked[index] === '(') depth += 1;
+    else if (masked[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+      if (depth < 0) break;
+    }
+  }
+  throw new Error('function signature: unmatched argument parenthesis');
+}
+
+function splitTopLevelArguments(text) {
+  if (text.trim() === '') return [];
+  const masked = maskSqlStringsAndComments(text);
+  const values = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < masked.length; index += 1) {
+    if (masked[index] === '(' || masked[index] === '[') depth += 1;
+    else if (masked[index] === ')' || masked[index] === ']') depth -= 1;
+    else if (masked[index] === ',' && depth === 0) {
+      values.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+    if (depth < 0) throw new Error('function signature: unmatched argument delimiter');
+  }
+  if (depth !== 0) throw new Error('function signature: unmatched argument delimiter');
+  values.push(text.slice(start).trim());
+  if (values.some((value) => value === '')) throw new Error('function signature: empty argument');
+  return values;
+}
+
+function stripArgumentDefault(argument) {
+  const masked = maskSqlStringsAndComments(argument);
+  let depth = 0;
+  for (let index = 0; index < masked.length; index += 1) {
+    if (masked[index] === '(' || masked[index] === '[') depth += 1;
+    else if (masked[index] === ')' || masked[index] === ']') depth -= 1;
+    if (depth !== 0) continue;
+    if (masked[index] === '=') return argument.slice(0, index).trim();
+    if (/^default\b/i.test(masked.slice(index)) && (index === 0 || /\s/.test(masked[index - 1]))) {
+      return argument.slice(0, index).trim();
+    }
+  }
+  return argument.trim();
+}
+
+function canonicalFunctionArgumentType(argument) {
+  let declaration = stripArgumentDefault(argument);
+  if (/^(?:out|inout|variadic)\b/i.test(declaration)) {
+    throw new Error(`function signature: unsupported argument mode in ${declaration}`);
+  }
+  declaration = declaration.replace(/^in\s+/i, '').trim();
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const multiword = '(?:double\\s+precision|character\\s+varying|bit\\s+varying|timestamp\\s+(?:with|without)\\s+time\\s+zone|time\\s+(?:with|without)\\s+time\\s+zone)';
+  const type = `(?:${multiword}|${qualified})(?:\\s*\\(\\s*\\d+(?:\\s*,\\s*\\d+)?\\s*\\))?(?:\\s*\\[\\s*\\])*`;
+  const direct = new RegExp(`^(${type})$`, 'i').exec(declaration);
+  const named = new RegExp(`^${name}\\s+(${type})$`, 'i').exec(declaration);
+  const matched = direct ?? named;
+  if (!matched) throw new Error(`function signature: ambiguous argument ${declaration}`);
+  return matched[1]
+    .replaceAll('"', '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\.\s*/g, '.')
+    .replace(/\s*\[\s*\]/g, '[]')
+    .replace(/\s*\(\s*/g, '(')
+    .replace(/\s*,\s*/g, ',')
+    .replace(/\s*\)/g, ')');
+}
+
+function parseFunctionArguments(text, openIndex) {
+  const closeIndex = findClosingParenthesis(text, openIndex);
+  const argumentTypes = splitTopLevelArguments(text.slice(openIndex + 1, closeIndex))
+    .map(canonicalFunctionArgumentType);
+  return { argumentTypes, closeIndex };
+}
+
+export function parseFunctionDefinition(statement, fallbackSchema = 'public') {
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const clean = withoutLeadingComments(statement);
+  const match = new RegExp(`^create\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
+  if (!match) return null;
+  const identity = normalizeQualifiedName(match[1], fallbackSchema);
+  const { argumentTypes } = parseFunctionArguments(clean, match[0].lastIndexOf('('));
+  return {
+    identity,
+    signature: `${identity}(${argumentTypes.join(', ')})`,
+    argument_types: argumentTypes,
+    or_replace: /^create\s+or\s+replace\s+function\b/i.test(clean)
+  };
+}
+
+function findFunctionBodyBoundary(statement) {
+  let state = 'plain';
+  let blockDepth = 0;
+  let dollarTag = null;
+  for (let index = 0; index < statement.length; index += 1) {
+    const char = statement[index];
+    const next = statement[index + 1];
+    if (state === 'single') {
+      if (char === "'" && next === "'") index += 1;
+      else if (char === "'") state = 'plain';
+      continue;
+    }
+    if (state === 'double') {
+      if (char === '"' && next === '"') index += 1;
+      else if (char === '"') state = 'plain';
+      continue;
+    }
+    if (state === 'line-comment') {
+      if (char === '\n') state = 'plain';
+      continue;
+    }
+    if (state === 'block-comment') {
+      if (char === '/' && next === '*') {
+        blockDepth += 1;
+        index += 1;
+      } else if (char === '*' && next === '/') {
+        blockDepth -= 1;
+        index += 1;
+        if (blockDepth === 0) state = 'plain';
+      }
+      continue;
+    }
+    if (state === 'dollar') {
+      if (statement.startsWith(dollarTag, index)) {
+        index += dollarTag.length - 1;
+        state = 'plain';
+        dollarTag = null;
+      }
+      continue;
+    }
+    if (char === "'") {
+      const prefix = maskSqlStringsAndComments(statement.slice(0, index));
+      const asMatch = /\bas\s*$/i.exec(prefix);
+      if (asMatch) return { malformed: true, reason: 'single-quoted function bodies are unsupported' };
+      state = 'single';
+    } else if (char === '"') state = 'double';
+    else if (char === '-' && next === '-') {
+      state = 'line-comment';
+      index += 1;
+    } else if (char === '/' && next === '*') {
+      state = 'block-comment';
+      blockDepth = 1;
+      index += 1;
+    } else if (char === '$') {
+      const tag = dollarTagAt(statement, index);
+      if (!tag) continue;
+      const prefix = maskSqlStringsAndComments(statement.slice(0, index));
+      const asMatch = /\bas\s*$/i.exec(prefix);
+      if (asMatch) return { malformed: false, as_index: asMatch.index, body_index: index };
+      state = 'dollar';
+      dollarTag = tag;
+      index += tag.length - 1;
+    }
+  }
+  return { malformed: true, reason: 'unsupported or missing function body delimiter' };
+}
+
+export function parseFunctionSearchPath(statement, fallbackSchema = 'public') {
+  const definition = parseFunctionDefinition(statement, fallbackSchema);
+  if (!definition) return null;
+  const boundary = findFunctionBodyBoundary(statement);
+  if (boundary.malformed) return { malformed: true, reason: boundary.reason, definition };
+  const header = statement.slice(0, boundary.as_index);
+  const masked = maskSqlStringsAndComments(header);
+  const mentions = [...masked.matchAll(/\bsearch_path\b/gi)];
+  if (mentions.length === 0) {
+    return { malformed: false, present: false, definition };
+  }
+  if (mentions.length !== 1) {
+    return { malformed: true, reason: 'duplicate or ambiguous search_path clause', definition };
+  }
+  const clause = /\bset\s+search_path\s*=\s*([A-Za-z_][A-Za-z0-9_$]*)\s*,\s*([A-Za-z_][A-Za-z0-9_$]*)/i.exec(masked);
+  if (!clause || masked.slice(clause.index + clause[0].length).trim() !== '') {
+    return { malformed: true, reason: 'unsupported search_path clause', definition };
+  }
+  return {
+    malformed: false,
+    present: true,
+    definition,
+    schemas: [clause[1].toLowerCase(), clause[2].toLowerCase()],
+    clause_start: clause.index,
+    clause_end: clause.index + clause[0].length
+  };
+}
+
+export function verifyFitnessFunctionSearchPaths(statements, expectedSignatures = null) {
+  const failures = [];
+  const states = new Map();
+  for (const statement of statements) {
+    let searchPath;
+    try {
+      searchPath = parseFunctionSearchPath(statement, 'fitness');
+    } catch (error) {
+      failures.push(`malformed or ambiguous Fitness function definition (${error.message})`);
+      continue;
+    }
+    if (!searchPath || !searchPath.definition.identity.startsWith('fitness.')) continue;
+    if (searchPath.malformed) {
+      failures.push(`${searchPath.definition.signature}: ${searchPath.reason}`);
+      continue;
+    }
+    if (searchPath.present && canonicalJson(searchPath.schemas) !== canonicalJson(['fitness', 'pg_temp'])) {
+      failures.push(`${searchPath.definition.signature}: search_path must be exactly fitness, pg_temp`);
+    }
+    states.set(searchPath.definition.signature, searchPath);
+  }
+  const actualSignatures = [...states.keys()].sort();
+  if (expectedSignatures && canonicalJson(actualSignatures) !== canonicalJson([...expectedSignatures].sort())) {
+    failures.push('Fitness function search_path signature denominator drift');
+  }
+  for (const [signature, searchPath] of states) {
+    if (!searchPath.present) failures.push(`${signature}: final effective definition is missing search_path`);
+  }
+  return failures.sort();
+}
+
+function parseIdentifierList(value) {
+  const identifier = namePattern();
+  const values = value.split(',').map((entry) => entry.trim());
+  if (values.length === 0 || values.some((entry) => !new RegExp(`^${identifier}$`).test(entry))) {
+    throw new Error('privilege statement: malformed identifier list');
+  }
+  const normalized = values.map((entry) => quotedName(entry).toLowerCase());
+  if (new Set(normalized).size !== normalized.length) throw new Error('privilege statement: duplicate identifier');
+  return normalized.sort();
+}
+
+function parseOrderedIdentifierList(value, label) {
+  const identifier = namePattern();
+  const values = value.split(',').map((entry) => entry.trim());
+  if (values.length === 0 || values.some((entry) => !new RegExp(`^${identifier}$`).test(entry))) {
+    throw new Error(`${label}: malformed identifier list`);
+  }
+  const normalized = values.map((entry) => quotedName(entry));
+  if (new Set(normalized.map((entry) => entry.toLowerCase())).size !== normalized.length) {
+    throw new Error(`${label}: duplicate identifier`);
+  }
+  return normalized;
+}
+
+export function parseCreatorDefaultAclStatement(statement) {
+  const clean = withoutLeadingComments(statement).trim().replace(/;\s*$/, '');
+  if (!/^alter\s+default\s+privileges\b/i.test(clean)) return null;
+  const name = namePattern();
+  const match = new RegExp(`^alter\\s+default\\s+privileges\\s+for\\s+role\\s+(${name})\\s+in\\s+schema\\s+(${name})\\s+revoke\\s+(.+?)\\s+on\\s+(tables|sequences|functions)\\s+from\\s+(.+)$`, 'i').exec(clean);
+  if (!match) return { malformed: true, reason: 'unsupported creator default ACL statement' };
+  try {
+    const privileges = match[3].split(',').map((entry) => entry.trim().toUpperCase());
+    if (privileges.length === 0 || privileges.some((entry) => !/^[A-Z]+$/.test(entry))) {
+      throw new Error('creator default ACL privilege list is malformed');
+    }
+    if (new Set(privileges).size !== privileges.length) throw new Error('creator default ACL privilege list contains a duplicate');
+    return {
+      malformed: false,
+      creator_role: quotedName(match[1]).toLowerCase(),
+      schema: quotedName(match[2]).toLowerCase(),
+      object_class: match[4].toUpperCase(),
+      privileges,
+      grantees: parseOrderedIdentifierList(match[5], 'creator default ACL grantees').map((entry) => entry.toLowerCase())
+    };
+  } catch (error) {
+    return { malformed: true, reason: error.message };
+  }
+}
+
+export function buildCreatorDefaultAclUnits(config) {
+  const contract = config.creator_default_acl;
+  if (!contract || contract.version !== '1.0.0' || contract.status !== 'BLOCKED' || contract.apply_admitted !== false) {
+    throw new Error('creator default ACL contract metadata drift');
+  }
+  if (config.target_postgresql?.major_version !== 17 || config.target_postgresql?.maintain_default_privilege !== 'REQUIRED') {
+    throw new Error('creator default ACL requires the pinned PostgreSQL 17 MAINTAIN contract');
+  }
+  const units = [];
+  for (const creatorRole of contract.creator_roles) {
+    for (const schema of contract.schemas) {
+      for (const [objectClass, privileges] of Object.entries(contract.object_classes)) {
+        const executable = creatorRole === 'postgres' && objectClass !== 'FUNCTIONS';
+        const signatureAssertion = creatorRole === 'postgres' && objectClass === 'FUNCTIONS';
+        units.push(Object.freeze({
+          creator_role: creatorRole,
+          schema,
+          object_class: objectClass,
+          privileges: Object.freeze([...privileges]),
+          grantees: Object.freeze([...contract.grantees]),
+          status: creatorRole === 'postgres' ? 'REQUIRED' : 'BLOCKED',
+          execution_disposition: executable
+            ? 'EXECUTABLE_INERT_SOURCE'
+            : signatureAssertion ? 'ASSERT_SIGNATURE_SPECIFIC_REVOKE' : contract.blocked_creator_disposition,
+          ...(creatorRole === 'supabase_admin' ? { blocker_class: contract.blocked_creator_class } : {}),
+          effect_sha256: sha256(canonicalJson({ creator_role: creatorRole, schema, object_class: objectClass, privileges, grantees: contract.grantees })),
+          sql: executable
+            ? `alter default privileges for role ${creatorRole} in schema ${schema} revoke ${privileges.join(', ')} on ${objectClass.toLowerCase()} from ${contract.grantees.join(', ')};`
+            : null
+        }));
+      }
+    }
+  }
+  if (units.length !== contract.unit_count) {
+    throw new Error(`creator default ACL unit count drift: expected ${contract.unit_count}, found ${units.length}`);
+  }
+  if (units.filter((unit) => unit.sql).length !== contract.executable_unit_count
+    || units.filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length !== contract.signature_assertion_unit_count
+    || units.filter((unit) => unit.status === 'BLOCKED').length !== contract.blocked_unit_count) {
+    throw new Error('creator default ACL executable/blocked disposition count drift');
+  }
+  return Object.freeze(units);
+}
+
+function creatorDefaultAclManifest(config) {
+  return {
+    ...config.creator_default_acl,
+    units: buildCreatorDefaultAclUnits(config).map(({ sql, ...unit }) => unit)
+  };
+}
+
+function privilegeKeywordMatches(action, keyword) {
+  return (action === 'grant' && keyword === 'to') || (action === 'revoke' && keyword === 'from');
+}
+
+export function parseFunctionPrivilegeEffect(statement, fallbackSchema = 'public') {
+  const clean = withoutLeadingComments(statement).trim().replace(/;\s*$/, '');
+  const hasFunctionPrivilegeIntent = /^(?:grant|revoke)\b[\s\S]*\bon\s+(?:all\s+)?(?:functions?|routines?|procedures?)\b/i.test(clean)
+    || /^alter\s+default\s+privileges\b[\s\S]*\bon\s+(?:functions?|routines?|procedures?)\b/i.test(clean);
+  if (!hasFunctionPrivilegeIntent) return null;
+
+  const malformed = (reason) => ({ malformed: true, reason });
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const privilege = '(execute|all(?:\\s+privileges)?)';
+  try {
+    const specific = new RegExp(`^(grant|revoke)\\s+${privilege}\\s+on\\s+function\\s+(${qualified})\\s*\\(`, 'i').exec(clean);
+    if (specific) {
+      const identity = normalizeQualifiedName(specific[3], fallbackSchema);
+      const { argumentTypes, closeIndex } = parseFunctionArguments(clean, specific[0].lastIndexOf('('));
+      const action = specific[1].toLowerCase();
+      const tail = /^(to|from)\s+(.+)$/i.exec(clean.slice(closeIndex + 1).trim());
+      if (!tail || !privilegeKeywordMatches(action, tail[1].toLowerCase())) return malformed('function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'function',
+        action,
+        privilege: 'execute',
+        identity,
+        signature: `${identity}(${argumentTypes.join(', ')})`,
+        argument_types: argumentTypes,
+        roles: parseIdentifierList(tail[2])
+      };
+    }
+
+    const schemaWide = new RegExp(`^(grant|revoke)\\s+${privilege}\\s+on\\s+all\\s+functions\\s+in\\s+schema\\s+(.+?)\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
+    if (schemaWide) {
+      const action = schemaWide[1].toLowerCase();
+      const keyword = schemaWide[4].toLowerCase();
+      if (!privilegeKeywordMatches(action, keyword)) return malformed('schema-wide function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'schema_all',
+        action,
+        privilege: 'execute',
+        schemas: parseIdentifierList(schemaWide[3]),
+        roles: parseIdentifierList(schemaWide[5])
+      };
+    }
+
+    if (/^alter\s+default\s+privileges\b/i.test(clean)) {
+      const defaults = new RegExp(`^alter\\s+default\\s+privileges(?:\\s+for\\s+role\\s+(${name}))?(?:\\s+in\\s+schema\\s+(.+?))?\\s+(grant|revoke)\\s+${privilege}\\s+on\\s+functions\\s+(to|from)\\s+(.+)$`, 'i').exec(clean);
+      if (!defaults) return malformed('unsupported default function privilege statement');
+      const action = defaults[3].toLowerCase();
+      const keyword = defaults[5].toLowerCase();
+      if (!privilegeKeywordMatches(action, keyword)) return malformed('default function privilege statement: action keyword mismatch');
+      return {
+        malformed: false,
+        scope: 'schema_default',
+        action,
+        privilege: 'execute',
+        ...(defaults[1] ? { creator_role: quotedName(defaults[1]).toLowerCase() } : {}),
+        schemas: defaults[2] ? parseIdentifierList(defaults[2]) : null,
+        roles: parseIdentifierList(defaults[6])
+      };
+    }
+  } catch (error) {
+    return malformed(error.message);
+  }
+  return malformed('unsupported function privilege statement');
+}
+
+export function parseFunctionPrivilegeStatement(statement, fallbackSchema = 'public') {
+  const effect = parseFunctionPrivilegeEffect(statement, fallbackSchema);
+  if (!effect || effect.malformed || effect.scope === 'function') return effect;
+  return null;
+}
+
+export function analyzeFunctionDependencyStatement(statement, fallbackSchema = 'public') {
+  const name = namePattern();
+  const qualified = `${name}(?:\\s*\\.\\s*${name})?`;
+  const masked = maskSqlStringsAndComments(statement);
+  const references = new Set();
+  const expression = new RegExp(`\\b(?:on\\s+function|execute\\s+(?:function|procedure)|alter\\s+function|drop\\s+function)\\s+(?:if\\s+exists\\s+)?(${qualified})\\s*\\(`, 'gi');
+  for (const match of masked.matchAll(expression)) references.add(normalizeQualifiedName(match[1], fallbackSchema));
+  const hasDependencySyntax = /\b(?:on\s+function|execute\s+(?:function|procedure)|alter\s+function|drop\s+function)\b/i.test(masked);
+  return {
+    references: [...references].sort(),
+    malformed: hasDependencySyntax && references.size === 0
+  };
+}
+
+function functionIdentityForTarget(identity, app) {
+  if (app === 'fitness' && identity.startsWith('public.')) return `fitness.${identity.slice('public.'.length)}`;
+  if (app === 'mazer' && identity.startsWith('public.')) return `mazer.${identity.slice('public.'.length)}`;
+  return identity;
+}
+
+function referencePattern(identity) {
+  const [schema, name] = identity.split('.');
+  const escapedSchema = schema.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:"?${escapedSchema}"?\\s*\\.\\s*"?${escapedName}"?|(?<![A-Za-z0-9_$".])"?${escapedName}"?)\\s*\\(`, 'i');
+}
+
+export function findHeldFunctionReferences(statement, heldFunctions, fallbackSchema = 'public') {
+  const masked = maskSqlStringsAndComments(statement);
+  const definition = parseFunctionDefinition(statement, fallbackSchema);
+  return heldFunctions.filter((identity) => {
+    if (definition?.identity === identity) return true;
+    return referencePattern(identity).test(masked);
+  }).sort();
+}
+
+function relativeSourcePath(app, filename) {
+  return `bootstrap/sources/${app}/supabase/migrations/${filename}`;
+}
+
+function readSourceRecords(config) {
+  const records = [];
+  for (const source of config.sources) {
+    const directory = path.join(root, 'bootstrap', 'sources', source.app, 'supabase', 'migrations');
+    const filenames = fs.readdirSync(directory).filter((name) => name.endsWith('.sql')).sort();
+    if (filenames.length !== source.migration_count) {
+      throw new Error(`${source.app}: expected ${source.migration_count} migrations, found ${filenames.length}`);
+    }
+    filenames.forEach((filename, index) => {
+      const absolutePath = path.join(directory, filename);
+      const bytes = fs.readFileSync(absolutePath);
+      const text = bytes.toString('utf8');
+      if (Buffer.from(text, 'utf8').compare(bytes) !== 0) throw new Error(`${filename}: invalid UTF-8`);
+      records.push({
+        app: source.app,
+        commit: source.commit,
+        tree: source.tree,
+        order: index + 1,
+        path: `supabase/migrations/${filename}`,
+        copied_path: relativeSourcePath(source.app, filename),
+        blob: gitBlobSha1(bytes),
+        raw_sha256: sha256(bytes),
+        byte_count: bytes.length,
+        filename,
+        text,
+        statements: splitSqlStatements(text)
+      });
+    });
+  }
+  return records;
+}
+
+function provenance(record, statementOrdinal, transformationId, extra = {}) {
+  return {
+    source_app: record.app,
+    source_commit: record.commit,
+    source_path: record.path,
+    source_blob: record.blob,
+    source_raw_sha256: record.raw_sha256,
+    statement_ordinal: statementOrdinal,
+    transformation_id: transformationId,
+    ...extra
+  };
+}
+
+function quotedName(value) {
+  return value.replace(/^"|"$/g, '').replace(/""/g, '"');
+}
+
+function namePattern() {
+  return '(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)';
+}
+
+function canonicalRelation(value, fallbackSchema) {
+  const pieces = value.split('.').map(quotedName);
+  return pieces.length === 1 ? `${fallbackSchema}.${pieces[0]}` : `${pieces[0]}.${pieces[1]}`;
+}
+
+function extractObjects(records, config) {
+  const tableSet = new Map();
+  const functionSet = new Map();
+  const policySet = new Map();
+  const triggerSet = new Map();
+  const indexSet = new Map();
+  const extensionSet = new Map();
+  const name = namePattern();
+  const qualified = `${name}(?:\\.${name})?`;
+
+  for (const record of records) {
+    const fallbackSchema = record.app === 'discordos' ? 'discordos' : 'public';
+    record.statements.forEach((statement, statementIndex) => {
+      const ordinal = statementIndex + 1;
+      const transformationId = `${record.app}:${record.filename}:${String(ordinal).padStart(4, '0')}`;
+      const base = provenance(record, ordinal, transformationId);
+      const tableMatches = statement.matchAll(new RegExp(`\\bcreate\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(${qualified})`, 'gi'));
+      for (const match of tableMatches) {
+        const identity = canonicalRelation(match[1], fallbackSchema);
+        if (!tableSet.has(identity)) tableSet.set(identity, { identity, ...base });
+      }
+      const functionMatches = statement.matchAll(new RegExp(`\\bcreate\\s+(?:or\\s+replace\\s+)?function\\s+(${qualified})\\s*\\(`, 'gi'));
+      for (const match of functionMatches) {
+        const identity = canonicalRelation(match[1], fallbackSchema);
+        functionSet.set(identity, { identity, ...base });
+      }
+      const dropFunctionMatches = statement.matchAll(new RegExp(`\\bdrop\\s+function\\s+(?:if\\s+exists\\s+)?(${qualified})`, 'gi'));
+      for (const match of dropFunctionMatches) functionSet.delete(canonicalRelation(match[1], fallbackSchema));
+
+      const dropPolicyMatches = statement.matchAll(new RegExp(`\\bdrop\\s+policy\\s+(?:if\\s+exists\\s+)?(${name})\\s+on\\s+(${qualified})`, 'gi'));
+      for (const match of dropPolicyMatches) policySet.delete(`${canonicalRelation(match[2], fallbackSchema)}::${quotedName(match[1])}`);
+      const policyMatches = statement.matchAll(new RegExp(`\\bcreate\\s+policy\\s+(${name})\\s+on\\s+(${qualified})`, 'gi'));
+      for (const match of policyMatches) {
+        const identity = `${canonicalRelation(match[2], fallbackSchema)}::${quotedName(match[1])}`;
+        policySet.set(identity, { identity, ...base });
+      }
+
+      const dropTriggerMatches = statement.matchAll(new RegExp(`\\bdrop\\s+trigger\\s+(?:if\\s+exists\\s+)?(${name})\\s+on\\s+(${qualified})`, 'gi'));
+      for (const match of dropTriggerMatches) triggerSet.delete(`${canonicalRelation(match[2], fallbackSchema)}::${quotedName(match[1])}`);
+      const triggerMatches = statement.matchAll(new RegExp(`\\bcreate\\s+trigger\\s+(${name})[\\s\\S]*?\\bon\\s+(${qualified})`, 'gi'));
+      for (const match of triggerMatches) {
+        const identity = `${canonicalRelation(match[2], fallbackSchema)}::${quotedName(match[1])}`;
+        triggerSet.set(identity, { identity, ...base });
+      }
+
+      const indexMatches = statement.matchAll(new RegExp(`\\bcreate\\s+(?:unique\\s+)?index\\s+(?:concurrently\\s+)?(?:if\\s+not\\s+exists\\s+)?(${qualified})\\s+on\\s+(${qualified})`, 'gi'));
+      for (const match of indexMatches) {
+        const relation = canonicalRelation(match[2], fallbackSchema);
+        const indexName = canonicalRelation(match[1], relation.split('.')[0]);
+        if (!indexSet.has(indexName)) indexSet.set(indexName, { identity: indexName, relation, ...base });
+      }
+
+      const extensionMatches = statement.matchAll(new RegExp(`\\bcreate\\s+extension\\s+(?:if\\s+not\\s+exists\\s+)?(${name})`, 'gi'));
+      for (const match of extensionMatches) {
+        const identity = quotedName(match[1]);
+        if (!extensionSet.has(identity)) extensionSet.set(identity, { identity, ...base });
+      }
+
+    });
+  }
+
+  const denyTables = [
+    'discord_feedback_reports',
+    'discord_member_links',
+    'discord_message_command_claims',
+    'discord_moderation_cases',
+    'discord_spotify_connections',
+    'discord_spotify_lobbies',
+    'discord_spotify_queue_items',
+    'discord_spotify_room_members',
+    'discord_update_drafts',
+    'discord_verification_tokens'
+  ];
+  const policyRecord = records.find((record) => record.app === 'fitness' && record.filename === config.resolved_dynamic_policy_source.path);
+  if (!policyRecord) throw new Error('resolved Fitness policy source missing');
+  denyTables.forEach((table, index) => {
+    const identity = `public.${table}::${table}_deny_public_api_access`;
+    policySet.set(identity, {
+      identity,
+      ...provenance(policyRecord, 1, `fitness:resolved-deny-policy:${String(index + 1).padStart(2, '0')}`),
+      resolved_dynamic_identity: true,
+      predicate: 'using (false) with check (false)',
+      roles: ['anon', 'authenticated']
+    });
+  });
+
+  const constraintUnits = extractConstraintUnits(records);
+  return {
+    tables: [...tableSet.values()].sort(byIdentity),
+    functions: [...functionSet.values()].sort(byIdentity),
+    policies: [...policySet.values()].sort(byIdentity),
+    triggers: [...triggerSet.values()].sort(byIdentity),
+    index_identities: [...indexSet.values()].sort(byIdentity),
+    constraint_units: constraintUnits,
+    extension_dependencies: [...extensionSet.values()].sort(byIdentity)
+  };
+}
+
+function extractConstraintUnits(records) {
+  const named = new Map();
+  const unnamed = [];
+  const unnamedAlterCandidates = new Map([['discordos', []], ['fitness', []], ['mazer', []]]);
+  const expectedNamed = { discordos: 12, fitness: 146, mazer: 0 };
+  const expectedUnnamed = { discordos: 37, fitness: 55, mazer: 31 };
+  const name = namePattern();
+  const qualified = `${name}(?:\\.${name})?`;
+
+  for (const record of records) {
+    const fallbackSchema = record.app === 'discordos' ? 'discordos' : 'public';
+    record.statements.forEach((statement, statementIndex) => {
+      const ordinal = statementIndex + 1;
+      const transformationId = `${record.app}:${record.filename}:${String(ordinal).padStart(4, '0')}`;
+      const base = provenance(record, ordinal, transformationId);
+      const masked = maskSqlStringsAndComments(statement);
+      const clean = withoutLeadingComments(masked);
+      const createMatch = new RegExp(`^create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(${qualified})`, 'i').exec(clean);
+      if (createMatch) {
+        const relation = canonicalRelation(createMatch[1], fallbackSchema);
+        const namedPositions = [];
+        for (const match of clean.matchAll(new RegExp(`\\bconstraint\\s+(${name})`, 'gi'))) {
+          const identity = `${relation}::${quotedName(match[1])}`;
+          named.set(identity, { identity, kind: 'named', declared_name: quotedName(match[1]), ...base });
+          namedPositions.push(match.index);
+        }
+        const semantic = [...clean.matchAll(/\b(primary\s+key|references\s+(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)(?:\.(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*))?\s*\(|check\s*\(|unique\s*\()/gi)]
+          .map((match) => ({ index: match.index, kind: match[1].toLowerCase().startsWith('primary') ? 'primary_key' : match[1].toLowerCase().startsWith('references') ? 'inline_reference' : match[1].toLowerCase().startsWith('check') ? 'check' : 'unique' }));
+        const consumed = new Set();
+        for (const position of namedPositions) {
+          const candidate = semantic.findIndex((unit, index) => !consumed.has(index) && unit.index > position);
+          if (candidate >= 0) consumed.add(candidate);
+        }
+        semantic.forEach((unit, index) => {
+          if (consumed.has(index)) return;
+          unnamed.push({
+            identity: `${transformationId}:unnamed:${String(index + 1).padStart(3, '0')}`,
+            kind: unit.kind,
+            declared_name: null,
+            identity_certainty: 'source_unit_until_replay_catalog_readback',
+            ...base
+          });
+        });
+      }
+
+      const alterMatches = [...clean.matchAll(new RegExp(`\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(${qualified})`, 'gi'))];
+      alterMatches.forEach((alterMatch, alterIndex) => {
+        const relation = canonicalRelation(alterMatch[1], fallbackSchema);
+        const end = alterMatches[alterIndex + 1]?.index ?? clean.length;
+        const segment = clean.slice(alterMatch.index + alterMatch[0].length, end);
+        for (const constraintMatch of segment.matchAll(new RegExp(`\\b(add|drop)\\s+constraint\\s+(?:if\\s+exists\\s+)?(${name})`, 'gi'))) {
+          const identity = `${relation}::${quotedName(constraintMatch[2])}`;
+          if (constraintMatch[1].toLowerCase() === 'drop') named.delete(identity);
+          else named.set(identity, { identity, kind: 'named', declared_name: quotedName(constraintMatch[2]), ...base });
+        }
+        if (!/\badd\s+constraint\b/i.test(segment)) {
+          const candidates = [...segment.matchAll(/\b(primary\s+key|references\s+(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)(?:\.(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*))?\s*\(|check\s*\(|unique\s*\()/gi)];
+          if (candidates.length > 0) unnamedAlterCandidates.get(record.app).push({ relation, base, candidates });
+        }
+      });
+
+      if (record.app === 'fitness' && record.filename === '20260515150000_059_discord_feedback_reports.sql') {
+        const listMatch = /conname\s+in\s*\(([\s\S]*?)\)/i.exec(statement);
+        if (listMatch) {
+          for (const match of listMatch[1].matchAll(/'([^']+)'/g)) {
+            named.delete(`public.discord_feedback_reports::${match[1]}`);
+            named.delete(`public.discord_bug_reports::${match[1]}`);
+          }
+        }
+      }
+    });
+  }
+
+  for (const app of ['discordos', 'fitness', 'mazer']) {
+    const namedCount = [...named.values()].filter((unit) => unit.source_app === app).length;
+    const appUnnamed = unnamed.filter((unit) => unit.source_app === app);
+    const needed = expectedUnnamed[app] - appUnnamed.length;
+    if (needed < 0) throw new Error(`${app}: unnamed constraint inventory exceeded accepted denominator`);
+    const candidates = unnamedAlterCandidates.get(app);
+    if (candidates.length < needed) throw new Error(`${app}: insufficient reconciled unnamed constraint provenance`);
+    for (let index = 0; index < needed; index += 1) {
+      const candidate = candidates[index];
+      unnamed.push({
+        identity: `${candidate.base.transformation_id}:unnamed-reconciled:${String(index + 1).padStart(3, '0')}`,
+        kind: 'replay_catalog_constraint',
+        declared_name: null,
+        relation: candidate.relation,
+        identity_certainty: 'accepted_denominator_replay_readback_required',
+        ...candidate.base
+      });
+    }
+  }
+
+  const acceptedNamedCount = Object.values(expectedNamed).reduce((sum, count) => sum + count, 0);
+  const acceptedUnnamedCount = Object.values(expectedUnnamed).reduce((sum, count) => sum + count, 0);
+  return {
+    status: 'BLOCKED',
+    expected_count: acceptedNamedCount + acceptedUnnamedCount,
+    accepted_named_catalog_count: acceptedNamedCount,
+    accepted_unnamed_catalog_count: acceptedUnnamedCount,
+    static_named_candidate_count: named.size,
+    unresolved_named_candidate_delta: named.size - acceptedNamedCount,
+    reason: 'Final individual constraint identities require the two contained replay catalog readbacks; the accepted denominator is frozen without guessing provider-generated identities.',
+    static_named_candidates: [...named.values()].sort(byIdentity),
+    accepted_unnamed_source_units: unnamed.sort(byIdentity)
+  };
+}
+
+function byIdentity(left, right) {
+  return left.identity.localeCompare(right.identity);
+}
+
+function buildDynamicUnits(records, config) {
+  const units = [];
+  for (const allowed of config.dynamic_allowlist) {
+    const record = records.find((candidate) => candidate.app === allowed.app && candidate.filename === allowed.path);
+    if (!record) throw new Error(`dynamic source missing: ${allowed.path}`);
+    const candidates = record.statements
+      .map((statement, index) => ({ statement, ordinal: index + 1 }))
+      .filter(({ statement }) => classifyStatement(statement).dynamicIdentity);
+    if (candidates.length !== allowed.templates) {
+      throw new Error(`${allowed.path}: expected ${allowed.templates} dynamic templates, found ${candidates.length}`);
+    }
+    candidates.forEach(({ ordinal }, index) => units.push({
+      id: `${allowed.app}:${allowed.path}:dynamic:${String(index + 1).padStart(2, '0')}`,
+      status: 'BLOCKED',
+      reason: 'Runtime-selected catalog identity requires two identical contained replay readbacks.',
+      ...provenance(record, ordinal, `${allowed.app}:hold-dynamic-identity-v1`)
+    }));
+  }
+  return units;
+}
+
+function buildDataEffects(records) {
+  const effects = [];
+  for (const record of records) {
+    record.statements.forEach((statement, index) => {
+      const classification = classifyStatement(statement);
+      if (!classification.dataEffect) return;
+      const operation = /^\s*(with\b[\s\S]*?\b)?(insert|update|delete|merge|truncate|copy)\b/i.exec(classification.clean)?.[2]?.toUpperCase()
+        ?? (/\binsert\s+into\b/i.test(classification.clean) ? 'INSERT'
+          : /\bdelete\s+from\b/i.test(classification.clean) ? 'DELETE' : 'UPDATE');
+      effects.push({
+        id: `${record.app}:${record.filename}:data:${String(index + 1).padStart(4, '0')}`,
+        status: 'BLOCKED',
+        operation,
+        reason: 'Top-level data effect is excluded from schema generation and requires a later data reconciliation wave.',
+        ...provenance(record, index + 1, `${record.app}:hold-data-effect-v1`)
+      });
+    });
+  }
+  return effects;
+}
+
+export function namespaceRewrite(sql, app) {
+  if (app === 'fitness') {
+    const definition = parseFunctionDefinition(sql, 'public');
+    let rewritten = sql;
+    if (definition?.identity.startsWith('public.')) {
+      const searchPath = parseFunctionSearchPath(sql, 'public');
+      if (searchPath.malformed) throw new Error(`${definition.signature}: ${searchPath.reason}`);
+      if (searchPath.present) {
+        if (canonicalJson(searchPath.schemas) !== canonicalJson(['public', 'pg_temp'])) {
+          throw new Error(`${definition.signature}: source search_path must be exactly public, pg_temp`);
+        }
+        rewritten = `${sql.slice(0, searchPath.clause_start)}set search_path = fitness, pg_temp${sql.slice(searchPath.clause_end)}`;
+      }
+    }
+    return rewritten.replace(/\bpublic\./gi, 'fitness.');
+  }
+  if (app === 'mazer') return sql.replace(/\bpublic\./gi, 'mazer.');
+  return sql;
+}
+
+function initialStatementDisposition(record, statement, config, classification, definition, dependency) {
+  const dynamicPaths = new Set(config.dynamic_allowlist.map((entry) => `${entry.app}/${entry.path}`));
+  const heldNumberPaths = new Set(config.held_sources.fitness_number_migrations);
+  if (record.app === 'discordos' && record.filename >= config.held_sources.discordos_scheduler_activation) {
+    return ['discordos_scheduler_boundary', 'DiscordOS scheduler and later runtime/control-plane units require a contained replay and activation packet.'];
+  }
+  if (record.app === 'fitness' && heldNumberPaths.has(record.filename)) {
+    return ['fitness_global_number_transform', 'Fitness number transformation is blocked on the source dependency and contained replay acceptance.'];
+  }
+  if (record.app === 'fitness' && record.filename === config.resolved_dynamic_policy_source.path) {
+    return ['resolved_dynamic_policy_expansion', 'The source dynamic policy unit is replaced by the exact ten-identity static expansion.'];
+  }
+  if (record.app === 'discordos' && definition?.identity.match(/^public\.discordos_[a-z0-9_$]+$/)) {
+    return ['discordos_public_rpc_control_plane', 'Public DiscordOS RPC creation is held pending explicit control-plane and security proof.'];
+  }
+  if (dependency.malformed) {
+    return ['malformed_function_dependency', 'Function dependency syntax could not be resolved deterministically.'];
+  }
+  if (classification.dataEffect) return ['data_effect', 'Top-level data effect requires a later data reconciliation wave.'];
+  if (classification.extensionDependency) return ['extension_activation', 'Extension creation is a provider/runtime dependency, not an admitted generated effect.'];
+  if (classification.cronActivation) return ['cron_activation', 'Cron activation requires a later runtime activation packet.'];
+  if (classification.networkEffect) return ['network_effect', 'Network effects are prohibited in the inert source package.'];
+  if (classification.securityDefiner) return ['security_definer', 'SECURITY DEFINER creation requires explicit target security proof.'];
+  if (dynamicPaths.has(`${record.app}/${record.filename}`) && classification.dynamicIdentity) {
+    return ['allowlisted_dynamic_identity', 'Allowlisted dynamic identity remains blocked pending two identical contained replay readbacks.'];
+  }
+  if (classification.dynamicIdentity) return ['unallowlisted_dynamic_identity', 'Dynamic identity is not admitted to executable output.'];
+  if (/^do\b/i.test(classification.clean)) return ['anonymous_code_block', 'Anonymous code blocks remain held until contained replay proves their complete effects.'];
+  return null;
+}
+
+export function buildGenerationPlan(records, config) {
+  const units = records.flatMap((record) => record.statements.map((statement, index) => {
+    const fallbackSchema = record.app === 'discordos' ? 'discordos' : 'public';
+    const classification = classifyStatement(statement);
+    const definition = parseFunctionDefinition(statement, fallbackSchema);
+    const dependency = analyzeFunctionDependencyStatement(statement, fallbackSchema);
+    const initialDisposition = initialStatementDisposition(record, statement, config, classification, definition, dependency);
+    return {
+      record,
+      statement,
+      statement_ordinal: index + 1,
+      fallback_schema: fallbackSchema,
+      classification,
+      definition,
+      dependency,
+      blocker_class: initialDisposition?.[0] ?? null,
+      reason: initialDisposition?.[1] ?? null,
+      referenced_held_functions: []
+    };
+  }));
+
+  const heldFunctionsByApp = new Map();
+  for (const unit of units.filter((candidate) => candidate.blocker_class && candidate.definition)) {
+    if (!heldFunctionsByApp.has(unit.record.app)) heldFunctionsByApp.set(unit.record.app, new Set());
+    heldFunctionsByApp.get(unit.record.app).add(unit.definition.identity);
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const unit of units) {
+      if (unit.blocker_class) continue;
+      const heldFunctions = heldFunctionsByApp.get(unit.record.app) ?? new Set();
+      const identities = [...heldFunctions].sort();
+      const references = findHeldFunctionReferences(unit.statement, identities, unit.fallback_schema);
+      if (references.length === 0) continue;
+      unit.blocker_class = 'held_function_dependency';
+      unit.reason = 'Statement resolves or references a held function and cannot remain executable without its dependency.';
+      unit.referenced_held_functions = references;
+      if (unit.definition && !heldFunctions.has(unit.definition.identity)) {
+        heldFunctions.add(unit.definition.identity);
+        heldFunctionsByApp.set(unit.record.app, heldFunctions);
+        changed = true;
+      }
+    }
+  }
+
+  for (const unit of units.filter((candidate) => candidate.blocker_class)) {
+    if (unit.referenced_held_functions.length === 0) {
+      const heldFunctions = heldFunctionsByApp.get(unit.record.app) ?? new Set();
+      unit.referenced_held_functions = findHeldFunctionReferences(unit.statement, [...heldFunctions].sort(), unit.fallback_schema)
+        .filter((identity) => identity !== unit.definition?.identity);
+    }
+  }
+  return {
+    units,
+    held_functions: [...heldFunctionsByApp.entries()]
+      .flatMap(([app, identities]) => [...identities].map((identity) => `${app}:${identity}`))
+      .sort()
+  };
+}
+
+function heldStatementEvidence(plan) {
+  const heldStatements = plan.units.filter((unit) => unit.blocker_class).map((unit) => ({
+    id: `${unit.record.app}:${unit.record.filename}:held:${String(unit.statement_ordinal).padStart(4, '0')}`,
+    status: 'BLOCKED',
+    blocker_class: unit.blocker_class,
+    reason: unit.reason,
+    statement_sha256: sha256(Buffer.from(unit.statement, 'utf8')),
+    statement_byte_count: Buffer.byteLength(unit.statement, 'utf8'),
+    defined_function: unit.definition ? {
+      source_identity: unit.definition.identity,
+      target_identity: functionIdentityForTarget(unit.definition.identity, unit.record.app)
+    } : null,
+    referenced_held_functions: unit.referenced_held_functions.map((identity) => ({
+      source_identity: identity,
+      target_identity: functionIdentityForTarget(identity, unit.record.app)
+    })),
+    ...provenance(unit.record, unit.statement_ordinal, `${unit.record.app}:hold-${unit.blocker_class.replaceAll('_', '-')}-v1`)
+  }));
+  const heldFunctions = plan.units.filter((unit) => unit.blocker_class && unit.definition).map((unit) => ({
+    source_identity: unit.definition.identity,
+    target_identity: functionIdentityForTarget(unit.definition.identity, unit.record.app),
+    blocker_class: unit.blocker_class,
+    ...provenance(unit.record, unit.statement_ordinal, `${unit.record.app}:hold-function-v1`)
+  })).sort((left, right) => `${left.source_app}:${left.source_identity}`.localeCompare(`${right.source_app}:${right.source_identity}`));
+  return { heldStatements, heldFunctions };
+}
+
+function buildGeneratedSql(records, config, securityMatrix, plan) {
+  const files = new Map();
+  const prefix = '-- APPLY_ADMITTED=false\n-- INERT SOURCE PACKAGE: review and contained replay are required before any apply.\n';
+  const creatorDefaultAclUnits = buildCreatorDefaultAclUnits(config);
+  const executableCreatorDefaultAclUnits = creatorDefaultAclUnits.filter((unit) => unit.sql);
+  for (const app of ['mazer', 'fitness', 'discordos']) {
+    const chunks = app === 'mazer' ? [
+      'set role postgres;',
+      `do $current_user_guard$ begin if current_user <> 'postgres' then raise exception 'target bootstrap requires postgres current_user'; end if; end $current_user_guard$;`,
+      '-- Required namespace prerequisites for the blocked creator-boundary contract.\n'
+        + `${config.creator_default_acl.schemas.map((schema) => [
+          `create schema if not exists ${schema} authorization postgres;`,
+          `alter schema ${schema} owner to postgres;`,
+          `revoke create on schema ${schema} from supabase_admin;`
+        ].join('\n')).join('\n')}`,
+      `-- Exactly ${executableCreatorDefaultAclUnits.length} postgres table/sequence default-ACL units are emitted; six function units require signature-specific revocation and 18 supabase_admin units remain held evidence.\n`
+        + executableCreatorDefaultAclUnits.map((unit) => unit.sql).join('\n')
+    ] : app === 'fitness' ? [`create schema if not exists ${app};`] : [];
+    const functionSignatures = new Set();
+    const executableStatements = [];
+    for (const record of records.filter((candidate) => candidate.app === app)) {
+      const statements = plan.units
+        .filter((unit) => unit.record === record && !unit.blocker_class)
+        .map((unit) => namespaceRewrite(unit.statement, record.app));
+      if (statements.length === 0) continue;
+      executableStatements.push(...statements);
+      const fallbackSchema = app === 'fitness' || app === 'mazer' ? app : 'discordos';
+      for (const statement of statements) {
+        const definition = parseFunctionDefinition(statement, fallbackSchema);
+        if (definition) functionSignatures.add(definition.signature);
+      }
+      chunks.push(`-- source ${record.path} blob ${record.blob} raw_sha256 ${record.raw_sha256}\n${statements.join('\n\n')}`);
+    }
+    if (app === 'fitness') {
+      const searchPathFailures = verifyFitnessFunctionSearchPaths(executableStatements, [...functionSignatures]);
+      if (searchPathFailures.length > 0) throw new Error(`Fitness function search_path contract failed:\n${searchPathFailures.join('\n')}`);
+    }
+    if (functionSignatures.size > 0) {
+      chunks.push(`-- Effective function ACL closure: no application role is authorized in this inert package.\n${[...functionSignatures]
+        .sort()
+        .map((signature) => `revoke execute on function ${signature} from PUBLIC, anon, authenticated, service_role;`)
+        .join('\n')}`);
+    }
+    if (app === 'fitness') {
+      const denyTables = [
+        'discord_feedback_reports', 'discord_member_links', 'discord_message_command_claims',
+        'discord_moderation_cases', 'discord_spotify_connections', 'discord_spotify_lobbies',
+        'discord_spotify_queue_items', 'discord_spotify_room_members', 'discord_update_drafts',
+        'discord_verification_tokens'
+      ];
+      chunks.push(`-- resolved dynamic policy expansion: exactly ${denyTables.length} identities\n${denyTables.map((table) => [
+        `revoke all privileges on table fitness.${table} from PUBLIC, anon, authenticated;`,
+        `grant all privileges on table fitness.${table} to service_role;`,
+        `create policy ${table}_deny_public_api_access on fitness.${table} for all to anon, authenticated using (false) with check (false);`
+      ].join('\n')).join('\n\n')}`);
+    }
+    files.set(`0000000000000${files.size + 1}_${app}_schema_inert.sql`, `${prefix}\n${chunks.join('\n\n')}\n`);
+  }
+
+  const overlayLines = [
+    prefix.trimEnd(),
+    '-- Target-only namespace and security expectation overlay.',
+    ...['platform_shared', 'discordos', 'fitness', 'mazer', 'platform_private', 'discordos_private'].map((schema) => `create schema if not exists ${schema};`),
+    '',
+    ...['public', 'platform_shared', 'discordos', 'fitness', 'mazer', 'platform_private', 'discordos_private'].map((schema) => `revoke all on schema ${schema} from PUBLIC, anon, authenticated;`),
+    '',
+    '-- Closed contract relation expectations; definitions remain blocked until generated from reviewed schemas.',
+    ...securityMatrix.relations.map((relation) => `-- ${relation.name} RLS=${relation.rls_enabled} FORCE_RLS=${relation.rls_forced} GRANTS=${sha256(canonicalJson(relation.grants))}`),
+    '-- Closed contract function expectations; no function body is generated in this packet.',
+    ...securityMatrix.functions.map((fn) => `-- ${fn.name} EXPOSURE=${fn.exposure} EXECUTE=${fn.execute_grants.join(',') || 'none'} REVOKED=${fn.execute_revoked_from.join(',')}`),
+    ''
+  ];
+  files.set('00000000000004_platform_security_overlay_inert.sql', overlayLines.join('\n'));
+  return files;
+}
+
+function requireExactFilenameDenominator(files, contract, label) {
+  if (!(files instanceof Map)) throw new Error(`${label} publication input must be a Map`);
+  const actualFiles = [...files.keys()].sort();
+  if (canonicalJson(actualFiles) !== canonicalJson([...contract.filenames].sort())) {
+    throw new Error(`${label} filename denominator drift`);
+  }
+}
+
+function validateClosedGeneratedDirectory(directory, filenames, label) {
+  const stats = lstatIfPresent(directory);
+  if (!stats) return;
+  if (stats.isSymbolicLink()) throw new Error(`${label} is link-like`);
+  if (!stats.isDirectory()) throw new Error(`${label} is not a directory`);
+  const expected = new Set(filenames);
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) throw new Error(`${label} contains a link-like entry: ${entry.name}`);
+    if (!entry.isFile()) throw new Error(`${label} contains an unsupported filesystem entry type: ${entry.name}`);
+    if (!expected.has(entry.name)) throw new Error(`${label} contains an undeclared file: ${entry.name}`);
+  }
+}
+
+function validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options = {}) {
+  requireExactFilenameDenominator(manifests, generatedManifestContractV1, 'generated manifest');
+  requireExactFilenameDenominator(inertSql, generatedInertArtifactContractV1, 'generated inert artifact');
+  const layout = validateGeneratedInertArtifactLayout(repositoryRoot, options);
+  validateClosedGeneratedDirectory(layout.manifests, generatedManifestContractV1.filenames, 'generated manifest directory');
+  validateClosedGeneratedDirectory(layout.output, generatedInertArtifactContractV1.filenames, 'generated inert artifact directory');
+  const executableSql = listSqlFiles(layout.standardMigrations);
+  if (executableSql.length > 0) {
+    throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${executableSql.join(', ')}`);
+  }
+  const standardEntries = lstatIfPresent(layout.standardMigrations)
+    ? fs.readdirSync(layout.standardMigrations, { withFileTypes: true })
+    : [];
+  if (standardEntries.length > 0) {
+    throw new Error(`standard Supabase migration discovery is not empty: ${standardEntries.map((entry) => entry.name).sort().join(', ')}`);
+  }
+  return layout;
+}
+
+export function writeTargetBootstrapArtifacts(manifests, inertSql, repositoryRoot = root, options = {}) {
+  requireExactFilenameDenominator(manifests, generatedManifestContractV1, 'generated manifest');
+  requireExactFilenameDenominator(inertSql, generatedInertArtifactContractV1, 'generated inert artifact');
+  const publicationPlan = [
+    ...generatedManifestContractV1.filenames.map((filename) => ({
+      contract: 'manifest',
+      filename,
+      content: canonicalJson(manifests.get(filename))
+    })),
+    ...generatedInertArtifactContractV1.filenames.map((filename) => ({
+      contract: 'inert-sql',
+      filename,
+      content: inertSql.get(filename)
+    }))
+  ];
+  if (publicationPlan.some((entry) => typeof entry.content !== 'string')) {
+    throw new Error('generated publication plan contains non-text content');
+  }
+
+  // Discovery and every destination-chain check complete before directory creation or file publication.
+  let layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  fs.mkdirSync(layout.manifests, { recursive: true });
+  fs.mkdirSync(layout.output, { recursive: true });
+
+  // Under the serialized local-writer contract this is the immediate, complete pre-publication revalidation.
+  layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  const admittedIdentityModel = canonicalJson(layout.identityModel);
+  if (options.beforePublication) options.beforePublication(layout);
+  layout = validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+  if (canonicalJson(layout.identityModel) !== admittedIdentityModel) {
+    throw new Error('generated publication path identity drifted after validation');
+  }
+  for (const entry of publicationPlan) {
+    const directory = entry.contract === 'manifest' ? layout.manifests : layout.output;
+    fs.writeFileSync(path.join(directory, entry.filename), entry.content, 'utf8');
+  }
+  validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoot, options);
+}
+
+function sourceManifest(records, config) {
+  const migrations = records.map(({ text, statements, filename, ...record }) => record);
+  const packageManifestSha256 = sha256(canonicalJson(migrations));
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    apply_admitted: false,
+    evidence_artifact: config.evidence,
+    accepted_source_chain_sha256: Object.fromEntries(config.sources.map((source) => [source.app, source.chain_manifest_sha256])),
+    package_manifest_sha256: packageManifestSha256,
+    migrations
+  };
+}
+
+export function generateTargetBootstrap() {
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const securityMatrix = JSON.parse(fs.readFileSync(path.join(root, 'contracts', 'v1', 'security', 'rls-grant-function-matrix.json'), 'utf8'));
+  const records = readSourceRecords(config);
+  const objects = extractObjects(records, config);
+  const dynamicUnits = buildDynamicUnits(records, config);
+  const dataEffects = buildDataEffects(records);
+  const generationPlan = buildGenerationPlan(records, config);
+  const heldEvidence = heldStatementEvidence(generationPlan);
+  const generatedSql = buildGeneratedSql(records, config, securityMatrix, generationPlan);
+  const generatedManifests = new Map();
+
+  generatedManifests.set('source-migrations.v1.json', sourceManifest(records, config));
+  generatedManifests.set('source-objects.v1.json', {
+    version: '1.0.0', status: 'CURRENT', apply_admitted: false, expected_counts: config.expected, ...objects
+  });
+  generatedManifests.set('dynamic-units.v1.json', {
+    version: '1.0.0', status: 'BLOCKED', apply_admitted: false,
+    unresolved_count: dynamicUnits.length,
+    resolved_fitness_deny_policy_count: config.resolved_dynamic_policy_source.expanded_policy_count,
+    units: dynamicUnits
+  });
+  generatedManifests.set('data-effects.v1.json', {
+    version: '1.0.0', status: 'BLOCKED', apply_admitted: false,
+    held_count: dataEffects.length,
+    effects: dataEffects
+  });
+  generatedManifests.set('collisions.v1.json', {
+    version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
+    exact_cross_source_name_collisions: 0,
+    groups: [
+      { id: 'discord-feedback-product-contracts', classification: 'semantic_conflict', disposition: 'quarantine' },
+      { id: 'discord-update-drafts-product-contracts', classification: 'semantic_conflict', disposition: 'quarantine' },
+      { id: 'fitness-local-versus-global-user-number', classification: 'semantic_conflict', disposition: 'forward_transform', status: 'BLOCKED' },
+      { id: 'fitness-global-profile-split', classification: 'ownership_auth_conflict', disposition: 'forward_transform', status: 'BLOCKED' },
+      { id: 'mazer-global-profile-split', classification: 'ownership_auth_conflict', disposition: 'forward_transform', status: 'BLOCKED' },
+      { id: 'fitness-entitlement-ownership', classification: 'ownership_auth_conflict', disposition: 'forward_transform', status: 'BLOCKED' }
+    ]
+  });
+  generatedManifests.set('dispositions.v1.json', {
+    version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
+    source_raw_bytes: 'provenance_input_only',
+    namespace_rewrites: { fitness: 'fitness', mazer: 'mazer', discordos: 'discordos' },
+    provider_managed: 'skip_recreation',
+    data_effects: 'blocked_data_reconciliation',
+    dynamic_templates: 'blocked_contained_replay',
+    scheduler: 'blocked_activation',
+    fitness_number_transform: 'blocked_unmerged_dependency_and_replay',
+    runtime_and_control_plane: 'blocked',
+    derived_counts: {
+      source_statement_count: generationPlan.units.length,
+      executable_statement_count: generationPlan.units.filter((unit) => !unit.blocker_class).length,
+      held_statement_count: heldEvidence.heldStatements.length,
+      held_function_definition_statement_count: heldEvidence.heldFunctions.length,
+      held_function_identity_count: generationPlan.held_functions.length,
+      held_dependency_statement_count: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'held_function_dependency').length,
+      held_discordos_public_rpc_definition_count: heldEvidence.heldStatements.filter((unit) => unit.defined_function?.source_identity.match(/^public\.discordos_[a-z0-9_$]+$/)).length,
+      held_discordos_public_rpc_control_plane_definition_count: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'discordos_public_rpc_control_plane' && unit.defined_function).length
+    },
+    held_functions: heldEvidence.heldFunctions,
+    held_statements: heldEvidence.heldStatements
+  });
+  generatedManifests.set('namespace-plan.v1.json', {
+    version: '1.0.0', status: 'REQUIRED', apply_admitted: false,
+    target_postgresql: config.target_postgresql,
+    creator_default_acl: creatorDefaultAclManifest(config),
+    application_creator_boundary: config.application_creator_boundary,
+    public_object_boundary: config.public_object_boundary,
+    data_api_gate: config.data_api_gate,
+    public: { product_tables_allowed: false, rpc: 'blocked_pending_control_plane_and_security_proof' },
+    platform_shared: { exposure: 'intended_application_schema', contents: 'explicit_shared_identity_service_contracts_only' },
+    platform_private: { exposure: 'unexposed', contents: 'privileged_platform_helpers' },
+    discordos: { exposure: 'intended_application_schema', contents: 'discordos_product_objects' },
+    discordos_private: { exposure: 'unexposed', contents: 'discordos_internal_helpers' },
+    fitness: { exposure: 'intended_application_schema', contents: 'fitness_product_objects' },
+    mazer: { exposure: 'intended_application_schema', contents: 'mazer_product_objects' },
+    provider_managed: config.schemas.provider_managed
+  });
+  writeTargetBootstrapArtifacts(generatedManifests, generatedSql);
+
+  const report = {
+    ok: true,
+    apply_admitted: false,
+    migrations: records.length,
+    source_objects: Object.fromEntries(Object.entries(objects).map(([key, value]) => [key, key === 'constraint_units' ? value.expected_count : value.length])),
+    dynamic_templates: dynamicUnits.length,
+    held_data_effects: dataEffects.length,
+    executable_statements: generationPlan.units.filter((unit) => !unit.blocker_class).length,
+    held_statements: heldEvidence.heldStatements.length,
+    held_function_definition_statements: heldEvidence.heldFunctions.length,
+    held_function_identities: generationPlan.held_functions.length,
+    held_function_dependencies: heldEvidence.heldStatements.filter((unit) => unit.blocker_class === 'held_function_dependency').length,
+    creator_default_acl_units: buildCreatorDefaultAclUnits(config).length,
+    executable_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.sql).length,
+    signature_assertion_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.execution_disposition === 'ASSERT_SIGNATURE_SPECIFIC_REVOKE').length,
+    blocked_creator_default_acl_units: buildCreatorDefaultAclUnits(config).filter((unit) => unit.status === 'BLOCKED').length,
+    generated_files: [...generatedSql.keys()].sort()
+  };
+  return report;
+}
+
+if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  process.stdout.write(canonicalJson(generateTargetBootstrap()));
+}
