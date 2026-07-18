@@ -51,7 +51,7 @@ All of these remain held until a separately authorized packet proves them:
 7. supported logical export and Auth coverage mechanism;
 8. current provider backup readback;
 9. restore project capacity, region, cost, and action-time approval;
-10. numerical RPO/RTO objectives.
+10. numerical RPO/RTO objectives plus the accepted owner-decision receipt reference.
 
 Any `UNKNOWN` remains a stop condition. No manual policy question is created merely to replace missing execution evidence.
 
@@ -64,7 +64,7 @@ When separately admitted, an owner packet must:
 3. prevent persistent plaintext;
 4. record only the metadata key reference;
 5. prove destination versioning and immutability;
-6. record ciphertext bytes, ciphertext SHA-256, completion time, and retention expiry;
+6. record ciphertext bytes, ciphertext SHA-256, completion time, and retention expiry that covers completion, rehearsal acceptance, and the injected validation clock;
 7. record aggregate coverage counts and private digests for all seven units;
 8. calculate the canonical manifest digest using lexicographically sorted object keys, preserved array order, two-space JSON, one final LF, and SHA-256, excluding the manifest's own digest field;
 9. deliver and verify stale/failure alerts;
@@ -74,7 +74,7 @@ The manifest cannot become `CURRENT` while any required unit is `UNKNOWN`.
 
 ## Restore-to-new-project rehearsal
 
-A later authorized rehearsal must use one named backup version and a newly created isolated project. Before catalog or data inspection, it must prove the twelve-unit external-effect denominator disabled. Application credentials, DNS, aliases, and environment routing remain absent, and traffic remains unreleased.
+A later authorized rehearsal must use one named backup version and a newly created isolated project. Before catalog or data inspection, it must prove the twelve-unit external-effect denominator disabled. Every `CURRENT` disabled unit requires a distinct lowercase SHA-256 evidence digest, and the canonical manifest binds every unit/digest pair. Null, malformed, omitted, or reused evidence fails closed. Application credentials, DNS, aliases, and environment routing remain absent, and traffic remains unreleased.
 
 Readback must compare exact aggregate denominators and private digests for:
 
@@ -94,6 +94,8 @@ The rehearsal records exact UTC seconds for the recovery point, failure declarat
 - RTO as restore completion minus restore start.
 
 Claimed numerical measurements must equal the deterministic calculation. Objective values remain `UNKNOWN` until explicitly accepted after measured evidence exists.
+
+A `CURRENT` receipt must reference that acceptance with exactly five sanitized fields: stable decision ID, owner-decision receipt SHA-256, decision `accepted_at`, objective RPO seconds, and objective RTO seconds. The decision time must be at or after restore completion and no later than rehearsal acceptance. The referenced objective values must match the restore receipt exactly, and the reference is covered by the restore receipt digest. Missing fields, malformed IDs or digests, timestamp violations, or objective substitution block acceptance.
 
 ## Observation and rollback
 

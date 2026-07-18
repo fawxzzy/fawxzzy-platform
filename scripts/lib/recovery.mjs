@@ -52,8 +52,17 @@ export const expectedExecutionGates = Object.freeze([
   'restore_project_cost_and_capacity'
 ]);
 
+export const expectedOwnerDecisionFields = Object.freeze([
+  'accepted_at',
+  'decision_id',
+  'objective_rpo_seconds',
+  'objective_rto_seconds',
+  'receipt_sha256'
+]);
+
 const hexSha256 = /^[0-9a-f]{64}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const stableDecisionId = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
 const email = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const uuid = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i;
 const providerUrl = /https?:\/\//i;
@@ -199,6 +208,15 @@ function requireTimestampOrder(entries, now, failures) {
   }
 }
 
+function requireTimestampAtOrAfter({ value, boundary, valueLabel, boundaryLabel, message }, failures) {
+  if (value === null || value === undefined || boundary === null || boundary === undefined) return;
+  try {
+    if (parseTimestamp(value, valueLabel) < parseTimestamp(boundary, boundaryLabel)) failures.push(message);
+  } catch (error) {
+    failures.push(error.message);
+  }
+}
+
 export function validateRecoveryDocuments(documents, options = {}) {
   const failures = [];
   const sourceExamples = options.mode !== 'action';
@@ -257,6 +275,14 @@ export function validateRecoveryDocuments(documents, options = {}) {
   requireCondition(contract.execution_gates.every((entry) => entry.status === 'UNKNOWN'), 'execution gates must remain UNKNOWN in source');
   requireCondition(contract.rpo_rto.objective_status === 'UNKNOWN', 'numerical RPO/RTO objective must remain UNKNOWN');
   requireCondition(contract.rpo_rto.rpo_seconds === null && contract.rpo_rto.rto_seconds === null, 'source contract must not invent numerical RPO/RTO');
+  const ownerDecisionPolicy = contract.rpo_rto.owner_decision_reference;
+  requireCondition(ownerDecisionPolicy?.required === true, 'accepted RPO/RTO objectives must require an owner-decision receipt reference');
+  requireCondition(sameSet(ownerDecisionPolicy?.required_fields ?? [], expectedOwnerDecisionFields), 'owner-decision receipt-reference field denominator changed');
+  requireCondition(ownerDecisionPolicy?.decision_id_format === 'uppercase_hyphenated_stable_id', 'owner-decision stable ID format changed');
+  requireCondition(ownerDecisionPolicy?.receipt_digest_algorithm === 'SHA-256', 'owner-decision receipt digest algorithm changed');
+  requireCondition(ownerDecisionPolicy?.objective_values_must_match === true, 'owner-decision objectives must correlate exactly');
+  requireCondition(ownerDecisionPolicy?.accepted_at_not_after_rehearsal_acceptance === true, 'owner-decision timestamp boundary changed');
+  requireCondition(ownerDecisionPolicy?.included_in_restore_receipt_digest === true, 'owner-decision reference must remain bound into the restore receipt digest');
 
   requireCondition(backup.project.ref === contract.project.ref, 'backup manifest project correlation changed');
   requireCondition(effects.project.ref === contract.project.ref, 'external-effects manifest project correlation changed');
@@ -290,6 +316,8 @@ export function validateRecoveryDocuments(documents, options = {}) {
     requireCondition(restore.parity.every((entry) => entry.status === 'UNKNOWN'), 'restore parity must remain UNKNOWN');
     requireCondition(restore.rpo_rto.status === 'UNKNOWN', 'restore RPO/RTO measurement must remain UNKNOWN');
     requireCondition(restore.rpo_rto.measured_rpo_seconds === null && restore.rpo_rto.measured_rto_seconds === null, 'restore example must not invent RPO/RTO measurements');
+    requireCondition(restore.rpo_rto.objective_rpo_seconds === null && restore.rpo_rto.objective_rto_seconds === null, 'restore example must not invent RPO/RTO objectives');
+    requireCondition(restore.rpo_rto.owner_decision === null, 'restore example must not invent an owner decision');
   }
   requireHexOrNull(restore.backup_manifest_sha256, 'restore backup-manifest digest', failures);
   requireHexOrNull(restore.external_effects_manifest_sha256, 'restore external-effects digest', failures);
@@ -318,6 +346,7 @@ export function validateRecoveryDocuments(documents, options = {}) {
     requireCondition(backup.ciphertext.bytes !== null && backup.ciphertext.bytes > 0, 'accepted backup requires non-empty ciphertext bytes');
     requireCondition(backup.retention.retention_days !== null && backup.retention.retention_days > 0 && backup.retention.expires_at !== null, 'accepted backup requires positive retention and expiry');
     requireCondition(backup.freshness.status === 'CURRENT' && backup.freshness.maximum_age_seconds !== null, 'accepted backup requires a current freshness threshold');
+    requireCondition(options.now !== undefined, 'accepted backup retention requires an injected validation clock');
     if (backup.execution.completed_at !== null && backup.freshness.maximum_age_seconds !== null && options.now !== undefined) {
       const freshness = evaluateFreshness({
         completedAt: backup.execution.completed_at,
@@ -330,6 +359,9 @@ export function validateRecoveryDocuments(documents, options = {}) {
   }
   if (effects.status === 'CURRENT') {
     requireCondition(effects.effects.every((entry) => entry.status === 'CURRENT' && entry.disabled === true), 'accepted restore quarantine requires every external effect disabled');
+    const evidenceDigests = effects.effects.map((entry) => entry.evidence_digest);
+    requireCondition(evidenceDigests.every((digest) => typeof digest === 'string' && hexSha256.test(digest)), 'accepted restore quarantine requires a canonical evidence digest for every external effect');
+    requireCondition(new Set(evidenceDigests).size === evidenceDigests.length, 'accepted restore quarantine requires a distinct evidence digest for every external effect');
     requireCondition(effects.restore_project_ref !== null, 'accepted restore quarantine requires a named restore project');
     requireCondition(effects.quarantine.network_egress_status === 'CURRENT' && effects.quarantine.network_egress_denied === true, 'accepted restore quarantine requires denied network egress');
     requireCondition(effects.quarantine.data_api_status === 'CURRENT' && effects.quarantine.data_api_disabled === true, 'accepted restore quarantine requires a disabled Data API');
@@ -350,6 +382,21 @@ export function validateRecoveryDocuments(documents, options = {}) {
     requireCondition(restore.clone.project_ref === effects.restore_project_ref && restore.clone.quarantine_status === 'CURRENT' && restore.clone.traffic_released === false, 'accepted restore clone must correlate to the quarantined project without traffic');
     requireCondition(restore.rpo_rto.status === 'CURRENT' && restore.rpo_rto.objective_rpo_seconds !== null && restore.rpo_rto.objective_rto_seconds !== null, 'accepted restore requires measured and accepted RPO/RTO objectives');
     requireCondition(restore.rpo_rto.measured_rpo_seconds <= restore.rpo_rto.objective_rpo_seconds && restore.rpo_rto.measured_rto_seconds <= restore.rpo_rto.objective_rto_seconds, 'accepted restore must satisfy RPO/RTO objectives');
+    const ownerDecision = restore.rpo_rto.owner_decision;
+    const hasOwnerDecision = ownerDecision !== null && typeof ownerDecision === 'object' && !Array.isArray(ownerDecision);
+    requireCondition(hasOwnerDecision, 'accepted restore requires a canonical owner-decision receipt reference');
+    if (hasOwnerDecision) {
+      requireCondition(stableDecisionId.test(ownerDecision.decision_id ?? ''), 'accepted restore requires a canonical stable owner-decision ID');
+      requireCondition(hexSha256.test(ownerDecision.receipt_sha256 ?? ''), 'accepted restore requires a canonical owner-decision receipt digest');
+      requireCondition(typeof ownerDecision.accepted_at === 'string' && timestamp.test(ownerDecision.accepted_at), 'accepted restore requires an owner-decision acceptance timestamp');
+      requireCondition(
+        Number.isInteger(ownerDecision.objective_rpo_seconds)
+          && Number.isInteger(ownerDecision.objective_rto_seconds)
+          && ownerDecision.objective_rpo_seconds === restore.rpo_rto.objective_rpo_seconds
+          && ownerDecision.objective_rto_seconds === restore.rpo_rto.objective_rto_seconds,
+        'accepted restore RPO/RTO objectives must exactly match the owner-decision receipt reference'
+      );
+    }
     requireCondition(restore.observation.status === 'CURRENT' && restore.observation.duration_seconds !== null && restore.observation.failure_count === 0, 'accepted restore requires a failure-free observation');
     requireCondition(restore.rollback.status === 'CURRENT', 'accepted restore requires current rollback evidence');
     requireCondition(restore.backup_manifest_sha256 === backupManifestDigest(backup), 'restore backup-manifest correlation mismatch');
@@ -364,7 +411,8 @@ export function validateRecoveryDocuments(documents, options = {}) {
     ['restore.timeline.failure_declared_at', restore.timeline.failure_declared_at],
     ['restore.timeline.restore_started_at', restore.timeline.restore_started_at],
     ['restore.timeline.restore_completed_at', restore.timeline.restore_completed_at],
-    ['restore.timeline.accepted_at', restore.timeline.accepted_at]
+    ['restore.timeline.accepted_at', restore.timeline.accepted_at],
+    ['restore.rpo_rto.owner_decision.accepted_at', restore.rpo_rto.owner_decision?.accepted_at ?? null]
   ];
   requireTimestampOrder(timestampEntries, options.now, failures);
   if (backup.execution.started_at !== null && backup.execution.completed_at !== null) {
@@ -377,15 +425,28 @@ export function validateRecoveryDocuments(documents, options = {}) {
       failures.push(error.message);
     }
   }
-  if (backup.retention.expires_at !== null && backup.execution.completed_at !== null) {
-    try {
-      requireCondition(
-        parseTimestamp(backup.retention.expires_at, 'backup.retention.expires_at') >= parseTimestamp(backup.execution.completed_at, 'backup.execution.completed_at'),
-        'backup retention expiry cannot precede backup completion'
-      );
-    } catch (error) {
-      failures.push(error.message);
-    }
+  if (backup.status === 'CURRENT') {
+    requireTimestampAtOrAfter({
+      value: backup.retention.expires_at,
+      boundary: backup.execution.completed_at,
+      valueLabel: 'backup.retention.expires_at',
+      boundaryLabel: 'backup.execution.completed_at',
+      message: 'backup retention expiry cannot precede backup completion'
+    }, failures);
+    requireTimestampAtOrAfter({
+      value: backup.retention.expires_at,
+      boundary: restore.timeline.accepted_at,
+      valueLabel: 'backup.retention.expires_at',
+      boundaryLabel: 'restore.timeline.accepted_at',
+      message: 'backup retention expiry cannot precede restore acceptance'
+    }, failures);
+    requireTimestampAtOrAfter({
+      value: backup.retention.expires_at,
+      boundary: options.now,
+      valueLabel: 'backup.retention.expires_at',
+      boundaryLabel: 'now',
+      message: 'backup retention expiry cannot precede validation time'
+    }, failures);
   }
   if (restore.timeline.accepted_at !== null && restore.timeline.restore_completed_at !== null) {
     try {
@@ -397,6 +458,20 @@ export function validateRecoveryDocuments(documents, options = {}) {
       failures.push(error.message);
     }
   }
+  requireTimestampAtOrAfter({
+    value: restore.rpo_rto.owner_decision?.accepted_at ?? null,
+    boundary: restore.timeline.restore_completed_at,
+    valueLabel: 'restore.rpo_rto.owner_decision.accepted_at',
+    boundaryLabel: 'restore.timeline.restore_completed_at',
+    message: 'owner-decision acceptance cannot precede restore completion'
+  }, failures);
+  requireTimestampAtOrAfter({
+    value: restore.timeline.accepted_at,
+    boundary: restore.rpo_rto.owner_decision?.accepted_at ?? null,
+    valueLabel: 'restore.timeline.accepted_at',
+    boundaryLabel: 'restore.rpo_rto.owner_decision.accepted_at',
+    message: 'owner-decision acceptance cannot follow restore acceptance'
+  }, failures);
 
   const timeline = restore.timeline;
   const hasMeasurement = restore.rpo_rto.measured_rpo_seconds !== null || restore.rpo_rto.measured_rto_seconds !== null;

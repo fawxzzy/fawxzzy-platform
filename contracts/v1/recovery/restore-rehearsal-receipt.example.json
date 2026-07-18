@@ -68,7 +68,8 @@
     "measured_rpo_seconds": null,
     "measured_rto_seconds": null,
     "objective_rpo_seconds": null,
-    "objective_rto_seconds": null
+    "objective_rto_seconds": null,
+    "owner_decision": null
   },
   "storage": {
     "object_count": null,

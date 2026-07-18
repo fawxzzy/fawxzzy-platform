@@ -108,7 +108,22 @@
     "rpo_seconds": null,
     "rto_seconds": null,
     "measured_timeline_required": true,
-    "operator_acceptance_required": true
+    "operator_acceptance_required": true,
+    "owner_decision_reference": {
+      "required": true,
+      "required_fields": [
+        "accepted_at",
+        "decision_id",
+        "objective_rpo_seconds",
+        "objective_rto_seconds",
+        "receipt_sha256"
+      ],
+      "decision_id_format": "uppercase_hyphenated_stable_id",
+      "receipt_digest_algorithm": "SHA-256",
+      "objective_values_must_match": true,
+      "accepted_at_not_after_rehearsal_acceptance": true,
+      "included_in_restore_receipt_digest": true
+    }
   },
   "alerts": {
     "event_classes": [

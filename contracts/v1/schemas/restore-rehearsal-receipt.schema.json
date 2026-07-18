@@ -163,7 +163,8 @@
         "measured_rpo_seconds",
         "measured_rto_seconds",
         "objective_rpo_seconds",
-        "objective_rto_seconds"
+        "objective_rto_seconds",
+        "owner_decision"
       ],
       "properties": {
         "status": {
@@ -180,6 +181,47 @@
         },
         "objective_rto_seconds": {
           "$ref": "#/$defs/nullable_count"
+        },
+        "owner_decision": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "decision_id",
+                "receipt_sha256",
+                "accepted_at",
+                "objective_rpo_seconds",
+                "objective_rto_seconds"
+              ],
+              "properties": {
+                "decision_id": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 96,
+                  "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$"
+                },
+                "receipt_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "accepted_at": {
+                  "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/timestamp"
+                },
+                "objective_rpo_seconds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "objective_rto_seconds": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
         }
       }
     },

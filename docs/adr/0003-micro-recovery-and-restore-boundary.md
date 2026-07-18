@@ -24,6 +24,8 @@ The independent export must be encrypted as a client-side stream before it reach
 
 The destination must be independently governed, versioned, and immutable for the accepted retention interval. The exact provider, encryption algorithm, key custody installation, cadence, retention, alert channel, logical export/Auth mechanism, and numerical RPO/RTO remain `UNKNOWN` execution gates. Source code cannot promote them to accepted facts.
 
+A `CURRENT` backup receipt must keep its immutable backup version retained through backup completion, rehearsal acceptance, and the injected action-time validation clock. Equality at the latest boundary is accepted; an expiry one second earlier fails closed. A status flag such as `never_delete_before_restore_acceptance` is not evidence unless the timestamps satisfy those boundaries.
+
 Receipt digests use SHA-256 over canonical JSON with lexicographically sorted object keys, preserved array order, two-space indentation, and one final LF. The document's own digest field is omitted from its digest preimage. Non-finite numbers are rejected.
 
 ## Coverage boundary
@@ -46,11 +48,15 @@ Provider restore documentation distinguishes database content from control-plane
 
 A restored project is untrusted until the exact external-effect denominator is disabled and proved. This includes Cron, queues, database network calls, webhooks, Auth delivery and hooks, Edge schedules, Realtime, Storage events, application traffic, DNS, host aliases, and environment routing.
 
+Each of the twelve `CURRENT` disabled units requires its own non-null lowercase SHA-256 evidence digest. Digests must be distinct across the denominator, and the unit/digest pairs are bound into the canonical external-effects manifest digest. Self-reported booleans, null evidence, malformed digests, omitted fields, or digest reuse cannot satisfy quarantine acceptance.
+
 No application credential, DNS alias, environment route, or traffic release is admitted during rehearsal. Catalog, security, application-data, Auth, and control-plane parity are aggregate-only. Source systems stay unchanged. Clone disposal is a separate provider mutation and is not implied by rehearsal completion.
 
 ## RPO and RTO
 
 The source contract defines deterministic measurement from four UTC timestamps: recovery point, failure declaration, restore start, and restore completion. It does not invent objectives. Numerical RPO and RTO remain `UNKNOWN` until a rehearsal produces measurements and the operator accepts objectives under a later bounded packet.
+
+Action-time acceptance requires a sanitized owner-decision receipt reference containing a stable uppercase hyphenated decision ID, lowercase SHA-256 receipt digest, acceptance timestamp, and the exact approved RPO/RTO objective values. The decision timestamp must be at or after restore completion and no later than rehearsal acceptance. Objective values must match exactly, and the complete reference is included in the restore receipt digest. Operator prose, identity, provider URLs, secrets, and machine paths are not allowed.
 
 ## Consequences
 
