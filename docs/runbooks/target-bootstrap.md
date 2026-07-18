@@ -32,6 +32,8 @@ The commands use Node.js standard library plus the repository's existing test de
 
 Two consecutive generator runs must leave every file under `bootstrap/manifests` and `bootstrap/artifacts/inert-sql` byte-identical. The latter directory is the only admitted home for the four generated SQL review artifacts. `supabase/migrations` must contain zero SQL files; `APPLY_ADMITTED=false` remains package metadata and is not treated as an execution guard. Verification reports one deterministic package digest and these exact counts:
 
+Generation requires the serialized local-writer contract: before manifest or SQL writes, and again immediately before each SQL write, tooling rejects symbolic links, junctions, multiply-linked files, unsupported entries, and physical path escapes across the repository root, standard migration discovery, inert artifact directory, and declared files; it does not claim safety against a concurrent hostile filesystem mutation outside that contract.
+
 | Class | Count |
 |---|---:|
 | Raw migrations | 122 |

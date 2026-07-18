@@ -17,8 +17,91 @@ export const generatedInertArtifactContractV1 = Object.freeze({
     '00000000000004_platform_security_overlay_inert.sql'
   ])
 });
-const outputDirectory = path.join(root, ...generatedInertArtifactContractV1.directory.split('/'));
-const standardMigrationDirectory = path.join(root, 'supabase', 'migrations');
+function isPathWithin(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function isSamePath(left, right) {
+  return path.relative(left, right) === '' && path.relative(right, left) === '';
+}
+
+function lstatIfPresent(absolutePath) {
+  try {
+    return fs.lstatSync(absolutePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function realpath(absolutePath) {
+  return fs.realpathSync.native?.(absolutePath) ?? fs.realpathSync(absolutePath);
+}
+
+function validateRepositoryRoot(repositoryRoot) {
+  const lexical = path.resolve(repositoryRoot);
+  const stats = lstatIfPresent(lexical);
+  if (!stats) throw new Error(`generated artifact repository root is missing: ${lexical}`);
+  if (stats.isSymbolicLink()) throw new Error(`generated artifact repository root is link-like: ${lexical}`);
+  if (!stats.isDirectory()) throw new Error(`generated artifact repository root is not a directory: ${lexical}`);
+  return { lexical, physical: realpath(lexical) };
+}
+
+function validatePathChain(repository, targetPath, finalType, label) {
+  const target = path.resolve(targetPath);
+  if (!isPathWithin(repository.lexical, target)) throw new Error(`${label} escaped the repository root: ${target}`);
+
+  const relative = path.relative(repository.lexical, target);
+  const segments = relative === '' ? [] : relative.split(path.sep);
+  let cursor = repository.lexical;
+  let missingAncestor = false;
+  for (let index = 0; index < segments.length; index += 1) {
+    cursor = path.join(cursor, segments[index]);
+    const stats = lstatIfPresent(cursor);
+    if (!stats) {
+      missingAncestor = true;
+      continue;
+    }
+    if (missingAncestor) throw new Error(`${label} has an entry below a missing ancestor: ${cursor}`);
+    if (stats.isSymbolicLink()) throw new Error(`${label} contains a link-like entry: ${cursor}`);
+
+    const isFinal = index === segments.length - 1;
+    if (!isFinal || finalType === 'directory') {
+      if (!stats.isDirectory()) throw new Error(`${label} contains a non-directory ancestor: ${cursor}`);
+    } else if (stats.isFile()) {
+      if (Number.isInteger(stats.nlink) && stats.nlink > 1) {
+        throw new Error(`${label} contains a multiply-linked file: ${cursor}`);
+      }
+    } else {
+      throw new Error(`${label} contains an unsupported filesystem entry type: ${cursor}`);
+    }
+
+    const physical = realpath(cursor);
+    const expectedPhysical = path.resolve(repository.physical, ...segments.slice(0, index + 1));
+    if (!isPathWithin(repository.physical, physical) || !isSamePath(physical, expectedPhysical)) {
+      throw new Error(`${label} contains a physical path escape or link-like entry: ${cursor}`);
+    }
+  }
+}
+
+export function validateGeneratedInertArtifactLayout(repositoryRoot = root) {
+  const repository = validateRepositoryRoot(repositoryRoot);
+  const output = path.resolve(repository.lexical, ...generatedInertArtifactContractV1.directory.split('/'));
+  const standardMigrations = path.resolve(repository.lexical, 'supabase', 'migrations');
+  validatePathChain(repository, standardMigrations, 'directory', 'standard Supabase migration discovery');
+  validatePathChain(repository, output, 'directory', 'generated inert artifact directory');
+  for (const filename of generatedInertArtifactContractV1.filenames) {
+    validatePathChain(repository, path.join(output, filename), 'file', `generated inert artifact ${filename}`);
+  }
+
+  const outputStats = lstatIfPresent(output);
+  const standardStats = lstatIfPresent(standardMigrations);
+  if (outputStats && standardStats && isSamePath(realpath(output), realpath(standardMigrations))) {
+    throw new Error('generated inert artifacts physically alias standard Supabase migration discovery');
+  }
+  return { repository: repository.lexical, output, standardMigrations };
+}
 
 export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = root) {
   if (!generatedInertArtifactContractV1.filenames.includes(filename)) {
@@ -31,7 +114,10 @@ export function resolveGeneratedInertArtifactPath(filename, repositoryRoot = roo
 }
 
 function listSqlFiles(directory, prefix = '') {
-  if (!fs.existsSync(directory)) return [];
+  const directoryStats = lstatIfPresent(directory);
+  if (!directoryStats) return [];
+  if (directoryStats.isSymbolicLink()) throw new Error(`${prefix || directory}: link-like SQL discovery directory is unsupported`);
+  if (!directoryStats.isDirectory()) throw new Error(`${prefix || directory}: SQL discovery path is not a directory`);
   const files = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -1107,20 +1193,36 @@ function buildGeneratedSql(records, config, securityMatrix, plan) {
   return files;
 }
 
-function writeGenerated(files) {
+export function writeGeneratedInertArtifacts(files, repositoryRoot = root) {
   const actualFiles = [...files.keys()].sort();
   if (canonicalJson(actualFiles) !== canonicalJson(generatedInertArtifactContractV1.filenames)) {
     throw new Error('generated inert artifact filename denominator drift');
   }
-  const executableSql = listSqlFiles(standardMigrationDirectory);
+  let layout = validateGeneratedInertArtifactLayout(repositoryRoot);
+  const executableSql = listSqlFiles(layout.standardMigrations);
   if (executableSql.length > 0) {
     throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${executableSql.join(', ')}`);
   }
-  fs.mkdirSync(outputDirectory, { recursive: true });
-  for (const existing of fs.readdirSync(outputDirectory)) {
-    if (existing.endsWith('.sql') && !files.has(existing)) throw new Error(`undeclared generated SQL exists: ${existing}`);
+  fs.mkdirSync(layout.output, { recursive: true });
+  layout = validateGeneratedInertArtifactLayout(repositoryRoot);
+  for (const entry of fs.readdirSync(layout.output, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) throw new Error(`generated inert artifact directory contains a link-like entry: ${entry.name}`);
+    if (!entry.isFile()) throw new Error(`generated inert artifact directory contains an unsupported filesystem entry type: ${entry.name}`);
+    if (!files.has(entry.name)) throw new Error(`undeclared generated inert artifact exists: ${entry.name}`);
   }
-  for (const [filename, content] of files) fs.writeFileSync(resolveGeneratedInertArtifactPath(filename), content, 'utf8');
+  for (const filename of generatedInertArtifactContractV1.filenames) {
+    layout = validateGeneratedInertArtifactLayout(repositoryRoot);
+    const discoveredSql = listSqlFiles(layout.standardMigrations);
+    if (discoveredSql.length > 0) {
+      throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${discoveredSql.join(', ')}`);
+    }
+    fs.writeFileSync(path.join(layout.output, filename), files.get(filename), 'utf8');
+  }
+  layout = validateGeneratedInertArtifactLayout(repositoryRoot);
+  const finalExecutableSql = listSqlFiles(layout.standardMigrations);
+  if (finalExecutableSql.length > 0) {
+    throw new Error(`blocked bootstrap SQL exists in standard Supabase migration discovery: ${finalExecutableSql.join(', ')}`);
+  }
 }
 
 function writeManifest(name, value) {
@@ -1153,6 +1255,7 @@ export function generateTargetBootstrap() {
   const heldEvidence = heldStatementEvidence(generationPlan);
   const generatedSql = buildGeneratedSql(records, config, securityMatrix, generationPlan);
 
+  validateGeneratedInertArtifactLayout(root);
   writeManifest('source-migrations.v1.json', sourceManifest(records, config));
   writeManifest('source-objects.v1.json', {
     version: '1.0.0', status: 'CURRENT', apply_admitted: false, expected_counts: config.expected, ...objects
@@ -1214,7 +1317,7 @@ export function generateTargetBootstrap() {
     mazer: { exposure: 'intended_application_schema', contents: 'mazer_product_objects' },
     provider_managed: config.schemas.provider_managed
   });
-  writeGenerated(generatedSql);
+  writeGeneratedInertArtifacts(generatedSql);
 
   const report = {
     ok: true,
