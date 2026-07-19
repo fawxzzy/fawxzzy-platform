@@ -708,7 +708,6 @@
       "required": [
         "status",
         "month_utc",
-        "accepted_export_ordinal",
         "accepted_exports_manifest_sha256"
       ],
       "properties": {
@@ -719,11 +718,64 @@
           "type": "string",
           "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
         },
-        "accepted_export_ordinal": {
-          "type": "integer",
-          "minimum": 1
-        },
         "accepted_exports_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "accepted_exports_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "month_utc",
+        "observed_at",
+        "source_evidence_sha256",
+        "entries"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "month_utc": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "source_evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/accepted_export_manifest_entry"
+          }
+        }
+      }
+    },
+    "accepted_export_manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed_at",
+        "destination_version",
+        "ciphertext_sha256"
+      ],
+      "properties": {
+        "completed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "destination_version": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "ciphertext_sha256": {
           "$ref": "#/$defs/sha256"
         }
       }
@@ -964,6 +1016,9 @@
         "synthetic_canary_status",
         "external_effects",
         "parity",
+        "failure_declared_at",
+        "restore_started_at",
+        "data_plane_ready_at",
         "measured_rpo_seconds",
         "measured_data_plane_rto_seconds",
         "failed_clone_deletion_authority_status"
@@ -993,6 +1048,15 @@
           "items": {
             "$ref": "#/$defs/receipt_parity"
           }
+        },
+        "failure_declared_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "restore_started_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "data_plane_ready_at": {
+          "$ref": "#/$defs/utc_timestamp"
         },
         "measured_rpo_seconds": {
           "type": "integer",

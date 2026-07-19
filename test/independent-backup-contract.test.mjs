@@ -19,6 +19,29 @@ function contract() {
   return structuredClone(loadDocuments()[independentBackupContractPath]);
 }
 
+function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
+  const current = {
+    completed_at: receipt.completed_at,
+    destination_version: receipt.destination_version,
+    ciphertext_sha256: receipt.ciphertext_sha256
+  };
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    month_utc: receipt.completed_at.slice(0, 7),
+    observed_at: '2026-07-18T17:45:00Z',
+    source_evidence_sha256: digest('accepted-exports-readback'),
+    entries: first ? [current] : [
+      {
+        completed_at: '2026-07-18T11:40:00Z',
+        destination_version: 'backup-version-0000',
+        ciphertext_sha256: digest('prior-ciphertext')
+      },
+      current
+    ]
+  };
+}
+
 function buildReceipt({ restore = false } = {}) {
   const receipt = {
     lifecycle_state: restore ? 'RESTORE_REHEARSED' : 'BACKUP_CURRENT',
@@ -32,8 +55,7 @@ function buildReceipt({ restore = false } = {}) {
     monthly_selection: {
       status: 'CURRENT',
       month_utc: '2026-07',
-      accepted_export_ordinal: 2,
-      accepted_exports_manifest_sha256: digest('monthly-selection')
+      accepted_exports_manifest_sha256: null
     },
     plaintext_sha256: digest('plaintext'),
     ciphertext_sha256: digest('ciphertext'),
@@ -93,17 +115,21 @@ function buildReceipt({ restore = false } = {}) {
         aggregate_count: 0,
         private_digest: digest(`parity-${unit}`)
       })),
-      measured_rpo_seconds: 21600,
-      measured_data_plane_rto_seconds: 36000,
+      failure_declared_at: '2026-07-18T17:50:00Z',
+      restore_started_at: '2026-07-18T17:51:00Z',
+      data_plane_ready_at: '2026-07-18T17:59:00Z',
+      measured_rpo_seconds: 1200,
+      measured_data_plane_rto_seconds: 540,
       failed_clone_deletion_authority_status: 'BLOCKED'
     };
   }
+  receipt.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(buildAcceptedExportsManifest(receipt));
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   return receipt;
 }
 
-function validate(receipt, validationNow = now) {
-  return validateIndependentBackupReceipt(contract(), receipt, { now: validationNow });
+function validate(receipt, validationNow = now, acceptedExportsManifest = buildAcceptedExportsManifest(receipt)) {
+  return validateIndependentBackupReceipt(contract(), receipt, { now: validationNow, acceptedExportsManifest });
 }
 
 test('source contract is closed, sanitized, and execution-blocked', () => {
@@ -126,7 +152,13 @@ test('complete quarantined restore rehearsal validates', () => {
 
 test('stale and future-dated evidence fail closed', () => {
   const stale = validate(buildReceipt(), '2026-07-19T02:00:01Z');
-  assert(stale.failures.includes('backup evidence is stale'));
+  assert(stale.failures.includes('backup recovery point is stale'));
+  const staleRecoveryPoint = buildReceipt();
+  staleRecoveryPoint.snapshot_at = '2026-07-18T09:59:59Z';
+  staleRecoveryPoint.completed_at = '2026-07-18T17:59:00Z';
+  staleRecoveryPoint.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(buildAcceptedExportsManifest(staleRecoveryPoint));
+  staleRecoveryPoint.manifest_sha256 = independentBackupManifestDigest(staleRecoveryPoint);
+  assert(validate(staleRecoveryPoint).failures.includes('backup recovery point is stale'));
   const future = buildReceipt();
   future.completed_at = '2026-07-18T18:00:01Z';
   future.manifest_sha256 = independentBackupManifestDigest(future);
@@ -173,9 +205,10 @@ test('retention and independently evidenced monthly classification fail closed',
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('retention does not cover the 35-day standard'));
   const monthly = buildReceipt();
-  monthly.monthly_selection.accepted_export_ordinal = 1;
+  const firstAcceptedManifest = buildAcceptedExportsManifest(monthly, { first: true });
+  monthly.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(firstAcceptedManifest);
   monthly.manifest_sha256 = independentBackupManifestDigest(monthly);
-  assert(validate(monthly).failures.includes('first accepted monthly export retention does not cover 400 days'));
+  assert(validate(monthly, now, firstAcceptedManifest).failures.includes('first accepted monthly export retention does not cover 400 days'));
 
   const wrongMonth = buildReceipt();
   wrongMonth.monthly_selection.month_utc = '2026-06';
@@ -186,6 +219,25 @@ test('retention and independently evidenced monthly classification fail closed',
   missingEvidence.monthly_selection.accepted_exports_manifest_sha256 = null;
   missingEvidence.manifest_sha256 = independentBackupManifestDigest(missingEvidence);
   assert(validate(missingEvidence).failures.includes('monthly selection requires an independently verifiable accepted-exports manifest'));
+
+  const missingManifest = buildReceipt();
+  assert(validateIndependentBackupReceipt(contract(), missingManifest, { now }).failures.some((failure) => failure.startsWith('accepted exports manifest schema')));
+
+  const malformedManifest = { entries: [null] };
+  assert.doesNotThrow(() => validate(missingManifest, now, malformedManifest));
+  assert(validate(missingManifest, now, malformedManifest).failures.some((failure) => failure.startsWith('accepted exports manifest schema')));
+
+  const tamperedManifest = buildAcceptedExportsManifest(buildReceipt());
+  tamperedManifest.entries.shift();
+  const tamperedReceipt = buildReceipt();
+  assert(validate(tamperedReceipt, now, tamperedManifest).failures.includes('monthly selection manifest digest mismatch'));
+
+  const duplicateIdentity = buildReceipt();
+  const duplicateManifest = buildAcceptedExportsManifest(duplicateIdentity);
+  duplicateManifest.entries[0].destination_version = duplicateManifest.entries[1].destination_version;
+  duplicateIdentity.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(duplicateManifest);
+  duplicateIdentity.manifest_sha256 = independentBackupManifestDigest(duplicateIdentity);
+  assert(validate(duplicateIdentity, now, duplicateManifest).failures.includes('accepted exports manifest entries must have distinct immutable identities'));
 });
 
 test('missing or over-ceiling cost controls fail closed', () => {
@@ -252,8 +304,8 @@ test('restore objective overruns and deletion overreach fail closed', () => {
   receipt.restore.failed_clone_deletion_authority_status = 'CURRENT';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   const result = validate(receipt);
-  assert(result.failures.includes('restore rehearsal has an invalid or over-objective RPO measurement'));
-  assert(result.failures.includes('restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective RPO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective quarantined data-plane RTO measurement'));
   assert(result.failures.includes('failed clone deletion requires separate authority'));
 });
 
@@ -263,8 +315,23 @@ test('negative measured restore durations fail closed', () => {
   receipt.restore.measured_data_plane_rto_seconds = -1;
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   const result = validate(receipt);
-  assert(result.failures.includes('restore rehearsal has an invalid or over-objective RPO measurement'));
-  assert(result.failures.includes('restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective RPO measurement'));
+  assert(result.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective quarantined data-plane RTO measurement'));
+});
+
+test('restore objectives are derived from a strict rehearsal timeline', () => {
+  const forged = buildReceipt({ restore: true });
+  forged.restore.measured_rpo_seconds = 0;
+  forged.restore.measured_data_plane_rto_seconds = 0;
+  forged.manifest_sha256 = independentBackupManifestDigest(forged);
+  const forgedResult = validate(forged);
+  assert(forgedResult.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective RPO measurement'));
+  assert(forgedResult.failures.includes('restore rehearsal has an invalid, uncorrelated, or over-objective quarantined data-plane RTO measurement'));
+
+  const reversed = buildReceipt({ restore: true });
+  reversed.restore.restore_started_at = '2026-07-18T17:49:59Z';
+  reversed.manifest_sha256 = independentBackupManifestDigest(reversed);
+  assert(validate(reversed).failures.includes('restore start cannot predate failure declaration'));
 });
 
 test('manifest tampering is detected', () => {

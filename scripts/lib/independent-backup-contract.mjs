@@ -67,7 +67,14 @@ const receiptSchema = {
   $ref: '#/$defs/receipt',
   $defs: sourceSchema.$defs
 };
+const acceptedExportsManifestSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-accepted-exports-manifest',
+  $ref: '#/$defs/accepted_exports_manifest',
+  $defs: sourceSchema.$defs
+};
 const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
+const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -114,6 +121,11 @@ function parseTimestamp(value, label, failures) {
 function validateReceiptShape(receipt) {
   if (receiptShapeValidator(receipt)) return [];
   return (receiptShapeValidator.errors ?? []).map((error) => `receipt schema ${error.instancePath || '/'}: ${error.message}`);
+}
+
+function validateAcceptedExportsManifestShape(manifest) {
+  if (acceptedExportsManifestShapeValidator(manifest)) return [];
+  return (acceptedExportsManifestShapeValidator.errors ?? []).map((error) => `accepted exports manifest schema ${error.instancePath || '/'}: ${error.message}`);
 }
 
 function requireCondition(condition, message, failures) {
@@ -174,7 +186,7 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(receipt.tool_versions && Object.keys(receipt.tool_versions).length > 0 && Object.values(receipt.tool_versions).every((value) => safeReference.test(value)), 'tool versions are missing or unsafe', failures);
   requireCondition(snapshotAt !== null && completedAt !== null && snapshotAt <= completedAt, 'backup completion cannot precede snapshot', failures);
   requireCondition(now !== null && completedAt !== null && completedAt <= now, 'backup completion cannot be future-dated', failures);
-  requireCondition(now !== null && completedAt !== null && now - completedAt <= contract.policy.schedule.freshness_limit_hours * 3600000, 'backup evidence is stale', failures);
+  requireCondition(now !== null && snapshotAt !== null && now - snapshotAt <= contract.policy.schedule.freshness_limit_hours * 3600000, 'backup recovery point is stale', failures);
   requireCondition(receipt.freshness?.status === 'CURRENT' && receipt.freshness?.maximum_age_seconds === 28800, 'freshness evidence must be CURRENT at the approved threshold', failures);
   requireCondition(hexSha256.test(receipt.plaintext_sha256 ?? '') && hexSha256.test(receipt.ciphertext_sha256 ?? '') && hexSha256.test(receipt.migration_ledger_sha256 ?? ''), 'required backup digests are malformed', failures);
   requireCondition(Number.isInteger(receipt.ciphertext_bytes) && receipt.ciphertext_bytes > 0, 'ciphertext byte count must be positive', failures);
@@ -185,11 +197,25 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(receipt.object_lock?.status === 'CURRENT' && receipt.object_lock?.mode === 'COMPLIANCE', 'Object Lock compliance evidence is required', failures);
   requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.standard_days * 86400000, 'retention does not cover the 35-day standard', failures);
   const monthlySelection = receipt.monthly_selection;
+  const acceptedExportsManifest = options.acceptedExportsManifest;
+  failures.push(...validateAcceptedExportsManifestShape(acceptedExportsManifest));
   const expectedMonth = completedAt === null ? null : new Date(completedAt).toISOString().slice(0, 7);
   requireCondition(monthlySelection?.status === 'CURRENT' && monthlySelection?.month_utc === expectedMonth, 'monthly selection must correlate to the backup completion month', failures);
-  requireCondition(Number.isInteger(monthlySelection?.accepted_export_ordinal) && monthlySelection.accepted_export_ordinal >= 1, 'monthly selection requires a positive accepted-export ordinal', failures);
   requireCondition(hexSha256.test(monthlySelection?.accepted_exports_manifest_sha256 ?? ''), 'monthly selection requires an independently verifiable accepted-exports manifest', failures);
-  if (monthlySelection?.accepted_export_ordinal === 1) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
+  requireCondition(acceptedExportsManifest && monthlySelection?.accepted_exports_manifest_sha256 === sha256Hex(acceptedExportsManifest), 'monthly selection manifest digest mismatch', failures);
+  const acceptedManifestObservedAt = parseTimestamp(acceptedExportsManifest?.observed_at, 'accepted_exports_manifest.observed_at', failures);
+  requireCondition(acceptedExportsManifest?.status === 'CURRENT' && acceptedExportsManifest?.month_utc === expectedMonth, 'accepted exports manifest must be current for the backup completion month', failures);
+  requireCondition(hexSha256.test(acceptedExportsManifest?.source_evidence_sha256 ?? ''), 'accepted exports manifest source evidence is malformed', failures);
+  requireCondition(acceptedManifestObservedAt !== null && completedAt !== null && acceptedManifestObservedAt >= completedAt, 'accepted exports manifest cannot predate backup completion', failures);
+  requireCondition(acceptedManifestObservedAt !== null && now !== null && acceptedManifestObservedAt <= now, 'accepted exports manifest cannot be future-dated', failures);
+  const acceptedExports = Array.isArray(acceptedExportsManifest?.entries) ? acceptedExportsManifest.entries : [];
+  const acceptedExportTimes = acceptedExports.map((entry) => parseTimestamp(entry?.completed_at, 'accepted_exports_manifest.entries.completed_at', failures));
+  requireCondition(acceptedExports.every((entry, index) => acceptedExportTimes[index] !== null && new Date(acceptedExportTimes[index]).toISOString().slice(0, 7) === expectedMonth), 'accepted exports manifest contains an entry outside the completion month', failures);
+  requireCondition(acceptedExportTimes.every((value, index) => index === 0 || acceptedExportTimes[index - 1] < value), 'accepted exports manifest entries must be strictly ordered by completion time', failures);
+  requireCondition(new Set(acceptedExports.map((entry) => entry?.destination_version)).size === acceptedExports.length && new Set(acceptedExports.map((entry) => entry?.ciphertext_sha256)).size === acceptedExports.length, 'accepted exports manifest entries must have distinct immutable identities', failures);
+  const currentExportMatches = acceptedExports.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.completed_at === receipt.completed_at && entry?.destination_version === receipt.destination_version && entry?.ciphertext_sha256 === receipt.ciphertext_sha256);
+  requireCondition(currentExportMatches.length === 1, 'accepted exports manifest must contain the current export exactly once', failures);
+  if (currentExportMatches.length === 1 && currentExportMatches[0].index === 0) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
   requireCondition(Array.isArray(receipt.coverage) && sameSet(receipt.coverage.map((entry) => entry.unit), coverageUnits), 'receipt coverage denominator changed', failures);
   for (const entry of receipt.coverage ?? []) {
     const isStorageBodies = entry.unit === 'storage_object_bodies';
@@ -222,8 +248,17 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     requireCondition(new Set(effectDigests).size === externalEffectUnits.length, 'restore external-effect evidence digests must be distinct', failures);
     requireCondition(Array.isArray(receipt.restore?.parity) && sameSet(receipt.restore.parity.map((entry) => entry.unit), parityUnits), 'restore parity denominator changed', failures);
     requireCondition(receipt.restore?.parity?.every((entry) => entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '')), 'restore parity evidence is incomplete', failures);
-    requireCondition(Number.isInteger(receipt.restore?.measured_rpo_seconds) && receipt.restore.measured_rpo_seconds >= 0 && receipt.restore.measured_rpo_seconds <= contract.policy.objectives.rpo_seconds, 'restore rehearsal has an invalid or over-objective RPO measurement', failures);
-    requireCondition(Number.isInteger(receipt.restore?.measured_data_plane_rto_seconds) && receipt.restore.measured_data_plane_rto_seconds >= 0 && receipt.restore.measured_data_plane_rto_seconds <= contract.policy.objectives.quarantined_restore_data_plane_rto_seconds, 'restore rehearsal has an invalid or over-objective quarantined data-plane RTO measurement', failures);
+    const failureDeclaredAt = parseTimestamp(receipt.restore?.failure_declared_at, 'restore.failure_declared_at', failures);
+    const restoreStartedAt = parseTimestamp(receipt.restore?.restore_started_at, 'restore.restore_started_at', failures);
+    const dataPlaneReadyAt = parseTimestamp(receipt.restore?.data_plane_ready_at, 'restore.data_plane_ready_at', failures);
+    requireCondition(completedAt !== null && failureDeclaredAt !== null && completedAt <= failureDeclaredAt, 'restore failure declaration cannot predate backup completion', failures);
+    requireCondition(failureDeclaredAt !== null && restoreStartedAt !== null && failureDeclaredAt <= restoreStartedAt, 'restore start cannot predate failure declaration', failures);
+    requireCondition(restoreStartedAt !== null && dataPlaneReadyAt !== null && restoreStartedAt <= dataPlaneReadyAt, 'restore data-plane readiness cannot predate restore start', failures);
+    requireCondition(dataPlaneReadyAt !== null && now !== null && dataPlaneReadyAt <= now, 'restore data-plane readiness cannot be future-dated', failures);
+    const derivedRpoSeconds = snapshotAt !== null && failureDeclaredAt !== null ? (failureDeclaredAt - snapshotAt) / 1000 : null;
+    const derivedDataPlaneRtoSeconds = failureDeclaredAt !== null && dataPlaneReadyAt !== null ? (dataPlaneReadyAt - failureDeclaredAt) / 1000 : null;
+    requireCondition(Number.isInteger(receipt.restore?.measured_rpo_seconds) && receipt.restore.measured_rpo_seconds === derivedRpoSeconds && receipt.restore.measured_rpo_seconds <= contract.policy.objectives.rpo_seconds, 'restore rehearsal has an invalid, uncorrelated, or over-objective RPO measurement', failures);
+    requireCondition(Number.isInteger(receipt.restore?.measured_data_plane_rto_seconds) && receipt.restore.measured_data_plane_rto_seconds === derivedDataPlaneRtoSeconds && receipt.restore.measured_data_plane_rto_seconds <= contract.policy.objectives.quarantined_restore_data_plane_rto_seconds, 'restore rehearsal has an invalid, uncorrelated, or over-objective quarantined data-plane RTO measurement', failures);
     requireCondition(receipt.restore?.failed_clone_deletion_authority_status === 'BLOCKED', 'failed clone deletion requires separate authority', failures);
   }
 

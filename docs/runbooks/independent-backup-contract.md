@@ -53,25 +53,27 @@ The deterministic validator requires:
 
 1. the exact project identity and source commit;
 2. safe Postgres/tool versions and UTC timestamps;
-3. completion within the eight-hour freshness limit;
+3. the recovery point (`snapshot_at`) within the eight-hour freshness limit, regardless of how recently upload completed;
 4. plaintext, ciphertext, migration-ledger, and canonical manifest SHA-256 values;
 5. streaming `age` encryption with no persistent plaintext;
 6. at least two distinct public recipient IDs;
 7. an immutable destination version plus current compliance-mode Object Lock evidence;
-8. a UTC-month accepted-export ordinal bound to an immutable accepted-exports manifest digest, with 35-day retention generally and 400 days when the manifest-backed ordinal proves the first accepted export of the month;
+8. a separate, closed, current accepted-exports manifest whose canonical digest matches the receipt, whose immutable export identities are strictly time-ordered and distinct, and whose exact current-export entry lets the validator derive first-of-month status; retention is 35 days generally and 400 days when the current export is the first manifest entry;
 9. all eight coverage units with aggregate counts and private digests;
 10. current independent-watchdog and provider Physical-backup evidence;
 11. current budget-stop control, the four-unit monthly report, and projected cost at or below the $15 manual-approval ceiling;
 12. a canonical `FP-MAN-015` decision reference;
 13. production-service RTO remaining `UNKNOWN`.
 
-The JSON Schema closes the complete receipt and every nested evidence object; unrecognized properties cannot be accepted merely because they evade heuristic field-name checks. Calendar-invalid timestamps, malformed or missing monthly-selection evidence, negative recovery durations, future-dated, stale, over-ceiling, incomplete, or digest-mismatched evidence fail closed. A projected cost over $5 is a warning; a cost over $15, or unavailable reliable budget-stop control, requires a new manual approval before execution continues.
+The accepted-exports manifest is supplied independently from the receipt at validation time. It carries only completion timestamps, immutable destination versions, ciphertext digests, and a sanitized source-evidence digest. The validator checks its closed schema, canonical digest, observation window, UTC month, strict ordering, unique immutable identities, and exactly one correlation to the current receipt; a self-reported ordinal cannot select short retention.
+
+The JSON Schema closes the complete receipt, accepted-exports manifest, and every nested evidence object; unrecognized properties cannot be accepted merely because they evade heuristic field-name checks. Calendar-invalid timestamps, malformed or missing monthly-selection evidence, negative or uncorrelated recovery durations, future-dated, stale, over-ceiling, incomplete, or digest-mismatched evidence fail closed. A projected cost over $5 is a warning; a cost over $15, or unavailable reliable budget-stop control, requires a new manual approval before execution continues.
 
 ## Restore-to-new-project quarantine
 
 `RESTORE_REHEARSED` requires a new isolated project with no application environment, Auth delivery/hooks, database webhooks, DNS/aliases, Edge schedules, `pg_cron`, `pg_net`, queues, Realtime, Storage events, subscriptions, or wrappers enabled. Each disabled unit requires a distinct evidence digest. Traffic remains off and canaries are synthetic only.
 
-Catalog, security, Auth, and data parity each require an aggregate count and private digest. The measured RPO must be no more than eight hours and the measured quarantined data-plane RTO no more than twelve hours. These are approved objectives, not production-service measurements. Production-service RTO stays `UNKNOWN` until a separately authorized rehearsal measures the entire service path.
+Catalog, security, Auth, and data parity each require an aggregate count and private digest. The rehearsal records failure declaration, restore start, and data-plane-ready timestamps. The validator derives RPO from `snapshot_at` to failure declaration and derives quarantined data-plane RTO from failure declaration to data-plane readiness; the submitted numerical values must exactly equal those calculations. The derived RPO must be no more than eight hours and the derived quarantined data-plane RTO no more than twelve hours. These are approved objectives, not production-service measurements. Production-service RTO stays `UNKNOWN` until a separately authorized rehearsal measures the entire service path.
 
 A failed restore clone is quarantined. Deleting it requires separate exact authority; the recovery packet cannot silently dispose of evidence.
 
