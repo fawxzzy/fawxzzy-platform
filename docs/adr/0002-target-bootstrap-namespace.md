@@ -10,6 +10,8 @@ The consolidated platform needs a reproducible schema source before any target p
 
 The three histories contain product objects that were originally created in different namespace conventions, 358 top-level data effects, 11 catalog-dependent dynamic templates, three extension declarations, and one Cron activation. Fitness also has a forward global-number dependency that remains blocked on an unmerged source candidate and contained replay acceptance.
 
+Fitness PR #108 and hosted-replay-harness PR #2 are tracked by the versioned `fitness-pr108-replay-gate` contract. That contract ratchets their immutable heads, trees, migration-chain digests, sole candidate migration identity, and review/replay lifecycle without changing the accepted bootstrap. The accepted package remains 122 migrations (17 DiscordOS, 101 Fitness, 4 Mazer); the 102nd Fitness candidate is provenance only and is forbidden from `bootstrap/sources`, generated manifests, and inert SQL.
+
 ## Decision
 
 The repository stores the exact raw migration bytes under `bootstrap/sources`. Each byte stream is bound to its source app, commit, tree, path, Git blob, raw digest, byte count, and order in `source-migrations.v1.json`. The verifier independently recomputes each frozen source-chain digest from the actual copied bytes using `version|path|git_blob|raw_sha256|raw_bytes` lines, then recomputes the combined digest from app label, immutable commit, immutable root tree, and recomputed chain digest. Frozen acceptance values are verifier-owned and must match both generator configuration and generated manifests; copied-byte substitution, source-identity substitution, stale digests, or missing bindings fail closed. The accepted combined-manifest digest and each source-chain digest remain separate from the repository package digest.
@@ -47,6 +49,7 @@ The merged identity contract remains authoritative for target-only relation, gra
 - no top-level data effect, Cron activation, network hook, project binding, provider command, or credential value is emitted;
 - membership remains distinct from billing entitlement;
 - the global-number transformation remains `BLOCKED`.
+- Fitness PR #108 exact-head review, adapter merge, replay execution, Fitness merge, and target apply remain `BLOCKED`; only the adapter source review is `CURRENT`.
 
 PostgreSQL 17 is the required source contract; the live target version remains `UNKNOWN`. The 36 creator/schema/object-class entries are an assertion and disposition matrix, not 36 executable statements. Twelve `postgres` TABLES/SEQUENCES units enter inert SQL. Six `postgres` FUNCTIONS units require the existing same-transaction, signature-specific EXECUTE revocation because PostgreSQL schema-scoped default revokes cannot subtract the global/built-in function default. The 18 `supabase_admin` units are `BLOCKED_PROVIDER_ROLE` / `NOT_EXECUTABLE`, bound to sanitized receipts `FP-TGT-SECURITY-BASELINE-001` (SQLSTATE `42501`, exact rollback) and `FP-TGT-PROVIDER-DEFAULT-ACL-001`. No generated artifact contains `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin`.
 

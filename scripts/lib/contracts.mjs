@@ -18,6 +18,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
+  ['contracts/v1/gates/fitness-pr108-replay-gate.json', 'urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate'],
   ['contracts/v1/security/rls-grant-function-matrix.json', 'urn:fawxzzy:platform:schemas:v1:security-matrix'],
   ['contracts/v1/auth/domain-session-contract.json', 'urn:fawxzzy:platform:schemas:v1:domain-session-contract'],
   ['contracts/v1/recovery/micro-recovery-contract.json', 'urn:fawxzzy:platform:schemas:v1:micro-recovery-contract'],
@@ -270,6 +271,20 @@ export function validateSemantics(documents) {
     requireCondition(gates.every((gate) => gate.status === 'BLOCKED'), `${relativePath}: every operation must remain BLOCKED`);
   }
 
+  const fitnessReplayGate = documents['contracts/v1/gates/fitness-pr108-replay-gate.json'];
+  requireCondition(fitnessReplayGate.status === 'BLOCKED' && fitnessReplayGate.apply_admitted === false, 'Fitness PR 108 replay gate must remain non-executable and BLOCKED');
+  requireCondition(fitnessReplayGate.provenance_only === true, 'Fitness PR 108 and hosted replay evidence must remain provenance-only');
+  requireCondition(fitnessReplayGate.fitness_candidate.review.exact_head_terminal_review === 'BLOCKED', 'Fitness PR 108 exact-head terminal review must remain BLOCKED');
+  requireCondition(fitnessReplayGate.hosted_replay_adapter.source_review === 'CURRENT', 'hosted replay adapter source review must remain CURRENT');
+  requireCondition(fitnessReplayGate.hosted_replay_adapter.workflow_run_count === 0, 'hosted replay workflow execution denominator must remain zero');
+  requireCondition(fitnessReplayGate.accepted_bootstrap.migration_count === 122 && fitnessReplayGate.accepted_bootstrap.fitness_migration_count === 101, 'accepted bootstrap must remain 122 total and 101 Fitness migrations');
+  requireCondition(fitnessReplayGate.accepted_bootstrap.candidate_migration_present === false, 'Fitness PR 108 candidate must remain absent from accepted bootstrap');
+  requireCondition(fitnessReplayGate.lifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
+  requireCondition(fitnessReplayGate.lifecycle.adapter_source_review === 'CURRENT', 'adapter_source_review must remain CURRENT');
+  for (const lifecycleUnit of ['adapter_merge', 'replay_execution', 'fitness_merge', 'target_apply']) {
+    requireCondition(fitnessReplayGate.lifecycle[lifecycleUnit] === 'BLOCKED', `${lifecycleUnit} must remain BLOCKED`);
+  }
+
   const catalog = documents['contracts/v1/catalog/service-catalog.json'];
   requireCondition(catalog.membership_is_billing_entitlement === false, 'membership must not become a billing entitlement');
   requireCondition(sameValues(catalog.services.map((service) => service.id), ['discordos', 'fitness', 'mazer']), 'service catalog membership changed');
@@ -470,7 +485,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 21,
+    semantic_check_groups: 22,
     failures
   };
 }

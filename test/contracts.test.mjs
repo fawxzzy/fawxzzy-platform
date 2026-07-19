@@ -167,6 +167,25 @@ test('semantic checks reject an unblocked migration operation', () => {
   assert.ok(validateSemantics(documents).some((failure) => failure.includes('every operation must remain BLOCKED')));
 });
 
+test('Fitness PR 108 gate rejects identity substitution and lifecycle promotion', () => {
+  const documents = structuredClone(loadDocuments());
+  const gate = documents['contracts/v1/gates/fitness-pr108-replay-gate.json'];
+  gate.fitness_candidate.head_commit = '0'.repeat(40);
+  gate.lifecycle.candidate_source_review = 'CURRENT';
+  gate.lifecycle.target_apply = 'CURRENT';
+  const schemaFailures = validateSchemaInstances(documents, createValidator());
+  assert.ok(schemaFailures.some((failure) => failure.includes('fitness-pr108-replay-gate.json')));
+  const semanticFailures = validateSemantics(documents);
+  assert.ok(semanticFailures.some((failure) => failure.includes('candidate_source_review must remain BLOCKED')));
+  assert.ok(semanticFailures.some((failure) => failure.includes('target_apply must remain BLOCKED')));
+});
+
+test('Fitness PR 108 gate rejects missing immutable candidate evidence', () => {
+  const documents = structuredClone(loadDocuments());
+  delete documents['contracts/v1/gates/fitness-pr108-replay-gate.json'].fitness_candidate.candidate_migration.blob;
+  assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('fitness-pr108-replay-gate.json')));
+});
+
 test('semantic checks reject unsafe definer functions', () => {
   const documents = structuredClone(loadDocuments());
   const databaseFunction = documents['contracts/v1/security/rls-grant-function-matrix.json'].functions[0];
