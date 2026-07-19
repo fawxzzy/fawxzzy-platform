@@ -14,6 +14,8 @@ import {
   independentBackupContractPath,
   independentBackupManifestDigest,
   independentBackupReceiptIdentityDigest,
+  independentBackupRestoreOutcomeSubjectDigest,
+  independentBackupRestorePlanDigest,
   independentBackupSourceStateDigest,
   sha256Hex,
   storageBodyRecoveryEvidenceDigest,
@@ -30,6 +32,7 @@ const now = '2026-07-18T18:00:00Z';
 const digest = (label) => sha256Hex({ label });
 const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
 const executionGateSignatureDomain = 'fawxzzy-platform:execution-gate-admission:v1';
+const restoreOutcomeSignatureDomain = 'fawxzzy-platform:restore-outcome-attestation:v1';
 const storageInventorySignatureDomain = 'fawxzzy-platform:storage-inventory-attestation:v1';
 const objectLockSignatureDomain = 'fawxzzy-platform:object-lock-provider-attestation:v1';
 
@@ -219,7 +222,9 @@ function buildTrustedAttestationResult(evidence, signatureDomain, resultClass, r
       ? '2026-07-18T17:46:00Z'
       : signatureDomain === storageInventorySignatureDomain
         ? '2026-07-18T17:50:00Z'
-        : '2026-07-18T17:21:00Z',
+        : signatureDomain === restoreOutcomeSignatureDomain
+          ? '2026-07-18T17:59:30Z'
+          : '2026-07-18T17:21:00Z',
     verifier_reference: testTrustAnchor.verifier_reference,
     verification_method: 'external_signature_verification',
     key_id: testTrustAnchor.key_id,
@@ -264,8 +269,8 @@ function buildExecutionGateEvidence(receipt, validationContract = contract()) {
       export_id: receipt.export_id
     },
     restore_identity: policy.gate_id === 'restore_rehearsal' ? {
-      target_project_ref: receipt.restore?.target_project?.ref ?? 'invalid',
-      restore_receipt_sha256: sha256Hex(receipt.restore)
+      plan_id: receipt.restore?.plan_identity?.plan_id ?? 'invalid',
+      plan_sha256: independentBackupRestorePlanDigest(validationContract, receipt)
     } : null,
     authentication: {
       status: 'CURRENT',
@@ -283,6 +288,32 @@ function buildExecutionGateEvidence(receipt, validationContract = contract()) {
     admission.authentication.verification_result_sha256 = results[index].result_sha256;
   });
   return { admissions, results };
+}
+
+function buildRestoreOutcomeAuthenticationResult(receipt) {
+  if (receipt.lifecycle_state !== 'RESTORE_REHEARSED') return undefined;
+  const result = {
+    version: '1.0.0',
+    status: 'VERIFIED',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    result_class: 'trusted_restore_outcome_verification',
+    result_id: 'restore-outcome-verification-0001',
+    verified_at: '2026-07-18T17:59:30Z',
+    verifier_reference: testTrustAnchor.verifier_reference,
+    verification_method: 'external_signature_verification',
+    key_id: testTrustAnchor.key_id,
+    signature_algorithm: 'Ed25519',
+    signature_domain: restoreOutcomeSignatureDomain,
+    project: structuredClone(receipt.project),
+    evidence_id: receipt.restore.plan_identity.plan_id,
+    subject_sha256: independentBackupRestoreOutcomeSubjectDigest(receipt),
+    external_receipt_sha256: digest('external-restore-outcome-readback'),
+    signed_payload_sha256: null,
+    signature_base64: null,
+    result_sha256: null
+  };
+  signTrustedAttestationResult(result, restoreOutcomeSignatureDomain);
+  return result;
 }
 
 function buildObjectLockProviderEvidence(receipt, readback) {
@@ -528,6 +559,10 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
   if (restore) {
     receipt.restore = {
       status: 'CURRENT',
+      plan_identity: {
+        plan_id: 'restore-plan-0001',
+        plan_sha256: '0'.repeat(64)
+      },
       target_project: {
         name: 'Fawxzzy restore rehearsal',
         ref: 'restoretarget0000000',
@@ -552,6 +587,11 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
       data_plane_ready_at: '2026-07-18T17:59:00Z',
       measured_rpo_seconds: 1200,
       measured_data_plane_rto_seconds: 540,
+      outcome_authentication: {
+        status: 'CURRENT',
+        method: 'pinned_ed25519_signature_result',
+        verification_result_sha256: '0'.repeat(64)
+      },
       failed_clone_deletion_authority_status: 'BLOCKED'
     };
   }
@@ -561,6 +601,10 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
     const storageBodyRecoveryReceipt = buildStorageBodyRecoveryReceipt(receipt);
     storage.private_digest = storageBodyRecoveryReceipt.denominator.buckets_manifest_sha256;
     storage.body_recovery_receipt_sha256 = sha256Hex(storageBodyRecoveryReceipt);
+  }
+  if (restore) {
+    receipt.restore.plan_identity.plan_sha256 = independentBackupRestorePlanDigest(contract(), receipt);
+    receipt.restore.outcome_authentication.verification_result_sha256 = buildRestoreOutcomeAuthenticationResult(receipt).result_sha256;
   }
   receipt.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(buildAcceptedExportsManifest(receipt));
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
@@ -613,6 +657,9 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const objectLockAuthenticationResult = Object.hasOwn(evidence, 'objectLockAuthenticationResult')
     ? evidence.objectLockAuthenticationResult
     : objectLockProviderEvidence.result;
+  const restoreOutcomeAuthenticationResult = Object.hasOwn(evidence, 'restoreOutcomeAuthenticationResult')
+    ? evidence.restoreOutcomeAuthenticationResult
+    : buildRestoreOutcomeAuthenticationResult(receipt);
   return validateIndependentBackupReceipt(validationContract, receipt, {
     now: validationNow,
     acceptedExportsManifest,
@@ -623,6 +670,7 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
     objectLockReadback,
     objectLockProviderAttestation,
     objectLockAuthenticationResult,
+    restoreOutcomeAuthenticationResult,
     storageInventoryEvidence,
     storageInventoryAuthenticationResult,
     storageBodyRecoveryReceipt,
@@ -661,6 +709,14 @@ function rebindTrustedAttestation(evidence, result, signatureDomain, { sign = tr
   if (sign) signTrustedAttestationResult(result, signatureDomain);
   else result.result_sha256 = trustedAttestationResultDigest(result);
   evidence.authentication.verification_result_sha256 = result.result_sha256;
+}
+
+function bindRestoreOutcomeAuthenticationResult(receipt, result, { sign = true } = {}) {
+  result.subject_sha256 = independentBackupRestoreOutcomeSubjectDigest(receipt);
+  if (sign) signTrustedAttestationResult(result, restoreOutcomeSignatureDomain);
+  else result.result_sha256 = trustedAttestationResultDigest(result);
+  receipt.restore.outcome_authentication.verification_result_sha256 = result.result_sha256;
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
 }
 
 function refreshAcceptedExportsEvidence(receipt, manifest, evidence) {
@@ -913,6 +969,97 @@ test('receipt acceptance requires source-bound independently authenticated execu
     executionGateAdmissions: restoreGate.admissions,
     executionGateAuthenticationResults: restoreGate.results
   }), { ok: true, failures: [] });
+});
+
+test('pre-restore admission binds an immutable plan and final outcome is authenticated separately', () => {
+  const accepted = buildReceipt({ restore: true });
+  const acceptedGate = buildExecutionGateEvidence(accepted);
+  const acceptedOutcome = buildRestoreOutcomeAuthenticationResult(accepted);
+  assert.deepEqual(validate(accepted, now, buildAcceptedExportsManifest(accepted), {
+    executionGateAdmissions: acceptedGate.admissions,
+    executionGateAuthenticationResults: acceptedGate.results,
+    restoreOutcomeAuthenticationResult: acceptedOutcome
+  }), { ok: true, failures: [] });
+
+  const missingOutcome = buildReceipt({ restore: true });
+  const missingOutcomeResult = validate(missingOutcome, now, buildAcceptedExportsManifest(missingOutcome), {
+    restoreOutcomeAuthenticationResult: undefined
+  });
+  assert(missingOutcomeResult.failures.some((failure) => failure.startsWith('restore outcome authentication result schema')));
+
+  const planTamper = buildReceipt({ restore: true });
+  planTamper.restore.plan_identity.plan_sha256 = digest('substituted-restore-plan');
+  planTamper.manifest_sha256 = independentBackupManifestDigest(planTamper);
+  assert(validate(planTamper).failures.includes('restore outcome does not correlate to the admitted immutable plan'));
+
+  const targetSwap = buildReceipt({ restore: true });
+  const targetSwapGate = buildExecutionGateEvidence(targetSwap);
+  const targetSwapOutcome = buildRestoreOutcomeAuthenticationResult(targetSwap);
+  targetSwap.restore.target_project.ref = 'othertarget000000000';
+  targetSwap.restore.plan_identity.plan_sha256 = independentBackupRestorePlanDigest(contract(), targetSwap);
+  targetSwap.manifest_sha256 = independentBackupManifestDigest(targetSwap);
+  const targetSwapResult = validate(targetSwap, now, buildAcceptedExportsManifest(targetSwap), {
+    executionGateAdmissions: targetSwapGate.admissions,
+    executionGateAuthenticationResults: targetSwapGate.results,
+    restoreOutcomeAuthenticationResult: targetSwapOutcome
+  });
+  assert(targetSwapResult.failures.some((failure) => failure.includes('restore correlation mismatch')));
+  assert(targetSwapResult.failures.includes('restore outcome authentication result subject mismatch'));
+
+  const finalOutcomeTamper = buildReceipt({ restore: true });
+  const admittedGate = buildExecutionGateEvidence(finalOutcomeTamper);
+  const authenticatedBeforeTamper = buildRestoreOutcomeAuthenticationResult(finalOutcomeTamper);
+  finalOutcomeTamper.restore.data_plane_ready_at = '2026-07-18T17:58:59Z';
+  finalOutcomeTamper.restore.measured_data_plane_rto_seconds = 539;
+  finalOutcomeTamper.manifest_sha256 = independentBackupManifestDigest(finalOutcomeTamper);
+  const finalOutcomeResult = validate(finalOutcomeTamper, now, buildAcceptedExportsManifest(finalOutcomeTamper), {
+    executionGateAdmissions: admittedGate.admissions,
+    executionGateAuthenticationResults: admittedGate.results,
+    restoreOutcomeAuthenticationResult: authenticatedBeforeTamper
+  });
+  assert(finalOutcomeResult.failures.includes('restore outcome authentication result subject mismatch'));
+
+  const postHoc = buildReceipt({ restore: true });
+  const postHocGate = buildExecutionGateEvidence(postHoc);
+  const restoreAdmissionIndex = postHocGate.admissions.findIndex((entry) => entry.gate_id === 'restore_rehearsal');
+  postHocGate.admissions[restoreAdmissionIndex].issued_at = postHoc.restore.restore_started_at;
+  postHocGate.results[restoreAdmissionIndex].verified_at = postHoc.restore.restore_started_at;
+  rebindTrustedAttestation(
+    postHocGate.admissions[restoreAdmissionIndex],
+    postHocGate.results[restoreAdmissionIndex],
+    executionGateSignatureDomain
+  );
+  const postHocResult = validate(postHoc, now, buildAcceptedExportsManifest(postHoc), {
+    executionGateAdmissions: postHocGate.admissions,
+    executionGateAuthenticationResults: postHocGate.results
+  });
+  assert(postHocResult.failures.some((failure) => failure.includes('was not issued strictly before execution')));
+
+  for (const [label, mutate, expected] of [
+    ['untrusted signer', (result) => { result.key_id = 'attacker-key'; }, 'signer does not match the pinned trust anchor'],
+    ['stale result', (result) => { result.verified_at = '2026-07-18T09:59:59Z'; }, 'is stale'],
+    ['future result', (result) => { result.verified_at = '2026-07-18T18:00:01Z'; }, 'cannot be future-dated'],
+    ['wrong plan identity', (result) => { result.evidence_id = 'restore-plan-other'; }, 'subject mismatch'],
+    ['self-correlated result', (result, receipt) => { result.external_receipt_sha256 = receipt.restore.plan_identity.plan_sha256; }, 'external receipt is self-correlated']
+  ]) {
+    const receipt = buildReceipt({ restore: true });
+    const result = buildRestoreOutcomeAuthenticationResult(receipt);
+    mutate(result, receipt);
+    bindRestoreOutcomeAuthenticationResult(receipt, result);
+    const validation = validate(receipt, now, buildAcceptedExportsManifest(receipt), {
+      restoreOutcomeAuthenticationResult: result
+    });
+    assert(validation.failures.some((failure) => failure.includes(expected)), `${label}: ${validation.failures.join('; ')}`);
+  }
+
+  const malformed = buildReceipt({ restore: true });
+  const malformedResult = buildRestoreOutcomeAuthenticationResult(malformed);
+  malformedResult.signature_base64 = 'not-a-signature';
+  bindRestoreOutcomeAuthenticationResult(malformed, malformedResult, { sign: false });
+  const malformedValidation = validate(malformed, now, buildAcceptedExportsManifest(malformed), {
+    restoreOutcomeAuthenticationResult: malformedResult
+  });
+  assert(malformedValidation.failures.some((failure) => failure.includes('signature is malformed')));
 });
 
 test('Object Lock requires a provider-bound trusted attestation over exact immutable object state', () => {

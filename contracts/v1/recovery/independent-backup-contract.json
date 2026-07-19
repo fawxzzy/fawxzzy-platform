@@ -141,6 +141,15 @@
         ]
       }
     },
+    "restore_outcome_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:restore-outcome-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "binding_class": "admitted_pre_restore_plan_and_final_outcome"
+    },
     "storage_inventory_authentication": {
       "required": true,
       "verification_boundary": "pinned_ed25519_signature",

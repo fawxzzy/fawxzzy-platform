@@ -63,6 +63,7 @@ const projectRef = /^[a-z0-9]{20}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
 const executionGateSignatureDomain = 'fawxzzy-platform:execution-gate-admission:v1';
+const restoreOutcomeSignatureDomain = 'fawxzzy-platform:restore-outcome-attestation:v1';
 const storageInventorySignatureDomain = 'fawxzzy-platform:storage-inventory-attestation:v1';
 const objectLockSignatureDomain = 'fawxzzy-platform:object-lock-provider-attestation:v1';
 const canonicalBase64 = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -112,6 +113,12 @@ const executionGateAuthenticationResultSchema = {
   $ref: '#/$defs/execution_gate_authentication_result',
   $defs: sourceSchema.$defs
 };
+const restoreOutcomeAuthenticationResultSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-restore-outcome-authentication-result',
+  $ref: '#/$defs/restore_outcome_authentication_result',
+  $defs: sourceSchema.$defs
+};
 const objectLockProviderAttestationSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-object-lock-provider-attestation',
@@ -158,6 +165,7 @@ const acceptedExportsAuthenticationResultShapeValidator = new Ajv2020({ allError
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
 const executionGateAdmissionShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(executionGateAdmissionSchema);
 const executionGateAuthenticationResultShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(executionGateAuthenticationResultSchema);
+const restoreOutcomeAuthenticationResultShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(restoreOutcomeAuthenticationResultSchema);
 const objectLockProviderAttestationShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockProviderAttestationSchema);
 const objectLockAuthenticationResultShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockAuthenticationResultSchema);
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
@@ -212,6 +220,50 @@ export function independentBackupReceiptIdentityDigest(receipt) {
     project: receipt?.project ?? null,
     receipt_id: receipt?.receipt_id ?? null,
     source_state_sha256: receipt?.source_state_sha256 ?? null
+  });
+}
+
+export function independentBackupRestorePlanDigest(contract, receipt) {
+  const restore = receipt?.restore;
+  return sha256Hex({
+    version: '1.0.0',
+    plan_id: restore?.plan_identity?.plan_id ?? null,
+    source_project: receipt?.project ?? null,
+    target_project: restore?.target_project ?? null,
+    contract_identity: {
+      version: contract?.version ?? null,
+      contract_artifact_sha256: sha256Hex(contract),
+      execution_gate_policy_sha256: sha256Hex(contract?.receipt_contract?.execution_gate_authentication?.admission_policy ?? null)
+    },
+    source_state_sha256: receipt?.source_state_sha256 ?? null,
+    restore_export_identity: {
+      receipt_id: receipt?.receipt_id ?? null,
+      export_id: receipt?.export_id ?? null,
+      destination_version: receipt?.destination_version ?? null,
+      ciphertext_sha256: receipt?.ciphertext_sha256 ?? null,
+      object_lock_readback_manifest_sha256: receipt?.object_lock?.readback_manifest_sha256 ?? null
+    },
+    quarantine_plan_sha256: sha256Hex({
+      traffic_released: false,
+      synthetic_canary_required: true,
+      external_effect_units: [...externalEffectUnits],
+      failed_clone_deletion_authority_status: 'BLOCKED'
+    }),
+    verification_manifest_sha256: sha256Hex({
+      parity_units: [...parityUnits],
+      rpo_seconds: contract?.policy?.objectives?.rpo_seconds ?? null,
+      quarantined_restore_data_plane_rto_seconds: contract?.policy?.objectives?.quarantined_restore_data_plane_rto_seconds ?? null
+    })
+  });
+}
+
+export function independentBackupRestoreOutcomeSubjectDigest(receipt) {
+  const restore = structuredClone(receipt?.restore ?? null);
+  if (restore && typeof restore === 'object' && !Array.isArray(restore)) delete restore.outcome_authentication;
+  return sha256Hex({
+    project: receipt?.project ?? null,
+    receipt_identity_sha256: independentBackupReceiptIdentityDigest(receipt),
+    restore
   });
 }
 
@@ -500,6 +552,14 @@ export function validateIndependentBackupContract(contract) {
         { gate_id: 'restore_rehearsal', gate_version: '1.0.0', scope: 'restore_receipt' }
       ]
     }), 'execution gate authentication boundary changed', failures);
+  const restoreOutcomeAuthentication = contract.receipt_contract?.restore_outcome_authentication;
+  requireCondition(restoreOutcomeAuthentication?.required === true
+    && restoreOutcomeAuthentication?.verification_boundary === 'pinned_ed25519_signature'
+    && restoreOutcomeAuthentication?.trust_anchor_source === 'receipt_contract.accepted_exports_authentication.trust_anchor'
+    && restoreOutcomeAuthentication?.required_result_status === 'VERIFIED'
+    && restoreOutcomeAuthentication?.signature_domain === restoreOutcomeSignatureDomain
+    && restoreOutcomeAuthentication?.maximum_age_seconds === 28800
+    && restoreOutcomeAuthentication?.binding_class === 'admitted_pre_restore_plan_and_final_outcome', 'restore outcome authentication boundary changed', failures);
   const storageInventoryAuthentication = contract.receipt_contract?.storage_inventory_authentication;
   requireCondition(storageInventoryAuthentication?.required === true
     && storageInventoryAuthentication?.verification_boundary === 'pinned_ed25519_signature'
@@ -617,7 +677,10 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
       && admission?.receipt_identity?.receipt_identity_sha256 === receiptIdentityDigest, `execution gate admission[${index}] receipt identity mismatch`, failures);
     requireCondition(admission?.export_identity?.export_id === receipt.export_id, `execution gate admission[${index}] export identity mismatch`, failures);
     const expectedRestoreIdentity = gatePolicy.gate_id === 'restore_rehearsal'
-      ? { target_project_ref: receipt.restore?.target_project?.ref, restore_receipt_sha256: sha256Hex(receipt.restore) }
+      ? {
+          plan_id: receipt.restore?.plan_identity?.plan_id,
+          plan_sha256: independentBackupRestorePlanDigest(contract, receipt)
+        }
       : null;
     requireCondition(canonicalSerialize(admission?.restore_identity) === canonicalSerialize(expectedRestoreIdentity), `execution gate admission[${index}] restore correlation mismatch`, failures);
     requireCondition(issuedAt !== null && expiresAt !== null && issuedAt < expiresAt, `execution gate admission[${index}] validity interval is malformed`, failures);
@@ -1107,6 +1170,9 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
 
   if (receipt.lifecycle_state === 'RESTORE_REHEARSED') {
     requireCondition(receipt.restore?.status === 'CURRENT', 'RESTORE_REHEARSED requires a current restore receipt', failures);
+    const restorePlanDigest = independentBackupRestorePlanDigest(contract, receipt);
+    requireCondition(safeReference.test(receipt.restore?.plan_identity?.plan_id ?? '')
+      && receipt.restore?.plan_identity?.plan_sha256 === restorePlanDigest, 'restore outcome does not correlate to the admitted immutable plan', failures);
     const restoreTarget = receipt.restore?.target_project;
     requireCondition(safeProjectName.test(restoreTarget?.name ?? '') && projectRef.test(restoreTarget?.ref ?? ''), 'restore target project identity is missing or malformed', failures);
     requireCondition(restoreTarget?.ref !== receipt.project?.ref, 'restore target project must be distinct from the source project', failures);
@@ -1127,6 +1193,40 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     requireCondition(failureDeclaredAt !== null && restoreStartedAt !== null && failureDeclaredAt <= restoreStartedAt, 'restore start cannot predate failure declaration', failures);
     requireCondition(restoreStartedAt !== null && dataPlaneReadyAt !== null && restoreStartedAt <= dataPlaneReadyAt, 'restore data-plane readiness cannot predate restore start', failures);
     requireCondition(dataPlaneReadyAt !== null && now !== null && dataPlaneReadyAt <= now, 'restore data-plane readiness cannot be future-dated', failures);
+    const restoreOutcomeAuthenticationResult = options.restoreOutcomeAuthenticationResult;
+    failures.push(...shapeFailures(restoreOutcomeAuthenticationResultShapeValidator, restoreOutcomeAuthenticationResult, 'restore outcome authentication result'));
+    failures.push(...validateSanitizedReceipt(restoreOutcomeAuthenticationResult, 'restore outcome authentication result'));
+    const restoreOutcomeVerifiedAt = parseTimestamp(restoreOutcomeAuthenticationResult?.verified_at, 'restore_outcome_authentication_result.verified_at', failures);
+    const restoreOutcomeSubjectDigest = independentBackupRestoreOutcomeSubjectDigest(receipt);
+    const restoreOutcomeResultDigest = trustedAttestationResultDigest(restoreOutcomeAuthenticationResult);
+    requireCondition(receipt.restore?.outcome_authentication?.status === 'CURRENT'
+      && receipt.restore?.outcome_authentication?.method === 'pinned_ed25519_signature_result'
+      && receipt.restore?.outcome_authentication?.verification_result_sha256 === restoreOutcomeResultDigest, 'restore outcome authentication result correlation mismatch', failures);
+    requireCondition(restoreOutcomeAuthenticationResult?.status === 'VERIFIED'
+      && restoreOutcomeAuthenticationResult?.project?.name === receipt.project?.name
+      && restoreOutcomeAuthenticationResult?.project?.ref === receipt.project?.ref
+      && restoreOutcomeAuthenticationResult?.evidence_id === receipt.restore?.plan_identity?.plan_id
+      && restoreOutcomeAuthenticationResult?.subject_sha256 === restoreOutcomeSubjectDigest, 'restore outcome authentication result subject mismatch', failures);
+    requireCondition(restoreOutcomeVerifiedAt !== null && dataPlaneReadyAt !== null && restoreOutcomeVerifiedAt >= dataPlaneReadyAt, 'restore outcome authentication predates final outcome', failures);
+    requireCondition(restoreOutcomeVerifiedAt !== null && now !== null && restoreOutcomeVerifiedAt <= now, 'restore outcome authentication cannot be future-dated', failures);
+    requireCondition(restoreOutcomeVerifiedAt !== null && now !== null
+      && now - restoreOutcomeVerifiedAt <= contract.receipt_contract.restore_outcome_authentication.maximum_age_seconds * 1000, 'restore outcome authentication is stale', failures);
+    requireCondition(hexSha256.test(restoreOutcomeAuthenticationResult?.external_receipt_sha256 ?? '')
+      && !new Set([
+        restorePlanDigest,
+        restoreOutcomeSubjectDigest,
+        restoreOutcomeResultDigest,
+        receipt.manifest_sha256,
+        receipt.source_state_sha256,
+        receipt.ciphertext_sha256
+      ]).has(restoreOutcomeAuthenticationResult?.external_receipt_sha256), 'restore outcome authentication external receipt is self-correlated', failures);
+    requireCondition(restoreOutcomeAuthenticationResult?.result_sha256 === restoreOutcomeResultDigest, 'restore outcome authentication result digest mismatch', failures);
+    failures.push(...verifyTrustedAttestationSignature(
+      contract.receipt_contract.accepted_exports_authentication.trust_anchor,
+      restoreOutcomeAuthenticationResult,
+      restoreOutcomeSignatureDomain,
+      'restore outcome authentication result'
+    ));
     const derivedRpoSeconds = snapshotAt !== null && failureDeclaredAt !== null ? (failureDeclaredAt - snapshotAt) / 1000 : null;
     const derivedDataPlaneRtoSeconds = failureDeclaredAt !== null && dataPlaneReadyAt !== null ? (dataPlaneReadyAt - failureDeclaredAt) / 1000 : null;
     requireCondition(Number.isInteger(receipt.restore?.measured_rpo_seconds) && receipt.restore.measured_rpo_seconds === derivedRpoSeconds && receipt.restore.measured_rpo_seconds <= contract.policy.objectives.rpo_seconds, 'restore rehearsal has an invalid, uncorrelated, or over-objective RPO measurement', failures);

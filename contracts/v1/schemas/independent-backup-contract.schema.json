@@ -155,6 +155,7 @@
         "aggregate_only",
         "accepted_exports_authentication",
         "execution_gate_authentication",
+        "restore_outcome_authentication",
         "storage_inventory_authentication",
         "object_lock_authentication",
         "required_fields",
@@ -261,6 +262,9 @@
         },
         "execution_gate_authentication": {
           "$ref": "#/$defs/execution_gate_authentication_policy"
+        },
+        "restore_outcome_authentication": {
+          "$ref": "#/$defs/restore_outcome_authentication_policy"
         },
         "storage_inventory_authentication": {
           "$ref": "#/$defs/storage_inventory_authentication_policy"
@@ -482,6 +486,42 @@
               "items": false
             }
           }
+        }
+      }
+    },
+    "restore_outcome_authentication_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "verification_boundary",
+        "trust_anchor_source",
+        "required_result_status",
+        "signature_domain",
+        "maximum_age_seconds",
+        "binding_class"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "verification_boundary": {
+          "const": "pinned_ed25519_signature"
+        },
+        "trust_anchor_source": {
+          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
+        },
+        "required_result_status": {
+          "const": "VERIFIED"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:restore-outcome-attestation:v1"
+        },
+        "maximum_age_seconds": {
+          "const": 28800
+        },
+        "binding_class": {
+          "const": "admitted_pre_restore_plan_and_final_outcome"
         }
       }
     },
@@ -1508,14 +1548,14 @@
               "type": "object",
               "additionalProperties": false,
               "required": [
-                "target_project_ref",
-                "restore_receipt_sha256"
+                "plan_id",
+                "plan_sha256"
               ],
               "properties": {
-                "target_project_ref": {
-                  "$ref": "#/$defs/project_ref"
+                "plan_id": {
+                  "$ref": "#/$defs/safe_reference"
                 },
-                "restore_receipt_sha256": {
+                "plan_sha256": {
                   "$ref": "#/$defs/sha256"
                 }
               }
@@ -1600,6 +1640,87 @@
         },
         "signature_domain": {
           "const": "fawxzzy-platform:execution-gate-admission:v1"
+        },
+        "project": {
+          "$ref": "#/$defs/receipt_project"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "restore_outcome_authentication_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "result_class",
+        "result_id",
+        "verified_at",
+        "verifier_reference",
+        "verification_method",
+        "key_id",
+        "signature_algorithm",
+        "signature_domain",
+        "project",
+        "evidence_id",
+        "subject_sha256",
+        "external_receipt_sha256",
+        "signed_payload_sha256",
+        "signature_base64",
+        "result_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "VERIFIED"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "result_class": {
+          "const": "trusted_restore_outcome_verification"
+        },
+        "result_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verified_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "verifier_reference": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verification_method": {
+          "const": "external_signature_verification"
+        },
+        "key_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "signature_algorithm": {
+          "const": "Ed25519"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:restore-outcome-attestation:v1"
         },
         "project": {
           "$ref": "#/$defs/receipt_project"
@@ -2667,6 +2788,7 @@
       "additionalProperties": false,
       "required": [
         "status",
+        "plan_identity",
         "target_project",
         "traffic_released",
         "synthetic_canary_status",
@@ -2677,11 +2799,28 @@
         "data_plane_ready_at",
         "measured_rpo_seconds",
         "measured_data_plane_rto_seconds",
+        "outcome_authentication",
         "failed_clone_deletion_authority_status"
       ],
       "properties": {
         "status": {
           "const": "CURRENT"
+        },
+        "plan_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "plan_id",
+            "plan_sha256"
+          ],
+          "properties": {
+            "plan_id": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "plan_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         },
         "target_project": {
           "$ref": "#/$defs/restore_target_project"
@@ -2724,6 +2863,26 @@
         "measured_data_plane_rto_seconds": {
           "type": "integer",
           "minimum": 0
+        },
+        "outcome_authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "method",
+            "verification_result_sha256"
+          ],
+          "properties": {
+            "status": {
+              "const": "CURRENT"
+            },
+            "method": {
+              "const": "pinned_ed25519_signature_result"
+            },
+            "verification_result_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         },
         "failed_clone_deletion_authority_status": {
           "const": "BLOCKED"
