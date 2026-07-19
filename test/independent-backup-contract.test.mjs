@@ -486,6 +486,53 @@ test('non-empty Storage bodies validate only with a correlated recovery receipt'
   assert(validate(selfReported, now, buildAcceptedExportsManifest(selfReported), { storageBodyRecoveryReceipt: null }).failures.includes('Storage body recovery receipt digest mismatch'));
 });
 
+test('Storage body status, count, and digest are bound to the authoritative denominator', () => {
+  assert.deepEqual(validate(buildReceipt()), { ok: true, failures: [] });
+
+  const zeroCurrent = buildReceipt();
+  const zeroCurrentStorage = zeroCurrent.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+  const zeroBucketReceipt = buildStorageBodyRecoveryReceipt(zeroCurrent);
+  zeroCurrentStorage.status = 'CURRENT';
+  bindStorageBodyRecoveryReceipt(zeroCurrent, zeroBucketReceipt);
+  const zeroCurrentResult = validate(zeroCurrent, now, buildAcceptedExportsManifest(zeroCurrent), { storageBodyRecoveryReceipt: zeroBucketReceipt });
+  assert.equal(zeroCurrentResult.ok, false);
+  assert(zeroCurrentResult.failures.includes('Storage body coverage state contradicts its authoritative denominator'));
+
+  const zeroContradictions = [
+    { status: 'NOT_APPLICABLE', aggregate_count: 0, private_digest: digest('empty-storage'), body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null },
+    { status: null, aggregate_count: 0, private_digest: null, body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null },
+    { status: 'NOT_APPLICABLE', private_digest: null, body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null },
+    { status: 'NOT_APPLICABLE', aggregate_count: 'zero', private_digest: null, body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null },
+    { status: 'NOT_APPLICABLE', aggregate_count: 0, private_digest: 'malformed', body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null },
+    { status: 'NOT_APPLICABLE', aggregate_count: 0, private_digest: null, body_recovery_receipt_status: 'CURRENT', body_recovery_receipt_sha256: digest('empty-claim') },
+    { status: 'NOT_APPLICABLE', aggregate_count: 0, private_digest: null, body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: digest('empty-claim') },
+    { status: 'NOT_APPLICABLE', aggregate_count: 2, private_digest: digest('positive-not-applicable'), body_recovery_receipt_status: 'NOT_APPLICABLE', body_recovery_receipt_sha256: null }
+  ];
+
+  for (const [index, contradiction] of zeroContradictions.entries()) {
+    const receipt = buildReceipt();
+    const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+    Object.keys(storage).forEach((key) => { delete storage[key]; });
+    Object.assign(storage, { unit: 'storage_object_bodies' }, contradiction);
+    receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+    let result;
+    assert.doesNotThrow(() => { result = validate(receipt); }, `Storage contradiction ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.includes('Storage body coverage state contradicts its authoritative denominator'));
+  }
+
+  const positiveNotApplicable = buildReceipt({ storageObjectCount: 2 });
+  const positiveStorage = positiveNotApplicable.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+  positiveStorage.status = 'NOT_APPLICABLE';
+  positiveStorage.private_digest = null;
+  positiveStorage.body_recovery_receipt_status = 'NOT_APPLICABLE';
+  positiveStorage.body_recovery_receipt_sha256 = null;
+  positiveNotApplicable.manifest_sha256 = independentBackupManifestDigest(positiveNotApplicable);
+  assert(validate(positiveNotApplicable).failures.includes('Storage body coverage state contradicts its authoritative denominator'));
+
+  assert.deepEqual(validate(buildReceipt({ storageObjectCount: 2 })), { ok: true, failures: [] });
+});
+
 test('Storage body recovery evidence rejects stale, mismatched, partial, duplicate, and unproved coverage', () => {
   const stale = buildReceipt({ storageObjectCount: 2 });
   const staleEvidence = buildStorageBodyRecoveryReceipt(stale);
@@ -557,8 +604,16 @@ test('Storage body recovery evidence rejects stale, mismatched, partial, duplica
   digestMismatchEvidence.source_evidence_sha256 = digest('tampered-storage-readback');
   assert(validate(digestMismatch, now, buildAcceptedExportsManifest(digestMismatch), { storageBodyRecoveryReceipt: digestMismatchEvidence }).failures.includes('Storage body recovery receipt digest mismatch'));
 
-  const malformed = buildReceipt({ storageObjectCount: 2 });
-  assert.doesNotThrow(() => validate(malformed, now, buildAcceptedExportsManifest(malformed), { storageBodyRecoveryReceipt: { denominator: { buckets: [null] } } }));
+  for (const [index, malformedEvidence] of [null, 'malformed', [], { denominator: { buckets: [null] } }].entries()) {
+    const malformed = buildReceipt({ storageObjectCount: 2 });
+    let malformedResult;
+    assert.doesNotThrow(() => {
+      malformedResult = validate(malformed, now, buildAcceptedExportsManifest(malformed), { storageBodyRecoveryReceipt: malformedEvidence });
+    }, `malformed Storage recovery evidence ${index} must not throw`);
+    assert.equal(malformedResult.ok, false);
+    assert(malformedResult.failures.some((failure) => failure.startsWith('Storage body recovery receipt schema')));
+    assert(malformedResult.failures.includes('Storage body recovery receipt digest mismatch'));
+  }
 });
 
 test('production-service RTO claims fail before measurement', () => {

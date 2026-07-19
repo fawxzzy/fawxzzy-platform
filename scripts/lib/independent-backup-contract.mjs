@@ -277,10 +277,23 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
       continue;
     }
     const isStorageBodies = entry.unit === 'storage_object_bodies';
-    const emptyStorageBodies = isStorageBodies && entry.status === 'NOT_APPLICABLE' && entry.aggregate_count === 0 && entry.private_digest === null;
-    const current = entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '');
-    requireCondition(emptyStorageBodies || current, `${entry.unit}: coverage is incomplete`, failures);
-    if (isStorageBodies && entry.aggregate_count > 0) requireCondition(entry.body_recovery_receipt_status === 'CURRENT' && hexSha256.test(entry.body_recovery_receipt_sha256 ?? ''), 'non-empty Storage bodies require a separate current recovery receipt', failures);
+    if (isStorageBodies) {
+      const emptyStorageBodies = entry.status === 'NOT_APPLICABLE'
+        && entry.aggregate_count === 0
+        && entry.private_digest === null
+        && entry.body_recovery_receipt_status === 'NOT_APPLICABLE'
+        && entry.body_recovery_receipt_sha256 === null;
+      const currentStorageBodies = entry.status === 'CURRENT'
+        && Number.isInteger(entry.aggregate_count)
+        && entry.aggregate_count > 0
+        && hexSha256.test(entry.private_digest ?? '')
+        && entry.body_recovery_receipt_status === 'CURRENT'
+        && hexSha256.test(entry.body_recovery_receipt_sha256 ?? '');
+      requireCondition(emptyStorageBodies || currentStorageBodies, 'Storage body coverage state contradicts its authoritative denominator', failures);
+    } else {
+      const current = entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '');
+      requireCondition(current, `${entry.unit}: coverage is incomplete`, failures);
+    }
   }
   const storageBodiesClaimed = storageBodiesEntry?.status === 'CURRENT'
     || (storageBodiesEntry?.aggregate_count ?? 0) > 0
