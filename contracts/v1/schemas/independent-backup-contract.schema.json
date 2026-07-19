@@ -780,6 +780,196 @@
         }
       }
     },
+    "accepted_exports_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "evidence_class",
+        "evidence_id",
+        "observed_at",
+        "project",
+        "month_utc",
+        "policy",
+        "history",
+        "authentication",
+        "entries"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "evidence_class": {
+          "const": "authenticated_accepted_exports_readback"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "month_utc": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "full_export_interval_hours",
+            "standard_retention_days",
+            "first_accepted_monthly_days"
+          ],
+          "properties": {
+            "full_export_interval_hours": {
+              "const": 6
+            },
+            "standard_retention_days": {
+              "const": 35
+            },
+            "first_accepted_monthly_days": {
+              "const": 400
+            }
+          }
+        },
+        "history": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "complete",
+            "window_started_at",
+            "window_ended_at",
+            "entry_count",
+            "entries_manifest_sha256",
+            "latest_entry_sha256"
+          ],
+          "properties": {
+            "complete": {
+              "const": true
+            },
+            "window_started_at": {
+              "$ref": "#/$defs/utc_timestamp"
+            },
+            "window_ended_at": {
+              "$ref": "#/$defs/utc_timestamp"
+            },
+            "entry_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "entries_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "latest_entry_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "method",
+            "receipt_sha256"
+          ],
+          "properties": {
+            "status": {
+              "const": "CURRENT"
+            },
+            "method": {
+              "const": "external_immutable_listing_receipt"
+            },
+            "receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/authenticated_accepted_export_entry"
+          }
+        }
+      }
+    },
+    "authenticated_accepted_export_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "completed_at",
+        "accepted_at",
+        "retention_until",
+        "destination_version",
+        "ciphertext_sha256",
+        "immutable_readback_sha256",
+        "previous_entry_sha256",
+        "entry_sha256"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "accepted_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "retention_until": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "destination_version": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "ciphertext_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "immutable_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_entry_sha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "entry_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
     "object_lock_readback": {
       "type": "object",
       "additionalProperties": false,

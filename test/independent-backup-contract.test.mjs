@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadDocuments } from '../scripts/lib/contracts.mjs';
 import {
+  acceptedExportHistoryEntryDigest,
   canonicalSerialize,
   coverageUnits,
   externalEffectUnits,
@@ -27,12 +28,12 @@ function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
     destination_version: receipt.destination_version,
     ciphertext_sha256: receipt.ciphertext_sha256
   };
-  return {
+  const manifest = {
     version: '1.0.0',
     status: 'CURRENT',
     month_utc: receipt.completed_at.slice(0, 7),
     observed_at: '2026-07-18T17:45:00Z',
-    source_evidence_sha256: digest('accepted-exports-readback'),
+    source_evidence_sha256: null,
     entries: first ? [current] : [
       {
         completed_at: '2026-07-18T11:40:00Z',
@@ -41,6 +42,63 @@ function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
       },
       current
     ]
+  };
+  manifest.source_evidence_sha256 = sha256Hex(buildAcceptedExportsEvidence(receipt, manifest));
+  return manifest;
+}
+
+function buildAcceptedExportsEvidence(receipt, manifest) {
+  const entries = [];
+  for (const [index, accepted] of manifest.entries.entries()) {
+    const completedAt = Date.parse(accepted.completed_at);
+    const current = accepted.completed_at === receipt.completed_at
+      && accepted.destination_version === receipt.destination_version
+      && accepted.ciphertext_sha256 === receipt.ciphertext_sha256;
+    const retentionDays = index === 0 ? 400 : 35;
+    const entry = {
+      sequence: index,
+      completed_at: accepted.completed_at,
+      accepted_at: new Date(completedAt + 300000).toISOString().replace('.000Z', 'Z'),
+      retention_until: current
+        ? receipt.retention_until
+        : new Date(completedAt + retentionDays * 86400000).toISOString().replace('.000Z', 'Z'),
+      destination_version: accepted.destination_version,
+      ciphertext_sha256: accepted.ciphertext_sha256,
+      immutable_readback_sha256: digest(`accepted-export-readback-${accepted.destination_version}`),
+      previous_entry_sha256: index === 0 ? null : entries[index - 1].entry_sha256,
+      entry_sha256: null
+    };
+    entry.entry_sha256 = acceptedExportHistoryEntryDigest(entry);
+    entries.push(entry);
+  }
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    evidence_class: 'authenticated_accepted_exports_readback',
+    evidence_id: 'accepted-exports-readback-0001',
+    observed_at: manifest.observed_at,
+    project: structuredClone(receipt.project),
+    month_utc: manifest.month_utc,
+    policy: {
+      full_export_interval_hours: 6,
+      standard_retention_days: 35,
+      first_accepted_monthly_days: 400
+    },
+    history: {
+      complete: true,
+      window_started_at: `${manifest.month_utc}-01T00:00:00Z`,
+      window_ended_at: manifest.observed_at,
+      entry_count: entries.length,
+      entries_manifest_sha256: sha256Hex(entries),
+      latest_entry_sha256: entries.at(-1).entry_sha256
+    },
+    authentication: {
+      status: 'CURRENT',
+      method: 'external_immutable_listing_receipt',
+      receipt_sha256: digest('accepted-exports-authentication-receipt')
+    },
+    entries
   };
 }
 
@@ -292,9 +350,16 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const storageInventoryEvidence = Object.hasOwn(evidence, 'storageInventoryEvidence')
     ? evidence.storageInventoryEvidence
     : buildStorageInventoryEvidence(receipt);
+  const acceptedExportsEvidence = Object.hasOwn(evidence, 'acceptedExportsEvidence')
+    ? evidence.acceptedExportsEvidence
+    : (Array.isArray(acceptedExportsManifest?.entries)
+        && acceptedExportsManifest.entries.every((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+      ? buildAcceptedExportsEvidence(receipt, acceptedExportsManifest)
+      : undefined);
   return validateIndependentBackupReceipt(contract(), receipt, {
     now: validationNow,
     acceptedExportsManifest,
+    acceptedExportsEvidence,
     objectLockReadback,
     storageInventoryEvidence,
     storageBodyRecoveryReceipt,
@@ -305,6 +370,24 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
 function bindObjectLockReadback(receipt, readback) {
   receipt.object_lock.readback_manifest_sha256 = sha256Hex(readback);
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+}
+
+function bindAcceptedExportsEvidence(receipt, manifest, evidence) {
+  manifest.source_evidence_sha256 = sha256Hex(evidence);
+  receipt.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(manifest);
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+}
+
+function refreshAcceptedExportsEvidence(receipt, manifest, evidence) {
+  for (const [index, entry] of evidence.entries.entries()) {
+    entry.sequence = index;
+    entry.previous_entry_sha256 = index === 0 ? null : evidence.entries[index - 1].entry_sha256;
+    entry.entry_sha256 = acceptedExportHistoryEntryDigest(entry);
+  }
+  evidence.history.entry_count = evidence.entries.length;
+  evidence.history.entries_manifest_sha256 = sha256Hex(evidence.entries);
+  evidence.history.latest_entry_sha256 = evidence.entries.at(-1).entry_sha256;
+  bindAcceptedExportsEvidence(receipt, manifest, evidence);
 }
 
 function bindStorageBodyRecoveryReceipt(receipt, storageReceipt) {
@@ -560,6 +643,120 @@ test('retention and independently evidenced monthly classification fail closed',
   duplicateIdentity.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(duplicateManifest);
   duplicateIdentity.manifest_sha256 = independentBackupManifestDigest(duplicateIdentity);
   assert(validate(duplicateIdentity, now, duplicateManifest).failures.includes('accepted exports manifest entries must have distinct immutable identities'));
+
+  const fabricatedPredecessor = buildReceipt();
+  const fabricatedManifest = buildAcceptedExportsManifest(fabricatedPredecessor);
+  fabricatedManifest.source_evidence_sha256 = digest('fabricated-predecessor-self-report');
+  fabricatedPredecessor.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(fabricatedManifest);
+  fabricatedPredecessor.manifest_sha256 = independentBackupManifestDigest(fabricatedPredecessor);
+  const fabricatedResult = validate(fabricatedPredecessor, now, fabricatedManifest, { acceptedExportsEvidence: undefined });
+  assert.equal(fabricatedResult.ok, false);
+  assert(fabricatedResult.failures.some((failure) => failure.startsWith('accepted exports evidence schema')));
+});
+
+test('preceding monthly exports require authenticated complete chained evidence', () => {
+  const makeCase = () => {
+    const receipt = buildReceipt();
+    const manifest = buildAcceptedExportsManifest(receipt);
+    const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+    bindAcceptedExportsEvidence(receipt, manifest, evidence);
+    return { receipt, manifest, evidence };
+  };
+  const valid = makeCase();
+  assert.deepEqual(validate(valid.receipt, now, valid.manifest, { acceptedExportsEvidence: valid.evidence }), { ok: true, failures: [] });
+
+  for (const malformed of [undefined, null, 'self-report', 7, true, [], {}]) {
+    const candidate = makeCase();
+    let result;
+    assert.doesNotThrow(() => {
+      result = validate(candidate.receipt, now, candidate.manifest, { acceptedExportsEvidence: malformed });
+    });
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('accepted exports evidence schema')));
+  }
+
+  const projectMismatch = makeCase();
+  projectMismatch.evidence.project.name = 'Different project';
+  bindAcceptedExportsEvidence(projectMismatch.receipt, projectMismatch.manifest, projectMismatch.evidence);
+  assert(validate(projectMismatch.receipt, now, projectMismatch.manifest, { acceptedExportsEvidence: projectMismatch.evidence }).failures.includes('accepted exports evidence project mismatch'));
+
+  const policyMismatch = makeCase();
+  policyMismatch.evidence.policy.full_export_interval_hours = 12;
+  bindAcceptedExportsEvidence(policyMismatch.receipt, policyMismatch.manifest, policyMismatch.evidence);
+  assert(validate(policyMismatch.receipt, now, policyMismatch.manifest, { acceptedExportsEvidence: policyMismatch.evidence }).failures.includes('accepted exports evidence policy denominator mismatch'));
+
+  const incomplete = makeCase();
+  incomplete.evidence.history.complete = false;
+  bindAcceptedExportsEvidence(incomplete.receipt, incomplete.manifest, incomplete.evidence);
+  assert(validate(incomplete.receipt, now, incomplete.manifest, { acceptedExportsEvidence: incomplete.evidence }).failures.includes('accepted exports evidence history is incomplete'));
+
+  const countMismatch = makeCase();
+  countMismatch.evidence.history.entry_count += 1;
+  bindAcceptedExportsEvidence(countMismatch.receipt, countMismatch.manifest, countMismatch.evidence);
+  assert(validate(countMismatch.receipt, now, countMismatch.manifest, { acceptedExportsEvidence: countMismatch.evidence }).failures.includes('accepted exports evidence history denominator mismatch'));
+
+  const manifestDigestMismatch = makeCase();
+  manifestDigestMismatch.evidence.history.entries_manifest_sha256 = digest('wrong-accepted-history');
+  bindAcceptedExportsEvidence(manifestDigestMismatch.receipt, manifestDigestMismatch.manifest, manifestDigestMismatch.evidence);
+  assert(validate(manifestDigestMismatch.receipt, now, manifestDigestMismatch.manifest, { acceptedExportsEvidence: manifestDigestMismatch.evidence }).failures.includes('accepted exports evidence history manifest digest mismatch'));
+
+  const sequenceGap = makeCase();
+  sequenceGap.evidence.entries[1].sequence = 3;
+  bindAcceptedExportsEvidence(sequenceGap.receipt, sequenceGap.manifest, sequenceGap.evidence);
+  assert(validate(sequenceGap.receipt, now, sequenceGap.manifest, { acceptedExportsEvidence: sequenceGap.evidence }).failures.includes('accepted exports evidence sequence contains a gap or ambiguity'));
+
+  const brokenChain = makeCase();
+  brokenChain.evidence.entries[1].previous_entry_sha256 = digest('unverifiable-predecessor');
+  brokenChain.evidence.entries[1].entry_sha256 = acceptedExportHistoryEntryDigest(brokenChain.evidence.entries[1]);
+  brokenChain.evidence.history.entries_manifest_sha256 = sha256Hex(brokenChain.evidence.entries);
+  brokenChain.evidence.history.latest_entry_sha256 = brokenChain.evidence.entries.at(-1).entry_sha256;
+  bindAcceptedExportsEvidence(brokenChain.receipt, brokenChain.manifest, brokenChain.evidence);
+  assert(validate(brokenChain.receipt, now, brokenChain.manifest, { acceptedExportsEvidence: brokenChain.evidence }).failures.includes('accepted exports evidence predecessor chain is unverifiable'));
+
+  const duplicate = makeCase();
+  duplicate.evidence.entries[1].immutable_readback_sha256 = duplicate.evidence.entries[0].immutable_readback_sha256;
+  refreshAcceptedExportsEvidence(duplicate.receipt, duplicate.manifest, duplicate.evidence);
+  assert(validate(duplicate.receipt, now, duplicate.manifest, { acceptedExportsEvidence: duplicate.evidence }).failures.includes('accepted exports evidence entries are duplicate or ambiguous'));
+
+  const mismatchedIdentity = makeCase();
+  mismatchedIdentity.evidence.entries[0].destination_version = 'unlisted-export-version';
+  refreshAcceptedExportsEvidence(mismatchedIdentity.receipt, mismatchedIdentity.manifest, mismatchedIdentity.evidence);
+  assert(validate(mismatchedIdentity.receipt, now, mismatchedIdentity.manifest, { acceptedExportsEvidence: mismatchedIdentity.evidence }).failures.includes('accepted exports evidence entries do not match the accepted manifest'));
+
+  const shortenedFirstRetention = makeCase();
+  shortenedFirstRetention.evidence.entries[0].retention_until = new Date(Date.parse(shortenedFirstRetention.evidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
+  refreshAcceptedExportsEvidence(shortenedFirstRetention.receipt, shortenedFirstRetention.manifest, shortenedFirstRetention.evidence);
+  assert(validate(shortenedFirstRetention.receipt, now, shortenedFirstRetention.manifest, { acceptedExportsEvidence: shortenedFirstRetention.evidence }).failures.includes('accepted exports evidence retention history violates policy'));
+
+  const stale = makeCase();
+  stale.manifest.observed_at = '2026-07-18T09:00:00Z';
+  stale.evidence.observed_at = stale.manifest.observed_at;
+  stale.evidence.history.window_ended_at = stale.manifest.observed_at;
+  bindAcceptedExportsEvidence(stale.receipt, stale.manifest, stale.evidence);
+  assert(validate(stale.receipt, now, stale.manifest, { acceptedExportsEvidence: stale.evidence }).failures.includes('accepted exports evidence is stale'));
+
+  const future = makeCase();
+  future.manifest.observed_at = '2026-07-18T18:00:01Z';
+  future.evidence.observed_at = future.manifest.observed_at;
+  future.evidence.history.window_ended_at = future.manifest.observed_at;
+  bindAcceptedExportsEvidence(future.receipt, future.manifest, future.evidence);
+  assert(validate(future.receipt, now, future.manifest, { acceptedExportsEvidence: future.evidence }).failures.includes('accepted exports evidence cannot be future-dated'));
+
+  const tamperedEntry = makeCase();
+  tamperedEntry.evidence.entries[0].entry_sha256 = digest('tampered-entry');
+  tamperedEntry.evidence.history.entries_manifest_sha256 = sha256Hex(tamperedEntry.evidence.entries);
+  bindAcceptedExportsEvidence(tamperedEntry.receipt, tamperedEntry.manifest, tamperedEntry.evidence);
+  assert(validate(tamperedEntry.receipt, now, tamperedEntry.manifest, { acceptedExportsEvidence: tamperedEntry.evidence }).failures.includes('accepted exports evidence entry digest mismatch'));
+
+  const circularAuthentication = makeCase();
+  circularAuthentication.evidence.authentication.receipt_sha256 = circularAuthentication.evidence.history.entries_manifest_sha256;
+  bindAcceptedExportsEvidence(circularAuthentication.receipt, circularAuthentication.manifest, circularAuthentication.evidence);
+  assert(validate(circularAuthentication.receipt, now, circularAuthentication.manifest, { acceptedExportsEvidence: circularAuthentication.evidence }).failures.includes('accepted exports evidence authentication is circular or self-reported'));
+
+  const malformedAuthentication = makeCase();
+  malformedAuthentication.evidence.authentication.receipt_sha256 = 'not-a-digest';
+  bindAcceptedExportsEvidence(malformedAuthentication.receipt, malformedAuthentication.manifest, malformedAuthentication.evidence);
+  assert(validate(malformedAuthentication.receipt, now, malformedAuthentication.manifest, { acceptedExportsEvidence: malformedAuthentication.evidence }).failures.includes('accepted exports evidence authentication is incomplete'));
 });
 
 test('missing or over-ceiling cost controls fail closed', () => {

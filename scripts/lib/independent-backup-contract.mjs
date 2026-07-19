@@ -77,6 +77,12 @@ const acceptedExportsManifestSchema = {
   $ref: '#/$defs/accepted_exports_manifest',
   $defs: sourceSchema.$defs
 };
+const acceptedExportsEvidenceSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-accepted-exports-evidence',
+  $ref: '#/$defs/accepted_exports_evidence',
+  $defs: sourceSchema.$defs
+};
 const objectLockReadbackSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-object-lock-readback',
@@ -148,6 +154,7 @@ contractAjv.addSchema(commonSchema);
 const contractShapeValidator = contractAjv.compile(sourceSchema);
 const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
+const acceptedExportsEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsEvidenceSchema);
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
 const storageBodyRecoveryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryEvidenceSchema);
@@ -186,6 +193,22 @@ export function storageInventoryManifestDigest(evidence) {
 export function storageBodyRecoveryEvidenceDigest(evidence) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
   return sha256Hex(evidence);
+}
+
+export function acceptedExportHistoryEntryDigest(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+  const copy = { ...entry };
+  delete copy.entry_sha256;
+  return sha256Hex(copy);
+}
+
+function acceptedExportsEvidenceSelfCorrelationDigest(evidence) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
+  const copy = structuredClone(evidence);
+  if (copy.authentication && typeof copy.authentication === 'object' && !Array.isArray(copy.authentication)) {
+    delete copy.authentication.receipt_sha256;
+  }
+  return sha256Hex(copy);
 }
 
 function storageInventorySelfCorrelationDigest(evidence) {
@@ -374,6 +397,78 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(new Set(acceptedExports.map((entry) => entry?.destination_version)).size === acceptedExports.length && new Set(acceptedExports.map((entry) => entry?.ciphertext_sha256)).size === acceptedExports.length, 'accepted exports manifest entries must have distinct immutable identities', failures);
   const currentExportMatches = acceptedExports.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.completed_at === receipt.completed_at && entry?.destination_version === receipt.destination_version && entry?.ciphertext_sha256 === receipt.ciphertext_sha256);
   requireCondition(currentExportMatches.length === 1, 'accepted exports manifest must contain the current export exactly once', failures);
+  requireCondition(currentExportMatches.length === 1 && currentExportMatches[0].index === acceptedExports.length - 1, 'accepted exports manifest current export must be the latest accepted entry', failures);
+  const acceptedExportsEvidence = options.acceptedExportsEvidence;
+  failures.push(...shapeFailures(acceptedExportsEvidenceShapeValidator, acceptedExportsEvidence, 'accepted exports evidence'));
+  failures.push(...validateSanitizedReceipt(acceptedExportsEvidence, 'accepted exports evidence'));
+  const acceptedEvidenceObservedAt = parseTimestamp(acceptedExportsEvidence?.observed_at, 'accepted_exports_evidence.observed_at', failures);
+  const acceptedHistoryStartedAt = parseTimestamp(acceptedExportsEvidence?.history?.window_started_at, 'accepted_exports_evidence.history.window_started_at', failures);
+  const acceptedHistoryEndedAt = parseTimestamp(acceptedExportsEvidence?.history?.window_ended_at, 'accepted_exports_evidence.history.window_ended_at', failures);
+  const acceptedEvidenceEntries = Array.isArray(acceptedExportsEvidence?.entries) ? acceptedExportsEvidence.entries : [];
+  const acceptedEvidenceDigest = acceptedExportsEvidence && typeof acceptedExportsEvidence === 'object' && !Array.isArray(acceptedExportsEvidence)
+    ? sha256Hex(acceptedExportsEvidence)
+    : null;
+  const acceptedEvidenceEntriesDigest = sha256Hex(acceptedEvidenceEntries);
+  const expectedHistoryStart = expectedMonth === null ? null : `${expectedMonth}-01T00:00:00Z`;
+  requireCondition(acceptedExportsEvidence?.status === 'CURRENT' && acceptedExportsEvidence?.evidence_class === 'authenticated_accepted_exports_readback', 'accepted exports evidence must be an authenticated CURRENT readback', failures);
+  requireCondition(safeReference.test(acceptedExportsEvidence?.evidence_id ?? ''), 'accepted exports evidence identity is missing or unsafe', failures);
+  requireCondition(acceptedExportsEvidence?.project?.name === receipt.project?.name && acceptedExportsEvidence?.project?.ref === receipt.project?.ref, 'accepted exports evidence project mismatch', failures);
+  requireCondition(acceptedExportsEvidence?.month_utc === expectedMonth, 'accepted exports evidence month mismatch', failures);
+  requireCondition(acceptedExportsEvidence?.policy?.full_export_interval_hours === contract.policy.schedule.full_export_interval_hours
+    && acceptedExportsEvidence?.policy?.standard_retention_days === contract.policy.retention.standard_days
+    && acceptedExportsEvidence?.policy?.first_accepted_monthly_days === contract.policy.retention.first_accepted_monthly_days, 'accepted exports evidence policy denominator mismatch', failures);
+  requireCondition(acceptedEvidenceObservedAt !== null && acceptedManifestObservedAt !== null && acceptedEvidenceObservedAt === acceptedManifestObservedAt, 'accepted exports evidence observation mismatch', failures);
+  requireCondition(acceptedEvidenceObservedAt !== null && completedAt !== null && acceptedEvidenceObservedAt >= completedAt, 'accepted exports evidence cannot predate backup completion', failures);
+  requireCondition(acceptedEvidenceObservedAt !== null && now !== null && acceptedEvidenceObservedAt <= now, 'accepted exports evidence cannot be future-dated', failures);
+  requireCondition(acceptedEvidenceObservedAt !== null && now !== null && now - acceptedEvidenceObservedAt <= maximumEvidenceAgeMs, 'accepted exports evidence is stale', failures);
+  requireCondition(acceptedExportsEvidence?.history?.complete === true, 'accepted exports evidence history is incomplete', failures);
+  requireCondition(acceptedHistoryStartedAt !== null && acceptedExportsEvidence?.history?.window_started_at === expectedHistoryStart, 'accepted exports evidence history does not begin at the UTC month boundary', failures);
+  requireCondition(acceptedHistoryEndedAt !== null && acceptedEvidenceObservedAt !== null && acceptedHistoryEndedAt === acceptedEvidenceObservedAt, 'accepted exports evidence history window does not end at observation', failures);
+  requireCondition(acceptedExportsEvidence?.history?.entry_count === acceptedEvidenceEntries.length && acceptedEvidenceEntries.length === acceptedExports.length, 'accepted exports evidence history denominator mismatch', failures);
+  requireCondition(acceptedExportsEvidence?.history?.entries_manifest_sha256 === acceptedEvidenceEntriesDigest, 'accepted exports evidence history manifest digest mismatch', failures);
+  requireCondition(acceptedExportsEvidence?.history?.latest_entry_sha256 === acceptedEvidenceEntries.at(-1)?.entry_sha256, 'accepted exports evidence latest-entry correlation mismatch', failures);
+  requireCondition(acceptedEvidenceEntries.length === acceptedExports.length && acceptedEvidenceEntries.every((entry, index) => entry?.completed_at === acceptedExports[index]?.completed_at
+    && entry?.destination_version === acceptedExports[index]?.destination_version
+    && entry?.ciphertext_sha256 === acceptedExports[index]?.ciphertext_sha256), 'accepted exports evidence entries do not match the accepted manifest', failures);
+  const acceptedEvidenceEntryDigests = acceptedEvidenceEntries.map((entry) => acceptedExportHistoryEntryDigest(entry));
+  const acceptedEvidenceAcceptedTimes = acceptedEvidenceEntries.map((entry) => parseTimestamp(entry?.accepted_at, 'accepted_exports_evidence.entries.accepted_at', failures));
+  const acceptedEvidenceRetentionTimes = acceptedEvidenceEntries.map((entry) => parseTimestamp(entry?.retention_until, 'accepted_exports_evidence.entries.retention_until', failures));
+  requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.sequence === index), 'accepted exports evidence sequence contains a gap or ambiguity', failures);
+  requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.entry_sha256 === acceptedEvidenceEntryDigests[index]), 'accepted exports evidence entry digest mismatch', failures);
+  requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.previous_entry_sha256 === (index === 0 ? null : acceptedEvidenceEntries[index - 1]?.entry_sha256)), 'accepted exports evidence predecessor chain is unverifiable', failures);
+  requireCondition(new Set(acceptedEvidenceEntries.map((entry) => entry?.entry_sha256)).size === acceptedEvidenceEntries.length
+    && new Set(acceptedEvidenceEntries.map((entry) => entry?.immutable_readback_sha256)).size === acceptedEvidenceEntries.length, 'accepted exports evidence entries are duplicate or ambiguous', failures);
+  requireCondition(acceptedEvidenceEntries.every((entry, index) => acceptedExportTimes[index] !== null
+    && acceptedEvidenceAcceptedTimes[index] !== null
+    && acceptedEvidenceAcceptedTimes[index] >= acceptedExportTimes[index]
+    && acceptedEvidenceObservedAt !== null
+    && acceptedEvidenceAcceptedTimes[index] <= acceptedEvidenceObservedAt), 'accepted exports evidence acceptance chronology is invalid', failures);
+  requireCondition(acceptedEvidenceEntries.every((entry, index) => acceptedExportTimes[index] !== null
+    && acceptedEvidenceRetentionTimes[index] !== null
+    && acceptedEvidenceRetentionTimes[index] >= acceptedExportTimes[index] + (index === 0 ? contract.policy.retention.first_accepted_monthly_days : contract.policy.retention.standard_days) * 86400000), 'accepted exports evidence retention history violates policy', failures);
+  requireCondition(acceptedEvidenceEntries.every((entry) => hexSha256.test(entry?.immutable_readback_sha256 ?? '') && entry.immutable_readback_sha256 !== entry.ciphertext_sha256), 'accepted exports evidence immutable readback is missing or self-correlated', failures);
+  const acceptedManifestSourceDigest = acceptedExportsManifest?.source_evidence_sha256;
+  requireCondition(hexSha256.test(acceptedManifestSourceDigest ?? '') && acceptedEvidenceDigest !== null && acceptedManifestSourceDigest === acceptedEvidenceDigest, 'accepted exports evidence digest mismatch', failures);
+  const acceptedAuthenticationDigest = acceptedExportsEvidence?.authentication?.receipt_sha256;
+  const acceptedAuthenticationDigestValid = hexSha256.test(acceptedAuthenticationDigest ?? '');
+  requireCondition(acceptedExportsEvidence?.authentication?.status === 'CURRENT' && acceptedExportsEvidence?.authentication?.method === 'external_immutable_listing_receipt' && acceptedAuthenticationDigestValid, 'accepted exports evidence authentication is incomplete', failures);
+  if (acceptedAuthenticationDigestValid) {
+    const circularDigests = [
+      acceptedEvidenceDigest,
+      acceptedExportsEvidenceSelfCorrelationDigest(acceptedExportsEvidence),
+      acceptedEvidenceEntriesDigest,
+      sha256Hex(acceptedExportsManifest),
+      receipt.manifest_sha256,
+      receipt.plaintext_sha256,
+      receipt.ciphertext_sha256,
+      ...acceptedEvidenceEntries.map((entry) => entry?.entry_sha256),
+      ...acceptedEvidenceEntries.map((entry) => entry?.ciphertext_sha256),
+      ...acceptedEvidenceEntries.map((entry) => entry?.immutable_readback_sha256)
+    ].filter(Boolean);
+    requireCondition(!circularDigests.includes(acceptedAuthenticationDigest), 'accepted exports evidence authentication is circular or self-reported', failures);
+  }
+  const sourceCircularDigests = [sha256Hex(acceptedExportsManifest), receipt.manifest_sha256, acceptedEvidenceEntriesDigest, acceptedAuthenticationDigest].filter(Boolean);
+  requireCondition(!sourceCircularDigests.includes(acceptedManifestSourceDigest), 'accepted exports manifest source evidence is circular or self-reported', failures);
   if (currentExportMatches.length === 1 && currentExportMatches[0].index === 0) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
   const receiptCoverage = Array.isArray(receipt.coverage) ? receipt.coverage : [];
   requireCondition(sameSet(receiptCoverage.map((entry) => entry?.unit), coverageUnits), 'receipt coverage denominator changed', failures);
