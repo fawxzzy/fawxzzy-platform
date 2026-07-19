@@ -42,7 +42,65 @@ function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
   };
 }
 
-function buildReceipt({ restore = false } = {}) {
+function buildObjectLockReadback(receipt) {
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    observed_at: '2026-07-18T17:45:00Z',
+    source_evidence_sha256: digest('object-lock-readback'),
+    destination: {
+      provider: 'Backblaze B2',
+      region: 'Canada East',
+      reference: receipt.object_lock.destination_reference
+    },
+    object: {
+      destination_version: receipt.destination_version,
+      ciphertext_sha256: receipt.ciphertext_sha256,
+      locked: true,
+      mutable: false,
+      retention_mode: 'COMPLIANCE',
+      retention_until: receipt.retention_until
+    }
+  };
+}
+
+function buildStorageBodyRecoveryReceipt(receipt) {
+  const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+  const buckets = storage.aggregate_count === 0 ? [] : [{
+    bucket_reference: 'storage-bucket-primary',
+    object_count: storage.aggregate_count,
+    body_count: storage.aggregate_count,
+    total_bytes: storage.aggregate_count * 1024,
+    object_manifest_sha256: digest('storage-object-manifest'),
+    body_content_sha256: digest('storage-body-content')
+  }];
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    observed_at: '2026-07-18T17:48:00Z',
+    source_evidence_sha256: digest('storage-body-source-readback'),
+    project: structuredClone(receipt.project),
+    snapshot_at: receipt.snapshot_at,
+    retention_until: receipt.retention_until,
+    denominator: {
+      bucket_count: buckets.length,
+      object_count: storage.aggregate_count,
+      body_count: storage.aggregate_count,
+      total_bytes: buckets.reduce((sum, bucket) => sum + bucket.total_bytes, 0),
+      buckets_manifest_sha256: sha256Hex(buckets),
+      buckets
+    },
+    restore_proof: {
+      status: 'CURRENT',
+      verified_at: '2026-07-18T17:47:00Z',
+      receipt_sha256: digest('storage-restore-proof')
+    }
+  };
+}
+
+function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
   const receipt = {
     lifecycle_state: restore ? 'RESTORE_REHEARSED' : 'BACKUP_CURRENT',
     project: { name: 'Fawxzzy shared Supabase project', ref: 'bxtcuhkotumitoqtrcej' },
@@ -71,14 +129,19 @@ function buildReceipt({ restore = false } = {}) {
       automation_material: 'public_recipients_only'
     },
     key_recipient_ids: ['age-recipient-primary', 'age-recipient-offsite'],
-    object_lock: { status: 'CURRENT', mode: 'COMPLIANCE' },
+    object_lock: {
+      status: 'CURRENT',
+      mode: 'COMPLIANCE',
+      destination_reference: 'backup-bucket-primary',
+      readback_manifest_sha256: null
+    },
     freshness: { status: 'CURRENT', maximum_age_seconds: 28800 },
     coverage: coverageUnits.map((unit) => ({
       unit,
-      status: unit === 'storage_object_bodies' ? 'NOT_APPLICABLE' : 'CURRENT',
-      aggregate_count: unit === 'storage_object_bodies' ? 0 : 1,
+      status: unit === 'storage_object_bodies' ? (storageObjectCount > 0 ? 'CURRENT' : 'NOT_APPLICABLE') : 'CURRENT',
+      aggregate_count: unit === 'storage_object_bodies' ? storageObjectCount : 1,
       private_digest: unit === 'storage_object_bodies' ? null : digest(`coverage-${unit}`),
-      body_recovery_receipt_status: unit === 'storage_object_bodies' ? 'NOT_APPLICABLE' : null,
+      body_recovery_receipt_status: unit === 'storage_object_bodies' ? (storageObjectCount > 0 ? 'CURRENT' : 'NOT_APPLICABLE') : null,
       body_recovery_receipt_sha256: null
     })),
     aggregate_counts: { catalog_objects: 1, data_rows: 0, identities: 0 },
@@ -123,13 +186,46 @@ function buildReceipt({ restore = false } = {}) {
       failed_clone_deletion_authority_status: 'BLOCKED'
     };
   }
+  receipt.object_lock.readback_manifest_sha256 = sha256Hex(buildObjectLockReadback(receipt));
+  if (storageObjectCount > 0) {
+    const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+    const storageBodyRecoveryReceipt = buildStorageBodyRecoveryReceipt(receipt);
+    storage.private_digest = storageBodyRecoveryReceipt.denominator.buckets_manifest_sha256;
+    storage.body_recovery_receipt_sha256 = sha256Hex(storageBodyRecoveryReceipt);
+  }
   receipt.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(buildAcceptedExportsManifest(receipt));
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   return receipt;
 }
 
-function validate(receipt, validationNow = now, acceptedExportsManifest = buildAcceptedExportsManifest(receipt)) {
-  return validateIndependentBackupReceipt(contract(), receipt, { now: validationNow, acceptedExportsManifest });
+function validate(receipt, validationNow = now, acceptedExportsManifest = buildAcceptedExportsManifest(receipt), evidence = {}) {
+  const storage = receipt.coverage?.find((entry) => entry.unit === 'storage_object_bodies');
+  const storageClaimed = storage?.status === 'CURRENT' || (storage?.aggregate_count ?? 0) > 0;
+  const objectLockReadback = Object.hasOwn(evidence, 'objectLockReadback')
+    ? evidence.objectLockReadback
+    : buildObjectLockReadback(receipt);
+  const storageBodyRecoveryReceipt = Object.hasOwn(evidence, 'storageBodyRecoveryReceipt')
+    ? evidence.storageBodyRecoveryReceipt
+    : (storageClaimed ? buildStorageBodyRecoveryReceipt(receipt) : undefined);
+  return validateIndependentBackupReceipt(contract(), receipt, {
+    now: validationNow,
+    acceptedExportsManifest,
+    objectLockReadback,
+    storageBodyRecoveryReceipt
+  });
+}
+
+function bindObjectLockReadback(receipt, readback) {
+  receipt.object_lock.readback_manifest_sha256 = sha256Hex(readback);
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+}
+
+function bindStorageBodyRecoveryReceipt(receipt, storageReceipt) {
+  const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+  storage.private_digest = storageReceipt.denominator.buckets_manifest_sha256;
+  storage.body_recovery_receipt_status = 'CURRENT';
+  storage.body_recovery_receipt_sha256 = sha256Hex(storageReceipt);
+  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
 }
 
 test('source contract is closed, sanitized, and execution-blocked', () => {
@@ -197,6 +293,64 @@ test('non-compliance Object Lock fails closed', () => {
   receipt.object_lock.mode = 'GOVERNANCE';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('Object Lock compliance evidence is required'));
+});
+
+test('Object Lock acceptance requires exact current object-version readback', () => {
+  const missing = buildReceipt();
+  const missingResult = validate(missing, now, buildAcceptedExportsManifest(missing), { objectLockReadback: null });
+  assert(missingResult.failures.some((failure) => failure.startsWith('Object Lock readback schema')));
+  assert(missingResult.failures.includes('Object Lock readback manifest digest mismatch'));
+
+  const stale = buildReceipt();
+  const staleReadback = buildObjectLockReadback(stale);
+  staleReadback.observed_at = '2026-07-18T09:59:59Z';
+  bindObjectLockReadback(stale, staleReadback);
+  assert(validate(stale, now, buildAcceptedExportsManifest(stale), { objectLockReadback: staleReadback }).failures.includes('Object Lock readback is stale'));
+
+  const future = buildReceipt();
+  const futureReadback = buildObjectLockReadback(future);
+  futureReadback.observed_at = '2026-07-18T18:00:01Z';
+  bindObjectLockReadback(future, futureReadback);
+  assert(validate(future, now, buildAcceptedExportsManifest(future), { objectLockReadback: futureReadback }).failures.includes('Object Lock readback cannot be future-dated'));
+
+  const wrongObject = buildReceipt();
+  const wrongObjectReadback = buildObjectLockReadback(wrongObject);
+  wrongObjectReadback.object.destination_version = 'backup-version-other';
+  bindObjectLockReadback(wrongObject, wrongObjectReadback);
+  assert(validate(wrongObject, now, buildAcceptedExportsManifest(wrongObject), { objectLockReadback: wrongObjectReadback }).failures.includes('Object Lock readback object identity mismatch'));
+
+  const wrongDestination = buildReceipt();
+  const wrongDestinationReadback = buildObjectLockReadback(wrongDestination);
+  wrongDestinationReadback.destination.reference = 'backup-bucket-other';
+  bindObjectLockReadback(wrongDestination, wrongDestinationReadback);
+  assert(validate(wrongDestination, now, buildAcceptedExportsManifest(wrongDestination), { objectLockReadback: wrongDestinationReadback }).failures.includes('Object Lock readback destination mismatch'));
+
+  const shortened = buildReceipt();
+  const shortenedReadback = buildObjectLockReadback(shortened);
+  shortenedReadback.object.retention_until = '2026-08-22T17:39:59Z';
+  bindObjectLockReadback(shortened, shortenedReadback);
+  assert(validate(shortened, now, buildAcceptedExportsManifest(shortened), { objectLockReadback: shortenedReadback }).failures.includes('Object Lock readback retention is shorter than the export retention'));
+
+  const unlocked = buildReceipt();
+  const unlockedReadback = buildObjectLockReadback(unlocked);
+  unlockedReadback.object.locked = false;
+  unlockedReadback.object.mutable = true;
+  bindObjectLockReadback(unlocked, unlockedReadback);
+  assert(validate(unlocked, now, buildAcceptedExportsManifest(unlocked), { objectLockReadback: unlockedReadback }).failures.includes('Object Lock readback does not prove immutable compliance retention'));
+
+  const ambiguous = buildReceipt();
+  const ambiguousReadback = buildObjectLockReadback(ambiguous);
+  ambiguousReadback.objects = [structuredClone(ambiguousReadback.object), structuredClone(ambiguousReadback.object)];
+  bindObjectLockReadback(ambiguous, ambiguousReadback);
+  assert(validate(ambiguous, now, buildAcceptedExportsManifest(ambiguous), { objectLockReadback: ambiguousReadback }).failures.some((failure) => failure.includes('Object Lock readback schema /: must NOT have additional properties')));
+
+  const nonCanonical = buildReceipt();
+  const nonCanonicalReadback = buildObjectLockReadback(nonCanonical);
+  nonCanonicalReadback.canonical_serialization = 'unordered_json';
+  bindObjectLockReadback(nonCanonical, nonCanonicalReadback);
+  assert(validate(nonCanonical, now, buildAcceptedExportsManifest(nonCanonical), { objectLockReadback: nonCanonicalReadback }).failures.some((failure) => failure.includes('Object Lock readback schema /canonical_serialization: must be equal to constant')));
+
+  assert.doesNotThrow(() => validate(buildReceipt(), now, buildAcceptedExportsManifest(buildReceipt()), { objectLockReadback: {} }));
 });
 
 test('retention and independently evidenced monthly classification fail closed', () => {
@@ -272,15 +426,99 @@ test('missing provider Physical backup complement fails closed', () => {
   assert(validate(receipt).failures.includes('provider Physical backup complement is unproved'));
 });
 
-test('non-empty Storage bodies require a separate current receipt', () => {
-  const receipt = buildReceipt();
-  const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
-  storage.status = 'CURRENT';
-  storage.aggregate_count = 1;
-  storage.private_digest = digest('storage-bodies');
-  storage.body_recovery_receipt_status = 'BLOCKED';
-  receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
-  assert(validate(receipt).failures.includes('non-empty Storage bodies require a separate current recovery receipt'));
+test('non-empty Storage bodies validate only with a correlated recovery receipt', () => {
+  const receipt = buildReceipt({ storageObjectCount: 2 });
+  assert.deepEqual(validate(receipt), { ok: true, failures: [] });
+
+  const missing = buildReceipt({ storageObjectCount: 2 });
+  const missingResult = validate(missing, now, buildAcceptedExportsManifest(missing), { storageBodyRecoveryReceipt: null });
+  assert(missingResult.failures.some((failure) => failure.startsWith('Storage body recovery receipt schema')));
+  assert(missingResult.failures.includes('Storage body recovery receipt digest mismatch'));
+
+  const selfReported = buildReceipt();
+  const selfReportedStorage = selfReported.coverage.find((entry) => entry.unit === 'storage_object_bodies');
+  selfReportedStorage.status = 'CURRENT';
+  selfReportedStorage.aggregate_count = 1;
+  selfReportedStorage.private_digest = digest('storage-bodies');
+  selfReportedStorage.body_recovery_receipt_status = 'CURRENT';
+  selfReportedStorage.body_recovery_receipt_sha256 = digest('self-reported-receipt');
+  selfReported.manifest_sha256 = independentBackupManifestDigest(selfReported);
+  assert(validate(selfReported, now, buildAcceptedExportsManifest(selfReported), { storageBodyRecoveryReceipt: null }).failures.includes('Storage body recovery receipt digest mismatch'));
+});
+
+test('Storage body recovery evidence rejects stale, mismatched, partial, duplicate, and unproved coverage', () => {
+  const stale = buildReceipt({ storageObjectCount: 2 });
+  const staleEvidence = buildStorageBodyRecoveryReceipt(stale);
+  staleEvidence.observed_at = '2026-07-18T09:59:59Z';
+  bindStorageBodyRecoveryReceipt(stale, staleEvidence);
+  assert(validate(stale, now, buildAcceptedExportsManifest(stale), { storageBodyRecoveryReceipt: staleEvidence }).failures.includes('Storage body recovery receipt is stale'));
+
+  const future = buildReceipt({ storageObjectCount: 2 });
+  const futureEvidence = buildStorageBodyRecoveryReceipt(future);
+  futureEvidence.observed_at = '2026-07-18T18:00:01Z';
+  bindStorageBodyRecoveryReceipt(future, futureEvidence);
+  assert(validate(future, now, buildAcceptedExportsManifest(future), { storageBodyRecoveryReceipt: futureEvidence }).failures.includes('Storage body recovery receipt cannot be future-dated'));
+
+  const wrongProject = buildReceipt({ storageObjectCount: 2 });
+  const wrongProjectEvidence = buildStorageBodyRecoveryReceipt(wrongProject);
+  wrongProjectEvidence.project.name = 'Another project';
+  bindStorageBodyRecoveryReceipt(wrongProject, wrongProjectEvidence);
+  assert(validate(wrongProject, now, buildAcceptedExportsManifest(wrongProject), { storageBodyRecoveryReceipt: wrongProjectEvidence }).failures.includes('Storage body recovery receipt project mismatch'));
+
+  const wrongSnapshot = buildReceipt({ storageObjectCount: 2 });
+  const wrongSnapshotEvidence = buildStorageBodyRecoveryReceipt(wrongSnapshot);
+  wrongSnapshotEvidence.snapshot_at = '2026-07-18T17:29:59Z';
+  bindStorageBodyRecoveryReceipt(wrongSnapshot, wrongSnapshotEvidence);
+  assert(validate(wrongSnapshot, now, buildAcceptedExportsManifest(wrongSnapshot), { storageBodyRecoveryReceipt: wrongSnapshotEvidence }).failures.includes('Storage body recovery receipt snapshot mismatch'));
+
+  const partial = buildReceipt({ storageObjectCount: 2 });
+  const partialEvidence = buildStorageBodyRecoveryReceipt(partial);
+  partialEvidence.denominator.buckets[0].body_count = 1;
+  partialEvidence.denominator.body_count = 1;
+  partialEvidence.denominator.buckets_manifest_sha256 = sha256Hex(partialEvidence.denominator.buckets);
+  bindStorageBodyRecoveryReceipt(partial, partialEvidence);
+  const partialResult = validate(partial, now, buildAcceptedExportsManifest(partial), { storageBodyRecoveryReceipt: partialEvidence });
+  assert(partialResult.failures.includes('Storage body recovery bucket coverage is partial or malformed'));
+  assert(partialResult.failures.includes('Storage body recovery does not cover the exact Storage object denominator'));
+
+  const duplicate = buildReceipt({ storageObjectCount: 2 });
+  const duplicateEvidence = buildStorageBodyRecoveryReceipt(duplicate);
+  duplicateEvidence.denominator.buckets.push(structuredClone(duplicateEvidence.denominator.buckets[0]));
+  duplicateEvidence.denominator.bucket_count = 2;
+  duplicateEvidence.denominator.object_count = 4;
+  duplicateEvidence.denominator.body_count = 4;
+  duplicateEvidence.denominator.total_bytes = 4096;
+  duplicateEvidence.denominator.buckets_manifest_sha256 = sha256Hex(duplicateEvidence.denominator.buckets);
+  bindStorageBodyRecoveryReceipt(duplicate, duplicateEvidence);
+  const duplicateResult = validate(duplicate, now, buildAcceptedExportsManifest(duplicate), { storageBodyRecoveryReceipt: duplicateEvidence });
+  assert(duplicateResult.failures.includes('Storage body recovery bucket references must be distinct'));
+  assert(duplicateResult.failures.includes('Storage body recovery bucket evidence must be distinct'));
+
+  const shortened = buildReceipt({ storageObjectCount: 2 });
+  const shortenedEvidence = buildStorageBodyRecoveryReceipt(shortened);
+  shortenedEvidence.retention_until = '2026-08-22T17:39:59Z';
+  bindStorageBodyRecoveryReceipt(shortened, shortenedEvidence);
+  assert(validate(shortened, now, buildAcceptedExportsManifest(shortened), { storageBodyRecoveryReceipt: shortenedEvidence }).failures.includes('Storage body recovery retention is shorter than the export retention'));
+
+  const unproved = buildReceipt({ storageObjectCount: 2 });
+  const unprovedEvidence = buildStorageBodyRecoveryReceipt(unproved);
+  unprovedEvidence.restore_proof.status = 'BLOCKED';
+  bindStorageBodyRecoveryReceipt(unproved, unprovedEvidence);
+  assert(validate(unproved, now, buildAcceptedExportsManifest(unproved), { storageBodyRecoveryReceipt: unprovedEvidence }).failures.includes('Storage body recovery restore proof is incomplete'));
+
+  const nonCanonical = buildReceipt({ storageObjectCount: 2 });
+  const nonCanonicalEvidence = buildStorageBodyRecoveryReceipt(nonCanonical);
+  nonCanonicalEvidence.canonical_serialization = 'unordered_json';
+  bindStorageBodyRecoveryReceipt(nonCanonical, nonCanonicalEvidence);
+  assert(validate(nonCanonical, now, buildAcceptedExportsManifest(nonCanonical), { storageBodyRecoveryReceipt: nonCanonicalEvidence }).failures.some((failure) => failure.includes('Storage body recovery receipt schema /canonical_serialization: must be equal to constant')));
+
+  const digestMismatch = buildReceipt({ storageObjectCount: 2 });
+  const digestMismatchEvidence = buildStorageBodyRecoveryReceipt(digestMismatch);
+  digestMismatchEvidence.source_evidence_sha256 = digest('tampered-storage-readback');
+  assert(validate(digestMismatch, now, buildAcceptedExportsManifest(digestMismatch), { storageBodyRecoveryReceipt: digestMismatchEvidence }).failures.includes('Storage body recovery receipt digest mismatch'));
+
+  const malformed = buildReceipt({ storageObjectCount: 2 });
+  assert.doesNotThrow(() => validate(malformed, now, buildAcceptedExportsManifest(malformed), { storageBodyRecoveryReceipt: { denominator: { buckets: [null] } } }));
 });
 
 test('production-service RTO claims fail before measurement', () => {

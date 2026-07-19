@@ -33,7 +33,9 @@ Primary references:
 
 An accepted logical receipt covers exactly eight units: application schemas/catalog, roles/memberships/grants/default ACLs, the migration ledger, application data, Auth identity data/password hashes, Auth control-plane metadata, Storage metadata, and Storage object bodies.
 
-Storage object bodies are `NOT_APPLICABLE` only while their exact aggregate count is zero. The first non-zero object count requires a separately accepted body-recovery contract and digest. Supabase database backup evidence cannot satisfy that unit.
+Storage object bodies are `NOT_APPLICABLE` only while their exact aggregate count is zero. The first non-zero object count, or any explicit claim of body coverage, requires a separate closed Storage-body recovery receipt supplied at validation time. Supabase database backup evidence cannot satisfy that unit.
+
+The Storage-body recovery receipt must match the exact project and database receipt snapshot, remain current at the validation clock, retain bodies through at least the export deadline, and include a current restore-proof receipt. Its bucket denominator is closed and content-addressed: unique bucket references, per-bucket object/body counts and bytes, distinct object-manifest and body-content digests, and a canonical aggregate bucket-manifest digest. The validator recomputes every sum and digest, requires body count to equal object count, binds the total to the Storage coverage unit, and rejects partial, duplicate, ambiguous, stale, mismatched, malformed, or self-reported digest-only evidence.
 
 Logical export mechanics must treat these as separate evidence classes:
 
@@ -57,7 +59,7 @@ The deterministic validator requires:
 4. plaintext, ciphertext, migration-ledger, and canonical manifest SHA-256 values;
 5. streaming `age` encryption with no persistent plaintext;
 6. at least two distinct public recipient IDs;
-7. an immutable destination version plus current compliance-mode Object Lock evidence;
+7. an immutable destination version plus a separate closed Object Lock readback whose canonical digest matches the receipt and whose exact destination, object version, ciphertext digest, lock state, retention mode, and retention deadline correlate to that export;
 8. a separate, closed, current accepted-exports manifest whose canonical digest matches the receipt, whose immutable export identities are strictly time-ordered and distinct, and whose exact current-export entry lets the validator derive first-of-month status; retention is 35 days generally and 400 days when the current export is the first manifest entry;
 9. all eight coverage units with aggregate counts and private digests;
 10. current independent-watchdog and provider Physical-backup evidence;
@@ -66,6 +68,8 @@ The deterministic validator requires:
 13. production-service RTO remaining `UNKNOWN`.
 
 The accepted-exports manifest is supplied independently from the receipt at validation time. It carries only completion timestamps, immutable destination versions, ciphertext digests, and a sanitized source-evidence digest. The validator checks its closed schema, canonical digest, observation window, UTC month, strict ordering, unique immutable identities, and exactly one correlation to the current receipt; a self-reported ordinal cannot select short retention.
+
+The Object Lock readback is also supplied independently. It is current only when its observation timestamp is within the approved freshness window and after backup completion. The validator binds its provider, region, destination reference, immutable object version, ciphertext digest, compliance lock, non-mutable state, and retention deadline to the export. Missing, stale, ambiguous, unlocked, mutable, mismatched, shortened, malformed, or digest-uncorrelated readback fails closed; receipt booleans alone never establish immutability.
 
 The JSON Schema closes the complete receipt, accepted-exports manifest, and every nested evidence object; unrecognized properties cannot be accepted merely because they evade heuristic field-name checks. Calendar-invalid timestamps, malformed or missing monthly-selection evidence, negative or uncorrelated recovery durations, future-dated, stale, over-ceiling, incomplete, or digest-mismatched evidence fail closed. A projected cost over $5 is a warning; a cost over $15, or unavailable reliable budget-stop control, requires a new manual approval before execution continues.
 

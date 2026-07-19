@@ -73,8 +73,22 @@ const acceptedExportsManifestSchema = {
   $ref: '#/$defs/accepted_exports_manifest',
   $defs: sourceSchema.$defs
 };
+const objectLockReadbackSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-object-lock-readback',
+  $ref: '#/$defs/object_lock_readback',
+  $defs: sourceSchema.$defs
+};
+const storageBodyRecoveryReceiptSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-body-recovery-receipt',
+  $ref: '#/$defs/storage_body_recovery_receipt',
+  $defs: sourceSchema.$defs
+};
 const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
+const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
+const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -126,6 +140,11 @@ function validateReceiptShape(receipt) {
 function validateAcceptedExportsManifestShape(manifest) {
   if (acceptedExportsManifestShapeValidator(manifest)) return [];
   return (acceptedExportsManifestShapeValidator.errors ?? []).map((error) => `accepted exports manifest schema ${error.instancePath || '/'}: ${error.message}`);
+}
+
+function shapeFailures(validator, value, label) {
+  if (validator(value)) return [];
+  return (validator.errors ?? []).map((error) => `${label} schema ${error.instancePath || '/'}: ${error.message}`);
 }
 
 function requireCondition(condition, message, failures) {
@@ -195,7 +214,24 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(Array.isArray(receipt.key_recipient_ids) && receipt.key_recipient_ids.length >= 2 && new Set(receipt.key_recipient_ids).size === receipt.key_recipient_ids.length && receipt.key_recipient_ids.every((value) => safeReference.test(value)), 'at least two distinct safe recipient IDs are required', failures);
   requireCondition(safeReference.test(receipt.destination_version ?? ''), 'immutable destination version is missing or unsafe', failures);
   requireCondition(receipt.object_lock?.status === 'CURRENT' && receipt.object_lock?.mode === 'COMPLIANCE', 'Object Lock compliance evidence is required', failures);
+  requireCondition(safeReference.test(receipt.object_lock?.destination_reference ?? ''), 'Object Lock destination reference is missing or unsafe', failures);
+  requireCondition(hexSha256.test(receipt.object_lock?.readback_manifest_sha256 ?? ''), 'Object Lock readback manifest digest is malformed', failures);
   requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.standard_days * 86400000, 'retention does not cover the 35-day standard', failures);
+  const objectLockReadback = options.objectLockReadback;
+  failures.push(...shapeFailures(objectLockReadbackShapeValidator, objectLockReadback, 'Object Lock readback'));
+  failures.push(...validateSanitizedReceipt(objectLockReadback, 'Object Lock readback'));
+  requireCondition(objectLockReadback && receipt.object_lock?.readback_manifest_sha256 === sha256Hex(objectLockReadback), 'Object Lock readback manifest digest mismatch', failures);
+  const objectLockObservedAt = parseTimestamp(objectLockReadback?.observed_at, 'object_lock_readback.observed_at', failures);
+  const objectLockRetentionUntil = parseTimestamp(objectLockReadback?.object?.retention_until, 'object_lock_readback.object.retention_until', failures);
+  requireCondition(objectLockReadback?.status === 'CURRENT', 'Object Lock readback must be CURRENT', failures);
+  requireCondition(objectLockObservedAt !== null && completedAt !== null && objectLockObservedAt >= completedAt, 'Object Lock readback cannot predate backup completion', failures);
+  requireCondition(objectLockObservedAt !== null && now !== null && objectLockObservedAt <= now, 'Object Lock readback cannot be future-dated', failures);
+  requireCondition(objectLockObservedAt !== null && now !== null && now - objectLockObservedAt <= contract.policy.schedule.freshness_limit_hours * 3600000, 'Object Lock readback is stale', failures);
+  requireCondition(objectLockReadback?.destination?.provider === contract.policy.destination.provider && objectLockReadback?.destination?.region === contract.policy.destination.region && objectLockReadback?.destination?.reference === receipt.object_lock?.destination_reference, 'Object Lock readback destination mismatch', failures);
+  requireCondition(objectLockReadback?.object?.destination_version === receipt.destination_version && objectLockReadback?.object?.ciphertext_sha256 === receipt.ciphertext_sha256, 'Object Lock readback object identity mismatch', failures);
+  requireCondition(objectLockReadback?.object?.locked === true && objectLockReadback?.object?.mutable === false && objectLockReadback?.object?.retention_mode === 'COMPLIANCE', 'Object Lock readback does not prove immutable compliance retention', failures);
+  requireCondition(objectLockRetentionUntil !== null && retentionUntil !== null && objectLockRetentionUntil >= retentionUntil, 'Object Lock readback retention is shorter than the export retention', failures);
+  requireCondition(hexSha256.test(objectLockReadback?.source_evidence_sha256 ?? ''), 'Object Lock readback source evidence is malformed', failures);
   const monthlySelection = receipt.monthly_selection;
   const acceptedExportsManifest = options.acceptedExportsManifest;
   failures.push(...validateAcceptedExportsManifestShape(acceptedExportsManifest));
@@ -216,13 +252,51 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const currentExportMatches = acceptedExports.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry?.completed_at === receipt.completed_at && entry?.destination_version === receipt.destination_version && entry?.ciphertext_sha256 === receipt.ciphertext_sha256);
   requireCondition(currentExportMatches.length === 1, 'accepted exports manifest must contain the current export exactly once', failures);
   if (currentExportMatches.length === 1 && currentExportMatches[0].index === 0) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
-  requireCondition(Array.isArray(receipt.coverage) && sameSet(receipt.coverage.map((entry) => entry.unit), coverageUnits), 'receipt coverage denominator changed', failures);
-  for (const entry of receipt.coverage ?? []) {
+  const receiptCoverage = Array.isArray(receipt.coverage) ? receipt.coverage : [];
+  requireCondition(sameSet(receiptCoverage.map((entry) => entry?.unit), coverageUnits), 'receipt coverage denominator changed', failures);
+  const storageBodiesEntry = receiptCoverage.find((entry) => entry?.unit === 'storage_object_bodies');
+  for (const entry of receiptCoverage) {
     const isStorageBodies = entry.unit === 'storage_object_bodies';
     const emptyStorageBodies = isStorageBodies && entry.status === 'NOT_APPLICABLE' && entry.aggregate_count === 0 && entry.private_digest === null;
     const current = entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '');
     requireCondition(emptyStorageBodies || current, `${entry.unit}: coverage is incomplete`, failures);
     if (isStorageBodies && entry.aggregate_count > 0) requireCondition(entry.body_recovery_receipt_status === 'CURRENT' && hexSha256.test(entry.body_recovery_receipt_sha256 ?? ''), 'non-empty Storage bodies require a separate current recovery receipt', failures);
+  }
+  const storageBodiesClaimed = storageBodiesEntry?.status === 'CURRENT'
+    || (storageBodiesEntry?.aggregate_count ?? 0) > 0
+    || storageBodiesEntry?.body_recovery_receipt_status === 'CURRENT'
+    || (storageBodiesEntry?.body_recovery_receipt_sha256 !== null && storageBodiesEntry?.body_recovery_receipt_sha256 !== undefined);
+  if (storageBodiesClaimed) {
+    const storageBodyRecoveryReceipt = options.storageBodyRecoveryReceipt;
+    failures.push(...shapeFailures(storageBodyRecoveryReceiptShapeValidator, storageBodyRecoveryReceipt, 'Storage body recovery receipt'));
+    failures.push(...validateSanitizedReceipt(storageBodyRecoveryReceipt, 'Storage body recovery receipt'));
+    requireCondition(storageBodyRecoveryReceipt && storageBodiesEntry?.body_recovery_receipt_sha256 === sha256Hex(storageBodyRecoveryReceipt), 'Storage body recovery receipt digest mismatch', failures);
+    const storageObservedAt = parseTimestamp(storageBodyRecoveryReceipt?.observed_at, 'storage_body_recovery_receipt.observed_at', failures);
+    const storageRetentionUntil = parseTimestamp(storageBodyRecoveryReceipt?.retention_until, 'storage_body_recovery_receipt.retention_until', failures);
+    const storageRestoreVerifiedAt = parseTimestamp(storageBodyRecoveryReceipt?.restore_proof?.verified_at, 'storage_body_recovery_receipt.restore_proof.verified_at', failures);
+    requireCondition(storageBodyRecoveryReceipt?.status === 'CURRENT', 'Storage body recovery receipt must be CURRENT', failures);
+    requireCondition(storageBodyRecoveryReceipt?.project?.name === receipt.project?.name && storageBodyRecoveryReceipt?.project?.ref === receipt.project?.ref, 'Storage body recovery receipt project mismatch', failures);
+    requireCondition(storageBodyRecoveryReceipt?.snapshot_at === receipt.snapshot_at, 'Storage body recovery receipt snapshot mismatch', failures);
+    requireCondition(storageObservedAt !== null && completedAt !== null && storageObservedAt >= completedAt, 'Storage body recovery receipt cannot predate backup completion', failures);
+    requireCondition(storageObservedAt !== null && now !== null && storageObservedAt <= now, 'Storage body recovery receipt cannot be future-dated', failures);
+    requireCondition(storageObservedAt !== null && now !== null && now - storageObservedAt <= contract.policy.schedule.freshness_limit_hours * 3600000, 'Storage body recovery receipt is stale', failures);
+    requireCondition(storageRetentionUntil !== null && retentionUntil !== null && storageRetentionUntil >= retentionUntil, 'Storage body recovery retention is shorter than the export retention', failures);
+    requireCondition(storageBodyRecoveryReceipt?.restore_proof?.status === 'CURRENT' && hexSha256.test(storageBodyRecoveryReceipt?.restore_proof?.receipt_sha256 ?? ''), 'Storage body recovery restore proof is incomplete', failures);
+    requireCondition(storageRestoreVerifiedAt !== null && completedAt !== null && storageRestoreVerifiedAt >= completedAt && storageObservedAt !== null && storageRestoreVerifiedAt <= storageObservedAt, 'Storage body recovery restore proof chronology is invalid', failures);
+    const storageBuckets = Array.isArray(storageBodyRecoveryReceipt?.denominator?.buckets) ? storageBodyRecoveryReceipt.denominator.buckets : [];
+    const expectedBucketsDigest = sha256Hex(storageBuckets);
+    requireCondition(storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256 === expectedBucketsDigest, 'Storage body recovery bucket manifest digest mismatch', failures);
+    requireCondition(storageBodyRecoveryReceipt?.denominator?.bucket_count === storageBuckets.length, 'Storage body recovery bucket denominator mismatch', failures);
+    requireCondition(new Set(storageBuckets.map((bucket) => bucket?.bucket_reference)).size === storageBuckets.length, 'Storage body recovery bucket references must be distinct', failures);
+    requireCondition(new Set(storageBuckets.map((bucket) => bucket?.object_manifest_sha256)).size === storageBuckets.length && new Set(storageBuckets.map((bucket) => bucket?.body_content_sha256)).size === storageBuckets.length, 'Storage body recovery bucket evidence must be distinct', failures);
+    requireCondition(storageBuckets.every((bucket) => Number.isInteger(bucket?.object_count) && Number.isInteger(bucket?.body_count) && bucket.object_count === bucket.body_count && bucket.object_count >= 0 && Number.isInteger(bucket?.total_bytes) && bucket.total_bytes >= 0), 'Storage body recovery bucket coverage is partial or malformed', failures);
+    const storageObjectCount = storageBuckets.reduce((sum, bucket) => sum + (Number.isInteger(bucket?.object_count) ? bucket.object_count : 0), 0);
+    const storageBodyCount = storageBuckets.reduce((sum, bucket) => sum + (Number.isInteger(bucket?.body_count) ? bucket.body_count : 0), 0);
+    const storageByteCount = storageBuckets.reduce((sum, bucket) => sum + (Number.isInteger(bucket?.total_bytes) ? bucket.total_bytes : 0), 0);
+    requireCondition(storageBodyRecoveryReceipt?.denominator?.object_count === storageObjectCount && storageBodyRecoveryReceipt?.denominator?.body_count === storageBodyCount && storageBodyRecoveryReceipt?.denominator?.total_bytes === storageByteCount, 'Storage body recovery aggregate denominator mismatch', failures);
+    requireCondition(storageObjectCount === storageBodiesEntry?.aggregate_count && storageBodyCount === storageBodiesEntry?.aggregate_count, 'Storage body recovery does not cover the exact Storage object denominator', failures);
+    requireCondition(storageBodiesEntry?.private_digest === storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256, 'Storage body coverage digest does not match the recovery manifest', failures);
+    requireCondition(hexSha256.test(storageBodyRecoveryReceipt?.source_evidence_sha256 ?? ''), 'Storage body recovery source evidence is malformed', failures);
   }
   requireCondition(receipt.aggregate_counts && Object.keys(receipt.aggregate_counts).length > 0 && Object.values(receipt.aggregate_counts).every((value) => Number.isInteger(value) && value >= 0), 'aggregate counts are incomplete', failures);
   const decision = receipt.owner_decision;
