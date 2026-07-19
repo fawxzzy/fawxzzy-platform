@@ -13,6 +13,8 @@ import {
   externalEffectUnits,
   independentBackupContractPath,
   independentBackupManifestDigest,
+  independentBackupReceiptIdentityDigest,
+  independentBackupSourceStateDigest,
   sha256Hex,
   storageBodyRecoveryEvidenceDigest,
   storageInventoryManifestDigest,
@@ -28,6 +30,7 @@ const now = '2026-07-18T18:00:00Z';
 const digest = (label) => sha256Hex({ label });
 const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
 const executionGateSignatureDomain = 'fawxzzy-platform:execution-gate-admission:v1';
+const storageInventorySignatureDomain = 'fawxzzy-platform:storage-inventory-attestation:v1';
 const objectLockSignatureDomain = 'fawxzzy-platform:object-lock-provider-attestation:v1';
 
 // RFC 8032 test vector 1. This public test identity is used only in memory by
@@ -212,7 +215,11 @@ function buildTrustedAttestationResult(evidence, signatureDomain, resultClass, r
     canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
     result_class: resultClass,
     result_id: resultId,
-    verified_at: signatureDomain === objectLockSignatureDomain ? '2026-07-18T17:46:00Z' : '2026-07-18T17:21:00Z',
+    verified_at: signatureDomain === objectLockSignatureDomain
+      ? '2026-07-18T17:46:00Z'
+      : signatureDomain === storageInventorySignatureDomain
+        ? '2026-07-18T17:50:00Z'
+        : '2026-07-18T17:21:00Z',
     verifier_reference: testTrustAnchor.verifier_reference,
     verification_method: 'external_signature_verification',
     key_id: testTrustAnchor.key_id,
@@ -246,17 +253,15 @@ function buildExecutionGateEvidence(receipt, validationContract = contract()) {
     gate_id: policy.gate_id,
     gate_version: policy.gate_version,
     scope: policy.scope,
+    contract_artifact_sha256: sha256Hex(validationContract),
     policy_artifact_sha256: sha256Hex(validationContract.receipt_contract.execution_gate_authentication.admission_policy),
-    execution_artifact_sha256: sha256Hex({
-      source_commit: receipt.source_commit,
-      migration_ledger_sha256: receipt.migration_ledger_sha256,
-      tool_versions: receipt.tool_versions
-    }),
-    receipt_manifest_sha256: receipt.manifest_sha256,
+    source_state_sha256: receipt.source_state_sha256,
+    receipt_identity: {
+      receipt_id: receipt.receipt_id,
+      receipt_identity_sha256: independentBackupReceiptIdentityDigest(receipt)
+    },
     export_identity: {
-      completed_at: receipt.completed_at,
-      destination_version: receipt.destination_version,
-      ciphertext_sha256: receipt.ciphertext_sha256
+      export_id: receipt.export_id
     },
     restore_identity: policy.gate_id === 'restore_rehearsal' ? {
       target_project_ref: receipt.restore?.target_project?.ref ?? 'invalid',
@@ -333,11 +338,19 @@ function buildStorageInventoryEvidence(receipt) {
     version: '1.0.0',
     status: 'CURRENT',
     canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    evidence_class: 'authenticated_storage_inventory_readback',
+    evidence_id: 'storage-inventory-readback-0001',
     observed_at: '2026-07-18T17:49:00Z',
     source_evidence_sha256: digest('storage-inventory-source-readback'),
     project: structuredClone(receipt.project),
+    provider_snapshot_identity: {
+      provider_class: 'Supabase Storage metadata',
+      storage_snapshot_id: 'storage-snapshot-0001',
+      source_snapshot_sha256: receipt.source_state_sha256
+    },
     snapshot_at: receipt.snapshot_at,
     export_identity: {
+      export_id: receipt.export_id,
       destination_version: receipt.destination_version,
       ciphertext_sha256: receipt.ciphertext_sha256
     },
@@ -346,10 +359,28 @@ function buildStorageInventoryEvidence(receipt) {
       object_count: objectCount,
       total_bytes: objectCount * 1024,
       inventory_manifest_sha256: null
+    },
+    authentication: {
+      status: 'CURRENT',
+      method: 'pinned_ed25519_signature_result',
+      verification_result_sha256: '0'.repeat(64)
     }
   };
   evidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(evidence);
+  evidence.authentication.verification_result_sha256 = buildStorageInventoryAuthenticationResult(evidence).result_sha256;
   return evidence;
+}
+
+function buildStorageInventoryAuthenticationResult(evidence) {
+  const result = buildTrustedAttestationResult(
+    evidence,
+    storageInventorySignatureDomain,
+    'trusted_storage_inventory_verification',
+    'storage-inventory-verification-0001'
+  );
+  result.external_receipt_sha256 = evidence.source_evidence_sha256;
+  signTrustedAttestationResult(result, storageInventorySignatureDomain);
+  return result;
 }
 
 function buildStorageBodyRecoveryEvidence(receipt, recoveryReceipt) {
@@ -419,9 +450,12 @@ function buildStorageBodyRecoveryReceipt(receipt) {
 
 function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
   const receipt = {
+    receipt_id: 'backup-receipt-0001',
+    export_id: 'backup-export-0001',
     lifecycle_state: restore ? 'RESTORE_REHEARSED' : 'BACKUP_CURRENT',
     project: { name: 'Fawxzzy shared Supabase project', ref: 'bxtcuhkotumitoqtrcej' },
     source_commit: 'a'.repeat(40),
+    source_state_sha256: null,
     postgres_version: '17.6.1.147',
     tool_versions: { age: '1.2.1', supabase_cli: '2.45.5' },
     snapshot_at: '2026-07-18T17:30:00Z',
@@ -490,6 +524,7 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
     production_service_rto: { status: 'UNKNOWN', seconds: null },
     restore: null
   };
+  receipt.source_state_sha256 = independentBackupSourceStateDigest(receipt);
   if (restore) {
     receipt.restore = {
       status: 'CURRENT',
@@ -552,6 +587,9 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const storageInventoryEvidence = Object.hasOwn(evidence, 'storageInventoryEvidence')
     ? evidence.storageInventoryEvidence
     : buildStorageInventoryEvidence(receipt);
+  const storageInventoryAuthenticationResult = Object.hasOwn(evidence, 'storageInventoryAuthenticationResult')
+    ? evidence.storageInventoryAuthenticationResult
+    : (storageInventoryEvidence ? buildStorageInventoryAuthenticationResult(storageInventoryEvidence) : undefined);
   const acceptedExportsEvidence = Object.hasOwn(evidence, 'acceptedExportsEvidence')
     ? evidence.acceptedExportsEvidence
     : (Array.isArray(acceptedExportsManifest?.entries)
@@ -586,6 +624,7 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
     objectLockProviderAttestation,
     objectLockAuthenticationResult,
     storageInventoryEvidence,
+    storageInventoryAuthenticationResult,
     storageBodyRecoveryReceipt,
     storageBodyRecoveryEvidence
   });
@@ -820,14 +859,28 @@ test('receipt acceptance requires source-bound independently authenticated execu
   assert(missingResult.failures.includes('execution gate admission denominator mismatch'));
   assert(missingResult.failures.includes('execution gate authentication result denominator mismatch'));
 
+  const preSnapshot = buildReceipt();
+  const preSnapshotGate = buildExecutionGateEvidence(preSnapshot);
+  assert(Date.parse(preSnapshotGate.admissions[0].issued_at) < Date.parse(preSnapshot.snapshot_at));
+  assert(Date.parse(preSnapshotGate.results[0].verified_at) < Date.parse(preSnapshot.snapshot_at));
+  assert.deepEqual(validate(preSnapshot, now, buildAcceptedExportsManifest(preSnapshot), {
+    executionGateAdmissions: preSnapshotGate.admissions,
+    executionGateAuthenticationResults: preSnapshotGate.results
+  }), { ok: true, failures: [] });
+
   for (const [label, mutate, expected] of [
     ['wrong gate', (admission) => { admission.gate_id = 'restore_rehearsal'; admission.scope = 'restore_receipt'; }, 'does not match the source-owned gate policy'],
+    ['wrong contract artifact', (admission) => { admission.contract_artifact_sha256 = digest('substituted-contract'); }, 'contract artifact mismatch'],
     ['wrong policy artifact', (admission) => { admission.policy_artifact_sha256 = digest('substituted-policy'); }, 'source policy artifact mismatch'],
-    ['wrong execution artifact', (admission) => { admission.execution_artifact_sha256 = digest('substituted-execution-artifact'); }, 'execution artifact mismatch'],
-    ['wrong receipt', (admission) => { admission.receipt_manifest_sha256 = digest('other-receipt'); }, 'receipt correlation mismatch'],
-    ['wrong export', (admission) => { admission.export_identity.destination_version = 'backup-version-other'; }, 'export correlation mismatch'],
+    ['wrong source state', (admission) => { admission.source_state_sha256 = digest('substituted-source-state'); }, 'source-state mismatch'],
+    ['wrong receipt ID', (admission) => { admission.receipt_identity.receipt_id = 'backup-receipt-other'; }, 'receipt identity mismatch'],
+    ['wrong receipt digest', (admission) => { admission.receipt_identity.receipt_identity_sha256 = digest('other-receipt'); }, 'receipt identity mismatch'],
+    ['wrong export', (admission) => { admission.export_identity.export_id = 'backup-export-other'; }, 'export identity mismatch'],
+    ['cross-project replay', (admission) => { admission.project.ref = 'otherproject00000000'; }, 'project mismatch'],
     ['stale admission', (admission, result) => { admission.issued_at = '2026-07-18T09:59:59Z'; admission.expires_at = '2026-07-18T18:20:00Z'; result.verified_at = '2026-07-18T10:00:00Z'; }, 'is stale'],
-    ['future admission', (admission, result) => { admission.issued_at = '2026-07-18T18:01:00Z'; admission.expires_at = '2026-07-18T19:00:00Z'; result.verified_at = '2026-07-18T18:02:00Z'; }, 'was issued after execution'],
+    ['equal snapshot admission', (admission, result, receipt) => { admission.issued_at = receipt.snapshot_at; result.verified_at = receipt.snapshot_at; }, 'was not issued strictly before execution'],
+    ['post-hoc admission', (admission, result) => { admission.issued_at = '2026-07-18T17:39:00Z'; result.verified_at = '2026-07-18T17:39:01Z'; }, 'was not issued strictly before execution'],
+    ['future admission', (admission, result) => { admission.issued_at = '2026-07-18T18:01:00Z'; admission.expires_at = '2026-07-18T19:00:00Z'; result.verified_at = '2026-07-18T18:02:00Z'; }, 'cannot be future-dated'],
     ['self-correlated receipt', (_admission, result, receipt) => { result.external_receipt_sha256 = receipt.manifest_sha256; }, 'external receipt is self-correlated'],
     ['untrusted verifier', (_admission, result) => { result.verifier_reference = 'attacker-verifier'; }, 'signer does not match the pinned trust anchor']
   ]) {
@@ -1803,9 +1856,39 @@ test('Storage body status, count, and digest are bound to the authoritative deno
 test('every Storage denominator requires independent current inventory evidence', () => {
   const empty = buildReceipt();
   const emptyEvidence = buildStorageInventoryEvidence(empty);
-  assert.deepEqual(validate(empty, now, buildAcceptedExportsManifest(empty), { storageInventoryEvidence: emptyEvidence }), { ok: true, failures: [] });
+  const emptyAuthenticationResult = buildStorageInventoryAuthenticationResult(emptyEvidence);
+  assert.deepEqual(validate(empty, now, buildAcceptedExportsManifest(empty), {
+    storageInventoryEvidence: emptyEvidence,
+    storageInventoryAuthenticationResult: emptyAuthenticationResult
+  }), { ok: true, failures: [] });
   assert.equal(emptyEvidence.denominator.inventory_manifest_sha256, storageInventoryManifestDigest(emptyEvidence));
   assert.equal(storageInventoryManifestDigest(emptyEvidence), storageInventoryManifestDigest(structuredClone(emptyEvidence)));
+
+  const missingAuthentication = validate(empty, now, buildAcceptedExportsManifest(empty), {
+    storageInventoryEvidence: emptyEvidence,
+    storageInventoryAuthenticationResult: undefined
+  });
+  assert(missingAuthentication.failures.some((failure) => failure.startsWith('Storage inventory authentication result schema')));
+
+  const unsignedAuthentication = buildStorageInventoryAuthenticationResult(emptyEvidence);
+  unsignedAuthentication.signature_base64 = null;
+  unsignedAuthentication.result_sha256 = trustedAttestationResultDigest(unsignedAuthentication);
+  const unsignedEvidence = structuredClone(emptyEvidence);
+  unsignedEvidence.authentication.verification_result_sha256 = unsignedAuthentication.result_sha256;
+  assert(validate(empty, now, buildAcceptedExportsManifest(empty), {
+    storageInventoryEvidence: unsignedEvidence,
+    storageInventoryAuthenticationResult: unsignedAuthentication
+  }).failures.some((failure) => failure.includes('Storage inventory authentication result signature is malformed')));
+
+  const wrongKeyAuthentication = buildStorageInventoryAuthenticationResult(emptyEvidence);
+  wrongKeyAuthentication.key_id = 'attacker-storage-inventory-key';
+  signTrustedAttestationResult(wrongKeyAuthentication, storageInventorySignatureDomain);
+  const wrongKeyEvidence = structuredClone(emptyEvidence);
+  wrongKeyEvidence.authentication.verification_result_sha256 = wrongKeyAuthentication.result_sha256;
+  assert(validate(empty, now, buildAcceptedExportsManifest(empty), {
+    storageInventoryEvidence: wrongKeyEvidence,
+    storageInventoryAuthenticationResult: wrongKeyAuthentication
+  }).failures.includes('Storage inventory authentication result signer does not match the pinned trust anchor'));
 
   const positive = buildReceipt({ storageObjectCount: 2 });
   const positiveEvidence = buildStorageInventoryEvidence(positive);
@@ -1833,6 +1916,29 @@ test('every Storage denominator requires independent current inventory evidence'
   futureEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(futureEvidence);
   assert(validate(future, now, buildAcceptedExportsManifest(future), { storageInventoryEvidence: futureEvidence }).failures.includes('Storage inventory evidence cannot be future-dated'));
 
+  const staleAuthenticationReceipt = buildReceipt();
+  const staleAuthenticationEvidence = buildStorageInventoryEvidence(staleAuthenticationReceipt);
+  const staleAuthenticationResult = buildStorageInventoryAuthenticationResult(staleAuthenticationEvidence);
+  staleAuthenticationResult.verified_at = '2026-07-18T09:49:59Z';
+  signTrustedAttestationResult(staleAuthenticationResult, storageInventorySignatureDomain);
+  staleAuthenticationEvidence.authentication.verification_result_sha256 = staleAuthenticationResult.result_sha256;
+  const staleAuthenticationFailures = validate(staleAuthenticationReceipt, now, buildAcceptedExportsManifest(staleAuthenticationReceipt), {
+    storageInventoryEvidence: staleAuthenticationEvidence,
+    storageInventoryAuthenticationResult: staleAuthenticationResult
+  }).failures;
+  assert(staleAuthenticationFailures.includes('Storage inventory authentication result is stale'));
+
+  const futureAuthenticationReceipt = buildReceipt();
+  const futureAuthenticationEvidence = buildStorageInventoryEvidence(futureAuthenticationReceipt);
+  const futureAuthenticationResult = buildStorageInventoryAuthenticationResult(futureAuthenticationEvidence);
+  futureAuthenticationResult.verified_at = '2026-07-18T18:00:01Z';
+  signTrustedAttestationResult(futureAuthenticationResult, storageInventorySignatureDomain);
+  futureAuthenticationEvidence.authentication.verification_result_sha256 = futureAuthenticationResult.result_sha256;
+  assert(validate(futureAuthenticationReceipt, now, buildAcceptedExportsManifest(futureAuthenticationReceipt), {
+    storageInventoryEvidence: futureAuthenticationEvidence,
+    storageInventoryAuthenticationResult: futureAuthenticationResult
+  }).failures.includes('Storage inventory authentication result cannot be future-dated'));
+
   const wrongProject = buildReceipt();
   const wrongProjectEvidence = buildStorageInventoryEvidence(wrongProject);
   wrongProjectEvidence.project.name = 'Another project';
@@ -1847,9 +1953,23 @@ test('every Storage denominator requires independent current inventory evidence'
 
   const wrongExport = buildReceipt();
   const wrongExportEvidence = buildStorageInventoryEvidence(wrongExport);
-  wrongExportEvidence.export_identity.destination_version = 'backup-version-other';
+  wrongExportEvidence.export_identity.export_id = 'backup-export-other';
   wrongExportEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(wrongExportEvidence);
   assert(validate(wrongExport, now, buildAcceptedExportsManifest(wrongExport), { storageInventoryEvidence: wrongExportEvidence }).failures.includes('Storage inventory evidence export identity mismatch'));
+
+  const wrongProviderSnapshot = buildReceipt();
+  const wrongProviderSnapshotEvidence = buildStorageInventoryEvidence(wrongProviderSnapshot);
+  wrongProviderSnapshotEvidence.provider_snapshot_identity.source_snapshot_sha256 = digest('other-source-snapshot');
+  wrongProviderSnapshotEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(wrongProviderSnapshotEvidence);
+  assert(validate(wrongProviderSnapshot, now, buildAcceptedExportsManifest(wrongProviderSnapshot), { storageInventoryEvidence: wrongProviderSnapshotEvidence }).failures.includes('Storage inventory evidence provider snapshot mismatch'));
+
+  const swapped = buildReceipt({ storageObjectCount: 2 });
+  const swappedEvidence = buildStorageInventoryEvidence(swapped);
+  const swappedResult = buildStorageInventoryAuthenticationResult(swappedEvidence);
+  assert(validate(empty, now, buildAcceptedExportsManifest(empty), {
+    storageInventoryEvidence: emptyEvidence,
+    storageInventoryAuthenticationResult: swappedResult
+  }).failures.includes('Storage inventory authentication result subject mismatch'));
 
   const contradictory = buildReceipt();
   const contradictoryEvidence = buildStorageInventoryEvidence(contradictory);

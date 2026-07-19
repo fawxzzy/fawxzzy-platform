@@ -155,6 +155,7 @@
         "aggregate_only",
         "accepted_exports_authentication",
         "execution_gate_authentication",
+        "storage_inventory_authentication",
         "object_lock_authentication",
         "required_fields",
         "forbidden_classes"
@@ -261,13 +262,16 @@
         "execution_gate_authentication": {
           "$ref": "#/$defs/execution_gate_authentication_policy"
         },
+        "storage_inventory_authentication": {
+          "$ref": "#/$defs/storage_inventory_authentication_policy"
+        },
         "object_lock_authentication": {
           "$ref": "#/$defs/object_lock_authentication_policy"
         },
         "required_fields": {
           "type": "array",
-          "minItems": 22,
-          "maxItems": 22,
+          "minItems": 25,
+          "maxItems": 25,
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -411,6 +415,8 @@
         "required_result_status",
         "signature_domain",
         "maximum_age_seconds",
+        "binding_class",
+        "strictly_before_execution_boundary",
         "admission_policy"
       ],
       "properties": {
@@ -431,6 +437,12 @@
         },
         "maximum_age_seconds": {
           "const": 28800
+        },
+        "binding_class": {
+          "const": "predeclared_receipt_export_source_state"
+        },
+        "strictly_before_execution_boundary": {
+          "const": true
         },
         "admission_policy": {
           "type": "object",
@@ -510,6 +522,42 @@
         },
         "scope": {
           "const": "restore_receipt"
+        }
+      }
+    },
+    "storage_inventory_authentication_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "verification_boundary",
+        "trust_anchor_source",
+        "required_result_status",
+        "signature_domain",
+        "maximum_age_seconds",
+        "provider_class"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "verification_boundary": {
+          "const": "pinned_ed25519_signature"
+        },
+        "trust_anchor_source": {
+          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
+        },
+        "required_result_status": {
+          "const": "VERIFIED"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:storage-inventory-attestation:v1"
+        },
+        "maximum_age_seconds": {
+          "const": 28800
+        },
+        "provider_class": {
+          "const": "Supabase Storage metadata"
         }
       }
     },
@@ -810,9 +858,12 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "receipt_id",
+        "export_id",
         "lifecycle_state",
         "project",
         "source_commit",
+        "source_state_sha256",
         "postgres_version",
         "tool_versions",
         "snapshot_at",
@@ -839,6 +890,12 @@
         "restore"
       ],
       "properties": {
+        "receipt_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "export_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
         "lifecycle_state": {
           "enum": [
             "BACKUP_CURRENT",
@@ -864,6 +921,9 @@
         "source_commit": {
           "type": "string",
           "pattern": "^[0-9a-f]{40}$"
+        },
+        "source_state_sha256": {
+          "$ref": "#/$defs/sha256"
         },
         "postgres_version": {
           "$ref": "#/$defs/safe_reference"
@@ -1354,9 +1414,10 @@
         "gate_id",
         "gate_version",
         "scope",
+        "contract_artifact_sha256",
         "policy_artifact_sha256",
-        "execution_artifact_sha256",
-        "receipt_manifest_sha256",
+        "source_state_sha256",
+        "receipt_identity",
         "export_identity",
         "restore_identity",
         "authentication"
@@ -1401,32 +1462,40 @@
             "restore_receipt"
           ]
         },
+        "contract_artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
         "policy_artifact_sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "execution_artifact_sha256": {
+        "source_state_sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "receipt_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
+        "receipt_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "receipt_id",
+            "receipt_identity_sha256"
+          ],
+          "properties": {
+            "receipt_id": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "receipt_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         },
         "export_identity": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "completed_at",
-            "destination_version",
-            "ciphertext_sha256"
+            "export_id"
           ],
           "properties": {
-            "completed_at": {
-              "$ref": "#/$defs/utc_timestamp"
-            },
-            "destination_version": {
+            "export_id": {
               "$ref": "#/$defs/safe_reference"
-            },
-            "ciphertext_sha256": {
-              "$ref": "#/$defs/sha256"
             }
           }
         },
@@ -1822,6 +1891,222 @@
               "$ref": "#/$defs/utc_timestamp"
             }
           }
+        }
+      }
+    },
+    "storage_inventory_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "evidence_class",
+        "evidence_id",
+        "observed_at",
+        "source_evidence_sha256",
+        "project",
+        "provider_snapshot_identity",
+        "snapshot_at",
+        "export_identity",
+        "denominator",
+        "authentication"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "evidence_class": {
+          "const": "authenticated_storage_inventory_readback"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "source_evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "project": {
+          "$ref": "#/$defs/receipt_project"
+        },
+        "provider_snapshot_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider_class",
+            "storage_snapshot_id",
+            "source_snapshot_sha256"
+          ],
+          "properties": {
+            "provider_class": {
+              "const": "Supabase Storage metadata"
+            },
+            "storage_snapshot_id": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "source_snapshot_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "snapshot_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "export_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "export_id",
+            "destination_version",
+            "ciphertext_sha256"
+          ],
+          "properties": {
+            "export_id": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "destination_version": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "ciphertext_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "denominator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket_count",
+            "object_count",
+            "total_bytes",
+            "inventory_manifest_sha256"
+          ],
+          "properties": {
+            "bucket_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "object_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "inventory_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "method",
+            "verification_result_sha256"
+          ],
+          "properties": {
+            "status": {
+              "const": "CURRENT"
+            },
+            "method": {
+              "const": "pinned_ed25519_signature_result"
+            },
+            "verification_result_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "storage_inventory_authentication_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "result_class",
+        "result_id",
+        "verified_at",
+        "verifier_reference",
+        "verification_method",
+        "key_id",
+        "signature_algorithm",
+        "signature_domain",
+        "project",
+        "evidence_id",
+        "subject_sha256",
+        "external_receipt_sha256",
+        "signed_payload_sha256",
+        "signature_base64",
+        "result_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "VERIFIED"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "result_class": {
+          "const": "trusted_storage_inventory_verification"
+        },
+        "result_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verified_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "verifier_reference": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verification_method": {
+          "const": "external_signature_verification"
+        },
+        "key_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "signature_algorithm": {
+          "const": "Ed25519"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:storage-inventory-attestation:v1"
+        },
+        "project": {
+          "$ref": "#/$defs/receipt_project"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },

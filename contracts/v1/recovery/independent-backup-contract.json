@@ -116,6 +116,8 @@
       "required_result_status": "VERIFIED",
       "signature_domain": "fawxzzy-platform:execution-gate-admission:v1",
       "maximum_age_seconds": 28800,
+      "binding_class": "predeclared_receipt_export_source_state",
+      "strictly_before_execution_boundary": true,
       "admission_policy": {
         "version": "1.0.0",
         "backup_current": [
@@ -139,6 +141,15 @@
         ]
       }
     },
+    "storage_inventory_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:storage-inventory-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "provider_class": "Supabase Storage metadata"
+    },
     "object_lock_authentication": {
       "required": true,
       "verification_boundary": "pinned_ed25519_signature",
@@ -157,6 +168,7 @@
       "cost",
       "coverage",
       "destination_version",
+      "export_id",
       "freshness",
       "key_recipient_ids",
       "manifest_sha256",
@@ -167,9 +179,11 @@
       "plaintext_sha256",
       "postgres_version",
       "project",
+      "receipt_id",
       "retention_until",
       "snapshot_at",
       "source_commit",
+      "source_state_sha256",
       "tool_versions",
       "watchdog"
     ],

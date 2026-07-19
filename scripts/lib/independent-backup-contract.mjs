@@ -46,9 +46,9 @@ const parityUnits = Object.freeze(['auth', 'catalog', 'data', 'security']);
 const monthlyReportingUnits = Object.freeze(['backup_freshness', 'projected_cost', 'runner_usage', 'storage_growth']);
 const receiptRequiredFields = Object.freeze([
   'aggregate_counts', 'ciphertext_bytes', 'ciphertext_sha256', 'completed_at', 'cost', 'coverage',
-  'destination_version', 'freshness', 'key_recipient_ids', 'manifest_sha256', 'migration_ledger_sha256',
-  'monthly_selection', 'object_lock', 'owner_decision', 'plaintext_sha256', 'postgres_version', 'project', 'retention_until',
-  'snapshot_at', 'source_commit', 'tool_versions', 'watchdog'
+  'destination_version', 'export_id', 'freshness', 'key_recipient_ids', 'manifest_sha256', 'migration_ledger_sha256',
+  'monthly_selection', 'object_lock', 'owner_decision', 'plaintext_sha256', 'postgres_version', 'project', 'receipt_id', 'retention_until',
+  'snapshot_at', 'source_commit', 'source_state_sha256', 'tool_versions', 'watchdog'
 ]);
 const forbiddenClasses = Object.freeze([
   'connection_values', 'credentials', 'private_keys', 'provider_payloads', 'raw_rows', 'raw_sql',
@@ -63,6 +63,7 @@ const projectRef = /^[a-z0-9]{20}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
 const executionGateSignatureDomain = 'fawxzzy-platform:execution-gate-admission:v1';
+const storageInventorySignatureDomain = 'fawxzzy-platform:storage-inventory-attestation:v1';
 const objectLockSignatureDomain = 'fawxzzy-platform:object-lock-provider-attestation:v1';
 const canonicalBase64 = /^[A-Za-z0-9+/]+={0,2}$/;
 const schemaPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'contracts', 'v1', 'schemas', 'independent-backup-contract.schema.json');
@@ -138,49 +139,13 @@ const storageBodyRecoveryEvidenceSchema = {
 const storageInventoryEvidenceSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-inventory-evidence',
-  type: 'object',
-  additionalProperties: false,
-  required: [
-    'version', 'status', 'canonical_serialization', 'observed_at', 'source_evidence_sha256',
-    'project', 'snapshot_at', 'export_identity', 'denominator'
-  ],
-  properties: {
-    version: { const: '1.0.0' },
-    status: { const: 'CURRENT' },
-    canonical_serialization: { const: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf' },
-    observed_at: { $ref: '#/$defs/utc_timestamp' },
-    source_evidence_sha256: { $ref: '#/$defs/sha256' },
-    project: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['name', 'ref'],
-      properties: {
-        name: { const: 'Fawxzzy shared Supabase project' },
-        ref: { const: 'bxtcuhkotumitoqtrcej' }
-      }
-    },
-    snapshot_at: { $ref: '#/$defs/utc_timestamp' },
-    export_identity: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['destination_version', 'ciphertext_sha256'],
-      properties: {
-        destination_version: { $ref: '#/$defs/safe_reference' },
-        ciphertext_sha256: { $ref: '#/$defs/sha256' }
-      }
-    },
-    denominator: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['bucket_count', 'object_count', 'total_bytes', 'inventory_manifest_sha256'],
-      properties: {
-        bucket_count: { type: 'integer', minimum: 0 },
-        object_count: { type: 'integer', minimum: 0 },
-        total_bytes: { type: 'integer', minimum: 0 },
-        inventory_manifest_sha256: { $ref: '#/$defs/sha256' }
-      }
-    }
-  },
+  $ref: '#/$defs/storage_inventory_evidence',
+  $defs: sourceSchema.$defs
+};
+const storageInventoryAuthenticationResultSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-inventory-authentication-result',
+  $ref: '#/$defs/storage_inventory_authentication_result',
   $defs: sourceSchema.$defs
 };
 const contractAjv = new Ajv2020({ allErrors: true, strict: true });
@@ -198,6 +163,7 @@ const objectLockAuthenticationResultShapeValidator = new Ajv2020({ allErrors: tr
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
 const storageBodyRecoveryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryEvidenceSchema);
 const storageInventoryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageInventoryEvidenceSchema);
+const storageInventoryAuthenticationResultShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageInventoryAuthenticationResultSchema);
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -223,9 +189,29 @@ export function storageInventoryManifestDigest(evidence) {
       total_bytes: evidence?.denominator?.total_bytes ?? null
     },
     export_identity: evidence?.export_identity ?? null,
+    evidence_id: evidence?.evidence_id ?? null,
     observed_at: evidence?.observed_at ?? null,
     project: evidence?.project ?? null,
+    provider_snapshot_identity: evidence?.provider_snapshot_identity ?? null,
     snapshot_at: evidence?.snapshot_at ?? null
+  });
+}
+
+export function independentBackupSourceStateDigest(receipt) {
+  return sha256Hex({
+    migration_ledger_sha256: receipt?.migration_ledger_sha256 ?? null,
+    postgres_version: receipt?.postgres_version ?? null,
+    source_commit: receipt?.source_commit ?? null,
+    tool_versions: receipt?.tool_versions ?? null
+  });
+}
+
+export function independentBackupReceiptIdentityDigest(receipt) {
+  return sha256Hex({
+    export_id: receipt?.export_id ?? null,
+    project: receipt?.project ?? null,
+    receipt_id: receipt?.receipt_id ?? null,
+    source_state_sha256: receipt?.source_state_sha256 ?? null
   });
 }
 
@@ -504,6 +490,8 @@ export function validateIndependentBackupContract(contract) {
     && gateAuthentication?.required_result_status === 'VERIFIED'
     && gateAuthentication?.signature_domain === executionGateSignatureDomain
     && gateAuthentication?.maximum_age_seconds === 28800
+    && gateAuthentication?.binding_class === 'predeclared_receipt_export_source_state'
+    && gateAuthentication?.strictly_before_execution_boundary === true
     && canonicalSerialize(gateAuthentication?.admission_policy) === canonicalSerialize({
       version: '1.0.0',
       backup_current: [{ gate_id: 'backup_generation_or_upload', gate_version: '1.0.0', scope: 'backup_receipt' }],
@@ -512,6 +500,14 @@ export function validateIndependentBackupContract(contract) {
         { gate_id: 'restore_rehearsal', gate_version: '1.0.0', scope: 'restore_receipt' }
       ]
     }), 'execution gate authentication boundary changed', failures);
+  const storageInventoryAuthentication = contract.receipt_contract?.storage_inventory_authentication;
+  requireCondition(storageInventoryAuthentication?.required === true
+    && storageInventoryAuthentication?.verification_boundary === 'pinned_ed25519_signature'
+    && storageInventoryAuthentication?.trust_anchor_source === 'receipt_contract.accepted_exports_authentication.trust_anchor'
+    && storageInventoryAuthentication?.required_result_status === 'VERIFIED'
+    && storageInventoryAuthentication?.signature_domain === storageInventorySignatureDomain
+    && storageInventoryAuthentication?.maximum_age_seconds === 28800
+    && storageInventoryAuthentication?.provider_class === 'Supabase Storage metadata', 'Storage inventory authentication boundary changed', failures);
   const objectLockAuthentication = contract.receipt_contract?.object_lock_authentication;
   requireCondition(objectLockAuthentication?.required === true
     && objectLockAuthentication?.verification_boundary === 'pinned_ed25519_signature'
@@ -569,9 +565,11 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(receipt.lifecycle_state === 'BACKUP_CURRENT' || receipt.lifecycle_state === 'RESTORE_REHEARSED', 'accepted receipt lifecycle must be BACKUP_CURRENT or RESTORE_REHEARSED', failures);
   requireCondition(receipt.lifecycle_state !== 'BACKUP_CURRENT' || receipt.restore === null, 'BACKUP_CURRENT must not include restore evidence', failures);
   requireCondition(receipt.project?.name === contract.project.name && receipt.project?.ref === contract.project.ref, 'receipt project identity mismatch', failures);
+  requireCondition(safeReference.test(receipt.receipt_id ?? '') && safeReference.test(receipt.export_id ?? ''), 'receipt and export identities are missing or unsafe', failures);
   requireCondition(commitSha.test(receipt.source_commit ?? ''), 'source commit must be a lowercase 40-character digest', failures);
   requireCondition(typeof receipt.postgres_version === 'string' && safeReference.test(receipt.postgres_version), 'Postgres version is missing or unsafe', failures);
   requireCondition(receipt.tool_versions && Object.keys(receipt.tool_versions).length > 0 && Object.values(receipt.tool_versions).every((value) => safeReference.test(value)), 'tool versions are missing or unsafe', failures);
+  requireCondition(receipt.source_state_sha256 === independentBackupSourceStateDigest(receipt), 'receipt source-state digest mismatch', failures);
   requireCondition(snapshotAt !== null && completedAt !== null && snapshotAt <= completedAt, 'backup completion cannot precede snapshot', failures);
   requireCondition(now !== null && completedAt !== null && completedAt <= now, 'backup completion cannot be future-dated', failures);
   requireCondition(now !== null && snapshotAt !== null && now - snapshotAt <= maximumEvidenceAgeMs, 'backup recovery point is stale', failures);
@@ -591,12 +589,9 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(gateAuthenticationResults.length === expectedGatePolicy.length, 'execution gate authentication result denominator mismatch', failures);
   requireCondition(new Set(gateAdmissions.map((entry) => entry?.evidence_id)).size === gateAdmissions.length, 'execution gate admission identities are duplicate or ambiguous', failures);
   requireCondition(new Set(gateAuthenticationResults.map((entry) => entry?.result_id)).size === gateAuthenticationResults.length, 'execution gate authentication result identities are duplicate or ambiguous', failures);
+  const contractArtifactDigest = sha256Hex(contract);
   const gatePolicyArtifactDigest = sha256Hex(contract.receipt_contract.execution_gate_authentication.admission_policy);
-  const executionArtifactDigest = sha256Hex({
-    source_commit: receipt.source_commit,
-    migration_ledger_sha256: receipt.migration_ledger_sha256,
-    tool_versions: receipt.tool_versions
-  });
+  const receiptIdentityDigest = independentBackupReceiptIdentityDigest(receipt);
   for (const [index, gatePolicy] of expectedGatePolicy.entries()) {
     const admission = gateAdmissions[index];
     const authenticationResult = gateAuthenticationResults[index];
@@ -609,24 +604,25 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     const verifiedAt = parseTimestamp(authenticationResult?.verified_at, `execution_gate_authentication_result[${index}].verified_at`, failures);
     const executionBoundary = gatePolicy.gate_id === 'restore_rehearsal'
       ? parseTimestamp(receipt.restore?.restore_started_at, 'restore.restore_started_at for gate admission', failures)
-      : completedAt;
+      : snapshotAt;
     requireCondition(admission?.status === 'CURRENT'
       && admission?.gate_id === gatePolicy.gate_id
       && admission?.gate_version === gatePolicy.gate_version
       && admission?.scope === gatePolicy.scope, `execution gate admission[${index}] does not match the source-owned gate policy`, failures);
+    requireCondition(admission?.contract_artifact_sha256 === contractArtifactDigest, `execution gate admission[${index}] contract artifact mismatch`, failures);
     requireCondition(admission?.policy_artifact_sha256 === gatePolicyArtifactDigest, `execution gate admission[${index}] source policy artifact mismatch`, failures);
-    requireCondition(admission?.execution_artifact_sha256 === executionArtifactDigest, `execution gate admission[${index}] execution artifact mismatch`, failures);
+    requireCondition(admission?.source_state_sha256 === receipt.source_state_sha256, `execution gate admission[${index}] source-state mismatch`, failures);
     requireCondition(admission?.project?.name === receipt.project?.name && admission?.project?.ref === receipt.project?.ref, `execution gate admission[${index}] project mismatch`, failures);
-    requireCondition(admission?.receipt_manifest_sha256 === receipt.manifest_sha256, `execution gate admission[${index}] receipt correlation mismatch`, failures);
-    requireCondition(admission?.export_identity?.completed_at === receipt.completed_at
-      && admission?.export_identity?.destination_version === receipt.destination_version
-      && admission?.export_identity?.ciphertext_sha256 === receipt.ciphertext_sha256, `execution gate admission[${index}] export correlation mismatch`, failures);
+    requireCondition(admission?.receipt_identity?.receipt_id === receipt.receipt_id
+      && admission?.receipt_identity?.receipt_identity_sha256 === receiptIdentityDigest, `execution gate admission[${index}] receipt identity mismatch`, failures);
+    requireCondition(admission?.export_identity?.export_id === receipt.export_id, `execution gate admission[${index}] export identity mismatch`, failures);
     const expectedRestoreIdentity = gatePolicy.gate_id === 'restore_rehearsal'
       ? { target_project_ref: receipt.restore?.target_project?.ref, restore_receipt_sha256: sha256Hex(receipt.restore) }
       : null;
     requireCondition(canonicalSerialize(admission?.restore_identity) === canonicalSerialize(expectedRestoreIdentity), `execution gate admission[${index}] restore correlation mismatch`, failures);
     requireCondition(issuedAt !== null && expiresAt !== null && issuedAt < expiresAt, `execution gate admission[${index}] validity interval is malformed`, failures);
-    requireCondition(issuedAt !== null && executionBoundary !== null && issuedAt <= executionBoundary, `execution gate admission[${index}] was issued after execution`, failures);
+    requireCondition(issuedAt !== null && executionBoundary !== null && issuedAt < executionBoundary, `execution gate admission[${index}] was not issued strictly before execution`, failures);
+    requireCondition(issuedAt !== null && now !== null && issuedAt <= now, `execution gate admission[${index}] cannot be future-dated`, failures);
     requireCondition(expiresAt !== null && now !== null && expiresAt >= now, `execution gate admission[${index}] is expired`, failures);
     requireCondition(issuedAt !== null && now !== null && now - issuedAt <= contract.receipt_contract.execution_gate_authentication.maximum_age_seconds * 1000, `execution gate admission[${index}] is stale`, failures);
     const subjectDigest = trustedAttestationSubjectDigest(admission);
@@ -640,14 +636,19 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
       && authenticationResult?.evidence_id === admission?.evidence_id
       && authenticationResult?.subject_sha256 === subjectDigest, `execution gate authentication result[${index}] subject mismatch`, failures);
     requireCondition(verifiedAt !== null && issuedAt !== null && verifiedAt >= issuedAt, `execution gate authentication result[${index}] predates admission`, failures);
-    requireCondition(verifiedAt !== null && executionBoundary !== null && verifiedAt <= executionBoundary, `execution gate authentication result[${index}] postdates execution`, failures);
+    requireCondition(verifiedAt !== null && executionBoundary !== null && verifiedAt < executionBoundary, `execution gate authentication result[${index}] was not completed strictly before execution`, failures);
+    requireCondition(verifiedAt !== null && now !== null && verifiedAt <= now, `execution gate authentication result[${index}] cannot be future-dated`, failures);
     requireCondition(hexSha256.test(authenticationResult?.external_receipt_sha256 ?? '')
       && !new Set([
         subjectDigest,
         resultDigest,
-        receipt.manifest_sha256,
+        contractArtifactDigest,
+        receiptIdentityDigest,
         admission?.policy_artifact_sha256,
-        admission?.execution_artifact_sha256
+        admission?.source_state_sha256,
+        receipt.manifest_sha256,
+        receipt.plaintext_sha256,
+        receipt.ciphertext_sha256
       ]).has(authenticationResult?.external_receipt_sha256), `execution gate authentication result[${index}] external receipt is self-correlated`, failures);
     requireCondition(authenticationResult?.result_sha256 === resultDigest, `execution gate authentication result[${index}] digest mismatch`, failures);
     failures.push(...verifyTrustedAttestationSignature(
@@ -932,8 +933,12 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const storageInventorySourceDigest = storageInventoryEvidence?.source_evidence_sha256;
   requireCondition(storageInventoryEvidence?.status === 'CURRENT', 'Storage inventory evidence must be CURRENT', failures);
   requireCondition(storageInventoryEvidence?.project?.name === receipt.project?.name && storageInventoryEvidence?.project?.ref === receipt.project?.ref, 'Storage inventory evidence project mismatch', failures);
+  requireCondition(storageInventoryEvidence?.provider_snapshot_identity?.provider_class === contract.receipt_contract.storage_inventory_authentication.provider_class
+    && storageInventoryEvidence?.provider_snapshot_identity?.source_snapshot_sha256 === receipt.source_state_sha256, 'Storage inventory evidence provider snapshot mismatch', failures);
   requireCondition(storageInventoryEvidence?.snapshot_at === receipt.snapshot_at, 'Storage inventory evidence snapshot mismatch', failures);
-  requireCondition(storageInventoryEvidence?.export_identity?.destination_version === receipt.destination_version && storageInventoryEvidence?.export_identity?.ciphertext_sha256 === receipt.ciphertext_sha256, 'Storage inventory evidence export identity mismatch', failures);
+  requireCondition(storageInventoryEvidence?.export_identity?.export_id === receipt.export_id
+    && storageInventoryEvidence?.export_identity?.destination_version === receipt.destination_version
+    && storageInventoryEvidence?.export_identity?.ciphertext_sha256 === receipt.ciphertext_sha256, 'Storage inventory evidence export identity mismatch', failures);
   requireCondition(storageInventoryObservedAt !== null && completedAt !== null && storageInventoryObservedAt >= completedAt, 'Storage inventory evidence cannot predate backup completion', failures);
   requireCondition(storageInventoryObservedAt !== null && now !== null && storageInventoryObservedAt <= now, 'Storage inventory evidence cannot be future-dated', failures);
   requireCondition(storageInventoryObservedAt !== null && now !== null && now - storageInventoryObservedAt <= maximumEvidenceAgeMs, 'Storage inventory evidence is stale', failures);
@@ -957,6 +962,40 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     const independentEvidenceDigests = [objectLockReadback?.source_evidence_sha256, acceptedExportsManifest?.source_evidence_sha256].filter(Boolean);
     requireCondition(!independentEvidenceDigests.includes(storageInventorySourceDigest), 'Storage inventory source evidence must be distinct from other evidence', failures);
   }
+  const storageInventoryAuthenticationResult = options.storageInventoryAuthenticationResult;
+  failures.push(...shapeFailures(storageInventoryAuthenticationResultShapeValidator, storageInventoryAuthenticationResult, 'Storage inventory authentication result'));
+  failures.push(...validateSanitizedReceipt(storageInventoryAuthenticationResult, 'Storage inventory authentication result'));
+  const storageInventoryVerifiedAt = parseTimestamp(storageInventoryAuthenticationResult?.verified_at, 'storage_inventory_authentication_result.verified_at', failures);
+  const storageInventorySubjectDigest = trustedAttestationSubjectDigest(storageInventoryEvidence);
+  const storageInventoryResultDigest = trustedAttestationResultDigest(storageInventoryAuthenticationResult);
+  requireCondition(storageInventoryEvidence?.authentication?.status === 'CURRENT'
+    && storageInventoryEvidence?.authentication?.method === 'pinned_ed25519_signature_result'
+    && storageInventoryEvidence?.authentication?.verification_result_sha256 === storageInventoryResultDigest, 'Storage inventory authentication result correlation mismatch', failures);
+  requireCondition(storageInventoryAuthenticationResult?.status === 'VERIFIED'
+    && storageInventoryAuthenticationResult?.project?.name === receipt.project?.name
+    && storageInventoryAuthenticationResult?.project?.ref === receipt.project?.ref
+    && storageInventoryAuthenticationResult?.evidence_id === storageInventoryEvidence?.evidence_id
+    && storageInventoryAuthenticationResult?.subject_sha256 === storageInventorySubjectDigest, 'Storage inventory authentication result subject mismatch', failures);
+  requireCondition(storageInventoryVerifiedAt !== null && storageInventoryObservedAt !== null && storageInventoryVerifiedAt >= storageInventoryObservedAt, 'Storage inventory authentication result predates observation', failures);
+  requireCondition(storageInventoryVerifiedAt !== null && now !== null && storageInventoryVerifiedAt <= now, 'Storage inventory authentication result cannot be future-dated', failures);
+  requireCondition(storageInventoryVerifiedAt !== null && now !== null
+    && now - storageInventoryVerifiedAt <= contract.receipt_contract.storage_inventory_authentication.maximum_age_seconds * 1000, 'Storage inventory authentication result is stale', failures);
+  requireCondition(storageInventoryAuthenticationResult?.external_receipt_sha256 === storageInventorySourceDigest
+    && !new Set([
+      storageInventorySubjectDigest,
+      storageInventoryResultDigest,
+      storageInventoryEvidence?.denominator?.inventory_manifest_sha256,
+      receipt.manifest_sha256,
+      receipt.plaintext_sha256,
+      receipt.ciphertext_sha256
+    ]).has(storageInventoryAuthenticationResult?.external_receipt_sha256), 'Storage inventory authentication external receipt is circular or mismatched', failures);
+  requireCondition(storageInventoryAuthenticationResult?.result_sha256 === storageInventoryResultDigest, 'Storage inventory authentication result digest mismatch', failures);
+  failures.push(...verifyTrustedAttestationSignature(
+    contract.receipt_contract.accepted_exports_authentication.trust_anchor,
+    storageInventoryAuthenticationResult,
+    storageInventorySignatureDomain,
+    'Storage inventory authentication result'
+  ));
   const storageBodiesClaimed = storageBodiesEntry?.status === 'CURRENT'
     || (storageBodiesEntry?.aggregate_count ?? 0) > 0
     || storageBodiesEntry?.body_recovery_receipt_status === 'CURRENT'
