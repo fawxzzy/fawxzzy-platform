@@ -1,6 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "CURRENT",
+  "security_session_decision_id": "FP-MAN-012",
   "origins": [
     {
       "role": "hub",
@@ -40,10 +41,11 @@
     "site_url": "https://account.fawxzzy.com",
     "exact_redirect_urls": [
       "https://account.fawxzzy.com/auth/callback",
+      "https://account.fawxzzy.com/reset-password?recovery=1",
       "https://fitness.fawxzzy.com/auth/callback",
       "https://mazer.fawxzzy.com/auth/callback"
     ],
-    "exact_recovery_url": "https://account.fawxzzy.com/auth/recovery",
+    "exact_recovery_url": "https://account.fawxzzy.com/reset-password?recovery=1",
     "production_wildcards_allowed": false,
     "preview_redirects": {
       "status": "BLOCKED",
@@ -53,6 +55,9 @@
   "auth_policy": {
     "decision_id": "FP-MAN-002",
     "phase_one_method": "email_password",
+    "product_visible_sign_in_methods": [
+      "email_password"
+    ],
     "email_verification": false,
     "leaked_password_protection": {
       "enabled": true,
@@ -83,10 +88,66 @@
       "magic_link_only",
       "enforced_mfa"
     ],
-    "totp": {
-      "status": "BLOCKED",
-      "disposition": "future_optional"
+    "account_change_security": {
+      "recent_authentication_for_password_changes": "REQUIRED",
+      "current_password_for_signed_in_password_changes": "REQUIRED",
+      "current_password_for_signed_in_email_changes": "REQUIRED",
+      "secure_email_change": "REQUIRED",
+      "native_hosted_current_password_for_email_change": "UNKNOWN",
+      "application_server_email_change_enforcement": "REQUIRED"
+    },
+    "captcha": {
+      "status": "REQUIRED",
+      "surfaces": [
+        "public_signup",
+        "password_reset"
+      ],
+      "provider_class": "UNKNOWN",
+      "credential_installation": "BLOCKED",
+      "live_configuration": "BLOCKED",
+      "bypass_allowlist": []
+    },
+    "passwordless_email": {
+      "provider_toggle": "UNKNOWN",
+      "product_ui_exposure": "BLOCKED"
+    },
+    "mfa": {
+      "totp": {
+        "available": true,
+        "enrollment": "optional",
+        "enforced": false
+      },
+      "sms": {
+        "status": "BLOCKED"
+      },
+      "passkeys": {
+        "status": "BLOCKED"
+      },
+      "aal1_maximum_age_seconds": 900
+    },
+    "identity_linking": {
+      "manual_client_linking": false,
+      "privileged_reconciliation": {
+        "status": "REQUIRED",
+        "verified_deterministic_identity_evidence": true,
+        "username_only_matching_forbidden": true
+      }
+    },
+    "jwt": {
+      "expiry_seconds": "UNKNOWN",
+      "signing_key_class": "UNKNOWN",
+      "secret_material_allowed": false
     }
+  },
+  "provider_application_gate": {
+    "status": "BLOCKED",
+    "apply_admitted": false,
+    "requirements": [
+      "fresh_target_preimage",
+      "expected_state_mutation_authority",
+      "exact_readback",
+      "exact_rollback"
+    ]
   },
   "account_surfaces": {
     "owner_origin": "https://account.fawxzzy.com",
@@ -127,6 +188,15 @@
     "shared_auth_identity": true,
     "shared_database_contracts": true,
     "browser_sessions": "per_origin",
+    "multiple_devices_allowed": true,
+    "single_session_enforcement": false,
+    "absolute_lifetime_seconds": 2592000,
+    "inactivity_timeout_seconds": 604800,
+    "refresh_tokens": {
+      "compromise_detection": true,
+      "rotation": true,
+      "reuse_interval_seconds": 10
+    },
     "cross_origin_sso": {
       "status": "BLOCKED",
       "disposition": "deferred_phase_two",

@@ -323,6 +323,118 @@ test('password policy rejects restrictive caps and truncation', () => {
   assert.ok(failures.some((failure) => failure.includes('password truncation is forbidden')));
 });
 
+test('domain session contract v1.1.0 rejects the exact 24 security session policy drifts through schema and semantics without throwing', () => {
+  const contractPath = 'contracts/v1/auth/domain-session-contract.json';
+  const cases = [
+    ['01 obsolete recovery route', [
+      (domain) => { domain.auth_configuration.exact_recovery_url = 'https://account.fawxzzy.com/auth/recovery'; }
+    ]],
+    ['02 recovery route absent or reordered in allowlist', [
+      (domain) => { domain.auth_configuration.exact_redirect_urls = domain.auth_configuration.exact_redirect_urls.filter((url) => !url.includes('reset-password')); },
+      (domain) => domain.auth_configuration.exact_redirect_urls.reverse()
+    ]],
+    ['03 wildcard or localhost production URL', [
+      (domain) => { domain.auth_configuration.exact_redirect_urls[0] = 'https://*.fawxzzy.com/auth/callback'; },
+      (domain) => { domain.auth_configuration.site_url = 'http://localhost:3000'; }
+    ]],
+    ['04 missing or substituted FP-MAN-012 decision', [
+      (domain) => { delete domain.security_session_decision_id; },
+      (domain) => { domain.security_session_decision_id = 'FP-MAN-002'; }
+    ]],
+    ['05 recent authentication disabled', [
+      (domain) => { domain.auth_policy.account_change_security.recent_authentication_for_password_changes = 'BLOCKED'; }
+    ]],
+    ['06 current-password protection disabled', [
+      (domain) => { domain.auth_policy.account_change_security.current_password_for_signed_in_password_changes = 'BLOCKED'; },
+      (domain) => { domain.auth_policy.account_change_security.current_password_for_signed_in_email_changes = 'BLOCKED'; }
+    ]],
+    ['07 secure email change disabled or native capability promoted', [
+      (domain) => { domain.auth_policy.account_change_security.secure_email_change = 'BLOCKED'; },
+      (domain) => { domain.auth_policy.account_change_security.native_hosted_current_password_for_email_change = 'CURRENT'; }
+    ]],
+    ['08 CAPTCHA absent or disabled', [
+      (domain) => { delete domain.auth_policy.captcha; },
+      (domain) => { domain.auth_policy.captcha.status = 'BLOCKED'; }
+    ]],
+    ['09 CAPTCHA provider invented', [
+      (domain) => { domain.auth_policy.captcha.provider_class = 'turnstile'; }
+    ]],
+    ['10 CAPTCHA bypass allowlist invented', [
+      (domain) => domain.auth_policy.captcha.bypass_allowlist.push('migration')
+    ]],
+    ['11 product UI exposes a method beyond email password', [
+      (domain) => domain.auth_policy.product_visible_sign_in_methods.push('magic_link')
+    ]],
+    ['12 magic-link or OTP provider capability promoted', [
+      (domain) => { domain.auth_policy.passwordless_email.provider_toggle = 'CURRENT'; }
+    ]],
+    ['13 TOTP unavailable or enforced', [
+      (domain) => { domain.auth_policy.mfa.totp.available = false; },
+      (domain) => { domain.auth_policy.mfa.totp.enforced = true; }
+    ]],
+    ['14 SMS MFA or passkeys promoted', [
+      (domain) => { domain.auth_policy.mfa.sms.status = 'CURRENT'; },
+      (domain) => { domain.auth_policy.mfa.passkeys.status = 'CURRENT'; }
+    ]],
+    ['15 AAL1 maximum age changed', [
+      (domain) => { domain.auth_policy.mfa.aal1_maximum_age_seconds = 901; }
+    ]],
+    ['16 absolute session lifetime changed', [
+      (domain) => { domain.session_model.absolute_lifetime_seconds = 2591999; }
+    ]],
+    ['17 inactivity timeout changed', [
+      (domain) => { domain.session_model.inactivity_timeout_seconds = 604799; }
+    ]],
+    ['18 multiple-device and single-session policy contradicted', [
+      (domain) => { domain.session_model.multiple_devices_allowed = false; },
+      (domain) => { domain.session_model.single_session_enforcement = true; }
+    ]],
+    ['19 refresh compromise detection rotation or reuse policy weakened', [
+      (domain) => { domain.session_model.refresh_tokens.compromise_detection = false; },
+      (domain) => { domain.session_model.refresh_tokens.rotation = false; },
+      (domain) => { domain.session_model.refresh_tokens.reuse_interval_seconds = 11; }
+    ]],
+    ['20 manual client identity linking enabled', [
+      (domain) => { domain.auth_policy.identity_linking.manual_client_linking = true; }
+    ]],
+    ['21 privileged linking lacks evidence or permits username-only matching', [
+      (domain) => { domain.auth_policy.identity_linking.privileged_reconciliation.verified_deterministic_identity_evidence = false; },
+      (domain) => { domain.auth_policy.identity_linking.privileged_reconciliation.username_only_matching_forbidden = false; }
+    ]],
+    ['22 JWT state promoted or secret material supplied', [
+      (domain) => { domain.auth_policy.jwt.expiry_seconds = 3600; },
+      (domain) => { domain.auth_policy.jwt.signing_key_class = 'asymmetric'; },
+      (domain) => { domain.auth_policy.jwt.secret = 'not-a-real-secret'; }
+    ]],
+    ['23 provider application gate promoted or weakened', [
+      (domain) => { domain.provider_application_gate.status = 'CURRENT'; },
+      (domain) => { domain.provider_application_gate.apply_admitted = true; },
+      (domain) => domain.provider_application_gate.requirements.pop()
+    ]],
+    ['24 preserved password verification SMTP session cookie or URL-token protections regressed', [
+      (domain) => { domain.auth_policy.password_length.minimum.value = 6; },
+      (domain) => { domain.auth_policy.password_length.capacity.restrictive_app_cap_allowed = true; },
+      (domain) => { domain.auth_policy.email_verification = true; },
+      (domain) => { domain.smtp.credentials_present = true; },
+      (domain) => { domain.session_model.browser_sessions = 'shared_domain'; },
+      (domain) => { domain.session_model.cross_origin_sso.forbidden_mechanisms = ['url_tokens']; }
+    ]]
+  ];
+
+  assert.equal(cases.length, 24);
+  for (const [name, variants] of cases) {
+    for (const [variantIndex, mutate] of variants.entries()) {
+      const documents = structuredClone(loadDocuments());
+      mutate(documents[contractPath]);
+      const schemaFailures = validateSchemaInstances(documents, createValidator());
+      assert.ok(schemaFailures.some((failure) => failure.includes(contractPath)), `${name}, schema variant ${variantIndex + 1}`);
+      let semanticFailures;
+      assert.doesNotThrow(() => { semanticFailures = validateSemantics(documents); }, `${name}, semantic variant ${variantIndex + 1}`);
+      assert.notEqual(semanticFailures.length, 0, `${name}, semantic variant ${variantIndex + 1}`);
+    }
+  }
+});
+
 test('identity policy rejects username-only matching and write-gate drift', () => {
   const documents = structuredClone(loadDocuments());
   const identity = documents['contracts/v1/identity/identity-map.json'];

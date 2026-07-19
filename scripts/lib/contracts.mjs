@@ -214,6 +214,10 @@ function sameValues(actual, expected) {
   return JSON.stringify(sorted(actual)) === JSON.stringify(sorted(expected));
 }
 
+function exactOrderedValues(actual, expected) {
+  return Array.isArray(actual) && JSON.stringify(actual) === JSON.stringify(expected);
+}
+
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
@@ -368,34 +372,95 @@ export function validateSemantics(documents) {
   ]);
   requireCondition(admittedReceiptCombinations.has(receiptCombination), `activation receipt combination is not admitted: ${receiptCombination}`);
 
-  const domain = documents['contracts/v1/auth/domain-session-contract.json'];
-  const origins = Object.fromEntries(domain.origins.map((origin) => [origin.role, origin.origin]));
+  const domain = documents['contracts/v1/auth/domain-session-contract.json'] ?? {};
+  const origins = Object.fromEntries((Array.isArray(domain.origins) ? domain.origins : [])
+    .filter((origin) => origin && typeof origin === 'object')
+    .map((origin) => [origin.role, origin.origin]));
+  const domainRouting = domain.domain_routing ?? {};
+  const authConfiguration = domain.auth_configuration ?? {};
+  const authPolicy = domain.auth_policy ?? {};
+  const accountChangeSecurity = authPolicy.account_change_security ?? {};
+  const captcha = authPolicy.captcha ?? {};
+  const passwordlessEmail = authPolicy.passwordless_email ?? {};
+  const mfa = authPolicy.mfa ?? {};
+  const totp = mfa.totp ?? {};
+  const identityLinking = authPolicy.identity_linking ?? {};
+  const privilegedLinking = identityLinking.privileged_reconciliation ?? {};
+  const jwt = authPolicy.jwt ?? {};
+  const sessionModel = domain.session_model ?? {};
+  const refreshTokens = sessionModel.refresh_tokens ?? {};
+  const crossOriginSso = sessionModel.cross_origin_sso ?? {};
+  const providerApplicationGate = domain.provider_application_gate ?? {};
+  const smtp = domain.smtp ?? {};
+  const expectedRedirectUrls = [
+    'https://account.fawxzzy.com/auth/callback',
+    'https://account.fawxzzy.com/reset-password?recovery=1',
+    'https://fitness.fawxzzy.com/auth/callback',
+    'https://mazer.fawxzzy.com/auth/callback'
+  ];
+  const configuredUrls = [
+    ...(Array.isArray(authConfiguration.exact_redirect_urls) ? authConfiguration.exact_redirect_urls : []),
+    authConfiguration.exact_recovery_url
+  ].filter((url) => typeof url === 'string');
+
+  requireCondition(domain.version === '1.1.0', 'domain/session contract version must remain 1.1.0');
+  requireCondition(domain.security_session_decision_id === 'FP-MAN-012', 'security/session policy must remain bound to FP-MAN-012');
   requireCondition(origins.hub === 'https://fawxzzy.com', 'hub origin changed');
   requireCondition(origins.account === 'https://account.fawxzzy.com', 'account origin changed');
   requireCondition(origins.fitness === 'https://fitness.fawxzzy.com', 'Fitness origin changed');
   requireCondition(origins.mazer === 'https://mazer.fawxzzy.com', 'Mazer origin changed');
-  requireCondition(domain.domain_routing.www_redirect.source === 'https://www.fawxzzy.com' && domain.domain_routing.www_redirect.destination === 'https://fawxzzy.com', 'www redirect contract changed');
-  requireCondition(domain.domain_routing.fitness_compatibility_redirect.retirement_status === 'BLOCKED', 'Fitness compatibility redirect retirement must remain BLOCKED');
-  requireCondition(domain.session_model.browser_sessions === 'per_origin', 'phase-1 browser sessions must remain per-origin');
-  requireCondition(domain.session_model.cross_origin_sso.status === 'BLOCKED', 'cross-origin SSO must remain deferred and BLOCKED');
-  requireCondition(sameValues(domain.session_model.cross_origin_sso.forbidden_mechanisms, ['shared_refresh_cookies', 'url_tokens']), 'unsafe cross-origin SSO mechanisms must remain forbidden');
-  const configuredUrls = [...domain.auth_configuration.exact_redirect_urls, domain.auth_configuration.exact_recovery_url];
+  requireCondition(domainRouting.www_redirect?.source === 'https://www.fawxzzy.com' && domainRouting.www_redirect?.destination === 'https://fawxzzy.com', 'www redirect contract changed');
+  requireCondition(domainRouting.fitness_compatibility_redirect?.retirement_status === 'BLOCKED', 'Fitness compatibility redirect retirement must remain BLOCKED');
+  requireCondition(sessionModel.browser_sessions === 'per_origin', 'phase-1 browser sessions must remain per-origin');
+  requireCondition(crossOriginSso.status === 'BLOCKED', 'cross-origin SSO must remain deferred and BLOCKED');
+  requireCondition(exactOrderedValues(crossOriginSso.forbidden_mechanisms, ['shared_refresh_cookies', 'url_tokens']), 'unsafe cross-origin SSO mechanisms must remain forbidden');
   requireCondition(configuredUrls.every((url) => !url.includes('*')), 'production redirect and recovery URLs must be exact');
-  requireCondition(domain.auth_configuration.exact_recovery_url === 'https://account.fawxzzy.com/auth/recovery', 'recovery must remain centralized on the account origin');
-  requireCondition(domain.auth_configuration.preview_redirects.urls.length === 0, 'preview redirects must remain empty in this packet');
-  requireCondition(domain.auth_policy.phase_one_method === 'email_password', 'phase-1 Auth method must remain email/password');
-  requireCondition(domain.auth_policy.email_verification === false, 'phase-1 email verification must remain off');
-  requireCondition(domain.auth_policy.leaked_password_protection.enabled === true, 'leaked-password protection must remain enabled');
-  requireCondition(domain.auth_policy.password_length.minimum.value === 10, 'password minimum must remain 10');
-  const passwordCapacity = domain.auth_policy.password_length.capacity;
+  requireCondition(configuredUrls.every((url) => !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/i.test(url)), 'localhost production Auth URLs are forbidden');
+  requireCondition(authConfiguration.site_url === 'https://account.fawxzzy.com', 'Auth site URL must remain on the account origin');
+  requireCondition(exactOrderedValues(authConfiguration.exact_redirect_urls, expectedRedirectUrls), 'exact ordered Auth redirect allowlist changed');
+  requireCondition(authConfiguration.exact_recovery_url === 'https://account.fawxzzy.com/reset-password?recovery=1', 'recovery must remain on the verified account reset route');
+  requireCondition(Array.isArray(authConfiguration.preview_redirects?.urls) && authConfiguration.preview_redirects.urls.length === 0, 'preview redirects must remain empty in this packet');
+  requireCondition(authPolicy.phase_one_method === 'email_password', 'phase-1 Auth method must remain email/password');
+  requireCondition(exactOrderedValues(authPolicy.product_visible_sign_in_methods, ['email_password']), 'product-visible sign-in methods must remain email/password only');
+  requireCondition(authPolicy.email_verification === false, 'phase-1 email verification must remain off');
+  requireCondition(authPolicy.leaked_password_protection?.enabled === true, 'leaked-password protection must remain enabled');
+  requireCondition(authPolicy.password_length?.minimum?.value === 10, 'password minimum must remain 10');
+  const passwordCapacity = authPolicy.password_length?.capacity ?? {};
   requireCondition(passwordCapacity.restrictive_app_cap_allowed === false, 'restrictive application password caps are forbidden');
   requireCondition(passwordCapacity.minimum_supported_characters >= 64, 'password surfaces must support at least 64 characters');
   requireCondition(passwordCapacity.preferred_supported_characters_minimum >= 128, 'password surfaces should preserve at least 128-character capacity');
   requireCondition(passwordCapacity.never_truncate === true, 'password truncation is forbidden');
   requireCondition(passwordCapacity.provider_maximum_setting === 'NOT_APPLICABLE', 'provider maximum-password setting must remain NOT_APPLICABLE');
-  requireCondition(domain.account_surfaces.owner_origin === 'https://account.fawxzzy.com', 'neutral account flow owner changed');
-  requireCondition(domain.smtp.sender_address === 'no-reply@account.fawxzzy.com', 'SMTP sender contract changed');
-  requireCondition(domain.smtp.credentials_present === false && domain.smtp.live_configuration_allowed === false, 'repository must not contain SMTP credentials or live configuration authority');
+  requireCondition(exactOrderedValues(authPolicy.deferred_methods, ['social', 'phone', 'anonymous', 'magic_link_only', 'enforced_mfa']), 'deferred Auth methods changed');
+  requireCondition(accountChangeSecurity.recent_authentication_for_password_changes === 'REQUIRED', 'recent authentication must remain required for password changes');
+  requireCondition(accountChangeSecurity.current_password_for_signed_in_password_changes === 'REQUIRED', 'current password must remain required for signed-in password changes');
+  requireCondition(accountChangeSecurity.current_password_for_signed_in_email_changes === 'REQUIRED', 'current password must remain required for signed-in email changes');
+  requireCondition(accountChangeSecurity.secure_email_change === 'REQUIRED', 'secure email change must remain required');
+  requireCondition(accountChangeSecurity.native_hosted_current_password_for_email_change === 'UNKNOWN', 'native hosted email-change current-password capability must remain UNKNOWN');
+  requireCondition(accountChangeSecurity.application_server_email_change_enforcement === 'REQUIRED', 'application/server email-change enforcement must remain required until native capability is proven');
+  requireCondition(captcha.status === 'REQUIRED' && exactOrderedValues(captcha.surfaces, ['public_signup', 'password_reset']), 'CAPTCHA must remain required for public signup and password reset');
+  requireCondition(captcha.provider_class === 'UNKNOWN', 'CAPTCHA provider class must remain UNKNOWN');
+  requireCondition(captcha.credential_installation === 'BLOCKED' && captcha.live_configuration === 'BLOCKED', 'CAPTCHA installation and live configuration must remain BLOCKED');
+  requireCondition(Array.isArray(captcha.bypass_allowlist) && captcha.bypass_allowlist.length === 0, 'CAPTCHA bypass allowlist must remain empty');
+  requireCondition(passwordlessEmail.provider_toggle === 'UNKNOWN' && passwordlessEmail.product_ui_exposure === 'BLOCKED', 'passwordless email provider capability must remain UNKNOWN and hidden from product UI');
+  requireCondition(totp.available === true && totp.enrollment === 'optional' && totp.enforced === false, 'TOTP must remain available, optional, and unenforced');
+  requireCondition(mfa.sms?.status === 'BLOCKED' && mfa.passkeys?.status === 'BLOCKED', 'SMS MFA and passkeys must remain BLOCKED');
+  requireCondition(mfa.aal1_maximum_age_seconds === 900, 'AAL1 maximum age must remain 900 seconds');
+  requireCondition(sessionModel.multiple_devices_allowed === true && sessionModel.single_session_enforcement === false, 'multiple devices must remain allowed with single-session enforcement off');
+  requireCondition(sessionModel.absolute_lifetime_seconds === 2592000, 'absolute session lifetime must remain 2592000 seconds');
+  requireCondition(sessionModel.inactivity_timeout_seconds === 604800, 'session inactivity timeout must remain 604800 seconds');
+  requireCondition(refreshTokens.compromise_detection === true && refreshTokens.rotation === true && refreshTokens.reuse_interval_seconds === 10, 'refresh compromise detection, rotation, and 10-second reuse interval must remain enabled');
+  requireCondition(identityLinking.manual_client_linking === false, 'manual client identity linking must remain disabled');
+  requireCondition(privilegedLinking.status === 'REQUIRED' && privilegedLinking.verified_deterministic_identity_evidence === true, 'privileged reconciliation linking requires verified deterministic identity evidence');
+  requireCondition(privilegedLinking.username_only_matching_forbidden === true, 'privileged reconciliation must forbid username-only matching');
+  requireCondition(jwt.expiry_seconds === 'UNKNOWN' && jwt.signing_key_class === 'UNKNOWN', 'JWT expiry and signing-key class must remain UNKNOWN');
+  requireCondition(jwt.secret_material_allowed === false && Object.keys(jwt).every((key) => ['expiry_seconds', 'signing_key_class', 'secret_material_allowed'].includes(key)), 'secret-bearing JWT material is structurally prohibited');
+  requireCondition(providerApplicationGate.status === 'BLOCKED' && providerApplicationGate.apply_admitted === false, 'provider application gate must remain BLOCKED and non-executable');
+  requireCondition(exactOrderedValues(providerApplicationGate.requirements, ['fresh_target_preimage', 'expected_state_mutation_authority', 'exact_readback', 'exact_rollback']), 'provider application evidence and rollback requirements changed');
+  requireCondition(domain.account_surfaces?.owner_origin === 'https://account.fawxzzy.com', 'neutral account flow owner changed');
+  requireCondition(smtp.decision_id === 'FP-MAN-003' && smtp.production_custom_smtp === 'REQUIRED', 'SMTP policy decision or production requirement changed');
+  requireCondition(smtp.sender_address === 'no-reply@account.fawxzzy.com', 'SMTP sender contract changed');
+  requireCondition(smtp.credentials_present === false && smtp.live_configuration_allowed === false, 'repository must not contain SMTP credentials or live configuration authority');
 
   const security = documents['contracts/v1/security/rls-grant-function-matrix.json'];
   const schemaMap = Object.fromEntries(security.schemas.map((schema) => [schema.name, schema]));
