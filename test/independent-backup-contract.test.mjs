@@ -249,6 +249,59 @@ test('source contract is closed, sanitized, and execution-blocked', () => {
   assert.deepEqual(validateIndependentBackupContract(contract()), { ok: true, failures: [] });
 });
 
+test('malformed contracts fail closed before receipt policy access without throwing', () => {
+  const malformedTopLevels = [undefined, null, 'malformed', 7, true, [], {}];
+  for (const [index, malformedContract] of malformedTopLevels.entries()) {
+    let result;
+    assert.doesNotThrow(() => {
+      result = validateIndependentBackupReceipt(malformedContract, buildReceipt(), { now });
+    }, `malformed top-level contract ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure === 'independent backup contract is missing' || failure.startsWith('independent backup contract schema')));
+    assert.deepEqual(result, validateIndependentBackupReceipt(malformedContract, buildReceipt(), { now }));
+  }
+
+  const nestedMutations = [
+    (value) => { delete value.policy; },
+    (value) => { value.policy = null; },
+    (value) => { value.policy = 'malformed'; },
+    (value) => { value.policy = []; },
+    (value) => { delete value.policy.schedule; },
+    (value) => { value.policy.schedule = null; },
+    (value) => { value.policy.schedule = 'malformed'; },
+    (value) => { value.policy.schedule = []; },
+    (value) => { value.policy.schedule = {}; },
+    (value) => { delete value.policy.schedule.freshness_limit_hours; },
+    (value) => { value.policy.schedule.freshness_limit_hours = null; },
+    (value) => { value.policy.schedule.freshness_limit_hours = 'eight'; }
+  ];
+  for (const [index, mutate] of nestedMutations.entries()) {
+    const malformedContract = contract();
+    mutate(malformedContract);
+    let result;
+    assert.doesNotThrow(() => {
+      result = validateIndependentBackupReceipt(malformedContract, buildReceipt(), { now });
+    }, `malformed nested contract ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('independent backup contract schema')));
+  }
+});
+
+test('malformed contract and receipt evidence returns combined deterministic failures', () => {
+  const malformedContract = contract();
+  malformedContract.policy.schedule = null;
+  for (const [index, malformedReceipt] of [null, 'malformed', 7, true, [], {}].entries()) {
+    let result;
+    assert.doesNotThrow(() => {
+      result = validateIndependentBackupReceipt(malformedContract, malformedReceipt, { now });
+    }, `mixed malformed evidence ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('independent backup contract schema')));
+    if (malformedReceipt === null) assert(result.failures.includes('backup receipt is missing'));
+    else assert(result.failures.some((failure) => failure.startsWith('receipt schema')));
+  }
+});
+
 test('canonical serialization and digest are byte-identical', () => {
   const receipt = buildReceipt();
   assert.equal(canonicalSerialize(receipt), canonicalSerialize(structuredClone(receipt)));

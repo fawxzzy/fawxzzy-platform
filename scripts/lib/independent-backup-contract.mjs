@@ -62,7 +62,9 @@ const safeProjectName = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,127}$/;
 const projectRef = /^[a-z0-9]{20}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const schemaPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'contracts', 'v1', 'schemas', 'independent-backup-contract.schema.json');
+const commonSchemaPath = path.resolve(path.dirname(schemaPath), 'common.schema.json');
 const sourceSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+const commonSchema = JSON.parse(fs.readFileSync(commonSchemaPath, 'utf8'));
 const receiptSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-receipt',
@@ -87,6 +89,9 @@ const storageBodyRecoveryReceiptSchema = {
   $ref: '#/$defs/storage_body_recovery_receipt',
   $defs: sourceSchema.$defs
 };
+const contractAjv = new Ajv2020({ allErrors: true, strict: true });
+contractAjv.addSchema(commonSchema);
+const contractShapeValidator = contractAjv.compile(sourceSchema);
 const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
@@ -172,7 +177,12 @@ function guardedUnitEntries(value, label, failures) {
 export function validateIndependentBackupContract(contract) {
   const failures = [];
   if (!contract) return { ok: false, failures: ['independent backup contract is missing'] };
+  const contractShapeFailures = shapeFailures(contractShapeValidator, contract, 'independent backup contract');
+  failures.push(...contractShapeFailures);
   failures.push(...validateSanitizedReceipt(contract, 'independent backup contract'));
+  if (contractShapeFailures.length > 0) {
+    return { ok: false, failures: failures.sort((left, right) => left.localeCompare(right)) };
+  }
   requireCondition(contract.decision_id === 'FP-MAN-015', 'contract must remain bound to FP-MAN-015', failures);
   requireCondition(contract.status === 'BLOCKED', 'source contract must remain BLOCKED', failures);
   requireCondition(contract.lifecycle?.current_state === 'SOURCE_READY', 'source lifecycle must be SOURCE_READY', failures);
@@ -208,10 +218,14 @@ export function validateIndependentBackupContract(contract) {
 }
 
 export function validateIndependentBackupReceipt(contract, receipt, options = {}) {
-  const failures = [...validateIndependentBackupContract(contract).failures];
+  const contractValidation = validateIndependentBackupContract(contract);
+  const failures = [...contractValidation.failures];
   if (!receipt) return { ok: false, failures: [...failures, 'backup receipt is missing'].sort() };
   failures.push(...validateReceiptShape(receipt));
   failures.push(...validateSanitizedReceipt(receipt, 'independent backup receipt'));
+  if (!contractValidation.ok) {
+    return { ok: false, failures: failures.sort((left, right) => left.localeCompare(right)) };
+  }
   const now = parseTimestamp(options.now, 'validation clock', failures);
   const snapshotAt = parseTimestamp(receipt.snapshot_at, 'snapshot_at', failures);
   const completedAt = parseTimestamp(receipt.completed_at, 'completed_at', failures);
