@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import test from 'node:test';
 import { loadDocuments } from '../scripts/lib/contracts.mjs';
 import {
   acceptedExportHistoryEntryDigest,
   acceptedExportsAuthenticationResultDigest,
+  acceptedExportsAuthenticationSignedBytes,
+  acceptedExportsAuthenticationSignedPayloadDigest,
   acceptedExportsAuthenticationSubjectDigest,
   canonicalSerialize,
   coverageUnits,
@@ -19,9 +22,30 @@ import {
 
 const now = '2026-07-18T18:00:00Z';
 const digest = (label) => sha256Hex({ label });
+const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
+
+// RFC 8032 test vector 1. This public test identity is used only in memory by
+// deterministic tests; it is not a production credential or admitted anchor.
+const testEd25519PublicSpki = Buffer.from(`302a300506032b6570032100${'d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a'}`, 'hex');
+const testEd25519PrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'}`, 'hex');
+const testEd25519PrivateKey = crypto.createPrivateKey({ key: testEd25519PrivatePkcs8, format: 'der', type: 'pkcs8' });
+const testTrustAnchor = Object.freeze({
+  status: 'CURRENT',
+  algorithm: 'Ed25519',
+  key_id: 'accepted-exports-test-ed25519-v1',
+  verifier_reference: 'accepted-exports-test-verifier-v1',
+  public_key_spki_base64: testEd25519PublicSpki.toString('base64'),
+  public_key_spki_sha256: crypto.createHash('sha256').update(testEd25519PublicSpki).digest('hex')
+});
+
+function sourceContract() {
+  return structuredClone(loadDocuments()[independentBackupContractPath]);
+}
 
 function contract() {
-  return structuredClone(loadDocuments()[independentBackupContractPath]);
+  const value = sourceContract();
+  value.receipt_contract.accepted_exports_authentication.trust_anchor = structuredClone(testTrustAnchor);
+  return value;
 }
 
 function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
@@ -30,20 +54,28 @@ function buildAcceptedExportsManifest(receipt, { first = false } = {}) {
     destination_version: receipt.destination_version,
     ciphertext_sha256: receipt.ciphertext_sha256
   };
+  const monthStart = Date.parse(`${receipt.completed_at.slice(0, 7)}-01T00:00:00Z`);
+  const currentAcceptedAt = Date.parse(receipt.completed_at) + 300000;
+  const entries = [];
+  if (!first) {
+    for (let acceptedAt = monthStart + 6 * 3600000, index = 0; acceptedAt < currentAcceptedAt; acceptedAt += 6 * 3600000, index += 1) {
+      const completedAt = acceptedAt - 300000;
+      if (completedAt >= Date.parse(receipt.completed_at)) break;
+      entries.push({
+        completed_at: new Date(completedAt).toISOString().replace('.000Z', 'Z'),
+        destination_version: `backup-version-history-${String(index).padStart(4, '0')}`,
+        ciphertext_sha256: digest(`prior-ciphertext-${index}`)
+      });
+    }
+  }
+  entries.push(current);
   const manifest = {
     version: '1.0.0',
     status: 'CURRENT',
     month_utc: receipt.completed_at.slice(0, 7),
     observed_at: '2026-07-18T17:45:00Z',
     source_evidence_sha256: null,
-    entries: first ? [current] : [
-      {
-        completed_at: '2026-07-18T11:40:00Z',
-        destination_version: 'backup-version-0000',
-        ciphertext_sha256: digest('prior-ciphertext')
-      },
-      current
-    ]
+    entries
   };
   manifest.source_evidence_sha256 = sha256Hex(buildAcceptedExportsEvidence(receipt, manifest));
   return manifest;
@@ -97,7 +129,7 @@ function buildAcceptedExportsEvidence(receipt, manifest) {
     },
     authentication: {
       status: 'CURRENT',
-      method: 'separate_trusted_external_result',
+      method: 'pinned_ed25519_signature_result',
       verification_result_sha256: '0'.repeat(64)
     },
     entries
@@ -114,17 +146,28 @@ function buildAcceptedExportsAuthenticationResult(evidence) {
     result_class: 'trusted_external_authentication_verification',
     result_id: 'accepted-exports-auth-verification-0001',
     verified_at: '2026-07-18T17:46:00Z',
-    verifier_reference: 'trusted-accepted-exports-verifier-v1',
+    verifier_reference: testTrustAnchor.verifier_reference,
     verification_method: 'external_signature_verification',
+    key_id: testTrustAnchor.key_id,
+    signature_algorithm: 'Ed25519',
+    signature_domain: authenticationSignatureDomain,
     project: structuredClone(evidence.project),
     month_utc: evidence.month_utc,
     evidence_id: evidence.evidence_id,
     subject_sha256: acceptedExportsAuthenticationSubjectDigest(evidence),
     external_receipt_sha256: digest('external-accepted-exports-authentication-receipt'),
+    signed_payload_sha256: null,
+    signature_base64: null,
     result_sha256: null
   };
-  result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
+  signAcceptedExportsAuthenticationResult(result);
   return result;
+}
+
+function signAcceptedExportsAuthenticationResult(result, privateKey = testEd25519PrivateKey) {
+  result.signed_payload_sha256 = acceptedExportsAuthenticationSignedPayloadDigest(result);
+  result.signature_base64 = crypto.sign(null, acceptedExportsAuthenticationSignedBytes(result), privateKey).toString('base64');
+  result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
 }
 
 function buildObjectLockReadback(receipt) {
@@ -384,7 +427,8 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const acceptedExportsAuthenticationResult = Object.hasOwn(evidence, 'acceptedExportsAuthenticationResult')
     ? evidence.acceptedExportsAuthenticationResult
     : (acceptedExportsEvidence ? buildAcceptedExportsAuthenticationResult(acceptedExportsEvidence) : undefined);
-  return validateIndependentBackupReceipt(contract(), receipt, {
+  const validationContract = Object.hasOwn(evidence, 'contract') ? evidence.contract : contract();
+  return validateIndependentBackupReceipt(validationContract, receipt, {
     now: validationNow,
     acceptedExportsManifest,
     acceptedExportsEvidence,
@@ -411,6 +455,12 @@ function bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthe
 }
 
 function bindAcceptedExportsAuthenticationResult(receipt, manifest, evidence, result) {
+  signAcceptedExportsAuthenticationResult(result);
+  evidence.authentication.verification_result_sha256 = result.result_sha256;
+  bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthentication: false });
+}
+
+function bindAcceptedExportsAuthenticationResultWithoutSigning(receipt, manifest, evidence, result) {
   result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
   evidence.authentication.verification_result_sha256 = result.result_sha256;
   bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthentication: false });
@@ -428,6 +478,22 @@ function refreshAcceptedExportsEvidence(receipt, manifest, evidence) {
   bindAcceptedExportsEvidence(receipt, manifest, evidence);
 }
 
+function buildAcceptedOrderInversion(receipt) {
+  const manifest = buildAcceptedExportsManifest(receipt);
+  manifest.entries.splice(1, 0, {
+    completed_at: '2026-07-01T05:59:00Z',
+    destination_version: 'backup-version-history-order-inversion',
+    ciphertext_sha256: digest('prior-ciphertext-order-inversion')
+  });
+  const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+  evidence.entries[0].accepted_at = '2026-07-01T06:04:00Z';
+  evidence.entries[0].retention_until = new Date(Date.parse(evidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
+  evidence.entries[1].accepted_at = '2026-07-01T06:00:00Z';
+  evidence.entries[1].retention_until = new Date(Date.parse(evidence.entries[1].completed_at) + 400 * 86400000).toISOString().replace('.000Z', 'Z');
+  refreshAcceptedExportsEvidence(receipt, manifest, evidence);
+  return { manifest, evidence };
+}
+
 function bindStorageBodyRecoveryReceipt(receipt, storageReceipt) {
   const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
   storage.private_digest = storageReceipt.denominator.buckets_manifest_sha256;
@@ -442,6 +508,9 @@ function bindStorageBodyRecoveryEvidence(receipt, storageReceipt, recoveryEviden
 }
 
 test('source contract is closed, sanitized, and execution-blocked', () => {
+  assert.deepEqual(validateIndependentBackupContract(sourceContract()), { ok: true, failures: [] });
+  assert.equal(sourceContract().receipt_contract.accepted_exports_authentication.trust_anchor.status, 'BLOCKED');
+  assert(validateIndependentBackupReceipt(sourceContract(), buildReceipt(), { now }).failures.includes('accepted exports authentication trust anchor is not CURRENT'));
   assert.deepEqual(validateIndependentBackupContract(contract()), { ok: true, failures: [] });
 });
 
@@ -882,29 +951,190 @@ test('accepted export authentication requires a separately verified bound result
   }).failures.includes('accepted exports authentication result digest mismatch'));
 });
 
+test('accepted export authentication is cryptographically bound to the pinned trust anchor', () => {
+  const makeCase = () => {
+    const receipt = buildReceipt();
+    const manifest = buildAcceptedExportsManifest(receipt);
+    const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+    const result = buildAcceptedExportsAuthenticationResult(evidence);
+    bindAcceptedExportsAuthenticationResult(receipt, manifest, evidence, result);
+    return { receipt, manifest, evidence, result };
+  };
+
+  const valid = makeCase();
+  assert.deepEqual(validate(valid.receipt, now, valid.manifest, {
+    acceptedExportsEvidence: valid.evidence,
+    acceptedExportsAuthenticationResult: valid.result
+  }), { ok: true, failures: [] });
+
+  const untrustedVerifier = makeCase();
+  untrustedVerifier.result.verifier_reference = 'untrusted-verifier';
+  signAcceptedExportsAuthenticationResult(untrustedVerifier.result);
+  bindAcceptedExportsAuthenticationResultWithoutSigning(untrustedVerifier.receipt, untrustedVerifier.manifest, untrustedVerifier.evidence, untrustedVerifier.result);
+  assert(validate(untrustedVerifier.receipt, now, untrustedVerifier.manifest, {
+    acceptedExportsEvidence: untrustedVerifier.evidence,
+    acceptedExportsAuthenticationResult: untrustedVerifier.result
+  }).failures.includes('accepted exports authentication signer does not match the pinned trust anchor'));
+
+  const untrustedKey = makeCase();
+  untrustedKey.result.key_id = 'untrusted-key';
+  signAcceptedExportsAuthenticationResult(untrustedKey.result);
+  bindAcceptedExportsAuthenticationResultWithoutSigning(untrustedKey.receipt, untrustedKey.manifest, untrustedKey.evidence, untrustedKey.result);
+  assert(validate(untrustedKey.receipt, now, untrustedKey.manifest, {
+    acceptedExportsEvidence: untrustedKey.evidence,
+    acceptedExportsAuthenticationResult: untrustedKey.result
+  }).failures.includes('accepted exports authentication signer does not match the pinned trust anchor'));
+
+  const wrongAlgorithm = makeCase();
+  wrongAlgorithm.result.signature_algorithm = 'RSA-PSS';
+  bindAcceptedExportsAuthenticationResultWithoutSigning(wrongAlgorithm.receipt, wrongAlgorithm.manifest, wrongAlgorithm.evidence, wrongAlgorithm.result);
+  assert(validate(wrongAlgorithm.receipt, now, wrongAlgorithm.manifest, {
+    acceptedExportsEvidence: wrongAlgorithm.evidence,
+    acceptedExportsAuthenticationResult: wrongAlgorithm.result
+  }).failures.some((failure) => failure.includes('accepted exports authentication result schema /signature_algorithm')));
+
+  const malformedKey = makeCase();
+  const malformedKeyContract = contract();
+  const malformedKeyBytes = Buffer.from([1, 2, 3, 4]);
+  malformedKeyContract.receipt_contract.accepted_exports_authentication.trust_anchor.public_key_spki_base64 = malformedKeyBytes.toString('base64');
+  malformedKeyContract.receipt_contract.accepted_exports_authentication.trust_anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(malformedKeyBytes).digest('hex');
+  assert(validate(malformedKey.receipt, now, malformedKey.manifest, {
+    contract: malformedKeyContract,
+    acceptedExportsEvidence: malformedKey.evidence,
+    acceptedExportsAuthenticationResult: malformedKey.result
+  }).failures.includes('accepted exports authentication trust anchor is malformed'));
+
+  const mismatchedKeyDigest = makeCase();
+  const mismatchedKeyContract = contract();
+  mismatchedKeyContract.receipt_contract.accepted_exports_authentication.trust_anchor.public_key_spki_sha256 = digest('wrong-trust-anchor-key');
+  assert(validate(mismatchedKeyDigest.receipt, now, mismatchedKeyDigest.manifest, {
+    contract: mismatchedKeyContract,
+    acceptedExportsEvidence: mismatchedKeyDigest.evidence,
+    acceptedExportsAuthenticationResult: mismatchedKeyDigest.result
+  }).failures.includes('accepted exports authentication trust anchor is malformed'));
+
+  const alternatePublicKey = Buffer.from(`302a300506032b6570032100${'3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'}`, 'hex');
+  const untrustedPublicKey = makeCase();
+  const untrustedPublicKeyContract = contract();
+  untrustedPublicKeyContract.receipt_contract.accepted_exports_authentication.trust_anchor.public_key_spki_base64 = alternatePublicKey.toString('base64');
+  untrustedPublicKeyContract.receipt_contract.accepted_exports_authentication.trust_anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(alternatePublicKey).digest('hex');
+  assert(validate(untrustedPublicKey.receipt, now, untrustedPublicKey.manifest, {
+    contract: untrustedPublicKeyContract,
+    acceptedExportsEvidence: untrustedPublicKey.evidence,
+    acceptedExportsAuthenticationResult: untrustedPublicKey.result
+  }).failures.includes('accepted exports authentication signature verification failed'));
+
+  const malformedSignature = makeCase();
+  malformedSignature.result.signature_base64 = 'not-a-signature';
+  bindAcceptedExportsAuthenticationResultWithoutSigning(malformedSignature.receipt, malformedSignature.manifest, malformedSignature.evidence, malformedSignature.result);
+  assert(validate(malformedSignature.receipt, now, malformedSignature.manifest, {
+    acceptedExportsEvidence: malformedSignature.evidence,
+    acceptedExportsAuthenticationResult: malformedSignature.result
+  }).failures.includes('accepted exports authentication signature is malformed'));
+
+  const badSignature = makeCase();
+  const badSignatureBytes = Buffer.from(badSignature.result.signature_base64, 'base64');
+  badSignatureBytes[0] ^= 1;
+  badSignature.result.signature_base64 = badSignatureBytes.toString('base64');
+  bindAcceptedExportsAuthenticationResultWithoutSigning(badSignature.receipt, badSignature.manifest, badSignature.evidence, badSignature.result);
+  assert(validate(badSignature.receipt, now, badSignature.manifest, {
+    acceptedExportsEvidence: badSignature.evidence,
+    acceptedExportsAuthenticationResult: badSignature.result
+  }).failures.includes('accepted exports authentication signature verification failed'));
+
+  for (const [label, mutate] of [
+    ['metadata', (candidate) => { candidate.result.result_id = 'substituted-result'; }],
+    ['external receipt', (candidate) => { candidate.result.external_receipt_sha256 = digest('substituted-external-receipt'); }],
+    ['evidence subject', (candidate) => { candidate.result.subject_sha256 = digest('substituted-evidence-subject'); }]
+  ]) {
+    const substituted = makeCase();
+    mutate(substituted);
+    bindAcceptedExportsAuthenticationResultWithoutSigning(substituted.receipt, substituted.manifest, substituted.evidence, substituted.result);
+    const result = validate(substituted.receipt, now, substituted.manifest, {
+      acceptedExportsEvidence: substituted.evidence,
+      acceptedExportsAuthenticationResult: substituted.result
+    });
+    assert.equal(result.ok, false, `${label} substitution must fail`);
+    assert(result.failures.includes('accepted exports authentication signed payload digest mismatch')
+      || result.failures.includes('accepted exports authentication signature verification failed')
+      || result.failures.includes('accepted exports authentication subject mismatch'));
+  }
+
+  const selfAsserted = makeCase();
+  selfAsserted.result.signature_base64 = null;
+  bindAcceptedExportsAuthenticationResultWithoutSigning(selfAsserted.receipt, selfAsserted.manifest, selfAsserted.evidence, selfAsserted.result);
+  assert(validate(selfAsserted.receipt, now, selfAsserted.manifest, {
+    acceptedExportsEvidence: selfAsserted.evidence,
+    acceptedExportsAuthenticationResult: selfAsserted.result
+  }).failures.includes('accepted exports authentication signature is malformed'));
+});
+
+test('accepted export cadence covers UTC month boundaries and every six-hour interval', () => {
+  const makeCase = () => {
+    const receipt = buildReceipt();
+    const manifest = buildAcceptedExportsManifest(receipt);
+    const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+    refreshAcceptedExportsEvidence(receipt, manifest, evidence);
+    return { receipt, manifest, evidence };
+  };
+
+  const exactBoundary = makeCase();
+  assert.equal(Date.parse(exactBoundary.evidence.entries[0].accepted_at) - Date.parse(exactBoundary.evidence.history.window_started_at), 6 * 3600000);
+  assert.deepEqual(validate(exactBoundary.receipt, now, exactBoundary.manifest, { acceptedExportsEvidence: exactBoundary.evidence }), { ok: true, failures: [] });
+
+  const lateFirst = makeCase();
+  lateFirst.evidence.entries[0].accepted_at = '2026-07-01T06:00:01Z';
+  refreshAcceptedExportsEvidence(lateFirst.receipt, lateFirst.manifest, lateFirst.evidence);
+  assert(validate(lateFirst.receipt, now, lateFirst.manifest, { acceptedExportsEvidence: lateFirst.evidence }).failures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+
+  const adjacentGap = makeCase();
+  adjacentGap.evidence.entries[10].accepted_at = new Date(Date.parse(adjacentGap.evidence.entries[10].accepted_at) + 1000).toISOString().replace('.000Z', 'Z');
+  refreshAcceptedExportsEvidence(adjacentGap.receipt, adjacentGap.manifest, adjacentGap.evidence);
+  assert(validate(adjacentGap.receipt, now, adjacentGap.manifest, { acceptedExportsEvidence: adjacentGap.evidence }).failures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+
+  const callerOrder = makeCase();
+  const callerOrderInversion = buildAcceptedOrderInversion(callerOrder.receipt);
+  assert.deepEqual(validate(callerOrder.receipt, now, callerOrderInversion.manifest, { acceptedExportsEvidence: callerOrderInversion.evidence }), { ok: true, failures: [] });
+
+  const duplicate = makeCase();
+  duplicate.evidence.entries[10].accepted_at = duplicate.evidence.entries[9].accepted_at;
+  refreshAcceptedExportsEvidence(duplicate.receipt, duplicate.manifest, duplicate.evidence);
+  assert(validate(duplicate.receipt, now, duplicate.manifest, { acceptedExportsEvidence: duplicate.evidence }).failures.includes('accepted exports evidence acceptance chronology is duplicate or ambiguous'));
+
+  const monthRollover = makeCase();
+  monthRollover.evidence.entries.at(-1).accepted_at = '2026-08-01T00:00:00Z';
+  refreshAcceptedExportsEvidence(monthRollover.receipt, monthRollover.manifest, monthRollover.evidence);
+  assert(validate(monthRollover.receipt, '2026-08-01T00:05:00Z', monthRollover.manifest, { acceptedExportsEvidence: monthRollover.evidence }).failures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+
+  const empty = makeCase();
+  empty.evidence.entries = [];
+  empty.evidence.history.entry_count = 0;
+  empty.evidence.history.entries_manifest_sha256 = sha256Hex([]);
+  empty.evidence.history.latest_entry_sha256 = null;
+  bindAcceptedExportsEvidence(empty.receipt, empty.manifest, empty.evidence);
+  let emptyResult;
+  assert.doesNotThrow(() => {
+    emptyResult = validate(empty.receipt, now, empty.manifest, { acceptedExportsEvidence: empty.evidence });
+  });
+  assert.equal(emptyResult.ok, false);
+  assert(emptyResult.failures.some((failure) => failure.startsWith('accepted exports evidence schema /entries')));
+
+  const nonArray = makeCase();
+  nonArray.evidence.entries = null;
+  assert.doesNotThrow(() => validate(nonArray.receipt, now, nonArray.manifest, { acceptedExportsEvidence: nonArray.evidence }));
+});
+
 test('first monthly retention follows accepted_at rather than completion or caller order', () => {
-  const acceptedCurrentFirst = buildReceipt();
-  acceptedCurrentFirst.retention_until = new Date(Date.parse(acceptedCurrentFirst.completed_at) + 400 * 86400000).toISOString().replace('.000Z', 'Z');
-  acceptedCurrentFirst.object_lock.readback_manifest_sha256 = sha256Hex(buildObjectLockReadback(acceptedCurrentFirst));
-  const acceptedCurrentManifest = buildAcceptedExportsManifest(acceptedCurrentFirst);
-  const acceptedCurrentEvidence = buildAcceptedExportsEvidence(acceptedCurrentFirst, acceptedCurrentManifest);
-  acceptedCurrentEvidence.entries[0].accepted_at = '2026-07-18T17:44:00Z';
-  acceptedCurrentEvidence.entries[0].retention_until = new Date(Date.parse(acceptedCurrentEvidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
-  acceptedCurrentEvidence.entries[1].accepted_at = '2026-07-18T17:41:00Z';
-  acceptedCurrentEvidence.entries[1].retention_until = acceptedCurrentFirst.retention_until;
-  refreshAcceptedExportsEvidence(acceptedCurrentFirst, acceptedCurrentManifest, acceptedCurrentEvidence);
-  assert.deepEqual(validate(acceptedCurrentFirst, now, acceptedCurrentManifest, { acceptedExportsEvidence: acceptedCurrentEvidence }), { ok: true, failures: [] });
+  const reordered = buildReceipt();
+  const reorderedHistory = buildAcceptedOrderInversion(reordered);
+  assert.deepEqual(validate(reordered, now, reorderedHistory.manifest, { acceptedExportsEvidence: reorderedHistory.evidence }), { ok: true, failures: [] });
 
   const shortenedAcceptedFirst = buildReceipt();
-  const shortenedManifest = buildAcceptedExportsManifest(shortenedAcceptedFirst);
-  const shortenedEvidence = buildAcceptedExportsEvidence(shortenedAcceptedFirst, shortenedManifest);
-  shortenedEvidence.entries[0].accepted_at = '2026-07-18T17:44:00Z';
-  shortenedEvidence.entries[0].retention_until = new Date(Date.parse(shortenedEvidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
-  shortenedEvidence.entries[1].accepted_at = '2026-07-18T17:41:00Z';
-  refreshAcceptedExportsEvidence(shortenedAcceptedFirst, shortenedManifest, shortenedEvidence);
-  const shortenedResult = validate(shortenedAcceptedFirst, now, shortenedManifest, { acceptedExportsEvidence: shortenedEvidence });
+  const shortenedHistory = buildAcceptedOrderInversion(shortenedAcceptedFirst);
+  shortenedHistory.evidence.entries[1].retention_until = new Date(Date.parse(shortenedHistory.evidence.entries[1].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
+  refreshAcceptedExportsEvidence(shortenedAcceptedFirst, shortenedHistory.manifest, shortenedHistory.evidence);
+  const shortenedResult = validate(shortenedAcceptedFirst, now, shortenedHistory.manifest, { acceptedExportsEvidence: shortenedHistory.evidence });
   assert(shortenedResult.failures.includes('accepted exports evidence retention history violates policy'));
-  assert(shortenedResult.failures.includes('first accepted monthly export retention does not cover 400 days'));
 
   const duplicateAcceptance = buildReceipt();
   const duplicateManifest = buildAcceptedExportsManifest(duplicateAcceptance);

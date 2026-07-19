@@ -96,9 +96,18 @@
     "aggregate_only": true,
     "accepted_exports_authentication": {
       "required": true,
-      "verification_boundary": "separate_trusted_external_result",
+      "verification_boundary": "pinned_ed25519_signature",
       "subject_digest": "accepted_exports_evidence_without_verification_result",
-      "required_result_status": "VERIFIED"
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:accepted-exports-authentication:v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "UNKNOWN",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
     },
     "required_fields": [
       "aggregate_counts",

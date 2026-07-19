@@ -61,6 +61,8 @@ const safeReference = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const safeProjectName = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,127}$/;
 const projectRef = /^[a-z0-9]{20}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
+const canonicalBase64 = /^[A-Za-z0-9+/]+={0,2}$/;
 const schemaPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'contracts', 'v1', 'schemas', 'independent-backup-contract.schema.json');
 const commonSchemaPath = path.resolve(path.dirname(schemaPath), 'common.schema.json');
 const sourceSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
@@ -225,6 +227,62 @@ export function acceptedExportsAuthenticationResultDigest(result) {
   return sha256Hex(copy);
 }
 
+export function acceptedExportsAuthenticationSignedBytes(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+  const payload = structuredClone(result);
+  delete payload.result_sha256;
+  delete payload.signature_base64;
+  delete payload.signed_payload_sha256;
+  return Buffer.from(`${authenticationSignatureDomain}\0${canonicalSerialize(payload)}`, 'utf8');
+}
+
+export function acceptedExportsAuthenticationSignedPayloadDigest(result) {
+  const signedBytes = acceptedExportsAuthenticationSignedBytes(result);
+  return signedBytes === null ? null : crypto.createHash('sha256').update(signedBytes).digest('hex');
+}
+
+function decodeCanonicalBase64(value, expectedByteLength = null) {
+  if (typeof value !== 'string' || value.length === 0 || value.length % 4 !== 0 || !canonicalBase64.test(value)) return null;
+  const decoded = Buffer.from(value, 'base64');
+  if (decoded.toString('base64') !== value || (expectedByteLength !== null && decoded.length !== expectedByteLength)) return null;
+  return decoded;
+}
+
+function verifyAcceptedExportsAuthenticationSignature(trustAnchor, result) {
+  const failures = [];
+  requireCondition(trustAnchor?.status === 'CURRENT', 'accepted exports authentication trust anchor is not CURRENT', failures);
+  requireCondition(trustAnchor?.algorithm === 'Ed25519'
+    && safeReference.test(trustAnchor?.key_id ?? '')
+    && trustAnchor?.key_id !== 'UNKNOWN'
+    && safeReference.test(trustAnchor?.verifier_reference ?? '')
+    && trustAnchor?.verifier_reference !== 'UNKNOWN', 'accepted exports authentication trust anchor identity is invalid', failures);
+  const publicKeyBytes = decodeCanonicalBase64(trustAnchor?.public_key_spki_base64);
+  const publicKeyDigest = publicKeyBytes === null ? null : crypto.createHash('sha256').update(publicKeyBytes).digest('hex');
+  requireCondition(publicKeyBytes !== null
+    && hexSha256.test(trustAnchor?.public_key_spki_sha256 ?? '')
+    && publicKeyDigest === trustAnchor?.public_key_spki_sha256, 'accepted exports authentication trust anchor key is malformed or unpinned', failures);
+  requireCondition(result?.key_id === trustAnchor?.key_id
+    && result?.verifier_reference === trustAnchor?.verifier_reference
+    && result?.signature_algorithm === trustAnchor?.algorithm
+    && result?.signature_domain === authenticationSignatureDomain, 'accepted exports authentication signer does not match the pinned trust anchor', failures);
+  const signedBytes = acceptedExportsAuthenticationSignedBytes(result);
+  const signedPayloadDigest = signedBytes === null ? null : crypto.createHash('sha256').update(signedBytes).digest('hex');
+  requireCondition(signedPayloadDigest !== null && result?.signed_payload_sha256 === signedPayloadDigest, 'accepted exports authentication signed payload digest mismatch', failures);
+  const signatureBytes = decodeCanonicalBase64(result?.signature_base64, 64);
+  requireCondition(signatureBytes !== null, 'accepted exports authentication signature is malformed', failures);
+  if (publicKeyBytes !== null && signatureBytes !== null && signedBytes !== null) {
+    try {
+      const publicKey = crypto.createPublicKey({ key: publicKeyBytes, format: 'der', type: 'spki' });
+      requireCondition(publicKey.asymmetricKeyType === 'ed25519', 'accepted exports authentication trust anchor is not an Ed25519 key', failures);
+      requireCondition(publicKey.asymmetricKeyType === 'ed25519'
+        && crypto.verify(null, signedBytes, publicKey, signatureBytes), 'accepted exports authentication signature verification failed', failures);
+    } catch {
+      failures.push('accepted exports authentication trust anchor key cannot be verified');
+    }
+  }
+  return failures;
+}
+
 function storageInventorySelfCorrelationDigest(evidence) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
   const copy = { ...evidence };
@@ -340,9 +398,37 @@ export function validateIndependentBackupContract(contract) {
   requireCondition(sameSet(contract.receipt_contract?.required_fields, receiptRequiredFields), 'receipt field denominator changed', failures);
   requireCondition(sameSet(contract.receipt_contract?.forbidden_classes, forbiddenClasses), 'forbidden receipt classes changed', failures);
   requireCondition(contract.receipt_contract?.accepted_exports_authentication?.required === true
-    && contract.receipt_contract?.accepted_exports_authentication?.verification_boundary === 'separate_trusted_external_result'
+    && contract.receipt_contract?.accepted_exports_authentication?.verification_boundary === 'pinned_ed25519_signature'
     && contract.receipt_contract?.accepted_exports_authentication?.subject_digest === 'accepted_exports_evidence_without_verification_result'
-    && contract.receipt_contract?.accepted_exports_authentication?.required_result_status === 'VERIFIED', 'accepted exports authentication boundary changed', failures);
+    && contract.receipt_contract?.accepted_exports_authentication?.required_result_status === 'VERIFIED'
+    && contract.receipt_contract?.accepted_exports_authentication?.signature_domain === authenticationSignatureDomain, 'accepted exports authentication boundary changed', failures);
+  const trustAnchor = contract.receipt_contract?.accepted_exports_authentication?.trust_anchor;
+  const blockedTrustAnchor = trustAnchor?.status === 'BLOCKED'
+    && trustAnchor?.algorithm === 'Ed25519'
+    && trustAnchor?.key_id === 'UNKNOWN'
+    && trustAnchor?.verifier_reference === 'UNKNOWN'
+    && trustAnchor?.public_key_spki_base64 === null
+    && trustAnchor?.public_key_spki_sha256 === null;
+  const currentTrustAnchorBytes = decodeCanonicalBase64(trustAnchor?.public_key_spki_base64);
+  let currentTrustAnchorKeyValid = false;
+  if (currentTrustAnchorBytes !== null) {
+    try {
+      const currentTrustAnchorKey = crypto.createPublicKey({ key: currentTrustAnchorBytes, format: 'der', type: 'spki' });
+      currentTrustAnchorKeyValid = currentTrustAnchorKey.asymmetricKeyType === 'ed25519'
+        && crypto.createHash('sha256').update(currentTrustAnchorBytes).digest('hex') === trustAnchor?.public_key_spki_sha256;
+    } catch {
+      currentTrustAnchorKeyValid = false;
+    }
+  }
+  const currentTrustAnchor = trustAnchor?.status === 'CURRENT'
+    && trustAnchor?.algorithm === 'Ed25519'
+    && safeReference.test(trustAnchor?.key_id ?? '')
+    && trustAnchor?.key_id !== 'UNKNOWN'
+    && safeReference.test(trustAnchor?.verifier_reference ?? '')
+    && trustAnchor?.verifier_reference !== 'UNKNOWN'
+    && hexSha256.test(trustAnchor?.public_key_spki_sha256 ?? '')
+    && currentTrustAnchorKeyValid;
+  requireCondition(blockedTrustAnchor || currentTrustAnchor, 'accepted exports authentication trust anchor is malformed', failures);
   requireCondition(Object.values(contract.execution_gates ?? {}).every((value) => value === 'BLOCKED'), 'every execution gate must remain BLOCKED in source', failures);
   return { ok: failures.length === 0, failures: failures.sort((left, right) => left.localeCompare(right)) };
 }
@@ -458,6 +544,19 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const firstAcceptedIndex = acceptedTimesDistinct
     ? acceptedEvidenceAcceptedTimes.reduce((earliest, value, index) => value < acceptedEvidenceAcceptedTimes[earliest] ? index : earliest, 0)
     : null;
+  const orderedAcceptedTimes = acceptedTimesDistinct ? [...acceptedEvidenceAcceptedTimes].sort((left, right) => left - right) : [];
+  const cadenceIntervalMs = contract.policy.schedule.full_export_interval_hours * 3600000;
+  const monthStartAt = expectedHistoryStart === null ? null : Date.parse(expectedHistoryStart);
+  const acceptedCadenceComplete = orderedAcceptedTimes.length > 0
+    && monthStartAt !== null
+    && orderedAcceptedTimes[0] >= monthStartAt
+    && orderedAcceptedTimes[0] - monthStartAt <= cadenceIntervalMs
+    && orderedAcceptedTimes.every((value, index) => index === 0 || value - orderedAcceptedTimes[index - 1] <= cadenceIntervalMs)
+    && acceptedEvidenceObservedAt !== null
+    && acceptedEvidenceObservedAt >= orderedAcceptedTimes.at(-1)
+    && acceptedEvidenceObservedAt - orderedAcceptedTimes.at(-1) <= cadenceIntervalMs
+    && orderedAcceptedTimes.every((value) => new Date(value).toISOString().slice(0, 7) === expectedMonth);
+  requireCondition(acceptedCadenceComplete, 'accepted exports evidence cadence exceeds full_export_interval_hours', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.sequence === index), 'accepted exports evidence sequence contains a gap or ambiguity', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.entry_sha256 === acceptedEvidenceEntryDigests[index]), 'accepted exports evidence entry digest mismatch', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.previous_entry_sha256 === (index === 0 ? null : acceptedEvidenceEntries[index - 1]?.entry_sha256)), 'accepted exports evidence predecessor chain is unverifiable', failures);
@@ -484,11 +583,12 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const acceptedAuthenticationDigestValid = hexSha256.test(acceptedAuthenticationDigest ?? '');
   const acceptedExternalReceiptDigest = acceptedAuthenticationResult?.external_receipt_sha256;
   requireCondition(acceptedExportsEvidence?.authentication?.status === 'CURRENT'
-    && acceptedExportsEvidence?.authentication?.method === 'separate_trusted_external_result'
+    && acceptedExportsEvidence?.authentication?.method === 'pinned_ed25519_signature_result'
     && acceptedAuthenticationDigestValid, 'accepted exports evidence authentication is incomplete', failures);
   requireCondition(acceptedAuthenticationResult?.status === 'VERIFIED'
     && acceptedAuthenticationResult?.result_class === 'trusted_external_authentication_verification'
     && acceptedAuthenticationResult?.verification_method === 'external_signature_verification', 'accepted exports authentication result is not VERIFIED', failures);
+  failures.push(...verifyAcceptedExportsAuthenticationSignature(contract.receipt_contract?.accepted_exports_authentication?.trust_anchor, acceptedAuthenticationResult));
   requireCondition(acceptedAuthenticationResultDigest !== null
     && acceptedAuthenticationResult?.result_sha256 === acceptedAuthenticationResultDigest
     && acceptedAuthenticationDigest === acceptedAuthenticationResultDigest, 'accepted exports authentication result digest mismatch', failures);

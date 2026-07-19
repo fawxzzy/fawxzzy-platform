@@ -174,20 +174,85 @@
             "required",
             "verification_boundary",
             "subject_digest",
-            "required_result_status"
+            "required_result_status",
+            "signature_domain",
+            "trust_anchor"
           ],
           "properties": {
             "required": {
               "const": true
             },
             "verification_boundary": {
-              "const": "separate_trusted_external_result"
+              "const": "pinned_ed25519_signature"
             },
             "subject_digest": {
               "const": "accepted_exports_evidence_without_verification_result"
             },
             "required_result_status": {
               "const": "VERIFIED"
+            },
+            "signature_domain": {
+              "const": "fawxzzy-platform:accepted-exports-authentication:v1"
+            },
+            "trust_anchor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "algorithm",
+                "key_id",
+                "verifier_reference",
+                "public_key_spki_base64",
+                "public_key_spki_sha256"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "BLOCKED",
+                    "CURRENT"
+                  ]
+                },
+                "algorithm": {
+                  "const": "Ed25519"
+                },
+                "key_id": {
+                  "anyOf": [
+                    {
+                      "const": "UNKNOWN"
+                    },
+                    {
+                      "$ref": "#/$defs/safe_reference"
+                    }
+                  ]
+                },
+                "verifier_reference": {
+                  "anyOf": [
+                    {
+                      "const": "UNKNOWN"
+                    },
+                    {
+                      "$ref": "#/$defs/safe_reference"
+                    }
+                  ]
+                },
+                "public_key_spki_base64": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                },
+                "public_key_spki_sha256": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
             }
           }
         },
@@ -927,7 +992,7 @@
               "const": "CURRENT"
             },
             "method": {
-              "const": "separate_trusted_external_result"
+              "const": "pinned_ed25519_signature_result"
             },
             "verification_result_sha256": {
               "$ref": "#/$defs/sha256"
@@ -955,11 +1020,16 @@
         "verified_at",
         "verifier_reference",
         "verification_method",
+        "key_id",
+        "signature_algorithm",
+        "signature_domain",
         "project",
         "month_utc",
         "evidence_id",
         "subject_sha256",
         "external_receipt_sha256",
+        "signed_payload_sha256",
+        "signature_base64",
         "result_sha256"
       ],
       "properties": {
@@ -986,6 +1056,15 @@
         },
         "verification_method": {
           "const": "external_signature_verification"
+        },
+        "key_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "signature_algorithm": {
+          "const": "Ed25519"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:accepted-exports-authentication:v1"
         },
         "project": {
           "type": "object",
@@ -1015,6 +1094,13 @@
         },
         "external_receipt_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
         },
         "result_sha256": {
           "$ref": "#/$defs/sha256"
