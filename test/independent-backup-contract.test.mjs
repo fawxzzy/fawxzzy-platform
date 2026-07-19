@@ -1124,6 +1124,76 @@ test('accepted export cadence covers UTC month boundaries and every six-hour int
   assert.doesNotThrow(() => validate(nonArray.receipt, now, nonArray.manifest, { acceptedExportsEvidence: nonArray.evidence }));
 });
 
+test('accepted export completion cadence independently covers month adjacent and observation boundaries', () => {
+  const makeCase = () => {
+    const receipt = buildReceipt();
+    const manifest = buildAcceptedExportsManifest(receipt);
+    const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+    refreshAcceptedExportsEvidence(receipt, manifest, evidence);
+    return { receipt, manifest, evidence };
+  };
+  const setCompletion = (candidate, index, completedAt, retentionDays = index === 0 ? 400 : 35) => {
+    candidate.manifest.entries[index].completed_at = completedAt;
+    candidate.evidence.entries[index].completed_at = completedAt;
+    const parsed = Date.parse(completedAt);
+    if (Number.isFinite(parsed)) candidate.evidence.entries[index].retention_until = new Date(parsed + retentionDays * 86400000).toISOString().replace('.000Z', 'Z');
+    refreshAcceptedExportsEvidence(candidate.receipt, candidate.manifest, candidate.evidence);
+  };
+  const completionFailures = (candidate, validationNow = now) => validate(candidate.receipt, validationNow, candidate.manifest, {
+    acceptedExportsEvidence: candidate.evidence
+  }).failures;
+
+  const exactBoundary = makeCase();
+  setCompletion(exactBoundary, 0, '2026-07-01T06:00:00Z');
+  assert.equal(Date.parse(exactBoundary.evidence.entries[0].completed_at) - Date.parse(exactBoundary.evidence.history.window_started_at), 6 * 3600000);
+  assert.deepEqual(completionFailures(exactBoundary), []);
+
+  const boundaryPlusOne = makeCase();
+  const boundaryIndex = 10;
+  setCompletion(boundaryPlusOne, boundaryIndex, new Date(Date.parse(boundaryPlusOne.evidence.entries[boundaryIndex].completed_at) + 1000).toISOString().replace('.000Z', 'Z'));
+  const boundaryFailures = completionFailures(boundaryPlusOne);
+  assert(boundaryFailures.includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+  assert(!boundaryFailures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+
+  const delayedAcceptanceSubstitution = makeCase();
+  const priorCompletion = Date.parse(delayedAcceptanceSubstitution.evidence.entries[boundaryIndex - 1].completed_at);
+  setCompletion(delayedAcceptanceSubstitution, boundaryIndex, new Date(priorCompletion + 60000).toISOString().replace('.000Z', 'Z'));
+  const delayedFailures = completionFailures(delayedAcceptanceSubstitution);
+  assert(delayedFailures.includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+  assert(!delayedFailures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+
+  const malformed = makeCase();
+  setCompletion(malformed, boundaryIndex, 'not-a-timestamp');
+  const malformedFailures = completionFailures(malformed);
+  assert(malformedFailures.some((failure) => failure.includes('accepted_exports_manifest.entries.completed_at') && failure.includes('invalid UTC timestamp')));
+  assert(malformedFailures.includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+
+  const nonMonotonic = makeCase();
+  setCompletion(nonMonotonic, boundaryIndex, new Date(Date.parse(nonMonotonic.evidence.entries[boundaryIndex - 1].completed_at) - 1000).toISOString().replace('.000Z', 'Z'));
+  assert(completionFailures(nonMonotonic).includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+
+  const duplicate = makeCase();
+  setCompletion(duplicate, boundaryIndex, duplicate.evidence.entries[boundaryIndex - 1].completed_at);
+  const duplicateFailures = completionFailures(duplicate);
+  assert(duplicateFailures.includes('accepted exports evidence completion chronology is duplicate or ambiguous'));
+  assert(duplicateFailures.includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+
+  const monthRollover = makeCase();
+  setCompletion(monthRollover, 0, '2026-06-30T23:59:59Z');
+  assert(completionFailures(monthRollover).includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+
+  const observationTail = buildReceipt();
+  observationTail.snapshot_at = '2026-07-18T11:34:00Z';
+  observationTail.completed_at = '2026-07-18T11:44:00Z';
+  observationTail.object_lock.readback_manifest_sha256 = sha256Hex(buildObjectLockReadback(observationTail));
+  const tailManifest = buildAcceptedExportsManifest(observationTail);
+  const tailEvidence = buildAcceptedExportsEvidence(observationTail, tailManifest);
+  refreshAcceptedExportsEvidence(observationTail, tailManifest, tailEvidence);
+  const tailFailures = validate(observationTail, now, tailManifest, { acceptedExportsEvidence: tailEvidence }).failures;
+  assert(tailFailures.includes('accepted exports evidence completion cadence exceeds full_export_interval_hours'));
+  assert(!tailFailures.includes('accepted exports evidence cadence exceeds full_export_interval_hours'));
+});
+
 test('first monthly retention follows accepted_at rather than completion or caller order', () => {
   const reordered = buildReceipt();
   const reorderedHistory = buildAcceptedOrderInversion(reordered);

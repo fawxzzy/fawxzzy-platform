@@ -547,6 +547,21 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const orderedAcceptedTimes = acceptedTimesDistinct ? [...acceptedEvidenceAcceptedTimes].sort((left, right) => left - right) : [];
   const cadenceIntervalMs = contract.policy.schedule.full_export_interval_hours * 3600000;
   const monthStartAt = expectedHistoryStart === null ? null : Date.parse(expectedHistoryStart);
+  const finiteCompletionTimes = acceptedExportTimes.filter((value) => value !== null);
+  const completionTimesDistinct = finiteCompletionTimes.length === acceptedExportTimes.length
+    && new Set(finiteCompletionTimes).size === acceptedExportTimes.length;
+  requireCondition(completionTimesDistinct, 'accepted exports evidence completion chronology is duplicate or ambiguous', failures);
+  const completionCadenceComplete = completionTimesDistinct
+    && acceptedExportTimes.length > 0
+    && monthStartAt !== null
+    && acceptedExportTimes[0] >= monthStartAt
+    && acceptedExportTimes[0] - monthStartAt <= cadenceIntervalMs
+    && acceptedExportTimes.every((value, index) => index === 0 || (value > acceptedExportTimes[index - 1] && value - acceptedExportTimes[index - 1] <= cadenceIntervalMs))
+    && acceptedEvidenceObservedAt !== null
+    && acceptedEvidenceObservedAt >= acceptedExportTimes.at(-1)
+    && acceptedEvidenceObservedAt - acceptedExportTimes.at(-1) <= cadenceIntervalMs
+    && acceptedExportTimes.every((value) => new Date(value).toISOString().slice(0, 7) === expectedMonth);
+  requireCondition(completionCadenceComplete, 'accepted exports evidence completion cadence exceeds full_export_interval_hours', failures);
   const acceptedCadenceComplete = orderedAcceptedTimes.length > 0
     && monthStartAt !== null
     && orderedAcceptedTimes[0] >= monthStartAt
