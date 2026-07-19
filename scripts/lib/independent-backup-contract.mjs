@@ -302,6 +302,7 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const retentionUntil = parseTimestamp(receipt.retention_until, 'retention_until', failures);
   const maximumEvidenceAgeMs = contract.policy.schedule.freshness_limit_hours * 3600000;
   requireCondition(receipt.lifecycle_state === 'BACKUP_CURRENT' || receipt.lifecycle_state === 'RESTORE_REHEARSED', 'accepted receipt lifecycle must be BACKUP_CURRENT or RESTORE_REHEARSED', failures);
+  requireCondition(receipt.lifecycle_state !== 'BACKUP_CURRENT' || receipt.restore === null, 'BACKUP_CURRENT must not include restore evidence', failures);
   requireCondition(receipt.project?.name === contract.project.name && receipt.project?.ref === contract.project.ref, 'receipt project identity mismatch', failures);
   requireCondition(commitSha.test(receipt.source_commit ?? ''), 'source commit must be a lowercase 40-character digest', failures);
   requireCondition(typeof receipt.postgres_version === 'string' && safeReference.test(receipt.postgres_version), 'Postgres version is missing or unsafe', failures);

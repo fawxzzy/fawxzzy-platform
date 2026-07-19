@@ -343,6 +343,29 @@ test('complete current backup receipt validates', () => {
   assert.deepEqual(validate(buildReceipt()), { ok: true, failures: [] });
 });
 
+test('BACKUP_CURRENT rejects every non-null restore claim', () => {
+  const cases = [
+    ['valid', () => structuredClone(buildReceipt({ restore: true }).restore)],
+    ['malformed', () => 'malformed'],
+    ['partial', () => ({ status: 'CURRENT' })],
+    ['mismatched', () => {
+      const restore = structuredClone(buildReceipt({ restore: true }).restore);
+      restore.target_project.source_project_sha256 = digest('different-source-project');
+      return restore;
+    }]
+  ];
+
+  for (const [label, buildRestore] of cases) {
+    const receipt = buildReceipt();
+    receipt.restore = buildRestore();
+    receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+    let result;
+    assert.doesNotThrow(() => { result = validate(receipt); }, `${label} BACKUP_CURRENT restore claim must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.includes('BACKUP_CURRENT must not include restore evidence'));
+  }
+});
+
 test('complete quarantined restore rehearsal validates', () => {
   assert.deepEqual(validate(buildReceipt({ restore: true })), { ok: true, failures: [] });
 });
