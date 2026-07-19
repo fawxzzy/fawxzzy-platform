@@ -874,7 +874,15 @@
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
     "observed_current_preimage": {
       "status": "CURRENT",
-      "project_ref": "bxtcuhkotumitoqtrcej",
+      "action_time_expected_state_binding": {
+        "status": "REQUIRED",
+        "identity_binding": "ACTION_TIME_ONLY",
+        "source_artifact_contains_identity": false,
+        "fresh_project_identity_readback": "REQUIRED",
+        "fresh_preimage_readback": "REQUIRED",
+        "expected_state_guard": "REQUIRED",
+        "owner_authority": "REQUIRED"
+      },
       "data_api_state": "ENABLED",
       "exposed_schemas": [
         "graphql_public",
@@ -926,7 +934,8 @@
     },
     "support_evidence": {
       "status": "CURRENT",
-      "title": "Fawxzzy bxtcuhkotumitoqtrcej — Data API disable Save does not persist",
+      "sanitized_title": "Fawxzzy — Data API disable Save does not persist",
+      "original_title_sha256": "af597f221fb16fbaedfead5cfda2317a0db700fad3d7303127ca81e51099b16f",
       "body_sha256": "bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd",
       "confirmation": "Support request sent",
       "confirmed_at": "2026-07-19T17:39:40.793Z",

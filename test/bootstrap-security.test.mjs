@@ -7,6 +7,7 @@ import {
   creatorDefaultAclContractV1,
   dataApiGateV1,
   inspectInertSql,
+  inspectPortableBootstrapIdentity,
   publicObjectBoundaryV1,
   targetPostgresqlContractV1,
   verifyApplicationCreatorBoundary,
@@ -216,7 +217,13 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
   };
   const cases = [
     ['01 current state replaced by desired state', [
-      (gate) => { gate.observed_current_preimage = structuredClone(gate.desired_containment_postimage); }
+      (gate) => { gate.observed_current_preimage = structuredClone(gate.desired_containment_postimage); },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.identity_binding = 'EMBEDDED'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.source_artifact_contains_identity = true; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.fresh_project_identity_readback = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.fresh_preimage_readback = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.expected_state_guard = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.owner_authority = 'UNKNOWN'; }
     ]],
     ['02 observed API state changed', [
       (gate) => { gate.observed_current_preimage.data_api_state = 'DISABLED'; }
@@ -280,7 +287,8 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
       (gate) => { gate.support_evidence.provider_defect_classification = 'CONFIRMED'; }
     ]],
     ['19 accepted Support evidence changed', [
-      (gate) => { gate.support_evidence.title = 'changed'; },
+      (gate) => { gate.support_evidence.sanitized_title = 'changed'; },
+      (gate) => { gate.support_evidence.original_title_sha256 = '0'.repeat(64); },
       (gate) => { gate.support_evidence.body_sha256 = '0'.repeat(64); },
       (gate) => { gate.support_evidence.confirmed_at = '2026-07-19T17:39:40.794Z'; }
     ]],
@@ -328,6 +336,36 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
         `${name}, manifest variant ${variantIndex + 1}`
       );
     }
+  }
+});
+
+test('portable bootstrap identity inspection rejects quoted and nested keys, project-ref-shaped values, and malformed inputs without throwing', () => {
+  const leakedIdentity = ['bxtcuhkotumitoqtr', 'cej'].join('');
+  const shapedIdentity = ['abcdefghijklmnop', 'qrst'].join('');
+  const safe = {
+    action_time_expected_state_binding: {
+      status: 'REQUIRED',
+      identity_binding: 'ACTION_TIME_ONLY',
+      source_artifact_contains_identity: false
+    },
+    evidence_digest: 'a'.repeat(64)
+  };
+
+  assert.deepEqual(inspectPortableBootstrapIdentity('safe.json', JSON.stringify(safe)), []);
+  for (const fixture of [
+    JSON.stringify({ project_ref: 'UNKNOWN' }),
+    JSON.stringify({ nested: { project_ref: 'UNKNOWN' } }),
+    JSON.stringify({ value: leakedIdentity }),
+    JSON.stringify({ value: shapedIdentity }),
+    JSON.stringify({ value: `case ${leakedIdentity} failed` }),
+    JSON.stringify({ supabase_url: 'UNKNOWN' })
+  ]) {
+    assert.doesNotThrow(() => inspectPortableBootstrapIdentity('fixture.json', fixture));
+    assert.notEqual(inspectPortableBootstrapIdentity('fixture.json', fixture).length, 0);
+  }
+  for (const malformed of ['{', '', null, { value: leakedIdentity }]) {
+    assert.doesNotThrow(() => inspectPortableBootstrapIdentity('fixture.json', malformed));
+    assert.notEqual(inspectPortableBootstrapIdentity('fixture.json', malformed).length, 0);
   }
 });
 

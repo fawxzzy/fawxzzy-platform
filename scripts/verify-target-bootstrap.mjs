@@ -21,7 +21,6 @@ import {
 import { listWorkingTreeFiles } from './lib/repository.mjs';
 
 const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
-const dataApiTargetIdentity = 'bxtcuhkotumitoqtrcej';
 const expectedGeneratedFiles = [
   '00000000000001_mazer_schema_inert.sql',
   '00000000000002_fitness_schema_inert.sql',
@@ -111,7 +110,15 @@ export const dataApiGateV1 = Object.freeze({
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
   observed_current_preimage: Object.freeze({
     status: 'CURRENT',
-    project_ref: dataApiTargetIdentity,
+    action_time_expected_state_binding: Object.freeze({
+      status: 'REQUIRED',
+      identity_binding: 'ACTION_TIME_ONLY',
+      source_artifact_contains_identity: false,
+      fresh_project_identity_readback: 'REQUIRED',
+      fresh_preimage_readback: 'REQUIRED',
+      expected_state_guard: 'REQUIRED',
+      owner_authority: 'REQUIRED'
+    }),
     data_api_state: 'ENABLED',
     exposed_schemas: Object.freeze(['graphql_public', 'public']),
     extra_search_path: Object.freeze(['public', 'extensions']),
@@ -146,7 +153,8 @@ export const dataApiGateV1 = Object.freeze({
   }),
   support_evidence: Object.freeze({
     status: 'CURRENT',
-    title: 'Fawxzzy bxtcuhkotumitoqtrcej — Data API disable Save does not persist',
+    sanitized_title: 'Fawxzzy — Data API disable Save does not persist',
+    original_title_sha256: 'af597f221fb16fbaedfead5cfda2317a0db700fad3d7303127ca81e51099b16f',
     body_sha256: 'bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd',
     confirmation: 'Support request sent',
     confirmed_at: '2026-07-19T17:39:40.793Z',
@@ -950,6 +958,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, !config.schemas.application.includes('public'), 'public must not be an application schema');
   const dataApiGate = config.data_api_gate ?? {};
   const observedPreimage = dataApiGate.observed_current_preimage ?? {};
+  const actionTimeBinding = observedPreimage.action_time_expected_state_binding ?? {};
   const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
   const attemptedExecution = dataApiGate.attempted_execution ?? {};
   const retryAuthority = dataApiGate.retry_authority ?? {};
@@ -957,6 +966,13 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const activationGates = dataApiGate.future_activation_gates ?? {};
   const negativeProbes = activationGates.negative_probes ?? {};
   fail(failures, dataApiGate.version === '1.1.0', 'Data API evidence gate version drift');
+  fail(failures, actionTimeBinding.status === 'REQUIRED', 'action-time target binding must remain REQUIRED');
+  fail(failures, actionTimeBinding.identity_binding === 'ACTION_TIME_ONLY', 'target identity must remain action-time only');
+  fail(failures, actionTimeBinding.source_artifact_contains_identity === false, 'portable source must not contain a target identity');
+  fail(failures, actionTimeBinding.fresh_project_identity_readback === 'REQUIRED', 'fresh project identity readback must remain required');
+  fail(failures, actionTimeBinding.fresh_preimage_readback === 'REQUIRED', 'fresh target preimage readback must remain required');
+  fail(failures, actionTimeBinding.expected_state_guard === 'REQUIRED', 'expected-state guard must remain required');
+  fail(failures, actionTimeBinding.owner_authority === 'REQUIRED', 'bounded owner authority must remain required');
   fail(failures, observedPreimage.data_api_state === 'ENABLED', 'observed Data API preimage must remain ENABLED');
   fail(failures, canonicalJson(observedPreimage.exposed_schemas) === canonicalJson(['graphql_public', 'public']), 'observed exposed-schema order drift');
   fail(failures, canonicalJson(observedPreimage.extra_search_path) === canonicalJson(['public', 'extensions']), 'observed extra search path order drift');
@@ -1039,6 +1055,58 @@ function verifyGeneratedSql(config, namespacePlan, dispositions, failures) {
   fail(failures, resolvedDenyPolicyCount === 10, `resolved deny policy output must be 10, found ${resolvedDenyPolicyCount}`);
 }
 
+const supabaseProjectEndpointPattern = /https:\/\/[a-z0-9]{20}\.supabase\.(?:co|net)\b/;
+const supabaseProjectRefValuePattern = /(?:^|[^a-z0-9])[a-z0-9]{20}(?:$|[^a-z0-9])/;
+const boundProjectIdentityPattern = /["']?(?:project[_-]?ref|supabase[_-]?url)["']?\s*[=:]\s*["']?[a-z0-9]{20}\b/i;
+
+function isForbiddenPortableIdentityKey(key) {
+  const normalized = key.toLowerCase().replaceAll('_', '').replaceAll('-', '');
+  return normalized === 'projectref' || normalized === 'supabaseurl';
+}
+
+export function inspectPortableBootstrapIdentity(relativePath, text) {
+  const normalizedPath = typeof relativePath === 'string' && relativePath.length > 0 ? relativePath.replaceAll('\\', '/') : 'UNKNOWN';
+  const failures = [];
+  if (typeof text !== 'string') {
+    return [`${normalizedPath}: portable identity input must be UTF-8 text`];
+  }
+
+  if (normalizedPath.toLowerCase().endsWith('.json')) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return [`${normalizedPath}: malformed JSON cannot prove portable identity safety`];
+    }
+
+    const visit = (value, pointer) => {
+      if (typeof value === 'string') {
+        if (supabaseProjectEndpointPattern.test(value) || supabaseProjectRefValuePattern.test(value)) {
+          failures.push(`${normalizedPath}:${pointer}: Supabase project-ref-shaped value detected`);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => visit(entry, `${pointer}[${index}]`));
+        return;
+      }
+      if (value === null || typeof value !== 'object') return;
+      for (const [key, entry] of Object.entries(value)) {
+        const childPointer = `${pointer}.${key}`;
+        if (isForbiddenPortableIdentityKey(key)) {
+          failures.push(`${normalizedPath}:${childPointer}: project-bound identity key detected`);
+        }
+        visit(entry, childPointer);
+      }
+    };
+    visit(parsed, '$');
+  } else if (supabaseProjectEndpointPattern.test(text) || boundProjectIdentityPattern.test(text)) {
+    failures.push(`${normalizedPath}: project endpoint or bound project reference detected`);
+  }
+
+  return [...new Set(failures)].sort((left, right) => left.localeCompare(right));
+}
+
 function verifyNoForbiddenIdentities(config, failures) {
   const sourceManifest = readJson('bootstrap/manifests/source-migrations.v1.json');
   const replaySafe = sourceManifest.migrations.find((migration) => migration.app === 'fitness' && migration.path.endsWith('/043_hide_standalone_stretch_catalog_rows.sql'));
@@ -1062,7 +1130,7 @@ function verifyNoForbiddenIdentities(config, failures) {
   ];
   for (const relativePath of newPackagePaths.filter((candidate) => fs.existsSync(path.join(root, ...candidate.split('/'))))) {
     const text = fs.readFileSync(path.join(root, ...relativePath.split('/')), 'utf8');
-    fail(failures, !/https:\/\/[a-z]{20}\.supabase\.(?:co|net)\b|\b(?:project[_-]?ref|supabase[_-]?url)\s*[=:]\s*["']?[a-z]{20}\b/i.test(text), `${relativePath}: project endpoint or bound project reference detected`);
+    failures.push(...inspectPortableBootstrapIdentity(relativePath, text));
   }
 }
 
