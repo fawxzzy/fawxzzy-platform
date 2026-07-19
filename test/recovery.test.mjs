@@ -452,6 +452,44 @@ test('DiscordOS inventory freezes the exact Edge Cron helper extension and aggre
   }
 });
 
+test('malformed DiscordOS Edge inventory entries fail closed without throwing', () => {
+  const scenarios = [
+    {
+      name: 'null entry',
+      mutate: (entries) => { entries[0] = null; },
+      expected: 'Edge inventory entries must be objects'
+    },
+    {
+      name: 'non-object entry',
+      mutate: (entries) => { entries[0] = 'not-an-edge-function'; },
+      expected: 'Edge inventory entries must be objects'
+    },
+    {
+      name: 'missing required identity',
+      mutate: (entries) => { delete entries[0].slug; },
+      expected: 'six-function source/deployment identity denominator changed'
+    },
+    {
+      name: 'structurally malformed digest',
+      mutate: (entries) => { entries[0].provider_raw_source_sha256 = null; },
+      expected: 'six-function source/deployment identity denominator changed'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents[recoveryDocumentPaths.effects].discordos.inventory.edge_functions);
+    refreshActionDigests(documents);
+    let report;
+    assert.doesNotThrow(() => {
+      report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    }, scenario.name);
+    assert.equal(report.ok, false, scenario.name);
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+});
+
 test('DiscordOS restore identity is distinct from every complete protected-project identity', () => {
   const setRestoreProject = (documents, projectRef) => {
     const effects = documents[recoveryDocumentPaths.effects];

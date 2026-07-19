@@ -445,7 +445,10 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   requireCondition(source.edge_identity_manifest_sha256 === 'c8d304fb21e541cee86fd594b33aacb9441d82e17d53b657231d9b7aa14912f1', 'DiscordOS Edge identity manifest digest changed');
 
   const edgeFunctions = Array.isArray(inventory.edge_functions) ? inventory.edge_functions : [];
+  const edgeEntriesAreRecords = edgeFunctions.every(isRecord);
+  requireCondition(edgeEntriesAreRecords, 'DiscordOS Edge inventory entries must be objects');
   const normalizedEdges = edgeFunctions
+    .filter(isRecord)
     .map((entry) => ({
       slug: entry.slug,
       live_version: entry.live_version,
@@ -455,7 +458,7 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     }))
     .sort((left, right) => String(left.slug).localeCompare(String(right.slug)));
   requireCondition(canonicalSerialize(normalizedEdges) === canonicalSerialize(expectedDiscordEdgeFunctions), 'DiscordOS six-function source/deployment identity denominator changed');
-  requireCondition(edgeFunctions.length === 6 && edgeFunctions.every((entry) => entry.verify_jwt === true), 'DiscordOS Edge JWT-verification denominator changed');
+  requireCondition(edgeFunctions.length === 6 && edgeFunctions.every((entry) => isRecord(entry) && entry.verify_jwt === true), 'DiscordOS Edge JWT-verification denominator changed');
 
   const cron = inventory.cron ?? {};
   requireCondition(
