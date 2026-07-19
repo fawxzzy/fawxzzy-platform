@@ -109,6 +109,46 @@
         "public_key_spki_sha256": null
       }
     },
+    "execution_gate_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:execution-gate-admission:v1",
+      "maximum_age_seconds": 28800,
+      "admission_policy": {
+        "version": "1.0.0",
+        "backup_current": [
+          {
+            "gate_id": "backup_generation_or_upload",
+            "gate_version": "1.0.0",
+            "scope": "backup_receipt"
+          }
+        ],
+        "restore_rehearsed": [
+          {
+            "gate_id": "backup_generation_or_upload",
+            "gate_version": "1.0.0",
+            "scope": "backup_receipt"
+          },
+          {
+            "gate_id": "restore_rehearsal",
+            "gate_version": "1.0.0",
+            "scope": "restore_receipt"
+          }
+        ]
+      }
+    },
+    "object_lock_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:object-lock-provider-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "provider_class": "Backblaze B2",
+      "retention_mode": "COMPLIANCE"
+    },
     "required_fields": [
       "aggregate_counts",
       "ciphertext_bytes",

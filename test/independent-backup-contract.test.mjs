@@ -16,6 +16,10 @@ import {
   sha256Hex,
   storageBodyRecoveryEvidenceDigest,
   storageInventoryManifestDigest,
+  trustedAttestationResultDigest,
+  trustedAttestationSignedBytes,
+  trustedAttestationSignedPayloadDigest,
+  trustedAttestationSubjectDigest,
   validateIndependentBackupContract,
   validateIndependentBackupReceipt
 } from '../scripts/lib/independent-backup-contract.mjs';
@@ -23,6 +27,8 @@ import {
 const now = '2026-07-18T18:00:00Z';
 const digest = (label) => sha256Hex({ label });
 const authenticationSignatureDomain = 'fawxzzy-platform:accepted-exports-authentication:v1';
+const executionGateSignatureDomain = 'fawxzzy-platform:execution-gate-admission:v1';
+const objectLockSignatureDomain = 'fawxzzy-platform:object-lock-provider-attestation:v1';
 
 // RFC 8032 test vector 1. This public test identity is used only in memory by
 // deterministic tests; it is not a production credential or admitted anchor.
@@ -191,6 +197,133 @@ function buildObjectLockReadback(receipt) {
       retention_until: receipt.retention_until
     }
   };
+}
+
+function signTrustedAttestationResult(result, signatureDomain, privateKey = testEd25519PrivateKey) {
+  result.signed_payload_sha256 = trustedAttestationSignedPayloadDigest(result, signatureDomain);
+  result.signature_base64 = crypto.sign(null, trustedAttestationSignedBytes(result, signatureDomain), privateKey).toString('base64');
+  result.result_sha256 = trustedAttestationResultDigest(result);
+}
+
+function buildTrustedAttestationResult(evidence, signatureDomain, resultClass, resultId) {
+  const result = {
+    version: '1.0.0',
+    status: 'VERIFIED',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    result_class: resultClass,
+    result_id: resultId,
+    verified_at: signatureDomain === objectLockSignatureDomain ? '2026-07-18T17:46:00Z' : '2026-07-18T17:21:00Z',
+    verifier_reference: testTrustAnchor.verifier_reference,
+    verification_method: 'external_signature_verification',
+    key_id: testTrustAnchor.key_id,
+    signature_algorithm: 'Ed25519',
+    signature_domain: signatureDomain,
+    project: structuredClone(evidence.project),
+    evidence_id: evidence.evidence_id,
+    subject_sha256: trustedAttestationSubjectDigest(evidence),
+    external_receipt_sha256: digest(`${resultClass}-external-receipt`),
+    signed_payload_sha256: null,
+    signature_base64: null,
+    result_sha256: null
+  };
+  signTrustedAttestationResult(result, signatureDomain);
+  return result;
+}
+
+function buildExecutionGateEvidence(receipt, validationContract = contract()) {
+  const policies = receipt.lifecycle_state === 'RESTORE_REHEARSED'
+    ? validationContract.receipt_contract.execution_gate_authentication.admission_policy.restore_rehearsed
+    : validationContract.receipt_contract.execution_gate_authentication.admission_policy.backup_current;
+  const admissions = policies.map((policy, index) => ({
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    evidence_class: 'authenticated_execution_gate_admission',
+    evidence_id: `execution-gate-admission-${String(index + 1).padStart(4, '0')}`,
+    issued_at: '2026-07-18T17:20:00Z',
+    expires_at: '2026-07-18T18:20:00Z',
+    project: structuredClone(receipt.project),
+    gate_id: policy.gate_id,
+    gate_version: policy.gate_version,
+    scope: policy.scope,
+    policy_artifact_sha256: sha256Hex(validationContract.receipt_contract.execution_gate_authentication.admission_policy),
+    execution_artifact_sha256: sha256Hex({
+      source_commit: receipt.source_commit,
+      migration_ledger_sha256: receipt.migration_ledger_sha256,
+      tool_versions: receipt.tool_versions
+    }),
+    receipt_manifest_sha256: receipt.manifest_sha256,
+    export_identity: {
+      completed_at: receipt.completed_at,
+      destination_version: receipt.destination_version,
+      ciphertext_sha256: receipt.ciphertext_sha256
+    },
+    restore_identity: policy.gate_id === 'restore_rehearsal' ? {
+      target_project_ref: receipt.restore?.target_project?.ref ?? 'invalid',
+      restore_receipt_sha256: sha256Hex(receipt.restore)
+    } : null,
+    authentication: {
+      status: 'CURRENT',
+      method: 'pinned_ed25519_signature_result',
+      verification_result_sha256: '0'.repeat(64)
+    }
+  }));
+  const results = admissions.map((admission, index) => buildTrustedAttestationResult(
+    admission,
+    executionGateSignatureDomain,
+    'trusted_execution_gate_admission_verification',
+    `execution-gate-verification-${String(index + 1).padStart(4, '0')}`
+  ));
+  admissions.forEach((admission, index) => {
+    admission.authentication.verification_result_sha256 = results[index].result_sha256;
+  });
+  return { admissions, results };
+}
+
+function buildObjectLockProviderEvidence(receipt, readback) {
+  if (!readback || typeof readback !== 'object' || Array.isArray(readback)
+    || !readback.destination || typeof readback.destination !== 'object'
+    || !readback.object || typeof readback.object !== 'object') {
+    return { attestation: undefined, result: undefined };
+  }
+  const attestation = {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    evidence_class: 'provider_bound_object_lock_attestation',
+    evidence_id: 'object-lock-provider-attestation-0001',
+    observed_at: readback.observed_at,
+    project: structuredClone(receipt.project),
+    provider_class: readback.destination.provider,
+    bucket_identity_sha256: sha256Hex(readback.destination),
+    object_identity_sha256: sha256Hex({
+      destination_version: receipt.destination_version,
+      plaintext_sha256: receipt.plaintext_sha256,
+      ciphertext_sha256: receipt.ciphertext_sha256
+    }),
+    receipt_manifest_sha256: receipt.manifest_sha256,
+    readback_manifest_sha256: receipt.object_lock.readback_manifest_sha256,
+    object: {
+      destination_version: receipt.destination_version,
+      plaintext_sha256: receipt.plaintext_sha256,
+      ciphertext_sha256: receipt.ciphertext_sha256,
+      lock_mode: readback.object.retention_mode,
+      retention_until: readback.object.retention_until
+    },
+    authentication: {
+      status: 'CURRENT',
+      method: 'pinned_ed25519_signature_result',
+      verification_result_sha256: '0'.repeat(64)
+    }
+  };
+  const result = buildTrustedAttestationResult(
+    attestation,
+    objectLockSignatureDomain,
+    'trusted_object_lock_provider_verification',
+    'object-lock-provider-verification-0001'
+  );
+  attestation.authentication.verification_result_sha256 = result.result_sha256;
+  return { attestation, result };
 }
 
 function buildStorageInventoryEvidence(receipt) {
@@ -400,6 +533,7 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
 }
 
 function validate(receipt, validationNow = now, acceptedExportsManifest = buildAcceptedExportsManifest(receipt), evidence = {}) {
+  const validationContract = Object.hasOwn(evidence, 'contract') ? evidence.contract : contract();
   const storage = receipt.coverage?.find((entry) => entry?.unit === 'storage_object_bodies');
   const storageClaimed = storage?.status === 'CURRENT' || (storage?.aggregate_count ?? 0) > 0;
   const objectLockReadback = Object.hasOwn(evidence, 'objectLockReadback')
@@ -427,13 +561,30 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const acceptedExportsAuthenticationResult = Object.hasOwn(evidence, 'acceptedExportsAuthenticationResult')
     ? evidence.acceptedExportsAuthenticationResult
     : (acceptedExportsEvidence ? buildAcceptedExportsAuthenticationResult(acceptedExportsEvidence) : undefined);
-  const validationContract = Object.hasOwn(evidence, 'contract') ? evidence.contract : contract();
+  const executionGateEvidence = buildExecutionGateEvidence(receipt, validationContract);
+  const executionGateAdmissions = Object.hasOwn(evidence, 'executionGateAdmissions')
+    ? evidence.executionGateAdmissions
+    : executionGateEvidence.admissions;
+  const executionGateAuthenticationResults = Object.hasOwn(evidence, 'executionGateAuthenticationResults')
+    ? evidence.executionGateAuthenticationResults
+    : executionGateEvidence.results;
+  const objectLockProviderEvidence = buildObjectLockProviderEvidence(receipt, objectLockReadback);
+  const objectLockProviderAttestation = Object.hasOwn(evidence, 'objectLockProviderAttestation')
+    ? evidence.objectLockProviderAttestation
+    : objectLockProviderEvidence.attestation;
+  const objectLockAuthenticationResult = Object.hasOwn(evidence, 'objectLockAuthenticationResult')
+    ? evidence.objectLockAuthenticationResult
+    : objectLockProviderEvidence.result;
   return validateIndependentBackupReceipt(validationContract, receipt, {
     now: validationNow,
     acceptedExportsManifest,
     acceptedExportsEvidence,
     acceptedExportsAuthenticationResult,
+    executionGateAdmissions,
+    executionGateAuthenticationResults,
     objectLockReadback,
+    objectLockProviderAttestation,
+    objectLockAuthenticationResult,
     storageInventoryEvidence,
     storageBodyRecoveryReceipt,
     storageBodyRecoveryEvidence
@@ -464,6 +615,13 @@ function bindAcceptedExportsAuthenticationResultWithoutSigning(receipt, manifest
   result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
   evidence.authentication.verification_result_sha256 = result.result_sha256;
   bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthentication: false });
+}
+
+function rebindTrustedAttestation(evidence, result, signatureDomain, { sign = true } = {}) {
+  result.subject_sha256 = trustedAttestationSubjectDigest(evidence);
+  if (sign) signTrustedAttestationResult(result, signatureDomain);
+  else result.result_sha256 = trustedAttestationResultDigest(result);
+  evidence.authentication.verification_result_sha256 = result.result_sha256;
 }
 
 function refreshAcceptedExportsEvidence(receipt, manifest, evidence) {
@@ -651,6 +809,108 @@ test('non-compliance Object Lock fails closed', () => {
   receipt.object_lock.mode = 'GOVERNANCE';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('Object Lock compliance evidence is required'));
+});
+
+test('receipt acceptance requires source-bound independently authenticated execution gates', () => {
+  const missing = buildReceipt();
+  const missingResult = validate(missing, now, buildAcceptedExportsManifest(missing), {
+    executionGateAdmissions: [],
+    executionGateAuthenticationResults: []
+  });
+  assert(missingResult.failures.includes('execution gate admission denominator mismatch'));
+  assert(missingResult.failures.includes('execution gate authentication result denominator mismatch'));
+
+  for (const [label, mutate, expected] of [
+    ['wrong gate', (admission) => { admission.gate_id = 'restore_rehearsal'; admission.scope = 'restore_receipt'; }, 'does not match the source-owned gate policy'],
+    ['wrong policy artifact', (admission) => { admission.policy_artifact_sha256 = digest('substituted-policy'); }, 'source policy artifact mismatch'],
+    ['wrong execution artifact', (admission) => { admission.execution_artifact_sha256 = digest('substituted-execution-artifact'); }, 'execution artifact mismatch'],
+    ['wrong receipt', (admission) => { admission.receipt_manifest_sha256 = digest('other-receipt'); }, 'receipt correlation mismatch'],
+    ['wrong export', (admission) => { admission.export_identity.destination_version = 'backup-version-other'; }, 'export correlation mismatch'],
+    ['stale admission', (admission, result) => { admission.issued_at = '2026-07-18T09:59:59Z'; admission.expires_at = '2026-07-18T18:20:00Z'; result.verified_at = '2026-07-18T10:00:00Z'; }, 'is stale'],
+    ['future admission', (admission, result) => { admission.issued_at = '2026-07-18T18:01:00Z'; admission.expires_at = '2026-07-18T19:00:00Z'; result.verified_at = '2026-07-18T18:02:00Z'; }, 'was issued after execution'],
+    ['self-correlated receipt', (_admission, result, receipt) => { result.external_receipt_sha256 = receipt.manifest_sha256; }, 'external receipt is self-correlated'],
+    ['untrusted verifier', (_admission, result) => { result.verifier_reference = 'attacker-verifier'; }, 'signer does not match the pinned trust anchor']
+  ]) {
+    const receipt = buildReceipt();
+    const gate = buildExecutionGateEvidence(receipt);
+    mutate(gate.admissions[0], gate.results[0], receipt);
+    rebindTrustedAttestation(gate.admissions[0], gate.results[0], executionGateSignatureDomain);
+    const result = validate(receipt, now, buildAcceptedExportsManifest(receipt), {
+      executionGateAdmissions: gate.admissions,
+      executionGateAuthenticationResults: gate.results
+    });
+    assert(result.failures.some((failure) => failure.includes(expected)), `${label}: ${result.failures.join('; ')}`);
+  }
+
+  const malformed = buildReceipt();
+  const malformedGate = buildExecutionGateEvidence(malformed);
+  malformedGate.results[0].signature_base64 = 'not-a-signature';
+  malformedGate.results[0].result_sha256 = trustedAttestationResultDigest(malformedGate.results[0]);
+  malformedGate.admissions[0].authentication.verification_result_sha256 = malformedGate.results[0].result_sha256;
+  const malformedResult = validate(malformed, now, buildAcceptedExportsManifest(malformed), {
+    executionGateAdmissions: malformedGate.admissions,
+    executionGateAuthenticationResults: malformedGate.results
+  });
+  assert(malformedResult.failures.some((failure) => failure.includes('signature is malformed')));
+
+  const restore = buildReceipt({ restore: true });
+  const restoreGate = buildExecutionGateEvidence(restore);
+  assert.equal(restoreGate.admissions.length, 2);
+  assert.deepEqual(validate(restore, now, buildAcceptedExportsManifest(restore), {
+    executionGateAdmissions: restoreGate.admissions,
+    executionGateAuthenticationResults: restoreGate.results
+  }), { ok: true, failures: [] });
+});
+
+test('Object Lock requires a provider-bound trusted attestation over exact immutable object state', () => {
+  const missing = buildReceipt();
+  const missingResult = validate(missing, now, buildAcceptedExportsManifest(missing), {
+    objectLockProviderAttestation: undefined,
+    objectLockAuthenticationResult: undefined
+  });
+  assert(missingResult.failures.some((failure) => failure.startsWith('Object Lock provider attestation schema')));
+  assert(missingResult.failures.some((failure) => failure.startsWith('Object Lock authentication result schema')));
+
+  for (const [label, mutate, expected] of [
+    ['provider substitution', (attestation) => { attestation.provider_class = 'Other Provider'; }, 'provider/object identity mismatch'],
+    ['bucket substitution', (attestation) => { attestation.bucket_identity_sha256 = digest('other-bucket'); }, 'provider/object identity mismatch'],
+    ['object substitution', (attestation) => { attestation.object_identity_sha256 = digest('other-object'); }, 'provider/object identity mismatch'],
+    ['version substitution', (attestation) => { attestation.object.destination_version = 'backup-version-other'; }, 'export/retention mismatch'],
+    ['content substitution', (attestation) => { attestation.object.plaintext_sha256 = digest('other-plaintext'); }, 'export/retention mismatch'],
+    ['ciphertext substitution', (attestation) => { attestation.object.ciphertext_sha256 = digest('other-ciphertext'); }, 'export/retention mismatch'],
+    ['shortened retention', (attestation) => { attestation.object.retention_until = '2026-08-22T17:39:59Z'; }, 'export/retention mismatch'],
+    ['stale evidence', (attestation, result) => { attestation.observed_at = '2026-07-18T09:59:59Z'; result.verified_at = '2026-07-18T10:00:00Z'; }, 'is stale'],
+    ['future evidence', (attestation, result) => { attestation.observed_at = '2026-07-18T18:00:01Z'; result.verified_at = '2026-07-18T18:00:02Z'; }, 'cannot be future-dated'],
+    ['wrong receipt', (attestation) => { attestation.receipt_manifest_sha256 = digest('other-receipt'); }, 'receipt/readback correlation mismatch'],
+    ['replayed readback', (attestation) => { attestation.readback_manifest_sha256 = digest('other-readback'); }, 'receipt/readback correlation mismatch'],
+    ['self-correlated receipt', (attestation, result, receipt) => { result.external_receipt_sha256 = receipt.object_lock.readback_manifest_sha256; }, 'external receipt is self-correlated'],
+    ['untrusted key', (_attestation, result) => { result.key_id = 'attacker-key'; }, 'signer does not match the pinned trust anchor']
+  ]) {
+    const receipt = buildReceipt();
+    const readback = buildObjectLockReadback(receipt);
+    const provider = buildObjectLockProviderEvidence(receipt, readback);
+    mutate(provider.attestation, provider.result, receipt);
+    rebindTrustedAttestation(provider.attestation, provider.result, objectLockSignatureDomain);
+    const result = validate(receipt, now, buildAcceptedExportsManifest(receipt), {
+      objectLockReadback: readback,
+      objectLockProviderAttestation: provider.attestation,
+      objectLockAuthenticationResult: provider.result
+    });
+    assert(result.failures.some((failure) => failure.includes(expected)), `${label}: ${result.failures.join('; ')}`);
+  }
+
+  const malformed = buildReceipt();
+  const readback = buildObjectLockReadback(malformed);
+  const provider = buildObjectLockProviderEvidence(malformed, readback);
+  provider.result.signature_base64 = 'not-a-signature';
+  provider.result.result_sha256 = trustedAttestationResultDigest(provider.result);
+  provider.attestation.authentication.verification_result_sha256 = provider.result.result_sha256;
+  const malformedResult = validate(malformed, now, buildAcceptedExportsManifest(malformed), {
+    objectLockReadback: readback,
+    objectLockProviderAttestation: provider.attestation,
+    objectLockAuthenticationResult: provider.result
+  });
+  assert(malformedResult.failures.some((failure) => failure.includes('signature is malformed')));
 });
 
 test('Object Lock acceptance requires exact current object-version readback', () => {
