@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { validateRecoveryDocuments } from './recovery.mjs';
+import { independentBackupContractPath, validateIndependentBackupContract } from './independent-backup-contract.mjs';
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(moduleDirectory, '..', '..');
@@ -22,7 +23,8 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/recovery/micro-recovery-contract.json', 'urn:fawxzzy:platform:schemas:v1:micro-recovery-contract'],
   ['contracts/v1/recovery/backup-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:backup-manifest'],
   ['contracts/v1/recovery/external-effects-disable-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:external-effects-disable-manifest'],
-  ['contracts/v1/recovery/restore-rehearsal-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:restore-rehearsal-receipt']
+  ['contracts/v1/recovery/restore-rehearsal-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:restore-rehearsal-receipt'],
+  ['contracts/v1/recovery/independent-backup-contract.json', 'urn:fawxzzy:platform:schemas:v1:independent-backup-contract']
 ]);
 
 const expectedStatuses = Object.freeze([
@@ -454,6 +456,7 @@ export function validateSemantics(documents) {
   requireCondition(authTrigger?.auth_uid_check === false && authTrigger?.subject_source === 'NEW.id', 'Auth insert trigger must derive its subject from NEW.id without auth.uid()');
 
   failures.push(...validateRecoveryDocuments(documents).failures);
+  failures.push(...validateIndependentBackupContract(documents[independentBackupContractPath]).failures);
 
   return failures.sort((left, right) => left.localeCompare(right));
 }
@@ -467,7 +470,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 20,
+    semantic_check_groups: 21,
     failures
   };
 }

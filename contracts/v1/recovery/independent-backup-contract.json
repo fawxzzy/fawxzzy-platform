@@ -1,0 +1,247 @@
+{
+  "version": "1.0.0",
+  "status": "BLOCKED",
+  "decision_id": "FP-MAN-015",
+  "lifecycle": {
+    "current_state": "SOURCE_READY",
+    "allowed_states": [
+      "PLANNED",
+      "SOURCE_READY",
+      "EXECUTION_BLOCKED",
+      "BACKUP_CURRENT",
+      "RESTORE_REHEARSED",
+      "DRIFTED"
+    ],
+    "execution_status": "BLOCKED"
+  },
+  "project": {
+    "name": "Fawxzzy shared Supabase project",
+    "ref": "bxtcuhkotumitoqtrcej",
+    "plan": "Pro",
+    "compute": "Micro"
+  },
+  "policy": {
+    "destination": {
+      "provider": "Backblaze B2",
+      "region": "Canada East",
+      "bucket_visibility": "private",
+      "object_lock_required": true,
+      "retention_mode": "COMPLIANCE"
+    },
+    "automation": {
+      "scheduler": "private_github_actions",
+      "independent_watchdog_required": true,
+      "workflow_publication_status": "BLOCKED"
+    },
+    "encryption": {
+      "tool_class": "age",
+      "streaming_before_upload": true,
+      "persistent_plaintext_allowed": false,
+      "automation_material": "public_recipients_only",
+      "offline_private_identity_count": 2,
+      "distinct_encrypted_media_required": true,
+      "offsite_identity_count": 1
+    },
+    "schedule": {
+      "full_export_interval_hours": 6,
+      "freshness_limit_hours": 8
+    },
+    "retention": {
+      "standard_days": 35,
+      "first_accepted_monthly_days": 400
+    },
+    "objectives": {
+      "rpo_seconds": 28800,
+      "quarantined_restore_data_plane_rto_seconds": 43200,
+      "production_service_rto_status": "UNKNOWN",
+      "production_service_rto_seconds": null
+    },
+    "cost": {
+      "expected_increment_usd_monthly": 0,
+      "warning_usd_monthly": 5,
+      "manual_approval_ceiling_usd_monthly": 15,
+      "budget_stop_control_required": true,
+      "monthly_reporting_units": [
+        "backup_freshness",
+        "projected_cost",
+        "runner_usage",
+        "storage_growth"
+      ]
+    },
+    "provider_physical_backup_complement": {
+      "required": true,
+      "frequency": "daily",
+      "retention_days": 7,
+      "storage_object_bodies_included": false
+    }
+  },
+  "coverage_units": [
+    "application_schemas_and_catalog",
+    "roles_memberships_grants_and_default_acls",
+    "migration_ledger",
+    "application_data",
+    "auth_identity_data_and_password_hashes",
+    "auth_control_plane_metadata",
+    "storage_metadata",
+    "storage_object_bodies"
+  ],
+  "storage_body_boundary": {
+    "separate_recovery_contract_required_when_nonempty": true,
+    "empty_denominator_status": "NOT_APPLICABLE",
+    "nonempty_without_current_receipt_status": "BLOCKED"
+  },
+  "receipt_contract": {
+    "canonical_serialization": "lexicographic_object_keys_array_order_preserved_two_space_json_lf",
+    "digest_algorithm": "SHA-256",
+    "aggregate_only": true,
+    "accepted_exports_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "subject_digest": "accepted_exports_evidence_without_verification_result",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:accepted-exports-authentication:v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "UNKNOWN",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "execution_gate_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:execution-gate-admission:v1",
+      "maximum_age_seconds": 28800,
+      "binding_class": "predeclared_receipt_export_source_state",
+      "strictly_before_execution_boundary": true,
+      "admission_policy": {
+        "version": "1.0.0",
+        "backup_current": [
+          {
+            "gate_id": "backup_generation_or_upload",
+            "gate_version": "1.0.0",
+            "scope": "backup_receipt"
+          }
+        ],
+        "restore_rehearsed": [
+          {
+            "gate_id": "backup_generation_or_upload",
+            "gate_version": "1.0.0",
+            "scope": "backup_receipt"
+          },
+          {
+            "gate_id": "restore_rehearsal",
+            "gate_version": "1.0.0",
+            "scope": "restore_receipt"
+          }
+        ]
+      }
+    },
+    "restore_outcome_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:restore-outcome-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "binding_class": "admitted_pre_restore_plan_and_final_outcome"
+    },
+    "storage_inventory_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:storage-inventory-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "provider_class": "Supabase Storage metadata"
+    },
+    "object_lock_authentication": {
+      "required": true,
+      "verification_boundary": "pinned_ed25519_signature",
+      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
+      "required_result_status": "VERIFIED",
+      "signature_domain": "fawxzzy-platform:object-lock-provider-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "provider_class": "Backblaze B2",
+      "retention_mode": "COMPLIANCE"
+    },
+    "required_fields": [
+      "aggregate_counts",
+      "ciphertext_bytes",
+      "ciphertext_sha256",
+      "completed_at",
+      "cost",
+      "coverage",
+      "destination_version",
+      "export_id",
+      "freshness",
+      "key_recipient_ids",
+      "manifest_sha256",
+      "migration_ledger_sha256",
+      "monthly_selection",
+      "object_lock",
+      "owner_decision",
+      "plaintext_sha256",
+      "postgres_version",
+      "project",
+      "receipt_id",
+      "retention_until",
+      "snapshot_at",
+      "source_commit",
+      "source_state_sha256",
+      "tool_versions",
+      "watchdog"
+    ],
+    "forbidden_classes": [
+      "connection_values",
+      "credentials",
+      "private_keys",
+      "provider_payloads",
+      "raw_rows",
+      "raw_sql",
+      "row_identifiers",
+      "user_identifiers"
+    ]
+  },
+  "restore_quarantine": {
+    "external_effect_units": [
+      "app_environment",
+      "auth_delivery_and_hooks",
+      "database_webhooks",
+      "dns_and_aliases",
+      "edge_schedules",
+      "pg_cron",
+      "pg_net",
+      "queues",
+      "realtime",
+      "storage_events",
+      "subscriptions",
+      "wrappers"
+    ],
+    "all_disabled_before_readback": true,
+    "application_traffic_allowed": false,
+    "synthetic_canaries_only": true,
+    "parity_units": [
+      "auth",
+      "catalog",
+      "data",
+      "security"
+    ],
+    "failed_clone_deletion_requires_separate_authority": true
+  },
+  "execution_gates": {
+    "provider_setup": "BLOCKED",
+    "credential_or_key_installation": "BLOCKED",
+    "workflow_publication": "BLOCKED",
+    "backup_generation_or_upload": "BLOCKED",
+    "restore_rehearsal": "BLOCKED",
+    "target_schema_auth_or_data_bootstrap": "BLOCKED",
+    "cutover": "BLOCKED",
+    "source_pause_or_deletion": "BLOCKED",
+    "production": "BLOCKED"
+  }
+}
