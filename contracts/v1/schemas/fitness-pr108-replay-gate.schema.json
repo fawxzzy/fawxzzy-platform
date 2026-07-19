@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate",
+  "title": "Fitness PR 108 replay provenance gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "gate_id",
+    "status",
+    "apply_admitted",
+    "provenance_only",
+    "fitness_candidate",
+    "hosted_replay_adapter",
+    "accepted_bootstrap",
+    "lifecycle"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "gate_id": {
+      "const": "fitness-pr108-replay-gate"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "provenance_only": {
+      "const": true
+    },
+    "fitness_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "pull_request",
+        "base_commit",
+        "base_tree",
+        "head_commit",
+        "head_tree",
+        "changed_path_count",
+        "accepted_migration_count",
+        "candidate_migration_count",
+        "accepted_chain_sha256",
+        "candidate_chain_sha256",
+        "candidate_migration",
+        "review"
+      ],
+      "properties": {
+        "repository": {
+          "const": "fawxzzy/fawxzzy-fitness"
+        },
+        "pull_request": {
+          "const": 108
+        },
+        "base_commit": {
+          "const": "317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3"
+        },
+        "base_tree": {
+          "const": "bd4b2809a2a613a4bc67a4cc8166bee56d64a30f"
+        },
+        "head_commit": {
+          "const": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01"
+        },
+        "head_tree": {
+          "const": "e8314980790dd9c711f63f4b38ad61e59ec6f409"
+        },
+        "changed_path_count": {
+          "const": 9
+        },
+        "accepted_migration_count": {
+          "const": 101
+        },
+        "candidate_migration_count": {
+          "const": 102
+        },
+        "accepted_chain_sha256": {
+          "const": "236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a"
+        },
+        "candidate_chain_sha256": {
+          "const": "711445d03b3d98466c278c4dfcbaa7cda326f188427b6dbcd55065fae1a2bbb5"
+        },
+        "candidate_migration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "blob",
+            "byte_count",
+            "raw_sha256"
+          ],
+          "properties": {
+            "path": {
+              "const": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql"
+            },
+            "blob": {
+              "const": "007eca9503dfd10a6910a27b02a46def30583d18"
+            },
+            "byte_count": {
+              "const": 15431
+            },
+            "raw_sha256": {
+              "const": "ca502e3bcef4532ce4de336d33334c5620efaf3863286db51f6440bb9224662d"
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "thread_count",
+            "unresolved_thread_count",
+            "checks",
+            "exact_head_terminal_review"
+          ],
+          "properties": {
+            "thread_count": {
+              "const": 18
+            },
+            "unresolved_thread_count": {
+              "const": 0
+            },
+            "checks": {
+              "const": "CURRENT"
+            },
+            "exact_head_terminal_review": {
+              "const": "BLOCKED"
+            }
+          }
+        }
+      }
+    },
+    "hosted_replay_adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "pull_request",
+        "base_commit",
+        "head_commit",
+        "head_tree",
+        "changed_path_count",
+        "source_review",
+        "merge",
+        "workflow_run_count",
+        "replay_execution"
+      ],
+      "properties": {
+        "repository": {
+          "const": "fawxzzy/hosted-replay-harness"
+        },
+        "pull_request": {
+          "const": 2
+        },
+        "base_commit": {
+          "const": "6901855ab62ec3d2751491558825d9270666c934"
+        },
+        "head_commit": {
+          "const": "fce1c595a55a5d25271c799f0ccafecc4389181b"
+        },
+        "head_tree": {
+          "const": "aad6c522d6a914e6d102813cd863d3a44f6ecf75"
+        },
+        "changed_path_count": {
+          "const": 12
+        },
+        "source_review": {
+          "const": "CURRENT"
+        },
+        "merge": {
+          "const": "BLOCKED"
+        },
+        "workflow_run_count": {
+          "const": 0
+        },
+        "replay_execution": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "accepted_bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apply_admitted",
+        "migration_count",
+        "discordos_migration_count",
+        "fitness_migration_count",
+        "mazer_migration_count",
+        "candidate_migration_present"
+      ],
+      "properties": {
+        "apply_admitted": {
+          "const": false
+        },
+        "migration_count": {
+          "const": 122
+        },
+        "discordos_migration_count": {
+          "const": 17
+        },
+        "fitness_migration_count": {
+          "const": 101
+        },
+        "mazer_migration_count": {
+          "const": 4
+        },
+        "candidate_migration_present": {
+          "const": false
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_source_review",
+        "adapter_source_review",
+        "adapter_merge",
+        "replay_execution",
+        "fitness_merge",
+        "target_apply"
+      ],
+      "properties": {
+        "candidate_source_review": {
+          "const": "BLOCKED"
+        },
+        "adapter_source_review": {
+          "const": "CURRENT"
+        },
+        "adapter_merge": {
+          "const": "BLOCKED"
+        },
+        "replay_execution": {
+          "const": "BLOCKED"
+        },
+        "fitness_merge": {
+          "const": "BLOCKED"
+        },
+        "target_apply": {
+          "const": "BLOCKED"
+        }
+      }
+    }
+  }
+}

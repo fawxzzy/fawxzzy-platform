@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "gate_id": "fitness-pr108-replay-gate",
+  "status": "BLOCKED",
+  "apply_admitted": false,
+  "provenance_only": true,
+  "fitness_candidate": {
+    "repository": "fawxzzy/fawxzzy-fitness",
+    "pull_request": 108,
+    "base_commit": "317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3",
+    "base_tree": "bd4b2809a2a613a4bc67a4cc8166bee56d64a30f",
+    "head_commit": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01",
+    "head_tree": "e8314980790dd9c711f63f4b38ad61e59ec6f409",
+    "changed_path_count": 9,
+    "accepted_migration_count": 101,
+    "candidate_migration_count": 102,
+    "accepted_chain_sha256": "236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a",
+    "candidate_chain_sha256": "711445d03b3d98466c278c4dfcbaa7cda326f188427b6dbcd55065fae1a2bbb5",
+    "candidate_migration": {
+      "path": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql",
+      "blob": "007eca9503dfd10a6910a27b02a46def30583d18",
+      "byte_count": 15431,
+      "raw_sha256": "ca502e3bcef4532ce4de336d33334c5620efaf3863286db51f6440bb9224662d"
+    },
+    "review": {
+      "thread_count": 18,
+      "unresolved_thread_count": 0,
+      "checks": "CURRENT",
+      "exact_head_terminal_review": "BLOCKED"
+    }
+  },
+  "hosted_replay_adapter": {
+    "repository": "fawxzzy/hosted-replay-harness",
+    "pull_request": 2,
+    "base_commit": "6901855ab62ec3d2751491558825d9270666c934",
+    "head_commit": "fce1c595a55a5d25271c799f0ccafecc4389181b",
+    "head_tree": "aad6c522d6a914e6d102813cd863d3a44f6ecf75",
+    "changed_path_count": 12,
+    "source_review": "CURRENT",
+    "merge": "BLOCKED",
+    "workflow_run_count": 0,
+    "replay_execution": "BLOCKED"
+  },
+  "accepted_bootstrap": {
+    "apply_admitted": false,
+    "migration_count": 122,
+    "discordos_migration_count": 17,
+    "fitness_migration_count": 101,
+    "mazer_migration_count": 4,
+    "candidate_migration_present": false
+  },
+  "lifecycle": {
+    "candidate_source_review": "BLOCKED",
+    "adapter_source_review": "CURRENT",
+    "adapter_merge": "BLOCKED",
+    "replay_execution": "BLOCKED",
+    "fitness_merge": "BLOCKED",
+    "target_apply": "BLOCKED"
+  }
+}

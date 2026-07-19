@@ -223,6 +223,14 @@
       "decision": "BLOCKED",
       "reason": "Unmerged Fitness PR and contained replay acceptance are required before generation.",
       "source_candidate_head": "aee5159a4f644257d572e4dc6af5392b490eef9b"
+    },
+    {
+      "id": "fitness-pr108-replay-provenance",
+      "decision": "BLOCKED",
+      "reason": "Exact-head independent review, adapter merge, replay execution, Fitness merge, and target apply remain blocked.",
+      "contract_path": "contracts/v1/gates/fitness-pr108-replay-gate.json",
+      "contract_version": "1.0.0",
+      "source_candidate_head": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01"
     }
   ],
   "expected": {

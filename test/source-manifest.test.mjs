@@ -7,6 +7,7 @@ import {
   computeCombinedSourceSha256,
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
+  verifyFitnessPr108ReplayGate,
   verifyTargetBootstrap
 } from '../scripts/verify-target-bootstrap.mjs';
 
@@ -129,7 +130,42 @@ test('stale and missing frozen digest bindings fail closed', () => {
 test('blocked Fitness candidate is dependency evidence, never an executable source input', () => {
   const config = JSON.parse(fs.readFileSync(`${root}/bootstrap/generator/config.v1.json`, 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
-  const dependency = config.blocked_dependencies[0];
+  const dependency = config.blocked_dependencies.find((candidate) => candidate.id === 'fitness-global-number-forward-transform');
   assert.equal(dependency.decision, 'BLOCKED');
   assert.ok(manifest.migrations.every((migration) => migration.commit !== dependency.source_candidate_head));
+});
+
+test('Fitness PR 108 and replay adapter provenance ratchet remains non-executable', () => {
+  const config = JSON.parse(fs.readFileSync(`${root}/bootstrap/generator/config.v1.json`, 'utf8'));
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/fitness-pr108-replay-gate.json`, 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  assert.deepEqual(verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }), []);
+  assert.equal(sourceManifest.migrations.length, 122);
+  assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'fitness').length, 101);
+  assert.ok(sourceManifest.migrations.every((migration) => migration.path !== gate.fitness_candidate.candidate_migration.path));
+});
+
+test('Fitness PR 108 provenance ratchet rejects candidate leakage and promoted lifecycle claims', () => {
+  const config = JSON.parse(fs.readFileSync(`${root}/bootstrap/generator/config.v1.json`, 'utf8'));
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/fitness-pr108-replay-gate.json`, 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  const promoted = structuredClone(gate);
+  promoted.lifecycle.target_apply = 'CURRENT';
+  promoted.lifecycle.fitness_merge = 'CURRENT';
+  assert.ok(verifyFitnessPr108ReplayGate({ config, gate: promoted, sourceManifest }).some((failure) => failure.includes('target_apply must remain BLOCKED')));
+
+  const leaked = structuredClone(sourceManifest);
+  leaked.migrations.push({
+    app: 'fitness',
+    path: gate.fitness_candidate.candidate_migration.path,
+    blob: gate.fitness_candidate.candidate_migration.blob,
+    raw_sha256: gate.fitness_candidate.candidate_migration.raw_sha256,
+    commit: gate.fitness_candidate.head_commit
+  });
+  const failures = verifyFitnessPr108ReplayGate({ config, gate, sourceManifest: leaked });
+  assert.ok(failures.some((failure) => failure.includes('must remain 122 migrations')));
+  assert.ok(failures.some((failure) => failure.includes('candidate path leaked')));
+  assert.ok(failures.some((failure) => failure.includes('candidate blob leaked')));
+  assert.ok(failures.some((failure) => failure.includes('candidate digest leaked')));
+  assert.ok(failures.some((failure) => failure.includes('candidate head leaked')));
 });

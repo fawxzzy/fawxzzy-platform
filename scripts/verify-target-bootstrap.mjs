@@ -219,6 +219,20 @@ const frozenSourceAcceptance = Object.freeze({
     })
   })
 });
+const fitnessPr108ReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
+const frozenFitnessPr108ReplayGate = Object.freeze({
+  version: '1.0.0',
+  fitness_head: '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01',
+  fitness_tree: 'e8314980790dd9c711f63f4b38ad61e59ec6f409',
+  accepted_chain_sha256: '236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a',
+  candidate_chain_sha256: '711445d03b3d98466c278c4dfcbaa7cda326f188427b6dbcd55065fae1a2bbb5',
+  candidate_path: 'supabase/migrations/20260718015422_retire_human_member_number_compaction.sql',
+  candidate_blob: '007eca9503dfd10a6910a27b02a46def30583d18',
+  candidate_byte_count: 15431,
+  candidate_sha256: 'ca502e3bcef4532ce4de336d33334c5620efaf3863286db51f6440bb9224662d',
+  adapter_head: 'fce1c595a55a5d25271c799f0ccafecc4389181b',
+  adapter_tree: 'aad6c522d6a914e6d102813cd863d3a44f6ecf75'
+});
 
 function requiredString(value, label, pattern) {
   if (typeof value !== 'string' || !pattern.test(value)) throw new Error(`${label}: missing or invalid binding`);
@@ -322,6 +336,55 @@ function fail(failures, condition, message) {
   if (!condition) failures.push(message);
 }
 
+export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
+  const failures = [];
+  const dependency = config.blocked_dependencies?.find((candidate) => candidate.id === 'fitness-pr108-replay-provenance');
+  fail(failures, Boolean(dependency), 'Fitness PR 108 blocked dependency missing');
+  fail(failures, dependency?.decision === 'BLOCKED', 'Fitness PR 108 blocked dependency must remain BLOCKED');
+  fail(failures, dependency?.contract_path === fitnessPr108ReplayGatePath, 'Fitness PR 108 blocked dependency contract path drift');
+  fail(failures, dependency?.contract_version === frozenFitnessPr108ReplayGate.version, 'Fitness PR 108 blocked dependency contract version drift');
+  fail(failures, dependency?.source_candidate_head === frozenFitnessPr108ReplayGate.fitness_head, 'Fitness PR 108 blocked dependency head drift');
+
+  fail(failures, gate.version === frozenFitnessPr108ReplayGate.version && gate.gate_id === 'fitness-pr108-replay-gate', 'Fitness PR 108 gate identity drift');
+  fail(failures, gate.status === 'BLOCKED' && gate.apply_admitted === false && gate.provenance_only === true, 'Fitness PR 108 gate must remain BLOCKED provenance-only evidence');
+  const fitness = gate.fitness_candidate ?? {};
+  fail(failures, fitness.head_commit === frozenFitnessPr108ReplayGate.fitness_head && fitness.head_tree === frozenFitnessPr108ReplayGate.fitness_tree, 'Fitness PR 108 immutable head/tree drift');
+  fail(failures, fitness.accepted_migration_count === 101 && fitness.candidate_migration_count === 102, 'Fitness PR 108 migration denominator drift');
+  fail(failures, fitness.accepted_chain_sha256 === frozenFitnessPr108ReplayGate.accepted_chain_sha256, 'Fitness PR 108 accepted chain digest drift');
+  fail(failures, fitness.candidate_chain_sha256 === frozenFitnessPr108ReplayGate.candidate_chain_sha256, 'Fitness PR 108 candidate chain digest drift');
+  fail(failures, fitness.candidate_migration?.path === frozenFitnessPr108ReplayGate.candidate_path, 'Fitness PR 108 candidate migration path drift');
+  fail(failures, fitness.candidate_migration?.blob === frozenFitnessPr108ReplayGate.candidate_blob, 'Fitness PR 108 candidate migration blob drift');
+  fail(failures, fitness.candidate_migration?.byte_count === frozenFitnessPr108ReplayGate.candidate_byte_count, 'Fitness PR 108 candidate migration byte count drift');
+  fail(failures, fitness.candidate_migration?.raw_sha256 === frozenFitnessPr108ReplayGate.candidate_sha256, 'Fitness PR 108 candidate migration digest drift');
+  fail(failures, fitness.review?.exact_head_terminal_review === 'BLOCKED', 'Fitness PR 108 exact-head terminal review must remain BLOCKED');
+
+  const adapter = gate.hosted_replay_adapter ?? {};
+  fail(failures, adapter.head_commit === frozenFitnessPr108ReplayGate.adapter_head && adapter.head_tree === frozenFitnessPr108ReplayGate.adapter_tree, 'hosted replay adapter immutable head/tree drift');
+  fail(failures, adapter.source_review === 'CURRENT' && adapter.merge === 'BLOCKED', 'hosted replay adapter lifecycle drift');
+  fail(failures, adapter.workflow_run_count === 0 && adapter.replay_execution === 'BLOCKED', 'hosted replay execution must remain zero and BLOCKED');
+
+  const lifecycle = gate.lifecycle ?? {};
+  fail(failures, lifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
+  fail(failures, lifecycle.adapter_source_review === 'CURRENT', 'adapter_source_review must remain CURRENT');
+  for (const unit of ['adapter_merge', 'replay_execution', 'fitness_merge', 'target_apply']) {
+    fail(failures, lifecycle[unit] === 'BLOCKED', `${unit} must remain BLOCKED`);
+  }
+
+  const accepted = gate.accepted_bootstrap ?? {};
+  const sourceCounts = Object.fromEntries((config.sources ?? []).map((source) => [source.app, source.migration_count]));
+  fail(failures, accepted.apply_admitted === false && accepted.candidate_migration_present === false, 'accepted bootstrap must remain non-executable without the Fitness candidate');
+  fail(failures, accepted.migration_count === 122 && accepted.discordos_migration_count === 17 && accepted.fitness_migration_count === 101 && accepted.mazer_migration_count === 4, 'Fitness PR 108 accepted bootstrap denominator drift');
+  fail(failures, sourceCounts.discordos === 17 && sourceCounts.fitness === 101 && sourceCounts.mazer === 4, 'generator source denominator must remain 17/101/4');
+  fail(failures, sourceManifest.migrations?.length === 122, 'accepted source manifest must remain 122 migrations');
+  const candidate = fitness.candidate_migration ?? {};
+  fail(failures, sourceManifest.migrations?.filter((migration) => migration.app === 'fitness').length === 101, 'accepted source manifest must remain 101 Fitness migrations');
+  fail(failures, sourceManifest.migrations?.every((migration) => migration.path !== candidate.path), 'Fitness PR 108 candidate path leaked into accepted source manifest');
+  fail(failures, sourceManifest.migrations?.every((migration) => migration.blob !== candidate.blob), 'Fitness PR 108 candidate blob leaked into accepted source manifest');
+  fail(failures, sourceManifest.migrations?.every((migration) => migration.raw_sha256 !== candidate.raw_sha256), 'Fitness PR 108 candidate digest leaked into accepted source manifest');
+  fail(failures, sourceManifest.migrations?.every((migration) => migration.commit !== fitness.head_commit), 'Fitness PR 108 candidate head leaked into accepted source manifest');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 function verifySourceManifest(config, manifest, failures) {
   fail(failures, manifest.apply_admitted === false, 'source manifest must set apply_admitted=false');
   fail(failures, manifest.migrations.length === exactExpected.migrations, 'source migration denominator must be 122');
@@ -414,7 +477,7 @@ function verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManif
   fail(failures, dispositions.apply_admitted === false && dispositions.status === 'REQUIRED', 'dispositions must remain inert and REQUIRED');
   fail(failures, dispositions.scheduler === 'blocked_activation', 'scheduler activation must remain blocked');
   fail(failures, dispositions.fitness_number_transform === 'blocked_unmerged_dependency_and_replay', 'Fitness number transformation must remain blocked');
-  fail(failures, config.blocked_dependencies.length === 1 && config.blocked_dependencies[0].decision === 'BLOCKED', 'blocked Fitness dependency drift');
+  fail(failures, config.blocked_dependencies.length === 2 && config.blocked_dependencies.every((dependency) => dependency.decision === 'BLOCKED'), 'blocked Fitness dependency drift');
 
   const dispositionCounts = dispositions.derived_counts;
   fail(failures, dispositionCounts.source_statement_count === dispositionCounts.executable_statement_count + dispositionCounts.held_statement_count, 'source statement disposition counts do not close');
@@ -938,12 +1001,14 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const manifestNames = fs.readdirSync(path.join(root, 'bootstrap', 'manifests')).filter((name) => name.endsWith('.json')).sort();
   fail(failures, canonicalJson(manifestNames) === canonicalJson(expectedManifestFiles), 'manifest path denominator drift');
   const sourceManifest = readJson('bootstrap/manifests/source-migrations.v1.json');
+  const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
   const objects = readJson('bootstrap/manifests/source-objects.v1.json');
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
   const dataEffects = readJson('bootstrap/manifests/data-effects.v1.json');
   const dispositions = readJson('bootstrap/manifests/dispositions.v1.json');
   const namespacePlan = readJson('bootstrap/manifests/namespace-plan.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
+  failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
   failures.push(...verifyHeldControlPlaneContracts(config, namespacePlan));
@@ -969,6 +1034,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'immutable_source_identity', 'frozen_chain_recomputation', 'combined_manifest_binding', 'source_object_denominators',
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
       'path_level_inertness',
+      'fitness_pr108_replay_provenance_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',

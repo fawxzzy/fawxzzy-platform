@@ -83,6 +83,7 @@ The verifier fails if any generated target file admits or contains:
 - a project endpoint/reference, credential value, provider command, deployment hook, or runtime-install command;
 - the provider-canonical Fitness 043 provenance blob or digest;
 - the unmerged Fitness global-number candidate as an executable input.
+- the Fitness PR #108 candidate path, blob, digest, commit, or 102-migration denominator in accepted bootstrap inputs or outputs;
 - an executable `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin` statement or a claim that all 36 matrix units are executable;
 - a schema-scoped function default revoke presented as a substitute for signature-specific function EXECUTE revocation;
 - a missing, relabeled, or non-`BLOCKED_PROVIDER_ROLE` `supabase_admin` disposition;
@@ -102,6 +103,7 @@ Raw historical migrations may contain effects or legacy grants because they are 
    - Recompute every source-chain digest from actual copied bytes using the canonical version, source path, Git blob, raw SHA-256, and byte-count line.
    - Recompute the combined digest from the frozen app label, immutable commit, immutable root tree, and recomputed source-chain digest.
    - Reject substituted bytes or identities, stale acceptance values, missing bindings, and any copied source outside its exact app migration root.
+   - Verify `contracts/v1/gates/fitness-pr108-replay-gate.json` binds the exact Fitness and hosted-replay heads, retains 101 accepted Fitness migrations, and leaves exact-head review, both merges, replay execution, and target apply blocked.
 2. Confirm the seven manifest paths and four `bootstrap/artifacts/inert-sql` review-artifact paths are the complete denominators, and confirm standard Supabase migration discovery returns zero SQL files.
 3. Review all blocker manifests. `apply_admitted` must remain false everywhere. Confirm all 18 public DiscordOS RPC definitions and every dependent statement are held.
 4. Confirm the generated function ACL closure covers exactly six signatures: five Fitness identities across eleven definition statements and the DiscordOS `set_updated_at()` trigger helper. No application-role regrant is admitted.
