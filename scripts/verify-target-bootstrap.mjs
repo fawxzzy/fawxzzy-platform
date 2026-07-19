@@ -21,6 +21,7 @@ import {
 import { listWorkingTreeFiles } from './lib/repository.mjs';
 
 const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
+const dataApiTargetIdentity = 'bxtcuhkotumitoqtrcej';
 const expectedGeneratedFiles = [
   '00000000000001_mazer_schema_inert.sql',
   '00000000000002_fitness_schema_inert.sql',
@@ -105,46 +106,99 @@ export const publicObjectBoundaryV1 = Object.freeze({
   })
 });
 export const dataApiGateV1 = Object.freeze({
-  version: '1.0.0',
+  version: '1.1.0',
   status: 'BLOCKED',
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
-  bootstrap_starts_disabled: true,
-  pre_mutation_readback: 'REQUIRED',
-  current_evidence: Object.freeze({
-    receipt: 'FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001',
-    automatic_exposure: 'unchecked',
-    selected_schema_count: 2,
-    selected_schema_denominator: 2,
-    selected_schema_names: 'UNKNOWN',
-    table_count: 0,
-    exposed_function_count: 0,
-    function_denominator: 1,
-    api_enable_state: 'UNKNOWN'
+  observed_current_preimage: Object.freeze({
+    status: 'CURRENT',
+    project_ref: dataApiTargetIdentity,
+    data_api_state: 'ENABLED',
+    exposed_schemas: Object.freeze(['graphql_public', 'public']),
+    extra_search_path: Object.freeze(['public', 'extensions']),
+    automatic_exposure: 'OFF',
+    tables: Object.freeze({ available: 0, exposed: 0 }),
+    functions: Object.freeze({ available: 1, exposed: 0 }),
+    views: Object.freeze({ available: 'UNKNOWN', exposed: 'UNKNOWN' }),
+    evidence_receipts: Object.freeze([
+      'FP-TGT-DATA-API-SELECTOR-PREIMAGE-RO-001',
+      'FP-TGT-DATA-API-CONTAINMENT-METADATA-RO-002'
+    ])
   }),
-  maximum_exposed_schemas: Object.freeze(['platform_shared', 'discordos', 'mazer', 'fitness']),
-  never_exposed_schemas: Object.freeze(['discordos_private', 'platform_private', 'public', 'extensions', 'auth', 'storage', 'realtime']),
-  public_absent_from_extra_search_path: true,
-  automatic_exposure: 'unchecked',
-  negative_probe_gate: 'REQUIRED',
-  negative_probes: Object.freeze([
-    'current_user_or_owner_drift_aborts',
-    'supabase_admin_application_default_tuple_aborts',
-    'supabase_admin_owned_application_object_aborts',
-    'public_application_object_aborts',
-    'forbidden_exposed_schema_aborts',
-    'public_extra_search_path_aborts',
-    'automatic_exposure_enabled_aborts',
-    'unexpected_data_api_state_aborts'
-  ]),
-  exact_rollback_gate: 'REQUIRED',
-  rollback_requirements: Object.freeze([
-    'capture_exact_database_owner_acl_preimage',
-    'capture_exact_data_api_enable_exposed_and_search_path_preimage',
-    'database_changes_transactional_with_exact_rollback',
-    'control_plane_changes_expected_state_guarded',
-    'restore_and_reread_exact_preimage_on_failure'
-  ]),
-  setting_mutation_admitted: false
+  desired_containment_postimage: Object.freeze({
+    status: 'REQUIRED',
+    data_api_state: 'DISABLED',
+    exposed_schemas: Object.freeze([]),
+    extra_search_path: Object.freeze(['extensions']),
+    automatic_exposure: 'OFF',
+    independent_readback: 'REQUIRED'
+  }),
+  attempted_execution: Object.freeze({
+    status: 'BLOCKED',
+    authorized_sequence: 'TWO_ORDERED_SAVES',
+    overview_save_attempts: 2,
+    overview_saves_persisted: 0,
+    settings_save_attempts: 0,
+    rollback_saves: 0,
+    persisted_provider_mutations: 0,
+    outcome: 'OVERVIEW_SAVE_DID_NOT_PERSIST',
+    final_state_equals_observed_preimage: true,
+    provider_defect_classification: 'UNKNOWN'
+  }),
+  support_evidence: Object.freeze({
+    status: 'CURRENT',
+    title: 'Fawxzzy bxtcuhkotumitoqtrcej — Data API disable Save does not persist',
+    body_sha256: 'bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd',
+    confirmation: 'Support request sent',
+    confirmed_at: '2026-07-19T17:39:40.793Z',
+    case_id: 'UNKNOWN',
+    case_status: 'UNKNOWN',
+    response: 'UNKNOWN',
+    provider_defect_classification: 'UNKNOWN',
+    dashboard_case_inbox_available: false
+  }),
+  retry_authority: Object.freeze({
+    status: 'BLOCKED',
+    prior_authority_consumed: true,
+    third_save_authorized: false,
+    decision_ready_prerequisites: Object.freeze([
+      'changed_documented_support_evidence',
+      'fresh_target_preimage',
+      'new_bounded_owner_authority'
+    ]),
+    support_advice_grants_execution_authority: false
+  }),
+  bootstrap_admission: Object.freeze({
+    status: 'BLOCKED',
+    setting_mutation_admitted: false,
+    bootstrap_apply_admitted: false,
+    target_apply_admitted: false
+  }),
+  future_activation_gates: Object.freeze({
+    maximum_exposed_schemas: Object.freeze(['platform_shared', 'discordos', 'mazer', 'fitness']),
+    never_exposed_schemas: Object.freeze([
+      'graphql_public', 'public', 'discordos_private', 'platform_private', 'extensions', 'auth', 'storage', 'realtime'
+    ]),
+    public_absent_before_activation: true,
+    automatic_exposure: 'OFF',
+    explicit_grants: 'REQUIRED',
+    row_level_security: 'REQUIRED',
+    negative_probes: Object.freeze({
+      REST: 'UNKNOWN',
+      GRAPHQL: 'UNKNOWN',
+      RPC: 'UNKNOWN',
+      required_outcome: 'NO_TARGET_DATA_SURFACE'
+    }),
+    rollback: Object.freeze({
+      status: 'REQUIRED',
+      preimage: 'observed_current_preimage',
+      order: Object.freeze([
+        'restore_settings_exposed_schemas_and_extra_search_path',
+        'restore_data_api_enablement'
+      ]),
+      expected_state_guarded: true,
+      exact_readback: 'REQUIRED'
+    })
+  })
 });
 export const targetPostgresqlContractV1 = Object.freeze({
   status: 'REQUIRED',
@@ -894,11 +948,30 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, canonicalJson(namespacePlan.data_api_gate) === canonicalJson(dataApiGateV1), 'Data API gate manifest drift');
   fail(failures, canonicalJson(config.schemas.application) === canonicalJson(exactCreatorDefaultAclSchemas), 'application schema vocabulary drift');
   fail(failures, !config.schemas.application.includes('public'), 'public must not be an application schema');
-  fail(failures, config.data_api_gate.current_evidence.selected_schema_names === 'UNKNOWN', 'incomplete selected schema evidence must remain UNKNOWN');
-  fail(failures, config.data_api_gate.current_evidence.api_enable_state === 'UNKNOWN', 'incomplete Data API enable evidence must remain UNKNOWN');
-  fail(failures, config.data_api_gate.setting_mutation_admitted === false, 'Data API setting mutation must remain blocked');
-  fail(failures, !config.data_api_gate.maximum_exposed_schemas.includes('public'), 'public entered the maximum exposed schema allowlist');
-  fail(failures, config.data_api_gate.never_exposed_schemas.includes('public'), 'public missing from never-exposed schemas');
+  const dataApiGate = config.data_api_gate ?? {};
+  const observedPreimage = dataApiGate.observed_current_preimage ?? {};
+  const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
+  const attemptedExecution = dataApiGate.attempted_execution ?? {};
+  const retryAuthority = dataApiGate.retry_authority ?? {};
+  const bootstrapAdmission = dataApiGate.bootstrap_admission ?? {};
+  const activationGates = dataApiGate.future_activation_gates ?? {};
+  const negativeProbes = activationGates.negative_probes ?? {};
+  fail(failures, dataApiGate.version === '1.1.0', 'Data API evidence gate version drift');
+  fail(failures, observedPreimage.data_api_state === 'ENABLED', 'observed Data API preimage must remain ENABLED');
+  fail(failures, canonicalJson(observedPreimage.exposed_schemas) === canonicalJson(['graphql_public', 'public']), 'observed exposed-schema order drift');
+  fail(failures, canonicalJson(observedPreimage.extra_search_path) === canonicalJson(['public', 'extensions']), 'observed extra search path order drift');
+  fail(failures, observedPreimage.views?.available === 'UNKNOWN' && observedPreimage.views?.exposed === 'UNKNOWN', 'view evidence must remain UNKNOWN');
+  fail(failures, desiredPostimage.data_api_state === 'DISABLED', 'desired Data API containment must remain DISABLED');
+  fail(failures, Array.isArray(desiredPostimage.exposed_schemas) && desiredPostimage.exposed_schemas.length === 0, 'desired exposed-schema set must remain empty');
+  fail(failures, attemptedExecution.persisted_provider_mutations === 0, 'persisted provider mutation count must remain zero');
+  fail(failures, retryAuthority.third_save_authorized === false, 'third Data API Save must remain unauthorized');
+  fail(failures, bootstrapAdmission.setting_mutation_admitted === false, 'Data API setting mutation must remain blocked');
+  fail(failures, bootstrapAdmission.bootstrap_apply_admitted === false, 'bootstrap apply must remain blocked');
+  fail(failures, bootstrapAdmission.target_apply_admitted === false, 'target apply must remain blocked');
+  fail(failures, Array.isArray(activationGates.maximum_exposed_schemas) && !activationGates.maximum_exposed_schemas.includes('public'), 'public entered the maximum exposed schema allowlist');
+  fail(failures, Array.isArray(activationGates.never_exposed_schemas) && activationGates.never_exposed_schemas.includes('public'), 'public missing from never-exposed schemas');
+  fail(failures, Array.isArray(activationGates.never_exposed_schemas) && activationGates.never_exposed_schemas.includes('graphql_public'), 'graphql_public missing from never-exposed schemas');
+  fail(failures, Object.entries(negativeProbes).filter(([name]) => name !== 'required_outcome').every(([, status]) => status === 'UNKNOWN'), 'Data API negative probes must remain UNKNOWN until execution');
   return failures.sort();
 }
 
