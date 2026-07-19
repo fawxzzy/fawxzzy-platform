@@ -94,6 +94,12 @@
     "canonical_serialization": "lexicographic_object_keys_array_order_preserved_two_space_json_lf",
     "digest_algorithm": "SHA-256",
     "aggregate_only": true,
+    "accepted_exports_authentication": {
+      "required": true,
+      "verification_boundary": "separate_trusted_external_result",
+      "subject_digest": "accepted_exports_evidence_without_verification_result",
+      "required_result_status": "VERIFIED"
+    },
     "required_fields": [
       "aggregate_counts",
       "ciphertext_bytes",

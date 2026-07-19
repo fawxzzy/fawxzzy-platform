@@ -83,6 +83,12 @@ const acceptedExportsEvidenceSchema = {
   $ref: '#/$defs/accepted_exports_evidence',
   $defs: sourceSchema.$defs
 };
+const acceptedExportsAuthenticationResultSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-accepted-exports-authentication-result',
+  $ref: '#/$defs/accepted_exports_authentication_result',
+  $defs: sourceSchema.$defs
+};
 const objectLockReadbackSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-object-lock-readback',
@@ -155,6 +161,7 @@ const contractShapeValidator = contractAjv.compile(sourceSchema);
 const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(receiptSchema);
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
 const acceptedExportsEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsEvidenceSchema);
+const acceptedExportsAuthenticationResultShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsAuthenticationResultSchema);
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
 const storageBodyRecoveryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryEvidenceSchema);
@@ -202,12 +209,19 @@ export function acceptedExportHistoryEntryDigest(entry) {
   return sha256Hex(copy);
 }
 
-function acceptedExportsEvidenceSelfCorrelationDigest(evidence) {
+export function acceptedExportsAuthenticationSubjectDigest(evidence) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
   const copy = structuredClone(evidence);
   if (copy.authentication && typeof copy.authentication === 'object' && !Array.isArray(copy.authentication)) {
-    delete copy.authentication.receipt_sha256;
+    delete copy.authentication.verification_result_sha256;
   }
+  return sha256Hex(copy);
+}
+
+export function acceptedExportsAuthenticationResultDigest(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+  const copy = { ...result };
+  delete copy.result_sha256;
   return sha256Hex(copy);
 }
 
@@ -325,6 +339,10 @@ export function validateIndependentBackupContract(contract) {
   requireCondition(contract.restore_quarantine?.application_traffic_allowed === false && contract.restore_quarantine?.synthetic_canaries_only === true, 'restore clone quarantine changed', failures);
   requireCondition(sameSet(contract.receipt_contract?.required_fields, receiptRequiredFields), 'receipt field denominator changed', failures);
   requireCondition(sameSet(contract.receipt_contract?.forbidden_classes, forbiddenClasses), 'forbidden receipt classes changed', failures);
+  requireCondition(contract.receipt_contract?.accepted_exports_authentication?.required === true
+    && contract.receipt_contract?.accepted_exports_authentication?.verification_boundary === 'separate_trusted_external_result'
+    && contract.receipt_contract?.accepted_exports_authentication?.subject_digest === 'accepted_exports_evidence_without_verification_result'
+    && contract.receipt_contract?.accepted_exports_authentication?.required_result_status === 'VERIFIED', 'accepted exports authentication boundary changed', failures);
   requireCondition(Object.values(contract.execution_gates ?? {}).every((value) => value === 'BLOCKED'), 'every execution gate must remain BLOCKED in source', failures);
   return { ok: failures.length === 0, failures: failures.sort((left, right) => left.localeCompare(right)) };
 }
@@ -433,6 +451,13 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const acceptedEvidenceEntryDigests = acceptedEvidenceEntries.map((entry) => acceptedExportHistoryEntryDigest(entry));
   const acceptedEvidenceAcceptedTimes = acceptedEvidenceEntries.map((entry) => parseTimestamp(entry?.accepted_at, 'accepted_exports_evidence.entries.accepted_at', failures));
   const acceptedEvidenceRetentionTimes = acceptedEvidenceEntries.map((entry) => parseTimestamp(entry?.retention_until, 'accepted_exports_evidence.entries.retention_until', failures));
+  const finiteAcceptedTimes = acceptedEvidenceAcceptedTimes.filter((value) => value !== null);
+  const acceptedTimesDistinct = finiteAcceptedTimes.length === acceptedEvidenceAcceptedTimes.length
+    && new Set(finiteAcceptedTimes).size === acceptedEvidenceAcceptedTimes.length;
+  requireCondition(acceptedTimesDistinct, 'accepted exports evidence acceptance chronology is duplicate or ambiguous', failures);
+  const firstAcceptedIndex = acceptedTimesDistinct
+    ? acceptedEvidenceAcceptedTimes.reduce((earliest, value, index) => value < acceptedEvidenceAcceptedTimes[earliest] ? index : earliest, 0)
+    : null;
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.sequence === index), 'accepted exports evidence sequence contains a gap or ambiguity', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.entry_sha256 === acceptedEvidenceEntryDigests[index]), 'accepted exports evidence entry digest mismatch', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => entry?.previous_entry_sha256 === (index === 0 ? null : acceptedEvidenceEntries[index - 1]?.entry_sha256)), 'accepted exports evidence predecessor chain is unverifiable', failures);
@@ -445,17 +470,48 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     && acceptedEvidenceAcceptedTimes[index] <= acceptedEvidenceObservedAt), 'accepted exports evidence acceptance chronology is invalid', failures);
   requireCondition(acceptedEvidenceEntries.every((entry, index) => acceptedExportTimes[index] !== null
     && acceptedEvidenceRetentionTimes[index] !== null
-    && acceptedEvidenceRetentionTimes[index] >= acceptedExportTimes[index] + (index === 0 ? contract.policy.retention.first_accepted_monthly_days : contract.policy.retention.standard_days) * 86400000), 'accepted exports evidence retention history violates policy', failures);
+    && acceptedEvidenceRetentionTimes[index] >= acceptedExportTimes[index] + (index === firstAcceptedIndex ? contract.policy.retention.first_accepted_monthly_days : contract.policy.retention.standard_days) * 86400000), 'accepted exports evidence retention history violates policy', failures);
   requireCondition(acceptedEvidenceEntries.every((entry) => hexSha256.test(entry?.immutable_readback_sha256 ?? '') && entry.immutable_readback_sha256 !== entry.ciphertext_sha256), 'accepted exports evidence immutable readback is missing or self-correlated', failures);
   const acceptedManifestSourceDigest = acceptedExportsManifest?.source_evidence_sha256;
   requireCondition(hexSha256.test(acceptedManifestSourceDigest ?? '') && acceptedEvidenceDigest !== null && acceptedManifestSourceDigest === acceptedEvidenceDigest, 'accepted exports evidence digest mismatch', failures);
-  const acceptedAuthenticationDigest = acceptedExportsEvidence?.authentication?.receipt_sha256;
+  const acceptedAuthenticationResult = options.acceptedExportsAuthenticationResult;
+  failures.push(...shapeFailures(acceptedExportsAuthenticationResultShapeValidator, acceptedAuthenticationResult, 'accepted exports authentication result'));
+  failures.push(...validateSanitizedReceipt(acceptedAuthenticationResult, 'accepted exports authentication result'));
+  const acceptedAuthenticationVerifiedAt = parseTimestamp(acceptedAuthenticationResult?.verified_at, 'accepted_exports_authentication_result.verified_at', failures);
+  const acceptedAuthenticationSubjectDigest = acceptedExportsAuthenticationSubjectDigest(acceptedExportsEvidence);
+  const acceptedAuthenticationResultDigest = acceptedExportsAuthenticationResultDigest(acceptedAuthenticationResult);
+  const acceptedAuthenticationDigest = acceptedExportsEvidence?.authentication?.verification_result_sha256;
   const acceptedAuthenticationDigestValid = hexSha256.test(acceptedAuthenticationDigest ?? '');
-  requireCondition(acceptedExportsEvidence?.authentication?.status === 'CURRENT' && acceptedExportsEvidence?.authentication?.method === 'external_immutable_listing_receipt' && acceptedAuthenticationDigestValid, 'accepted exports evidence authentication is incomplete', failures);
+  const acceptedExternalReceiptDigest = acceptedAuthenticationResult?.external_receipt_sha256;
+  requireCondition(acceptedExportsEvidence?.authentication?.status === 'CURRENT'
+    && acceptedExportsEvidence?.authentication?.method === 'separate_trusted_external_result'
+    && acceptedAuthenticationDigestValid, 'accepted exports evidence authentication is incomplete', failures);
+  requireCondition(acceptedAuthenticationResult?.status === 'VERIFIED'
+    && acceptedAuthenticationResult?.result_class === 'trusted_external_authentication_verification'
+    && acceptedAuthenticationResult?.verification_method === 'external_signature_verification', 'accepted exports authentication result is not VERIFIED', failures);
+  requireCondition(acceptedAuthenticationResultDigest !== null
+    && acceptedAuthenticationResult?.result_sha256 === acceptedAuthenticationResultDigest
+    && acceptedAuthenticationDigest === acceptedAuthenticationResultDigest, 'accepted exports authentication result digest mismatch', failures);
+  requireCondition(acceptedAuthenticationResult?.project?.name === receipt.project?.name
+    && acceptedAuthenticationResult?.project?.ref === receipt.project?.ref
+    && acceptedAuthenticationResult?.month_utc === expectedMonth
+    && acceptedAuthenticationResult?.evidence_id === acceptedExportsEvidence?.evidence_id, 'accepted exports authentication result correlation mismatch', failures);
+  requireCondition(acceptedAuthenticationSubjectDigest !== null
+    && acceptedAuthenticationResult?.subject_sha256 === acceptedAuthenticationSubjectDigest, 'accepted exports authentication subject mismatch', failures);
+  requireCondition(acceptedAuthenticationVerifiedAt !== null
+    && acceptedEvidenceObservedAt !== null
+    && acceptedAuthenticationVerifiedAt >= acceptedEvidenceObservedAt
+    && now !== null
+    && acceptedAuthenticationVerifiedAt <= now, 'accepted exports authentication result chronology is invalid', failures);
+  requireCondition(acceptedAuthenticationVerifiedAt !== null
+    && now !== null
+    && now - acceptedAuthenticationVerifiedAt <= maximumEvidenceAgeMs, 'accepted exports authentication result is stale', failures);
+  requireCondition(safeReference.test(acceptedAuthenticationResult?.verifier_reference ?? '')
+    && hexSha256.test(acceptedExternalReceiptDigest ?? ''), 'accepted exports authentication result lacks external verification evidence', failures);
   if (acceptedAuthenticationDigestValid) {
     const circularDigests = [
       acceptedEvidenceDigest,
-      acceptedExportsEvidenceSelfCorrelationDigest(acceptedExportsEvidence),
+      acceptedAuthenticationSubjectDigest,
       acceptedEvidenceEntriesDigest,
       sha256Hex(acceptedExportsManifest),
       receipt.manifest_sha256,
@@ -466,10 +522,11 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
       ...acceptedEvidenceEntries.map((entry) => entry?.immutable_readback_sha256)
     ].filter(Boolean);
     requireCondition(!circularDigests.includes(acceptedAuthenticationDigest), 'accepted exports evidence authentication is circular or self-reported', failures);
+    requireCondition(![...circularDigests, acceptedAuthenticationDigest].includes(acceptedExternalReceiptDigest), 'accepted exports authentication external receipt is circular or self-reported', failures);
   }
   const sourceCircularDigests = [sha256Hex(acceptedExportsManifest), receipt.manifest_sha256, acceptedEvidenceEntriesDigest, acceptedAuthenticationDigest].filter(Boolean);
   requireCondition(!sourceCircularDigests.includes(acceptedManifestSourceDigest), 'accepted exports manifest source evidence is circular or self-reported', failures);
-  if (currentExportMatches.length === 1 && currentExportMatches[0].index === 0) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
+  if (currentExportMatches.length === 1 && currentExportMatches[0].index === firstAcceptedIndex) requireCondition(retentionUntil !== null && completedAt !== null && retentionUntil >= completedAt + contract.policy.retention.first_accepted_monthly_days * 86400000, 'first accepted monthly export retention does not cover 400 days', failures);
   const receiptCoverage = Array.isArray(receipt.coverage) ? receipt.coverage : [];
   requireCondition(sameSet(receiptCoverage.map((entry) => entry?.unit), coverageUnits), 'receipt coverage denominator changed', failures);
   const storageBodiesEntry = receiptCoverage.find((entry) => entry?.unit === 'storage_object_bodies');

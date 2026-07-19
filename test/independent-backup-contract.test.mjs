@@ -3,6 +3,8 @@ import test from 'node:test';
 import { loadDocuments } from '../scripts/lib/contracts.mjs';
 import {
   acceptedExportHistoryEntryDigest,
+  acceptedExportsAuthenticationResultDigest,
+  acceptedExportsAuthenticationSubjectDigest,
   canonicalSerialize,
   coverageUnits,
   externalEffectUnits,
@@ -71,7 +73,7 @@ function buildAcceptedExportsEvidence(receipt, manifest) {
     entry.entry_sha256 = acceptedExportHistoryEntryDigest(entry);
     entries.push(entry);
   }
-  return {
+  const evidence = {
     version: '1.0.0',
     status: 'CURRENT',
     canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
@@ -95,11 +97,34 @@ function buildAcceptedExportsEvidence(receipt, manifest) {
     },
     authentication: {
       status: 'CURRENT',
-      method: 'external_immutable_listing_receipt',
-      receipt_sha256: digest('accepted-exports-authentication-receipt')
+      method: 'separate_trusted_external_result',
+      verification_result_sha256: '0'.repeat(64)
     },
     entries
   };
+  evidence.authentication.verification_result_sha256 = buildAcceptedExportsAuthenticationResult(evidence).result_sha256;
+  return evidence;
+}
+
+function buildAcceptedExportsAuthenticationResult(evidence) {
+  const result = {
+    version: '1.0.0',
+    status: 'VERIFIED',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    result_class: 'trusted_external_authentication_verification',
+    result_id: 'accepted-exports-auth-verification-0001',
+    verified_at: '2026-07-18T17:46:00Z',
+    verifier_reference: 'trusted-accepted-exports-verifier-v1',
+    verification_method: 'external_signature_verification',
+    project: structuredClone(evidence.project),
+    month_utc: evidence.month_utc,
+    evidence_id: evidence.evidence_id,
+    subject_sha256: acceptedExportsAuthenticationSubjectDigest(evidence),
+    external_receipt_sha256: digest('external-accepted-exports-authentication-receipt'),
+    result_sha256: null
+  };
+  result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
+  return result;
 }
 
 function buildObjectLockReadback(receipt) {
@@ -356,10 +381,14 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
         && acceptedExportsManifest.entries.every((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
       ? buildAcceptedExportsEvidence(receipt, acceptedExportsManifest)
       : undefined);
+  const acceptedExportsAuthenticationResult = Object.hasOwn(evidence, 'acceptedExportsAuthenticationResult')
+    ? evidence.acceptedExportsAuthenticationResult
+    : (acceptedExportsEvidence ? buildAcceptedExportsAuthenticationResult(acceptedExportsEvidence) : undefined);
   return validateIndependentBackupReceipt(contract(), receipt, {
     now: validationNow,
     acceptedExportsManifest,
     acceptedExportsEvidence,
+    acceptedExportsAuthenticationResult,
     objectLockReadback,
     storageInventoryEvidence,
     storageBodyRecoveryReceipt,
@@ -372,10 +401,19 @@ function bindObjectLockReadback(receipt, readback) {
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
 }
 
-function bindAcceptedExportsEvidence(receipt, manifest, evidence) {
+function bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthentication = true } = {}) {
+  if (refreshAuthentication && evidence?.authentication && typeof evidence.authentication === 'object' && !Array.isArray(evidence.authentication)) {
+    evidence.authentication.verification_result_sha256 = buildAcceptedExportsAuthenticationResult(evidence).result_sha256;
+  }
   manifest.source_evidence_sha256 = sha256Hex(evidence);
   receipt.monthly_selection.accepted_exports_manifest_sha256 = sha256Hex(manifest);
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+}
+
+function bindAcceptedExportsAuthenticationResult(receipt, manifest, evidence, result) {
+  result.result_sha256 = acceptedExportsAuthenticationResultDigest(result);
+  evidence.authentication.verification_result_sha256 = result.result_sha256;
+  bindAcceptedExportsEvidence(receipt, manifest, evidence, { refreshAuthentication: false });
 }
 
 function refreshAcceptedExportsEvidence(receipt, manifest, evidence) {
@@ -749,14 +787,132 @@ test('preceding monthly exports require authenticated complete chained evidence'
   assert(validate(tamperedEntry.receipt, now, tamperedEntry.manifest, { acceptedExportsEvidence: tamperedEntry.evidence }).failures.includes('accepted exports evidence entry digest mismatch'));
 
   const circularAuthentication = makeCase();
-  circularAuthentication.evidence.authentication.receipt_sha256 = circularAuthentication.evidence.history.entries_manifest_sha256;
-  bindAcceptedExportsEvidence(circularAuthentication.receipt, circularAuthentication.manifest, circularAuthentication.evidence);
+  circularAuthentication.evidence.authentication.verification_result_sha256 = circularAuthentication.evidence.history.entries_manifest_sha256;
+  bindAcceptedExportsEvidence(circularAuthentication.receipt, circularAuthentication.manifest, circularAuthentication.evidence, { refreshAuthentication: false });
   assert(validate(circularAuthentication.receipt, now, circularAuthentication.manifest, { acceptedExportsEvidence: circularAuthentication.evidence }).failures.includes('accepted exports evidence authentication is circular or self-reported'));
 
   const malformedAuthentication = makeCase();
-  malformedAuthentication.evidence.authentication.receipt_sha256 = 'not-a-digest';
-  bindAcceptedExportsEvidence(malformedAuthentication.receipt, malformedAuthentication.manifest, malformedAuthentication.evidence);
+  malformedAuthentication.evidence.authentication.verification_result_sha256 = 'not-a-digest';
+  bindAcceptedExportsEvidence(malformedAuthentication.receipt, malformedAuthentication.manifest, malformedAuthentication.evidence, { refreshAuthentication: false });
   assert(validate(malformedAuthentication.receipt, now, malformedAuthentication.manifest, { acceptedExportsEvidence: malformedAuthentication.evidence }).failures.includes('accepted exports evidence authentication is incomplete'));
+});
+
+test('accepted export authentication requires a separately verified bound result', () => {
+  const makeCase = () => {
+    const receipt = buildReceipt();
+    const manifest = buildAcceptedExportsManifest(receipt);
+    const evidence = buildAcceptedExportsEvidence(receipt, manifest);
+    const result = buildAcceptedExportsAuthenticationResult(evidence);
+    bindAcceptedExportsAuthenticationResult(receipt, manifest, evidence, result);
+    return { receipt, manifest, evidence, result };
+  };
+
+  const valid = makeCase();
+  assert.deepEqual(validate(valid.receipt, now, valid.manifest, {
+    acceptedExportsEvidence: valid.evidence,
+    acceptedExportsAuthenticationResult: valid.result
+  }), { ok: true, failures: [] });
+
+  const missing = makeCase();
+  const missingResult = validate(missing.receipt, now, missing.manifest, {
+    acceptedExportsEvidence: missing.evidence,
+    acceptedExportsAuthenticationResult: undefined
+  });
+  assert.equal(missingResult.ok, false);
+  assert(missingResult.failures.some((failure) => failure.startsWith('accepted exports authentication result schema')));
+
+  for (const malformed of [null, 'self-report', 7, true, [], {}, { status: 'VERIFIED' }]) {
+    const candidate = makeCase();
+    let result;
+    assert.doesNotThrow(() => {
+      result = validate(candidate.receipt, now, candidate.manifest, {
+        acceptedExportsEvidence: candidate.evidence,
+        acceptedExportsAuthenticationResult: malformed
+      });
+    });
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('accepted exports authentication result schema')));
+  }
+
+  const subjectMismatch = makeCase();
+  subjectMismatch.result.subject_sha256 = digest('wrong-authentication-subject');
+  bindAcceptedExportsAuthenticationResult(subjectMismatch.receipt, subjectMismatch.manifest, subjectMismatch.evidence, subjectMismatch.result);
+  assert(validate(subjectMismatch.receipt, now, subjectMismatch.manifest, {
+    acceptedExportsEvidence: subjectMismatch.evidence,
+    acceptedExportsAuthenticationResult: subjectMismatch.result
+  }).failures.includes('accepted exports authentication subject mismatch'));
+
+  const projectMismatch = makeCase();
+  projectMismatch.result.project.name = 'Different project';
+  bindAcceptedExportsAuthenticationResult(projectMismatch.receipt, projectMismatch.manifest, projectMismatch.evidence, projectMismatch.result);
+  assert(validate(projectMismatch.receipt, now, projectMismatch.manifest, {
+    acceptedExportsEvidence: projectMismatch.evidence,
+    acceptedExportsAuthenticationResult: projectMismatch.result
+  }).failures.includes('accepted exports authentication result correlation mismatch'));
+
+  const stale = makeCase();
+  stale.result.verified_at = '2026-07-18T09:00:00Z';
+  bindAcceptedExportsAuthenticationResult(stale.receipt, stale.manifest, stale.evidence, stale.result);
+  assert(validate(stale.receipt, now, stale.manifest, {
+    acceptedExportsEvidence: stale.evidence,
+    acceptedExportsAuthenticationResult: stale.result
+  }).failures.includes('accepted exports authentication result is stale'));
+
+  const future = makeCase();
+  future.result.verified_at = '2026-07-18T18:00:01Z';
+  bindAcceptedExportsAuthenticationResult(future.receipt, future.manifest, future.evidence, future.result);
+  assert(validate(future.receipt, now, future.manifest, {
+    acceptedExportsEvidence: future.evidence,
+    acceptedExportsAuthenticationResult: future.result
+  }).failures.includes('accepted exports authentication result chronology is invalid'));
+
+  const circularExternalReceipt = makeCase();
+  circularExternalReceipt.result.external_receipt_sha256 = circularExternalReceipt.evidence.history.entries_manifest_sha256;
+  bindAcceptedExportsAuthenticationResult(circularExternalReceipt.receipt, circularExternalReceipt.manifest, circularExternalReceipt.evidence, circularExternalReceipt.result);
+  assert(validate(circularExternalReceipt.receipt, now, circularExternalReceipt.manifest, {
+    acceptedExportsEvidence: circularExternalReceipt.evidence,
+    acceptedExportsAuthenticationResult: circularExternalReceipt.result
+  }).failures.includes('accepted exports authentication external receipt is circular or self-reported'));
+
+  const tamperedResultDigest = makeCase();
+  tamperedResultDigest.result.result_sha256 = digest('tampered-authentication-result');
+  assert(validate(tamperedResultDigest.receipt, now, tamperedResultDigest.manifest, {
+    acceptedExportsEvidence: tamperedResultDigest.evidence,
+    acceptedExportsAuthenticationResult: tamperedResultDigest.result
+  }).failures.includes('accepted exports authentication result digest mismatch'));
+});
+
+test('first monthly retention follows accepted_at rather than completion or caller order', () => {
+  const acceptedCurrentFirst = buildReceipt();
+  acceptedCurrentFirst.retention_until = new Date(Date.parse(acceptedCurrentFirst.completed_at) + 400 * 86400000).toISOString().replace('.000Z', 'Z');
+  acceptedCurrentFirst.object_lock.readback_manifest_sha256 = sha256Hex(buildObjectLockReadback(acceptedCurrentFirst));
+  const acceptedCurrentManifest = buildAcceptedExportsManifest(acceptedCurrentFirst);
+  const acceptedCurrentEvidence = buildAcceptedExportsEvidence(acceptedCurrentFirst, acceptedCurrentManifest);
+  acceptedCurrentEvidence.entries[0].accepted_at = '2026-07-18T17:44:00Z';
+  acceptedCurrentEvidence.entries[0].retention_until = new Date(Date.parse(acceptedCurrentEvidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
+  acceptedCurrentEvidence.entries[1].accepted_at = '2026-07-18T17:41:00Z';
+  acceptedCurrentEvidence.entries[1].retention_until = acceptedCurrentFirst.retention_until;
+  refreshAcceptedExportsEvidence(acceptedCurrentFirst, acceptedCurrentManifest, acceptedCurrentEvidence);
+  assert.deepEqual(validate(acceptedCurrentFirst, now, acceptedCurrentManifest, { acceptedExportsEvidence: acceptedCurrentEvidence }), { ok: true, failures: [] });
+
+  const shortenedAcceptedFirst = buildReceipt();
+  const shortenedManifest = buildAcceptedExportsManifest(shortenedAcceptedFirst);
+  const shortenedEvidence = buildAcceptedExportsEvidence(shortenedAcceptedFirst, shortenedManifest);
+  shortenedEvidence.entries[0].accepted_at = '2026-07-18T17:44:00Z';
+  shortenedEvidence.entries[0].retention_until = new Date(Date.parse(shortenedEvidence.entries[0].completed_at) + 35 * 86400000).toISOString().replace('.000Z', 'Z');
+  shortenedEvidence.entries[1].accepted_at = '2026-07-18T17:41:00Z';
+  refreshAcceptedExportsEvidence(shortenedAcceptedFirst, shortenedManifest, shortenedEvidence);
+  const shortenedResult = validate(shortenedAcceptedFirst, now, shortenedManifest, { acceptedExportsEvidence: shortenedEvidence });
+  assert(shortenedResult.failures.includes('accepted exports evidence retention history violates policy'));
+  assert(shortenedResult.failures.includes('first accepted monthly export retention does not cover 400 days'));
+
+  const duplicateAcceptance = buildReceipt();
+  const duplicateManifest = buildAcceptedExportsManifest(duplicateAcceptance);
+  const duplicateEvidence = buildAcceptedExportsEvidence(duplicateAcceptance, duplicateManifest);
+  duplicateEvidence.entries[0].accepted_at = '2026-07-18T17:41:00Z';
+  duplicateEvidence.entries[1].accepted_at = '2026-07-18T17:41:00Z';
+  refreshAcceptedExportsEvidence(duplicateAcceptance, duplicateManifest, duplicateEvidence);
+  assert(validate(duplicateAcceptance, now, duplicateManifest, { acceptedExportsEvidence: duplicateEvidence }).failures.includes('accepted exports evidence acceptance chronology is duplicate or ambiguous'));
 });
 
 test('missing or over-ceiling cost controls fail closed', () => {

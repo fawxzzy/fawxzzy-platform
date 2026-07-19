@@ -153,6 +153,7 @@
         "canonical_serialization",
         "digest_algorithm",
         "aggregate_only",
+        "accepted_exports_authentication",
         "required_fields",
         "forbidden_classes"
       ],
@@ -165,6 +166,30 @@
         },
         "aggregate_only": {
           "const": true
+        },
+        "accepted_exports_authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "verification_boundary",
+            "subject_digest",
+            "required_result_status"
+          ],
+          "properties": {
+            "required": {
+              "const": true
+            },
+            "verification_boundary": {
+              "const": "separate_trusted_external_result"
+            },
+            "subject_digest": {
+              "const": "accepted_exports_evidence_without_verification_result"
+            },
+            "required_result_status": {
+              "const": "VERIFIED"
+            }
+          }
         },
         "required_fields": {
           "type": "array",
@@ -895,16 +920,16 @@
           "required": [
             "status",
             "method",
-            "receipt_sha256"
+            "verification_result_sha256"
           ],
           "properties": {
             "status": {
               "const": "CURRENT"
             },
             "method": {
-              "const": "external_immutable_listing_receipt"
+              "const": "separate_trusted_external_result"
             },
-            "receipt_sha256": {
+            "verification_result_sha256": {
               "$ref": "#/$defs/sha256"
             }
           }
@@ -915,6 +940,84 @@
           "items": {
             "$ref": "#/$defs/authenticated_accepted_export_entry"
           }
+        }
+      }
+    },
+    "accepted_exports_authentication_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "result_class",
+        "result_id",
+        "verified_at",
+        "verifier_reference",
+        "verification_method",
+        "project",
+        "month_utc",
+        "evidence_id",
+        "subject_sha256",
+        "external_receipt_sha256",
+        "result_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "VERIFIED"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "result_class": {
+          "const": "trusted_external_authentication_verification"
+        },
+        "result_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verified_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "verifier_reference": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "verification_method": {
+          "const": "external_signature_verification"
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "month_utc": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
