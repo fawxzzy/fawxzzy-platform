@@ -89,6 +89,12 @@ const storageBodyRecoveryReceiptSchema = {
   $ref: '#/$defs/storage_body_recovery_receipt',
   $defs: sourceSchema.$defs
 };
+const storageBodyRecoveryEvidenceSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-body-recovery-evidence',
+  $ref: '#/$defs/storage_body_recovery_evidence',
+  $defs: sourceSchema.$defs
+};
 const storageInventoryEvidenceSchema = {
   $schema: sourceSchema.$schema,
   $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-inventory-evidence',
@@ -144,6 +150,7 @@ const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).com
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
+const storageBodyRecoveryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryEvidenceSchema);
 const storageInventoryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageInventoryEvidenceSchema);
 
 function sortValue(value) {
@@ -176,9 +183,21 @@ export function storageInventoryManifestDigest(evidence) {
   });
 }
 
+export function storageBodyRecoveryEvidenceDigest(evidence) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
+  return sha256Hex(evidence);
+}
+
 function storageInventorySelfCorrelationDigest(evidence) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
   const copy = { ...evidence };
+  delete copy.source_evidence_sha256;
+  return sha256Hex(copy);
+}
+
+function storageBodyRecoverySelfCorrelationDigest(receipt) {
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) return null;
+  const copy = { ...receipt };
   delete copy.source_evidence_sha256;
   return sha256Hex(copy);
 }
@@ -453,8 +472,54 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     requireCondition(storageObjectCount === storageBodiesEntry?.aggregate_count && storageBodyCount === storageBodiesEntry?.aggregate_count, 'Storage body recovery does not cover the exact Storage object denominator', failures);
     requireCondition(storageInventoryBucketCount === storageBodyRecoveryReceipt?.denominator?.bucket_count && storageInventoryObjectCount === storageObjectCount && storageInventoryTotalBytes === storageByteCount, 'Storage inventory does not match the body recovery denominator', failures);
     requireCondition(storageBodiesEntry?.private_digest === storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256, 'Storage body coverage digest does not match the recovery manifest', failures);
-    requireCondition(hexSha256.test(storageBodyRecoveryReceipt?.source_evidence_sha256 ?? ''), 'Storage body recovery source evidence is malformed', failures);
-    requireCondition(!storageInventorySourceDigestValid || storageBodyRecoveryReceipt?.source_evidence_sha256 !== storageInventorySourceDigest, 'Storage inventory and body recovery source evidence must be distinct', failures);
+    const storageBodyRecoveryEvidence = options.storageBodyRecoveryEvidence;
+    failures.push(...shapeFailures(storageBodyRecoveryEvidenceShapeValidator, storageBodyRecoveryEvidence, 'Storage body recovery evidence'));
+    failures.push(...validateSanitizedReceipt(storageBodyRecoveryEvidence, 'Storage body recovery evidence'));
+    const recoveryEvidenceObservedAt = parseTimestamp(storageBodyRecoveryEvidence?.observed_at, 'storage_body_recovery_evidence.observed_at', failures);
+    const recoveryEvidenceVerifiedAt = parseTimestamp(storageBodyRecoveryEvidence?.restore_identity?.verified_at, 'storage_body_recovery_evidence.restore_identity.verified_at', failures);
+    requireCondition(storageBodyRecoveryEvidence?.status === 'CURRENT', 'Storage body recovery evidence must be CURRENT', failures);
+    requireCondition(storageBodyRecoveryEvidence?.project?.name === receipt.project?.name && storageBodyRecoveryEvidence?.project?.ref === receipt.project?.ref, 'Storage body recovery evidence project mismatch', failures);
+    requireCondition(storageBodyRecoveryEvidence?.snapshot_at === receipt.snapshot_at, 'Storage body recovery evidence snapshot mismatch', failures);
+    requireCondition(storageBodyRecoveryEvidence?.export_identity?.destination_version === receipt.destination_version && storageBodyRecoveryEvidence?.export_identity?.ciphertext_sha256 === receipt.ciphertext_sha256, 'Storage body recovery evidence export identity mismatch', failures);
+    requireCondition(storageBodyRecoveryEvidence?.restore_identity?.receipt_sha256 === storageBodyRecoveryReceipt?.restore_proof?.receipt_sha256 && storageBodyRecoveryEvidence?.restore_identity?.verified_at === storageBodyRecoveryReceipt?.restore_proof?.verified_at, 'Storage body recovery evidence restore identity mismatch', failures);
+    requireCondition(recoveryEvidenceObservedAt !== null && storageObservedAt !== null && recoveryEvidenceObservedAt >= storageObservedAt && recoveryEvidenceVerifiedAt !== null && recoveryEvidenceVerifiedAt <= recoveryEvidenceObservedAt, 'Storage body recovery evidence chronology is invalid', failures);
+    requireCondition(recoveryEvidenceObservedAt !== null && now !== null && recoveryEvidenceObservedAt <= now, 'Storage body recovery evidence cannot be future-dated', failures);
+    requireCondition(recoveryEvidenceObservedAt !== null && now !== null && now - recoveryEvidenceObservedAt <= maximumEvidenceAgeMs, 'Storage body recovery evidence is stale', failures);
+    requireCondition(storageBodyRecoveryEvidence?.denominator?.bucket_count === storageBodyRecoveryReceipt?.denominator?.bucket_count
+      && storageBodyRecoveryEvidence?.denominator?.object_count === storageObjectCount
+      && storageBodyRecoveryEvidence?.denominator?.body_count === storageBodyCount
+      && storageBodyRecoveryEvidence?.denominator?.total_bytes === storageByteCount
+      && storageBodyRecoveryEvidence?.denominator?.buckets_manifest_sha256 === storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256, 'Storage body recovery evidence denominator mismatch', failures);
+    const recoverySourceDigest = storageBodyRecoveryReceipt?.source_evidence_sha256;
+    const recoveryEvidenceDigest = storageBodyRecoveryEvidenceDigest(storageBodyRecoveryEvidence);
+    const recoverySourceDigestValid = hexSha256.test(recoverySourceDigest ?? '');
+    requireCondition(recoverySourceDigestValid, 'Storage body recovery source evidence is malformed', failures);
+    requireCondition(recoverySourceDigestValid && recoveryEvidenceDigest !== null && recoverySourceDigest === recoveryEvidenceDigest, 'Storage body recovery source evidence digest mismatch', failures);
+    if (recoverySourceDigestValid) {
+      const selfCorrelationDigests = [
+        storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256,
+        storageBodyRecoverySelfCorrelationDigest(storageBodyRecoveryReceipt),
+        storageBodyRecoveryReceipt && typeof storageBodyRecoveryReceipt === 'object' && !Array.isArray(storageBodyRecoveryReceipt) ? sha256Hex(storageBodyRecoveryReceipt) : null,
+        storageBodiesEntry?.private_digest,
+        storageBodiesEntry?.body_recovery_receipt_sha256,
+        receipt.manifest_sha256,
+        independentBackupManifestDigest(receipt),
+        receipt.plaintext_sha256,
+        receipt.ciphertext_sha256,
+        receipt.migration_ledger_sha256,
+        storageInventoryEvidence?.denominator?.inventory_manifest_sha256,
+        storageInventorySelfCorrelationDigest(storageInventoryEvidence)
+      ].filter(Boolean);
+      requireCondition(!selfCorrelationDigests.includes(recoverySourceDigest), 'Storage body recovery source evidence is self-correlated', failures);
+      const otherEvidenceDigests = [
+        storageInventorySourceDigest,
+        objectLockReadback?.source_evidence_sha256,
+        acceptedExportsManifest?.source_evidence_sha256,
+        receipt.watchdog?.evidence_sha256,
+        receipt.provider_physical_backup?.evidence_sha256
+      ].filter(Boolean);
+      requireCondition(!otherEvidenceDigests.includes(recoverySourceDigest), 'Storage body recovery source evidence must be distinct from other evidence', failures);
+    }
   }
   requireCondition(receipt.aggregate_counts && Object.keys(receipt.aggregate_counts).length > 0 && Object.values(receipt.aggregate_counts).every((value) => Number.isInteger(value) && value >= 0), 'aggregate counts are incomplete', failures);
   const decision = receipt.owner_decision;

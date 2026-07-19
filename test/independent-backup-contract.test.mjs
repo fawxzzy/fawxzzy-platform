@@ -8,6 +8,7 @@ import {
   independentBackupContractPath,
   independentBackupManifestDigest,
   sha256Hex,
+  storageBodyRecoveryEvidenceDigest,
   storageInventoryManifestDigest,
   validateIndependentBackupContract,
   validateIndependentBackupReceipt
@@ -92,6 +93,34 @@ function buildStorageInventoryEvidence(receipt) {
   return evidence;
 }
 
+function buildStorageBodyRecoveryEvidence(receipt, recoveryReceipt) {
+  return {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    evidence_class: 'independent_storage_body_recovery_readback',
+    evidence_id: 'storage-recovery-readback-0001',
+    observed_at: '2026-07-18T17:49:00Z',
+    project: structuredClone(receipt.project),
+    snapshot_at: receipt.snapshot_at,
+    export_identity: {
+      destination_version: receipt.destination_version,
+      ciphertext_sha256: receipt.ciphertext_sha256
+    },
+    restore_identity: {
+      receipt_sha256: recoveryReceipt.restore_proof.receipt_sha256,
+      verified_at: recoveryReceipt.restore_proof.verified_at
+    },
+    denominator: {
+      bucket_count: recoveryReceipt.denominator.bucket_count,
+      object_count: recoveryReceipt.denominator.object_count,
+      body_count: recoveryReceipt.denominator.body_count,
+      total_bytes: recoveryReceipt.denominator.total_bytes,
+      buckets_manifest_sha256: recoveryReceipt.denominator.buckets_manifest_sha256
+    }
+  };
+}
+
 function buildStorageBodyRecoveryReceipt(receipt) {
   const storage = receipt.coverage.find((entry) => entry.unit === 'storage_object_bodies');
   const buckets = storage.aggregate_count === 0 ? [] : [{
@@ -102,12 +131,12 @@ function buildStorageBodyRecoveryReceipt(receipt) {
     object_manifest_sha256: digest('storage-object-manifest'),
     body_content_sha256: digest('storage-body-content')
   }];
-  return {
+  const recoveryReceipt = {
     version: '1.0.0',
     status: 'CURRENT',
     canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
     observed_at: '2026-07-18T17:48:00Z',
-    source_evidence_sha256: digest('storage-body-source-readback'),
+    source_evidence_sha256: null,
     project: structuredClone(receipt.project),
     snapshot_at: receipt.snapshot_at,
     retention_until: receipt.retention_until,
@@ -125,6 +154,8 @@ function buildStorageBodyRecoveryReceipt(receipt) {
       receipt_sha256: digest('storage-restore-proof')
     }
   };
+  recoveryReceipt.source_evidence_sha256 = storageBodyRecoveryEvidenceDigest(buildStorageBodyRecoveryEvidence(receipt, recoveryReceipt));
+  return recoveryReceipt;
 }
 
 function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
@@ -251,6 +282,13 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const storageBodyRecoveryReceipt = Object.hasOwn(evidence, 'storageBodyRecoveryReceipt')
     ? evidence.storageBodyRecoveryReceipt
     : (storageClaimed ? buildStorageBodyRecoveryReceipt(receipt) : undefined);
+  const storageBodyRecoveryEvidence = Object.hasOwn(evidence, 'storageBodyRecoveryEvidence')
+    ? evidence.storageBodyRecoveryEvidence
+    : (storageClaimed
+        && storageBodyRecoveryReceipt?.restore_proof?.receipt_sha256
+        && storageBodyRecoveryReceipt?.denominator
+      ? buildStorageBodyRecoveryEvidence(receipt, storageBodyRecoveryReceipt)
+      : undefined);
   const storageInventoryEvidence = Object.hasOwn(evidence, 'storageInventoryEvidence')
     ? evidence.storageInventoryEvidence
     : buildStorageInventoryEvidence(receipt);
@@ -259,7 +297,8 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
     acceptedExportsManifest,
     objectLockReadback,
     storageInventoryEvidence,
-    storageBodyRecoveryReceipt
+    storageBodyRecoveryReceipt,
+    storageBodyRecoveryEvidence
   });
 }
 
@@ -274,6 +313,11 @@ function bindStorageBodyRecoveryReceipt(receipt, storageReceipt) {
   storage.body_recovery_receipt_status = 'CURRENT';
   storage.body_recovery_receipt_sha256 = sha256Hex(storageReceipt);
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+}
+
+function bindStorageBodyRecoveryEvidence(receipt, storageReceipt, recoveryEvidence) {
+  storageReceipt.source_evidence_sha256 = storageBodyRecoveryEvidenceDigest(recoveryEvidence);
+  bindStorageBodyRecoveryReceipt(receipt, storageReceipt);
 }
 
 test('source contract is closed, sanitized, and execution-blocked', () => {
@@ -696,6 +740,106 @@ test('non-empty Storage bodies validate only with a correlated recovery receipt'
   assert(validate(selfReported, now, buildAcceptedExportsManifest(selfReported), { storageBodyRecoveryReceipt: null }).failures.includes('Storage body recovery receipt digest mismatch'));
 });
 
+test('Storage body recovery receipt cannot authenticate itself', () => {
+  const receipt = buildReceipt({ storageObjectCount: 2 });
+  const recoveryReceipt = buildStorageBodyRecoveryReceipt(receipt);
+  recoveryReceipt.source_evidence_sha256 = recoveryReceipt.denominator.buckets_manifest_sha256;
+  bindStorageBodyRecoveryReceipt(receipt, recoveryReceipt);
+  const result = validate(receipt, now, buildAcceptedExportsManifest(receipt), { storageBodyRecoveryReceipt: recoveryReceipt });
+  assert(result.failures.includes('Storage body recovery source evidence is self-correlated'));
+});
+
+test('Storage body recovery requires independent current correlated evidence', () => {
+  const accepted = buildReceipt({ storageObjectCount: 2 });
+  const acceptedReceipt = buildStorageBodyRecoveryReceipt(accepted);
+  const acceptedEvidence = buildStorageBodyRecoveryEvidence(accepted, acceptedReceipt);
+  bindStorageBodyRecoveryEvidence(accepted, acceptedReceipt, acceptedEvidence);
+  assert.deepEqual(validate(accepted, now, buildAcceptedExportsManifest(accepted), {
+    storageBodyRecoveryReceipt: acceptedReceipt,
+    storageBodyRecoveryEvidence: acceptedEvidence
+  }), { ok: true, failures: [] });
+
+  for (const [index, malformedEvidence] of [undefined, null, 'malformed', [], { denominator: null }].entries()) {
+    const receipt = buildReceipt({ storageObjectCount: 2 });
+    const recoveryReceipt = buildStorageBodyRecoveryReceipt(receipt);
+    let result;
+    assert.doesNotThrow(() => {
+      result = validate(receipt, now, buildAcceptedExportsManifest(receipt), {
+        storageBodyRecoveryReceipt: recoveryReceipt,
+        storageBodyRecoveryEvidence: malformedEvidence
+      });
+    }, `malformed independent Storage recovery evidence ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('Storage body recovery evidence schema')));
+    assert(result.failures.includes('Storage body recovery source evidence digest mismatch'));
+  }
+
+  const validateMutation = (mutate) => {
+    const receipt = buildReceipt({ storageObjectCount: 2 });
+    const recoveryReceipt = buildStorageBodyRecoveryReceipt(receipt);
+    const recoveryEvidence = buildStorageBodyRecoveryEvidence(receipt, recoveryReceipt);
+    mutate(recoveryEvidence, recoveryReceipt, receipt);
+    bindStorageBodyRecoveryEvidence(receipt, recoveryReceipt, recoveryEvidence);
+    return validate(receipt, now, buildAcceptedExportsManifest(receipt), {
+      storageBodyRecoveryReceipt: recoveryReceipt,
+      storageBodyRecoveryEvidence: recoveryEvidence
+    });
+  };
+
+  assert(validateMutation((evidence) => { evidence.observed_at = '2026-07-18T09:59:59Z'; }).failures.includes('Storage body recovery evidence is stale'));
+  assert(validateMutation((evidence) => { evidence.observed_at = '2026-07-18T18:00:01Z'; }).failures.includes('Storage body recovery evidence cannot be future-dated'));
+  assert(validateMutation((evidence) => { evidence.project.name = 'Another project'; }).failures.includes('Storage body recovery evidence project mismatch'));
+  assert(validateMutation((evidence) => { evidence.snapshot_at = '2026-07-18T17:29:59Z'; }).failures.includes('Storage body recovery evidence snapshot mismatch'));
+  assert(validateMutation((evidence) => { evidence.export_identity.destination_version = 'backup-version-other'; }).failures.includes('Storage body recovery evidence export identity mismatch'));
+  assert(validateMutation((evidence) => { evidence.restore_identity.receipt_sha256 = digest('other-restore-receipt'); }).failures.includes('Storage body recovery evidence restore identity mismatch'));
+  assert(validateMutation((evidence) => { evidence.denominator.object_count = 1; }).failures.includes('Storage body recovery evidence denominator mismatch'));
+  assert(validateMutation((evidence) => { evidence.ambiguous_claim = true; }).failures.some((failure) => failure.startsWith('Storage body recovery evidence schema') && failure.includes('must NOT have additional properties')));
+
+  const digestOnly = buildReceipt({ storageObjectCount: 2 });
+  const digestOnlyReceipt = buildStorageBodyRecoveryReceipt(digestOnly);
+  digestOnlyReceipt.source_evidence_sha256 = digest('arbitrary-digest-only-claim');
+  bindStorageBodyRecoveryReceipt(digestOnly, digestOnlyReceipt);
+  const digestOnlyResult = validate(digestOnly, now, buildAcceptedExportsManifest(digestOnly), {
+    storageBodyRecoveryReceipt: digestOnlyReceipt,
+    storageBodyRecoveryEvidence: null
+  });
+  assert(digestOnlyResult.failures.some((failure) => failure.startsWith('Storage body recovery evidence schema')));
+  assert(digestOnlyResult.failures.includes('Storage body recovery source evidence digest mismatch'));
+
+  const circular = buildReceipt({ storageObjectCount: 2 });
+  const circularReceipt = buildStorageBodyRecoveryReceipt(circular);
+  const circularPayload = { ...circularReceipt };
+  delete circularPayload.source_evidence_sha256;
+  circularReceipt.source_evidence_sha256 = sha256Hex(circularPayload);
+  bindStorageBodyRecoveryReceipt(circular, circularReceipt);
+  const circularResult = validate(circular, now, buildAcceptedExportsManifest(circular), {
+    storageBodyRecoveryReceipt: circularReceipt,
+    storageBodyRecoveryEvidence: buildStorageBodyRecoveryEvidence(circular, circularReceipt)
+  });
+  assert(circularResult.failures.includes('Storage body recovery source evidence is self-correlated'));
+
+  const manifestReuse = buildReceipt({ storageObjectCount: 2 });
+  const manifestReuseReceipt = buildStorageBodyRecoveryReceipt(manifestReuse);
+  manifestReuseReceipt.source_evidence_sha256 = manifestReuse.manifest_sha256;
+  bindStorageBodyRecoveryReceipt(manifestReuse, manifestReuseReceipt);
+  manifestReuse.manifest_sha256 = manifestReuseReceipt.source_evidence_sha256;
+  const manifestReuseResult = validate(manifestReuse, now, buildAcceptedExportsManifest(manifestReuse), {
+    storageBodyRecoveryReceipt: manifestReuseReceipt,
+    storageBodyRecoveryEvidence: buildStorageBodyRecoveryEvidence(manifestReuse, manifestReuseReceipt)
+  });
+  assert(manifestReuseResult.failures.includes('Storage body recovery source evidence is self-correlated'));
+
+  const duplicateClass = buildReceipt({ storageObjectCount: 2 });
+  const duplicateClassReceipt = buildStorageBodyRecoveryReceipt(duplicateClass);
+  duplicateClassReceipt.source_evidence_sha256 = buildStorageInventoryEvidence(duplicateClass).source_evidence_sha256;
+  bindStorageBodyRecoveryReceipt(duplicateClass, duplicateClassReceipt);
+  const duplicateClassResult = validate(duplicateClass, now, buildAcceptedExportsManifest(duplicateClass), {
+    storageBodyRecoveryReceipt: duplicateClassReceipt,
+    storageBodyRecoveryEvidence: buildStorageBodyRecoveryEvidence(duplicateClass, duplicateClassReceipt)
+  });
+  assert(duplicateClassResult.failures.includes('Storage body recovery source evidence must be distinct from other evidence'));
+});
+
 test('Storage body status, count, and digest are bound to the authoritative denominator', () => {
   assert.deepEqual(validate(buildReceipt()), { ok: true, failures: [] });
 
@@ -829,7 +973,7 @@ test('every Storage denominator requires independent current inventory evidence'
   const duplicateBody = buildReceipt({ storageObjectCount: 2 });
   const duplicateBodyEvidence = buildStorageInventoryEvidence(duplicateBody);
   duplicateBodyEvidence.source_evidence_sha256 = buildStorageBodyRecoveryReceipt(duplicateBody).source_evidence_sha256;
-  assert(validate(duplicateBody, now, buildAcceptedExportsManifest(duplicateBody), { storageInventoryEvidence: duplicateBodyEvidence }).failures.includes('Storage inventory and body recovery source evidence must be distinct'));
+  assert(validate(duplicateBody, now, buildAcceptedExportsManifest(duplicateBody), { storageInventoryEvidence: duplicateBodyEvidence }).failures.includes('Storage body recovery source evidence must be distinct from other evidence'));
 
   const positiveMismatch = buildReceipt({ storageObjectCount: 2 });
   const positiveMismatchEvidence = buildStorageInventoryEvidence(positiveMismatch);

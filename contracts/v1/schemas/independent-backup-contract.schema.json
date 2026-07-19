@@ -923,6 +923,126 @@
         }
       }
     },
+    "storage_body_recovery_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "evidence_class",
+        "evidence_id",
+        "observed_at",
+        "project",
+        "snapshot_at",
+        "export_identity",
+        "restore_identity",
+        "denominator"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "evidence_class": {
+          "const": "independent_storage_body_recovery_readback"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "snapshot_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "export_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "destination_version",
+            "ciphertext_sha256"
+          ],
+          "properties": {
+            "destination_version": {
+              "$ref": "#/$defs/safe_reference"
+            },
+            "ciphertext_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "restore_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "receipt_sha256",
+            "verified_at"
+          ],
+          "properties": {
+            "receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "verified_at": {
+              "$ref": "#/$defs/utc_timestamp"
+            }
+          }
+        },
+        "denominator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bucket_count",
+            "object_count",
+            "body_count",
+            "total_bytes",
+            "buckets_manifest_sha256"
+          ],
+          "properties": {
+            "bucket_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "object_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "body_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "buckets_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
     "storage_body_denominator": {
       "type": "object",
       "additionalProperties": false,
