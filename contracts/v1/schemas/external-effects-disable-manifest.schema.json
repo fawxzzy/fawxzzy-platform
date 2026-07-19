@@ -336,9 +336,11 @@
             "environment_routing",
             "host_aliases",
             "queues",
+            "quarantine_zero_growth",
             "realtime",
             "storage_events",
-            "webhooks"
+            "webhooks",
+            "pg_net_behavioral_compatibility"
           ]
         },
         "evidence_id": {
@@ -360,6 +362,265 @@
         },
         "result_sha256": {
           "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "zero_growth_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "observed_at",
+        "counts",
+        "counts_sha256",
+        "readback_sha256"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-ZERO-GROWTH-OBSERVATION-[A-Z0-9-]+$"
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cron_count",
+            "queue_count",
+            "response_count",
+            "sink_effect_count",
+            "edge_invocation_count"
+          ],
+          "properties": {
+            "cron_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "queue_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "response_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sink_effect_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "edge_invocation_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "counts_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "readback_sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "authenticated_zero_growth_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "unit",
+        "source_project_ref",
+        "target_project_ref",
+        "restore_project_ref",
+        "snapshot_id",
+        "run_id",
+        "maximum_age_seconds",
+        "first_readback",
+        "second_readback",
+        "independent_receipt_id",
+        "independent_receipt_sha256",
+        "verified_at",
+        "authentication_result"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-EVIDENCE-ZERO-GROWTH-[A-Z0-9-]+$"
+        },
+        "unit": {
+          "const": "quarantine_zero_growth"
+        },
+        "source_project_ref": {
+          "const": "nwexsktuuenfdegzrbut"
+        },
+        "target_project_ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "restore_project_ref": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-REHEARSAL-SNAPSHOT-[A-Z0-9-]+$"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-QUARANTINE-RUN-[A-Z0-9-]+$"
+        },
+        "maximum_age_seconds": {
+          "const": 7200
+        },
+        "first_readback": {
+          "$ref": "#/$defs/zero_growth_readback"
+        },
+        "second_readback": {
+          "$ref": "#/$defs/zero_growth_readback"
+        },
+        "independent_receipt_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-ZERO-GROWTH-READBACK-[A-Z0-9-]+$"
+        },
+        "independent_receipt_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "verified_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "authentication_result": {
+          "$ref": "#/$defs/external_effect_authentication_result"
+        }
+      }
+    },
+    "pg_net_behavioral_test_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "expected_outcome_class",
+        "actual_outcome_class",
+        "outcome_sha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "sql_signature_and_return_type",
+            "transaction_commit_dispatch",
+            "single_queue_consume",
+            "sink_only_egress",
+            "timeout_dns_invalid_scheme",
+            "http_failure_capture",
+            "worker_restart_no_duplicate",
+            "inactive_cron_zero_growth",
+            "transient_response_not_durable_evidence"
+          ]
+        },
+        "expected_outcome_class": {
+          "const": "PASS"
+        },
+        "actual_outcome_class": {
+          "const": "PASS"
+        },
+        "outcome_sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "authenticated_pg_net_behavioral_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "unit",
+        "source_project_ref",
+        "target_project_ref",
+        "restore_project_ref",
+        "snapshot_id",
+        "run_id",
+        "extension_name",
+        "source_version",
+        "target_version",
+        "test_manifest_id",
+        "test_manifest_sha256",
+        "observed_at",
+        "maximum_age_seconds",
+        "test_cases",
+        "independent_receipt_id",
+        "independent_receipt_sha256",
+        "verified_at",
+        "authentication_result"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-EVIDENCE-PG-NET-[A-Z0-9-]+$"
+        },
+        "unit": {
+          "const": "pg_net_behavioral_compatibility"
+        },
+        "source_project_ref": {
+          "const": "nwexsktuuenfdegzrbut"
+        },
+        "target_project_ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "restore_project_ref": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-REHEARSAL-SNAPSHOT-[A-Z0-9-]+$"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-PG-NET-RUN-[A-Z0-9-]+$"
+        },
+        "extension_name": {
+          "const": "pg_net"
+        },
+        "source_version": {
+          "const": "0.20.0"
+        },
+        "target_version": {
+          "const": "0.20.4"
+        },
+        "test_manifest_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-PG-NET-TEST-MANIFEST-[A-Z0-9-]+$"
+        },
+        "test_manifest_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "maximum_age_seconds": {
+          "const": 7200
+        },
+        "test_cases": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "$ref": "#/$defs/pg_net_behavioral_test_case"
+          }
+        },
+        "independent_receipt_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-PG-NET-BEHAVIORAL-RECEIPT-[A-Z0-9-]+$"
+        },
+        "independent_receipt_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "verified_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "authentication_result": {
+          "$ref": "#/$defs/external_effect_authentication_result"
         }
       }
     },
@@ -959,7 +1220,8 @@
                 "queue_growth",
                 "response_growth",
                 "sink_effect_count",
-                "edge_invocation_growth"
+                "edge_invocation_growth",
+                "authenticated_readback_evidence"
               ],
               "properties": {
                 "status": {
@@ -1017,6 +1279,16 @@
                     "null"
                   ],
                   "minimum": 0
+                },
+                "authenticated_readback_evidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/authenticated_zero_growth_evidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }
@@ -1061,6 +1333,7 @@
             "sql_upgrade_changes",
             "behavioral_status",
             "behavioral_evidence_sha256",
+            "behavioral_evidence",
             "tests"
           ],
           "properties": {
@@ -1081,6 +1354,16 @@
             },
             "behavioral_evidence_sha256": {
               "$ref": "#/$defs/nullable_digest"
+            },
+            "behavioral_evidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/authenticated_pg_net_behavioral_evidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "tests": {
               "type": "array",

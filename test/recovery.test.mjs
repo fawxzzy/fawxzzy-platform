@@ -60,15 +60,17 @@ const testExternalEffectAuthorizedPolicy = Object.freeze({
 });
 const operationalAuthenticatorBlocker = 'DiscordOS immutable contract-authorized authenticator policy remains BLOCKED';
 
+function isObjectRecordForTest(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function signExternalEffectAuthenticationResult(result, privateKey = testEd25519PrivateKey) {
   result.signed_payload_sha256 = externalEffectAuthenticationSignedPayloadDigest(result);
   result.signature_base64 = crypto.sign(null, externalEffectAuthenticationSignedBytes(result), privateKey).toString('base64');
   result.result_sha256 = externalEffectAuthenticationResultDigest(result);
 }
 
-function bindExternalEffectAuthentication(manifest, effect, privateKey = testEd25519PrivateKey) {
-  const evidence = effect.evidence;
-  const suffix = effect.unit.replaceAll('_', '-').toUpperCase();
+function bindExternalEffectAuthenticationForEvidence(manifest, evidence, suffix, privateKey = testEd25519PrivateKey) {
   const result = {
     version: '1.0.0',
     status: 'CURRENT',
@@ -85,16 +87,23 @@ function bindExternalEffectAuthentication(manifest, effect, privateKey = testEd2
     signature_algorithm: 'Ed25519',
     signature_domain: externalEffectSignatureDomain,
     manifest_identity_sha256: externalEffectAuthenticationManifestIdentityDigest(manifest),
-    unit: effect.unit,
+    unit: evidence.unit,
     evidence_id: evidence.evidence_id,
     subject_sha256: externalEffectAuthenticationSubjectDigest(evidence),
-    external_receipt_sha256: evidence.verification_receipt_sha256,
+    external_receipt_sha256: evidence.independent_receipt_sha256 ?? evidence.verification_receipt_sha256,
     signed_payload_sha256: null,
     signature_base64: null,
     result_sha256: null
   };
   signExternalEffectAuthenticationResult(result, privateKey);
   evidence.authentication_result = result;
+  return result;
+}
+
+function bindExternalEffectAuthentication(manifest, effect, privateKey = testEd25519PrivateKey) {
+  const evidence = effect.evidence;
+  const suffix = effect.unit.replaceAll('_', '-').toUpperCase();
+  bindExternalEffectAuthenticationForEvidence(manifest, evidence, suffix, privateKey);
   effect.evidence_digest = sha256Hex(evidence);
 }
 
@@ -181,27 +190,106 @@ function buildActionDocuments() {
   };
   discordos.quarantine.status = 'CURRENT';
   discordos.quarantine.sink_mode = 'SYNTHETIC_SINK_ONLY';
+  const zeroGrowthRunId = 'FP-DOS-QUARANTINE-RUN-001';
+  const makeReadback = (suffix, observed_at) => {
+    const counts = {
+      cron_count: 1,
+      queue_count: 0,
+      response_count: 0,
+      sink_effect_count: 0,
+      edge_invocation_count: 0
+    };
+    const readback = {
+      observation_id: `FP-DOS-ZERO-GROWTH-OBSERVATION-${suffix}`,
+      observed_at,
+      counts,
+      counts_sha256: sha256Hex(counts),
+      readback_sha256: null
+    };
+    readback.readback_sha256 = sha256Hex({
+      counts: readback.counts,
+      counts_sha256: readback.counts_sha256,
+      observation_id: readback.observation_id,
+      observed_at: readback.observed_at
+    });
+    return readback;
+  };
+  const firstReadback = makeReadback('001', '2026-07-18T15:50:00Z');
+  const secondReadback = makeReadback('002', '2026-07-18T15:53:00Z');
+  const zeroGrowthEvidence = {
+    evidence_id: 'FP-DOS-EFFECT-EVIDENCE-ZERO-GROWTH-001',
+    unit: 'quarantine_zero_growth',
+    source_project_ref: 'nwexsktuuenfdegzrbut',
+    target_project_ref: 'bxtcuhkotumitoqtrcej',
+    restore_project_ref: effects.restore_project_ref,
+    snapshot_id: rehearsalSnapshotId,
+    run_id: zeroGrowthRunId,
+    maximum_age_seconds: 7200,
+    first_readback: firstReadback,
+    second_readback: secondReadback,
+    independent_receipt_id: 'FP-DOS-ZERO-GROWTH-READBACK-001',
+    independent_receipt_sha256: sha256Hex({ receipt_id: 'FP-DOS-ZERO-GROWTH-READBACK-001', run_id: zeroGrowthRunId }),
+    verified_at: '2026-07-18T15:54:00Z'
+  };
+  bindExternalEffectAuthenticationForEvidence(effects, zeroGrowthEvidence, 'ZERO-GROWTH-001');
   discordos.quarantine.observation = {
     status: 'CURRENT',
     minimum_interval_seconds: 121,
     maximum_age_seconds: 7200,
     first_observed_at: '2026-07-18T15:50:00Z',
     second_observed_at: '2026-07-18T15:53:00Z',
-    first_evidence_sha256: sha256Hex({ read: 1, snapshot_id: rehearsalSnapshotId }),
-    second_evidence_sha256: sha256Hex({ read: 2, snapshot_id: rehearsalSnapshotId }),
+    first_evidence_sha256: firstReadback.readback_sha256,
+    second_evidence_sha256: secondReadback.readback_sha256,
     cron_growth: 0,
     queue_growth: 0,
     response_growth: 0,
     sink_effect_count: 0,
-    edge_invocation_growth: 0
+    edge_invocation_growth: 0,
+    authenticated_readback_evidence: zeroGrowthEvidence
   };
   discordos.rollback.status = 'CURRENT';
-  discordos.pg_net_compatibility.behavioral_status = 'CURRENT';
-  discordos.pg_net_compatibility.behavioral_evidence_sha256 = sha256Hex({
+  const pgNetRunId = 'FP-DOS-PG-NET-RUN-001';
+  const pgNetTestManifestId = 'FP-DOS-PG-NET-TEST-MANIFEST-001';
+  const pgNetTestManifestSha256 = sha256Hex({
+    run_id: pgNetRunId,
+    test_manifest_id: pgNetTestManifestId,
+    tests: expectedPgNetBehavioralTests
+  });
+  const pgNetBehavioralEvidence = {
+    evidence_id: 'FP-DOS-EFFECT-EVIDENCE-PG-NET-001',
+    unit: 'pg_net_behavioral_compatibility',
+    source_project_ref: 'nwexsktuuenfdegzrbut',
+    target_project_ref: 'bxtcuhkotumitoqtrcej',
+    restore_project_ref: effects.restore_project_ref,
+    snapshot_id: rehearsalSnapshotId,
+    run_id: pgNetRunId,
+    extension_name: 'pg_net',
     source_version: '0.20.0',
     target_version: '0.20.4',
-    test_denominator: expectedPgNetBehavioralTests
-  });
+    test_manifest_id: pgNetTestManifestId,
+    test_manifest_sha256: pgNetTestManifestSha256,
+    observed_at: '2026-07-18T15:55:00Z',
+    maximum_age_seconds: 7200,
+    test_cases: expectedPgNetBehavioralTests.map((name) => ({
+      name,
+      expected_outcome_class: 'PASS',
+      actual_outcome_class: 'PASS',
+      outcome_sha256: sha256Hex({
+        actual_outcome_class: 'PASS',
+        expected_outcome_class: 'PASS',
+        name,
+        run_id: pgNetRunId,
+        test_manifest_sha256: pgNetTestManifestSha256
+      })
+    })),
+    independent_receipt_id: 'FP-DOS-PG-NET-BEHAVIORAL-RECEIPT-001',
+    independent_receipt_sha256: sha256Hex({ receipt_id: 'FP-DOS-PG-NET-BEHAVIORAL-RECEIPT-001', run_id: pgNetRunId }),
+    verified_at: '2026-07-18T15:56:00Z'
+  };
+  bindExternalEffectAuthenticationForEvidence(effects, pgNetBehavioralEvidence, 'PG-NET-001');
+  discordos.pg_net_compatibility.behavioral_status = 'CURRENT';
+  discordos.pg_net_compatibility.behavioral_evidence = pgNetBehavioralEvidence;
+  discordos.pg_net_compatibility.behavioral_evidence_sha256 = sha256Hex(pgNetBehavioralEvidence);
   for (const effect of effects.effects) {
     effect.status = 'CURRENT';
     effect.disabled = true;
@@ -648,7 +736,7 @@ test('DiscordOS action evidence rejects digest-only self-reported circular stale
     {
       name: 'source-receipt circular digest',
       mutate: (effect, manifest) => { effect.evidence.verification_receipt_sha256 = manifest.discordos.source.evidence_receipt_sha256; },
-      expected: 'cannot reuse a manifest, inventory, compatibility, observation, or source-receipt digest'
+      expected: 'cannot reuse a manifest, inventory, compatibility, observation, test-manifest, or source-receipt digest'
     },
     {
       name: 'missing verification identity',
@@ -935,6 +1023,226 @@ test('DiscordOS external-effect evidence requires the immutable source-authorize
   }
 });
 
+test('DiscordOS supplemental readback and pg_net evidence carry independently verifiable signatures', () => {
+  const documents = buildActionDocuments();
+  const discordos = documents[recoveryDocumentPaths.effects].discordos;
+  const supplementalEvidence = [
+    discordos.quarantine.observation.authenticated_readback_evidence,
+    discordos.pg_net_compatibility.behavioral_evidence
+  ];
+
+  for (const evidence of supplementalEvidence) {
+    assert.deepEqual(
+      verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+        testExternalEffectAuthorizedPolicy,
+        testExternalEffectAuthorizedPolicy,
+        evidence.authentication_result
+      ),
+      []
+    );
+    assert.equal(evidence.authentication_result.subject_sha256, externalEffectAuthenticationSubjectDigest(evidence));
+    assert.equal(evidence.authentication_result.external_receipt_sha256, evidence.independent_receipt_sha256);
+
+    const wrongKey = structuredClone(evidence.authentication_result);
+    wrongKey.key_id = 'untrusted-supplemental-key-v1';
+    signExternalEffectAuthenticationResult(wrongKey);
+    assert.ok(verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+      testExternalEffectAuthorizedPolicy,
+      testExternalEffectAuthorizedPolicy,
+      wrongKey
+    ).some((failure) => failure.includes('signer does not match the pinned trust anchor')));
+
+    const badSignature = structuredClone(evidence.authentication_result);
+    const signatureBytes = Buffer.from(badSignature.signature_base64, 'base64');
+    signatureBytes[0] ^= 1;
+    badSignature.signature_base64 = signatureBytes.toString('base64');
+    badSignature.result_sha256 = externalEffectAuthenticationResultDigest(badSignature);
+    assert.ok(verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+      testExternalEffectAuthorizedPolicy,
+      testExternalEffectAuthorizedPolicy,
+      badSignature
+    ).some((failure) => failure.includes('signature verification failed')));
+  }
+});
+
+test('DiscordOS zero-growth readbacks reject unauthenticated malformed stale and substituted evidence', () => {
+  const scenarios = [
+    {
+      name: 'missing authenticated evidence',
+      mutate: (observation) => { observation.authenticated_readback_evidence = null; },
+      expected: 'requires authenticated structured readback evidence',
+      schemaFailure: false
+    },
+    {
+      name: 'null first readback',
+      mutate: (observation) => { observation.authenticated_readback_evidence.first_readback = null; },
+      expected: 'requires two structured readbacks',
+      schemaFailure: true
+    },
+    {
+      name: 'count tamper',
+      mutate: (observation) => { observation.authenticated_readback_evidence.second_readback.counts.queue_count = 1; },
+      expected: 'second zero-growth counts digest mismatch'
+    },
+    {
+      name: 'readback digest tamper',
+      mutate: (observation) => { observation.authenticated_readback_evidence.first_readback.readback_sha256 = 'f'.repeat(64); },
+      expected: 'first zero-growth readback digest mismatch'
+    },
+    {
+      name: 'cross-project evidence',
+      mutate: (observation) => { observation.authenticated_readback_evidence.source_project_ref = 'abcdefghijklmnopqrst'; },
+      expected: 'project correlation mismatch',
+      schemaFailure: true
+    },
+    {
+      name: 'cross-snapshot evidence',
+      mutate: (observation) => { observation.authenticated_readback_evidence.snapshot_id = 'FP-DOS-REHEARSAL-SNAPSHOT-SUBSTITUTED'; },
+      expected: 'snapshot mismatch'
+    },
+    {
+      name: 'cross-run substitution',
+      mutate: (observation) => { observation.authenticated_readback_evidence.run_id = 'FP-DOS-QUARANTINE-RUN-SUBSTITUTED'; },
+      expected: 'authentication result subject mismatch'
+    },
+    {
+      name: 'swapped observations',
+      mutate: (observation) => {
+        [observation.authenticated_readback_evidence.first_readback, observation.authenticated_readback_evidence.second_readback] = [
+          observation.authenticated_readback_evidence.second_readback,
+          observation.authenticated_readback_evidence.first_readback
+        ];
+      },
+      expected: 'readback timestamps do not correlate'
+    },
+    {
+      name: 'future verification',
+      mutate: (observation) => { observation.authenticated_readback_evidence.verified_at = '2026-07-18T17:00:01Z'; },
+      expected: 'verification is in the future'
+    },
+    {
+      name: 'self-correlated receipt',
+      mutate: (observation) => {
+        const evidence = observation.authenticated_readback_evidence;
+        evidence.independent_receipt_sha256 = evidence.authentication_result.result_sha256;
+      },
+      expected: 'independent receipt cannot self-correlate'
+    },
+    {
+      name: 'cross-proof authentication replay',
+      mutate: (observation, discordos) => {
+        observation.authenticated_readback_evidence.authentication_result = structuredClone(discordos.pg_net_compatibility.behavioral_evidence.authentication_result);
+      },
+      expected: 'authentication result evidence identity mismatch'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const discordos = documents[recoveryDocumentPaths.effects].discordos;
+    scenario.mutate(discordos.quarantine.observation, discordos);
+    refreshActionDigests(documents);
+    let report;
+    assert.doesNotThrow(() => { report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt }); }, scenario.name);
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+});
+
+test('DiscordOS pg_net behavioral evidence rejects partial failing stale replayed and substituted proofs', () => {
+  const scenarios = [
+    {
+      name: 'missing structured evidence',
+      mutate: (compatibility) => { compatibility.behavioral_evidence = null; compatibility.behavioral_evidence_sha256 = null; },
+      expected: 'requires authenticated structured pg_net behavioral evidence'
+    },
+    {
+      name: 'null mixed test case',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.test_cases[1] = null; },
+      expected: 'test-case denominator changed',
+      schemaFailure: true
+    },
+    {
+      name: 'missing required case',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.test_cases.pop(); },
+      expected: 'test-case denominator changed',
+      schemaFailure: true
+    },
+    {
+      name: 'unexpected case',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.test_cases[0].name = 'unexpected_case'; },
+      expected: 'test-case denominator changed',
+      schemaFailure: true
+    },
+    {
+      name: 'failing outcome',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.test_cases[0].actual_outcome_class = 'FAIL'; },
+      expected: 'did not pass its expected outcome',
+      schemaFailure: true
+    },
+    {
+      name: 'outcome digest mismatch',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.test_cases[0].outcome_sha256 = 'f'.repeat(64); },
+      expected: 'outcome digest mismatch'
+    },
+    {
+      name: 'cross-project proof',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.restore_project_ref = 'zyxwvutsrqponmlkjihg'; },
+      expected: 'project correlation mismatch'
+    },
+    {
+      name: 'cross-version proof',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.target_version = '0.20.0'; },
+      expected: 'extension-version mismatch',
+      schemaFailure: true
+    },
+    {
+      name: 'cross-run proof',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.run_id = 'FP-DOS-PG-NET-RUN-SUBSTITUTED'; },
+      expected: 'outcome digest mismatch'
+    },
+    {
+      name: 'future evidence',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.observed_at = '2026-07-18T17:00:01Z'; },
+      expected: 'freshness failed: completion time is in the future'
+    },
+    {
+      name: 'stale evidence',
+      mutate: (compatibility) => { compatibility.behavioral_evidence.observed_at = '2026-07-18T14:59:59Z'; },
+      expected: 'freshness failed: backup is stale'
+    },
+    {
+      name: 'self-correlated receipt',
+      mutate: (compatibility) => {
+        const evidence = compatibility.behavioral_evidence;
+        evidence.independent_receipt_sha256 = evidence.authentication_result.result_sha256;
+      },
+      expected: 'independent receipt cannot self-correlate'
+    },
+    {
+      name: 'cross-proof authentication replay',
+      mutate: (compatibility, discordos) => {
+        compatibility.behavioral_evidence.authentication_result = structuredClone(discordos.quarantine.observation.authenticated_readback_evidence.authentication_result);
+      },
+      expected: 'authentication result evidence identity mismatch'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const discordos = documents[recoveryDocumentPaths.effects].discordos;
+    scenario.mutate(discordos.pg_net_compatibility, discordos);
+    discordos.pg_net_compatibility.behavioral_evidence_sha256 = isObjectRecordForTest(discordos.pg_net_compatibility.behavioral_evidence)
+      ? sha256Hex(discordos.pg_net_compatibility.behavioral_evidence)
+      : null;
+    refreshActionDigests(documents);
+    let report;
+    assert.doesNotThrow(() => { report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt }); }, scenario.name);
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+});
+
 test('DiscordOS quarantine replay rollback observation and pg_net behavior gates remain fail closed', () => {
   const scenarios = [
     {
@@ -970,7 +1278,7 @@ test('DiscordOS quarantine replay rollback observation and pg_net behavior gates
     {
       name: 'behavioral replay blocked',
       mutate: (discordos) => { discordos.pg_net_compatibility.behavioral_status = 'BLOCKED'; discordos.pg_net_compatibility.behavioral_evidence_sha256 = null; },
-      expected: 'requires pg_net behavioral evidence'
+      expected: 'requires authenticated structured pg_net behavioral evidence'
     },
     {
       name: 'behavioral denominator missing',
@@ -1060,6 +1368,20 @@ test('DiscordOS zero-growth observations enforce the closed freshness and chrono
   const observation = exactBoundary[recoveryDocumentPaths.effects].discordos.quarantine.observation;
   observation.first_observed_at = '2026-07-18T15:00:00Z';
   observation.second_observed_at = '2026-07-18T15:03:00Z';
+  const readbackEvidence = observation.authenticated_readback_evidence;
+  readbackEvidence.first_readback.observed_at = observation.first_observed_at;
+  readbackEvidence.second_readback.observed_at = observation.second_observed_at;
+  for (const readback of [readbackEvidence.first_readback, readbackEvidence.second_readback]) {
+    readback.readback_sha256 = sha256Hex({
+      counts: readback.counts,
+      counts_sha256: readback.counts_sha256,
+      observation_id: readback.observation_id,
+      observed_at: readback.observed_at
+    });
+  }
+  observation.first_evidence_sha256 = readbackEvidence.first_readback.readback_sha256;
+  observation.second_evidence_sha256 = readbackEvidence.second_readback.readback_sha256;
+  bindExternalEffectAuthenticationForEvidence(exactBoundary[recoveryDocumentPaths.effects], readbackEvidence, 'ZERO-GROWTH-001');
   refreshActionDigests(exactBoundary);
   assert.deepEqual(validateSchemaInstances(exactBoundary, createValidator()), []);
   assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, [operationalAuthenticatorBlocker]);

@@ -205,7 +205,8 @@
         "queue_growth": null,
         "response_growth": null,
         "sink_effect_count": null,
-        "edge_invocation_growth": null
+        "edge_invocation_growth": null,
+        "authenticated_readback_evidence": null
       }
     },
     "rollback": {
@@ -227,6 +228,7 @@
       "sql_upgrade_changes": 0,
       "behavioral_status": "BLOCKED",
       "behavioral_evidence_sha256": null,
+      "behavioral_evidence": null,
       "tests": [
         "sql_signature_and_return_type",
         "transaction_commit_dispatch",

@@ -225,6 +225,24 @@ export function externalEffectAuthenticationResultDigest(result) {
   return sha256Hex(copy);
 }
 
+function zeroGrowthReadbackDigest(readback) {
+  if (!isRecord(readback)) return null;
+  const copy = structuredClone(readback);
+  delete copy.readback_sha256;
+  return sha256Hex(copy);
+}
+
+function pgNetBehavioralOutcomeDigest(testCase, evidence) {
+  if (!isRecord(testCase) || !isRecord(evidence)) return null;
+  return sha256Hex({
+    actual_outcome_class: testCase.actual_outcome_class,
+    expected_outcome_class: testCase.expected_outcome_class,
+    name: testCase.name,
+    run_id: evidence.run_id,
+    test_manifest_sha256: evidence.test_manifest_sha256
+  });
+}
+
 export function externalEffectAuthenticationSignedBytes(result) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
   const payload = structuredClone(result);
@@ -575,9 +593,13 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     );
     requireCondition(rehearsal.status === 'BLOCKED' && rehearsal.restore_project_ref === null && rehearsal.snapshot_id === null && rehearsal.observed_at === null && rehearsal.maximum_age_seconds === null && rehearsal.inventory_evidence_sha256 === null, 'DiscordOS source example must not invent rehearsal evidence');
     requireCondition(quarantine.status === 'BLOCKED' && quarantine.sink_mode === 'UNKNOWN', 'DiscordOS source example must not claim active quarantine');
-    requireCondition(quarantine.observation?.status === 'BLOCKED' && quarantine.observation?.maximum_age_seconds === 7200, 'DiscordOS source example must retain the blocked observation freshness policy without claiming proof');
+    requireCondition(quarantine.observation?.status === 'BLOCKED'
+      && quarantine.observation?.maximum_age_seconds === 7200
+      && quarantine.observation?.authenticated_readback_evidence === null, 'DiscordOS source example must retain the blocked observation freshness policy without claiming proof');
     requireCondition(rollback.status === 'BLOCKED', 'DiscordOS source example must not claim rollback proof');
-    requireCondition(compatibility.behavioral_status === 'BLOCKED' && compatibility.behavioral_evidence_sha256 === null, 'DiscordOS source example must not claim pg_net behavioral compatibility');
+    requireCondition(compatibility.behavioral_status === 'BLOCKED'
+      && compatibility.behavioral_evidence_sha256 === null
+      && compatibility.behavioral_evidence === null, 'DiscordOS source example must not claim pg_net behavioral compatibility');
     requireCondition(effects.effects.every((entry) => entry.evidence === null), 'DiscordOS source example must not invent authenticated per-effect evidence');
     requireCondition(
       canonicalSerialize(evidencePolicy) === canonicalSerialize(discordExternalEffectAuthorizedEvidencePolicy),
@@ -589,6 +611,38 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   const exactAuthorizedPolicy = canonicalSerialize(evidencePolicy) === canonicalSerialize(discordExternalEffectAuthorizedEvidencePolicy);
   requireCondition(exactAuthorizedPolicy, 'DiscordOS external-effect evidence policy does not exactly match the immutable contract-authorized policy');
   requireCondition(discordExternalEffectAuthorizedEvidencePolicy.status === 'CURRENT', 'DiscordOS immutable contract-authorized authenticator policy remains BLOCKED');
+  const validateSupplementalAuthentication = (evidence, expectedUnit, label) => {
+    const authenticationResult = evidence?.authentication_result;
+    requireCondition(isRecord(authenticationResult), `${label} requires a structured cryptographic authentication result`);
+    if (!isRecord(authenticationResult)) return null;
+    const subjectDigest = externalEffectAuthenticationSubjectDigest(evidence);
+    const resultDigest = externalEffectAuthenticationResultDigest(authenticationResult);
+    const manifestIdentityDigest = externalEffectAuthenticationManifestIdentityDigest(effects);
+    requireCondition(authenticationResult.version === '1.0.0'
+      && authenticationResult.status === 'CURRENT'
+      && isRecord(authenticationResult.verification)
+      && authenticationResult.verification.outcome === 'PASS'
+      && authenticationResult.canonical_serialization === 'lexicographic_object_keys_array_order_preserved_two_space_json_lf'
+      && authenticationResult.result_class === 'trusted_external_effect_authentication'
+      && authenticationResult.verification_method === 'external_signature_verification', `${label} authentication result must separate CURRENT lifecycle from PASS cryptographic verification`);
+    requireCondition(authenticationResult.unit === expectedUnit
+      && authenticationResult.evidence_id === evidence.evidence_id, `${label} authentication result evidence identity mismatch`);
+    requireCondition(authenticationResult.manifest_identity_sha256 === manifestIdentityDigest, `${label} authentication result manifest identity mismatch`);
+    requireCondition(authenticationResult.subject_sha256 === subjectDigest, `${label} authentication result subject mismatch`);
+    requireCondition(authenticationResult.external_receipt_sha256 === evidence.independent_receipt_sha256, `${label} authentication result independent receipt mismatch`);
+    requireCondition(authenticationResult.verified_at === evidence.verified_at, `${label} authentication result verification timestamp mismatch`);
+    requireCondition(resultDigest !== null && authenticationResult.result_sha256 === resultDigest, `${label} authentication result digest mismatch`);
+    requireCondition(evidence.independent_receipt_sha256 !== subjectDigest
+      && evidence.independent_receipt_sha256 !== resultDigest, `${label} independent receipt cannot self-correlate to its subject or authentication result`);
+    if (exactAuthorizedPolicy && discordExternalEffectAuthorizedEvidencePolicy.status === 'CURRENT') {
+      failures.push(...verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+        discordExternalEffectAuthorizedEvidencePolicy,
+        evidencePolicy,
+        authenticationResult
+      ));
+    }
+    return authenticationResult;
+  };
   requireCondition(discordos.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT status');
   requireCondition(rehearsal.status === 'CURRENT', 'accepted DiscordOS quarantine requires a CURRENT rehearsal inventory');
   requireCondition(rehearsal.restore_project_ref === effects.restore_project_ref, 'DiscordOS rehearsal project must correlate to the external-effects manifest');
@@ -610,15 +664,111 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
 
   requireCondition(quarantine.status === 'CURRENT' && ['DENIED_EGRESS', 'SYNTHETIC_SINK_ONLY'].includes(quarantine.sink_mode), 'accepted DiscordOS quarantine requires denied or sink-only egress');
   requireCondition(rollback.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT rollback proof');
-  requireCondition(compatibility.behavioral_status === 'CURRENT' && hexSha256.test(compatibility.behavioral_evidence_sha256 ?? ''), 'accepted DiscordOS quarantine requires pg_net behavioral evidence');
+  const behavioralEvidence = compatibility.behavioral_evidence;
+  requireCondition(compatibility.behavioral_status === 'CURRENT'
+    && isRecord(behavioralEvidence)
+    && compatibility.behavioral_evidence_sha256 === sha256Hex(behavioralEvidence), 'accepted DiscordOS quarantine requires authenticated structured pg_net behavioral evidence');
+  let behavioralAuthenticationResult = null;
+  if (isRecord(behavioralEvidence)) {
+    requireCondition(behavioralEvidence.unit === 'pg_net_behavioral_compatibility', 'pg_net behavioral evidence unit mismatch');
+    requireCondition(behavioralEvidence.source_project_ref === source.project_ref
+      && behavioralEvidence.target_project_ref === rehearsal.target_project_ref
+      && behavioralEvidence.restore_project_ref === rehearsal.restore_project_ref, 'pg_net behavioral evidence project correlation mismatch');
+    requireCondition(behavioralEvidence.snapshot_id === rehearsal.snapshot_id, 'pg_net behavioral evidence snapshot mismatch');
+    requireCondition(behavioralEvidence.extension_name === 'pg_net'
+      && behavioralEvidence.source_version === compatibility.source_version
+      && behavioralEvidence.target_version === compatibility.target_version, 'pg_net behavioral evidence extension-version mismatch');
+    requireCondition(behavioralEvidence.maximum_age_seconds === evidencePolicy.maximum_age_seconds
+      && behavioralEvidence.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds, 'pg_net behavioral evidence freshness policy does not match the contract-owned maximum');
+    const behavioralCases = Array.isArray(behavioralEvidence.test_cases) ? behavioralEvidence.test_cases : [];
+    const behavioralCaseNames = behavioralCases.filter(isRecord).map((entry) => entry.name);
+    requireCondition(behavioralCases.length === expectedPgNetBehavioralTests.length
+      && behavioralCases.every(isRecord)
+      && sameOrderedValues(behavioralCaseNames, expectedPgNetBehavioralTests)
+      && new Set(behavioralCaseNames).size === expectedPgNetBehavioralTests.length, 'pg_net behavioral evidence test-case denominator changed');
+    for (const testCase of behavioralCases.filter(isRecord)) {
+      requireCondition(testCase.expected_outcome_class === 'PASS'
+        && testCase.actual_outcome_class === 'PASS', `pg_net behavioral test ${testCase.name} did not pass its expected outcome`);
+      requireCondition(testCase.outcome_sha256 === pgNetBehavioralOutcomeDigest(testCase, behavioralEvidence), `pg_net behavioral test ${testCase.name} outcome digest mismatch`);
+    }
+    requireCondition(hexSha256.test(behavioralEvidence.test_manifest_sha256 ?? '')
+      && hexSha256.test(behavioralEvidence.independent_receipt_sha256 ?? ''), 'pg_net behavioral evidence requires canonical manifest and independent receipt digests');
+    try {
+      const freshness = evaluateFreshness({ completedAt: behavioralEvidence.observed_at, maxAgeSeconds: behavioralEvidence.maximum_age_seconds, now });
+      requireCondition(freshness.status === 'CURRENT', `pg_net behavioral evidence freshness failed: ${freshness.reason}`);
+      const observed = parseTimestamp(behavioralEvidence.observed_at, 'discordos.pg_net.behavioral_evidence.observed_at');
+      const verified = parseTimestamp(behavioralEvidence.verified_at, 'discordos.pg_net.behavioral_evidence.verified_at');
+      requireCondition(verified >= observed, 'pg_net behavioral evidence verification precedes observation');
+      requireCondition(verified <= parseTimestamp(now, 'now'), 'pg_net behavioral evidence verification is in the future');
+    } catch (error) {
+      failures.push(error.message);
+    }
+    behavioralAuthenticationResult = validateSupplementalAuthentication(
+      behavioralEvidence,
+      'pg_net_behavioral_compatibility',
+      'pg_net behavioral evidence'
+    );
+  }
 
   const observation = quarantine.observation;
   requireCondition(isRecord(observation) && observation.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT two-read observation');
+  let readbackEvidence = null;
+  let readbackAuthenticationResult = null;
   if (isRecord(observation)) {
     requireCondition(observation.minimum_interval_seconds === 121, 'DiscordOS two-read interval denominator changed');
     requireCondition(observation.maximum_age_seconds === 7200, 'DiscordOS two-read freshness-policy denominator changed');
     requireCondition(hexSha256.test(observation.first_evidence_sha256 ?? '') && hexSha256.test(observation.second_evidence_sha256 ?? ''), 'DiscordOS two-read observation requires canonical evidence digests');
     requireCondition(observation.first_evidence_sha256 !== observation.second_evidence_sha256, 'DiscordOS two-read observation requires independent evidence digests');
+    readbackEvidence = observation.authenticated_readback_evidence;
+    requireCondition(isRecord(readbackEvidence), 'DiscordOS two-read observation requires authenticated structured readback evidence');
+    if (isRecord(readbackEvidence)) {
+      requireCondition(readbackEvidence.unit === 'quarantine_zero_growth', 'DiscordOS zero-growth readback evidence unit mismatch');
+      requireCondition(readbackEvidence.source_project_ref === source.project_ref
+        && readbackEvidence.target_project_ref === rehearsal.target_project_ref
+        && readbackEvidence.restore_project_ref === rehearsal.restore_project_ref, 'DiscordOS zero-growth readback evidence project correlation mismatch');
+      requireCondition(readbackEvidence.snapshot_id === rehearsal.snapshot_id, 'DiscordOS zero-growth readback evidence snapshot mismatch');
+      requireCondition(readbackEvidence.maximum_age_seconds === observation.maximum_age_seconds
+        && readbackEvidence.maximum_age_seconds === evidencePolicy.maximum_age_seconds
+        && readbackEvidence.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds, 'DiscordOS zero-growth readback evidence freshness policy does not match the contract-owned maximum');
+      const firstReadback = readbackEvidence.first_readback;
+      const secondReadback = readbackEvidence.second_readback;
+      requireCondition(isRecord(firstReadback) && isRecord(secondReadback), 'DiscordOS zero-growth evidence requires two structured readbacks');
+      if (isRecord(firstReadback) && isRecord(secondReadback)) {
+        const firstCounts = firstReadback.counts;
+        const secondCounts = secondReadback.counts;
+        requireCondition(firstReadback.observation_id !== secondReadback.observation_id, 'DiscordOS zero-growth readback identities must be unique');
+        requireCondition(isRecord(firstCounts) && firstReadback.counts_sha256 === sha256Hex(firstCounts), 'DiscordOS first zero-growth counts digest mismatch');
+        requireCondition(isRecord(secondCounts) && secondReadback.counts_sha256 === sha256Hex(secondCounts), 'DiscordOS second zero-growth counts digest mismatch');
+        requireCondition(firstReadback.readback_sha256 === zeroGrowthReadbackDigest(firstReadback), 'DiscordOS first zero-growth readback digest mismatch');
+        requireCondition(secondReadback.readback_sha256 === zeroGrowthReadbackDigest(secondReadback), 'DiscordOS second zero-growth readback digest mismatch');
+        requireCondition(firstReadback.observed_at === observation.first_observed_at
+          && secondReadback.observed_at === observation.second_observed_at, 'DiscordOS zero-growth readback timestamps do not correlate to the observation');
+        requireCondition(firstReadback.readback_sha256 === observation.first_evidence_sha256
+          && secondReadback.readback_sha256 === observation.second_evidence_sha256, 'DiscordOS zero-growth readback digests do not correlate to the observation');
+        if (isRecord(firstCounts) && isRecord(secondCounts)) {
+          requireCondition(secondCounts.cron_count - firstCounts.cron_count === observation.cron_growth
+            && secondCounts.queue_count - firstCounts.queue_count === observation.queue_growth
+            && secondCounts.response_count - firstCounts.response_count === observation.response_growth
+            && secondCounts.sink_effect_count - firstCounts.sink_effect_count === observation.sink_effect_count
+            && secondCounts.edge_invocation_count - firstCounts.edge_invocation_count === observation.edge_invocation_growth,
+          'DiscordOS zero-growth readback counts do not match the claimed growth denominator');
+        }
+      }
+      requireCondition(hexSha256.test(readbackEvidence.independent_receipt_sha256 ?? ''), 'DiscordOS zero-growth readback requires an independent receipt digest');
+      try {
+        const verified = parseTimestamp(readbackEvidence.verified_at, 'discordos.quarantine.observation.authenticated_readback_evidence.verified_at');
+        const second = parseTimestamp(readbackEvidence.second_readback?.observed_at, 'discordos.quarantine.observation.authenticated_readback_evidence.second_readback.observed_at');
+        requireCondition(verified >= second, 'DiscordOS zero-growth readback verification precedes the second observation');
+        requireCondition(verified <= parseTimestamp(now, 'now'), 'DiscordOS zero-growth readback verification is in the future');
+      } catch (error) {
+        failures.push(error.message);
+      }
+      readbackAuthenticationResult = validateSupplementalAuthentication(
+        readbackEvidence,
+        'quarantine_zero_growth',
+        'DiscordOS zero-growth readback evidence'
+      );
+    }
     requireCondition(
       observation.cron_growth === 0
         && observation.queue_growth === 0
@@ -721,6 +871,14 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   requireCondition(new Set(coverageDigests).size === expectedExternalEffectUnits.length, 'DiscordOS coverage digests must be unique and complete');
   requireCondition(new Set(authenticationResultIds).size === expectedExternalEffectUnits.length, 'DiscordOS authentication result identities must be unique and complete');
   requireCondition(new Set(authenticationResultDigests).size === expectedExternalEffectUnits.length, 'DiscordOS authentication result digests must be unique and complete');
+  const supplementalEvidence = [readbackEvidence, behavioralEvidence].filter(isRecord);
+  const supplementalAuthenticationResults = [readbackAuthenticationResult, behavioralAuthenticationResult].filter(isRecord);
+  requireCondition(supplementalEvidence.length === 2, 'DiscordOS supplemental authenticated evidence denominator is incomplete');
+  requireCondition(new Set(supplementalEvidence.map((entry) => entry.evidence_id)).size === 2, 'DiscordOS supplemental evidence identities must be unique');
+  requireCondition(new Set(supplementalEvidence.map((entry) => entry.independent_receipt_id)).size === 2, 'DiscordOS supplemental independent receipt identities must be unique');
+  requireCondition(new Set(supplementalEvidence.map((entry) => entry.independent_receipt_sha256)).size === 2, 'DiscordOS supplemental independent receipt digests must be unique');
+  requireCondition(new Set(supplementalAuthenticationResults.map((entry) => entry.result_id)).size === 2, 'DiscordOS supplemental authentication result identities must be unique');
+  requireCondition(new Set(supplementalAuthenticationResults.map((entry) => entry.result_sha256)).size === 2, 'DiscordOS supplemental authentication result digests must be unique');
   const circularDigests = new Set([
     effects.manifest_sha256,
     source.evidence_receipt_sha256,
@@ -728,11 +886,19 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     rehearsal.inventory_evidence_sha256,
     compatibility.behavioral_evidence_sha256,
     observation?.first_evidence_sha256,
-    observation?.second_evidence_sha256
+    observation?.second_evidence_sha256,
+    behavioralEvidence?.test_manifest_sha256
   ].filter(Boolean));
-  const allPerEffectDigests = [...evidenceDigests, ...verificationDigests, ...coverageDigests, ...authenticationResultDigests];
-  requireCondition(new Set(allPerEffectDigests).size === allPerEffectDigests.length, 'DiscordOS evidence contains reused or circular per-effect digests');
-  requireCondition(allPerEffectDigests.every((digest) => !circularDigests.has(digest)), 'DiscordOS evidence cannot reuse a manifest, inventory, compatibility, observation, or source-receipt digest');
+  const allAuthenticatedDigests = [
+    ...evidenceDigests,
+    ...verificationDigests,
+    ...coverageDigests,
+    ...authenticationResultDigests,
+    ...supplementalEvidence.map((entry) => entry.independent_receipt_sha256),
+    ...supplementalAuthenticationResults.map((entry) => entry.result_sha256)
+  ];
+  requireCondition(new Set(allAuthenticatedDigests).size === allAuthenticatedDigests.length, 'DiscordOS evidence contains reused or circular authenticated digests');
+  requireCondition(allAuthenticatedDigests.every((digest) => !circularDigests.has(digest)), 'DiscordOS evidence cannot reuse a manifest, inventory, compatibility, observation, test-manifest, or source-receipt digest');
 }
 
 export function validateRecoveryDocuments(documents, options = {}) {
