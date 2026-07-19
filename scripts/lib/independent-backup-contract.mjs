@@ -151,6 +151,22 @@ function requireCondition(condition, message, failures) {
   if (!condition) failures.push(message);
 }
 
+function guardedUnitEntries(value, label, failures) {
+  if (!Array.isArray(value)) {
+    failures.push(`${label}: evidence array is malformed`);
+    return [];
+  }
+  const entries = [];
+  for (const [index, entry] of value.entries()) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.unit !== 'string') {
+      failures.push(`${label}[${index}]: evidence entry is malformed`);
+      continue;
+    }
+    entries.push(entry);
+  }
+  return entries;
+}
+
 export function validateIndependentBackupContract(contract) {
   const failures = [];
   if (!contract) return { ok: false, failures: ['independent backup contract is missing'] };
@@ -320,12 +336,14 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   if (receipt.lifecycle_state === 'RESTORE_REHEARSED') {
     requireCondition(receipt.restore?.status === 'CURRENT', 'RESTORE_REHEARSED requires a current restore receipt', failures);
     requireCondition(receipt.restore?.traffic_released === false && receipt.restore?.synthetic_canary_status === 'CURRENT', 'restore clone must remain quarantined with synthetic-only canaries', failures);
-    requireCondition(Array.isArray(receipt.restore?.external_effects) && sameSet(receipt.restore.external_effects.map((entry) => entry.unit), externalEffectUnits), 'restore external-effect denominator changed', failures);
-    const effectDigests = receipt.restore?.external_effects?.map((entry) => entry.evidence_sha256) ?? [];
-    requireCondition(receipt.restore?.external_effects?.every((entry) => entry.status === 'CURRENT' && entry.disabled === true && hexSha256.test(entry.evidence_sha256 ?? '')), 'every restore external effect requires disabled evidence', failures);
+    const externalEffects = guardedUnitEntries(receipt.restore?.external_effects, 'restore.external_effects', failures);
+    requireCondition(Array.isArray(receipt.restore?.external_effects) && externalEffects.length === receipt.restore.external_effects.length && sameSet(externalEffects.map((entry) => entry.unit), externalEffectUnits), 'restore external-effect denominator changed', failures);
+    const effectDigests = externalEffects.map((entry) => entry.evidence_sha256);
+    requireCondition(externalEffects.length === externalEffectUnits.length && externalEffects.every((entry) => entry.status === 'CURRENT' && entry.disabled === true && hexSha256.test(entry.evidence_sha256 ?? '')), 'every restore external effect requires disabled evidence', failures);
     requireCondition(new Set(effectDigests).size === externalEffectUnits.length, 'restore external-effect evidence digests must be distinct', failures);
-    requireCondition(Array.isArray(receipt.restore?.parity) && sameSet(receipt.restore.parity.map((entry) => entry.unit), parityUnits), 'restore parity denominator changed', failures);
-    requireCondition(receipt.restore?.parity?.every((entry) => entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '')), 'restore parity evidence is incomplete', failures);
+    const parityEvidence = guardedUnitEntries(receipt.restore?.parity, 'restore.parity', failures);
+    requireCondition(Array.isArray(receipt.restore?.parity) && parityEvidence.length === receipt.restore.parity.length && sameSet(parityEvidence.map((entry) => entry.unit), parityUnits), 'restore parity denominator changed', failures);
+    requireCondition(parityEvidence.length === parityUnits.length && parityEvidence.every((entry) => entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '')), 'restore parity evidence is incomplete', failures);
     const failureDeclaredAt = parseTimestamp(receipt.restore?.failure_declared_at, 'restore.failure_declared_at', failures);
     const restoreStartedAt = parseTimestamp(receipt.restore?.restore_started_at, 'restore.restore_started_at', failures);
     const dataPlaneReadyAt = parseTimestamp(receipt.restore?.data_plane_ready_at, 'restore.data_plane_ready_at', failures);

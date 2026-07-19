@@ -575,6 +575,92 @@ test('restore external-effect evidence must be complete and distinct', () => {
   assert(validate(receipt).failures.includes('restore external-effect evidence digests must be distinct'));
 });
 
+test('malformed restore external-effect and parity evidence fails closed without throwing', () => {
+  const malformedExternalEffects = [
+    null,
+    'pg_net',
+    7,
+    true,
+    [],
+    {},
+    { unit: 7, status: 'CURRENT', disabled: true, evidence_sha256: digest('malformed-effect-unit') },
+    { unit: 'app_environment', status: 7, disabled: 'yes', evidence_sha256: false }
+  ];
+  const malformedParity = [
+    null,
+    'auth',
+    7,
+    true,
+    [],
+    {},
+    { unit: 7, status: 'CURRENT', aggregate_count: 0, private_digest: digest('malformed-parity-unit') },
+    { unit: 'auth', status: 7, aggregate_count: 'zero', private_digest: false }
+  ];
+
+  for (const [index, malformedEntry] of malformedExternalEffects.entries()) {
+    const receipt = buildReceipt({ restore: true });
+    receipt.restore.external_effects[0] = malformedEntry;
+    receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+    let result;
+    assert.doesNotThrow(() => { result = validate(receipt); }, `malformed external-effect case ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('receipt schema /restore/external_effects/0')));
+    if (index < 7) {
+      assert(result.failures.includes('restore.external_effects[0]: evidence entry is malformed'));
+      assert(result.failures.includes('restore external-effect denominator changed'));
+    } else {
+      assert(result.failures.includes('every restore external effect requires disabled evidence'));
+    }
+  }
+
+  for (const [index, malformedEntry] of malformedParity.entries()) {
+    const receipt = buildReceipt({ restore: true });
+    receipt.restore.parity[0] = malformedEntry;
+    receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+    let result;
+    assert.doesNotThrow(() => { result = validate(receipt); }, `malformed parity case ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('receipt schema /restore/parity/0')));
+    if (index < 7) {
+      assert(result.failures.includes('restore.parity[0]: evidence entry is malformed'));
+      assert(result.failures.includes('restore parity denominator changed'));
+    } else {
+      assert(result.failures.includes('restore parity evidence is incomplete'));
+    }
+  }
+
+  for (const field of ['external_effects', 'parity']) {
+    for (const malformedContainer of [null, 'malformed', { unit: 'malformed' }]) {
+      const receipt = buildReceipt({ restore: true });
+      receipt.restore[field] = malformedContainer;
+      receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+      let result;
+      assert.doesNotThrow(() => { result = validate(receipt); }, `malformed ${field} container must not throw`);
+      assert.equal(result.ok, false);
+      assert(result.failures.includes(`restore.${field}: evidence array is malformed`));
+    }
+  }
+
+  const mixed = buildReceipt({ restore: true });
+  mixed.restore.external_effects[0] = null;
+  mixed.restore.parity[0] = [];
+  mixed.manifest_sha256 = independentBackupManifestDigest(mixed);
+  const mixedResult = validate(mixed);
+  assert.equal(mixedResult.ok, false);
+  assert(mixedResult.failures.includes('restore.external_effects[0]: evidence entry is malformed'));
+  assert(mixedResult.failures.includes('restore.parity[0]: evidence entry is malformed'));
+
+  const duplicateEffects = buildReceipt({ restore: true });
+  duplicateEffects.restore.external_effects[0] = structuredClone(duplicateEffects.restore.external_effects[1]);
+  duplicateEffects.manifest_sha256 = independentBackupManifestDigest(duplicateEffects);
+  assert(validate(duplicateEffects).failures.includes('restore external-effect denominator changed'));
+
+  const duplicateParity = buildReceipt({ restore: true });
+  duplicateParity.restore.parity[0] = structuredClone(duplicateParity.restore.parity[1]);
+  duplicateParity.manifest_sha256 = independentBackupManifestDigest(duplicateParity);
+  assert(validate(duplicateParity).failures.includes('restore parity denominator changed'));
+});
+
 test('restore objective overruns and deletion overreach fail closed', () => {
   const receipt = buildReceipt({ restore: true });
   receipt.restore.measured_rpo_seconds = 28801;
