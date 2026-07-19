@@ -11,6 +11,7 @@
     "project",
     "restore_project_ref",
     "quarantine",
+    "discordos",
     "effects",
     "manifest_sha256"
   ],
@@ -89,6 +90,9 @@
         }
       }
     },
+    "discordos": {
+      "$ref": "#/$defs/discordos"
+    },
     "effects": {
       "type": "array",
       "minItems": 12,
@@ -100,7 +104,8 @@
           "unit",
           "status",
           "disabled",
-          "evidence_digest"
+          "evidence_digest",
+          "evidence"
         ],
         "properties": {
           "unit": {
@@ -130,6 +135,16 @@
           },
           "evidence_digest": {
             "$ref": "#/$defs/nullable_digest"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/authenticated_effect_evidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       }
@@ -145,6 +160,726 @@
         "null"
       ],
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "timestamp_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "authenticated_effect_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "unit",
+        "source_project_ref",
+        "target_project_ref",
+        "restore_project_ref",
+        "snapshot_id",
+        "observed_at",
+        "maximum_age_seconds",
+        "disabled",
+        "coverage_count",
+        "coverage_sha256",
+        "inventory_manifest_sha256",
+        "authenticator_class",
+        "verification_status",
+        "verification_receipt_id",
+        "verification_receipt_sha256",
+        "verified_at"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-EVIDENCE-[A-Z0-9-]+$"
+        },
+        "unit": {
+          "enum": [
+            "application_traffic",
+            "auth_delivery_and_hooks",
+            "cron",
+            "database_network_calls",
+            "dns",
+            "edge_schedules",
+            "environment_routing",
+            "host_aliases",
+            "queues",
+            "realtime",
+            "storage_events",
+            "webhooks"
+          ]
+        },
+        "source_project_ref": {
+          "const": "nwexsktuuenfdegzrbut"
+        },
+        "target_project_ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "restore_project_ref": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-REHEARSAL-SNAPSHOT-[A-Z0-9-]+$"
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "maximum_age_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "disabled": {
+          "const": true
+        },
+        "coverage_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "inventory_manifest_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "authenticator_class": {
+          "enum": [
+            "detached_signed_metadata_receipt",
+            "provider_authenticated_metadata_receipt"
+          ]
+        },
+        "verification_status": {
+          "const": "CURRENT"
+        },
+        "verification_receipt_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-VERIFY-[A-Z0-9-]+$"
+        },
+        "verification_receipt_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "verified_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        }
+      }
+    },
+    "edge_function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slug",
+        "live_version",
+        "verify_jwt",
+        "provider_raw_source_sha256",
+        "canonical_source_sha256",
+        "provider_bundle_sha256"
+      ],
+      "properties": {
+        "slug": {
+          "enum": [
+            "discordos-feedback-persist",
+            "discordos-live-transfer-status",
+            "discordos-product-workflow-rpc",
+            "discordos-readiness",
+            "discordos-runtime-health-cron-audit",
+            "discordos-update-drafts"
+          ]
+        },
+        "live_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verify_jwt": {
+          "const": true
+        },
+        "provider_raw_source_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "canonical_source_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "provider_bundle_sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "discordos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source",
+        "inventory",
+        "rehearsal",
+        "quarantine",
+        "rollback",
+        "pg_net_compatibility"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project_ref",
+            "snapshot_id",
+            "observed_at",
+            "evidence_receipt_id",
+            "evidence_receipt_sha256",
+            "discordos_main_commit",
+            "discordos_recovery_commit",
+            "platform_main_commit",
+            "live_migration_count",
+            "migration_comparison_sha256",
+            "source_chain_sha256",
+            "platform_package_sha256",
+            "edge_identity_manifest_sha256"
+          ],
+          "properties": {
+            "project_ref": {
+              "const": "nwexsktuuenfdegzrbut"
+            },
+            "snapshot_id": {
+              "const": "FP-DOS-EFFECT-SNAPSHOT-20260719T125729Z"
+            },
+            "observed_at": {
+              "const": "2026-07-19T12:57:29Z"
+            },
+            "evidence_receipt_id": {
+              "const": "FP-TGT-DISCORD-EXTERNAL-EFFECT-QUARANTINE-PREP-RO-001"
+            },
+            "evidence_receipt_sha256": {
+              "const": "357787f8613fa868e4cc8081f5d82c765453153c724773d3190dc8d9c6ceb72a"
+            },
+            "discordos_main_commit": {
+              "const": "aef01f277e006e3cb46550e507ebd8e4a1be9d21"
+            },
+            "discordos_recovery_commit": {
+              "const": "bd12f6713518b3f3af3761618e3d3e5f6979f167"
+            },
+            "platform_main_commit": {
+              "const": "a86a43e5a0b6c33385e6dbdf73c6d1ca32f57f5a"
+            },
+            "live_migration_count": {
+              "const": 17
+            },
+            "migration_comparison_sha256": {
+              "const": "5757ac4d49c6f187b1f29522ec6b85580dd8b5ef42dee4cfab6cc3e552a5dd14"
+            },
+            "source_chain_sha256": {
+              "const": "6a6e9fa29651331d2addb0259bc61bc7c2f0795bd71b2a04971c96ff146a822e"
+            },
+            "platform_package_sha256": {
+              "const": "5a75496361a1bb4ba5917739ceb57f2dd1125778ec1d003025e23835c87053c9"
+            },
+            "edge_identity_manifest_sha256": {
+              "const": "c8d304fb21e541cee86fd594b33aacb9441d82e17d53b657231d9b7aa14912f1"
+            }
+          }
+        },
+        "inventory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "edge_functions",
+            "cron",
+            "helper",
+            "extensions",
+            "aggregates"
+          ],
+          "properties": {
+            "edge_functions": {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": {
+                "$ref": "#/$defs/edge_function"
+              }
+            },
+            "cron": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "job_count",
+                "active_count",
+                "stable_name",
+                "schedule",
+                "command_class",
+                "helper_identity",
+                "command_sha256",
+                "run_count",
+                "succeeded_count",
+                "failed_count"
+              ],
+              "properties": {
+                "job_count": {
+                  "const": 1
+                },
+                "active_count": {
+                  "const": 1
+                },
+                "stable_name": {
+                  "const": "discordos_message_commands_poll"
+                },
+                "schedule": {
+                  "const": "* * * * *"
+                },
+                "command_class": {
+                  "const": "SQL_SELECT_FUNCTION"
+                },
+                "helper_identity": {
+                  "const": "discordos_private.trigger_message_command_poll(text,text)"
+                },
+                "command_sha256": {
+                  "const": "734b62309d3cf535c1dc91f603e4338d1f4039a656f75dace6d986dade938dc3"
+                },
+                "run_count": {
+                  "const": 31227
+                },
+                "succeeded_count": {
+                  "const": 31227
+                },
+                "failed_count": {
+                  "const": 0
+                }
+              }
+            },
+            "helper": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "signature",
+                "owner",
+                "security",
+                "search_path",
+                "return_type",
+                "direct_pg_net_call",
+                "definition_sha256"
+              ],
+              "properties": {
+                "signature": {
+                  "const": "discordos_private.trigger_message_command_poll(text,text)"
+                },
+                "owner": {
+                  "const": "postgres"
+                },
+                "security": {
+                  "const": "INVOKER"
+                },
+                "search_path": {
+                  "const": "UNSET"
+                },
+                "return_type": {
+                  "const": "bigint"
+                },
+                "direct_pg_net_call": {
+                  "const": true
+                },
+                "definition_sha256": {
+                  "const": "63649b9d774a6524e93167473705d2ff9af0d468f04ba8c68e16263e279f9847"
+                }
+              }
+            },
+            "extensions": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "source_installed_version",
+                  "target_available_version",
+                  "target_installed"
+                ],
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "pg_cron",
+                      "pg_net"
+                    ]
+                  },
+                  "source_installed_version": {
+                    "type": "string"
+                  },
+                  "target_available_version": {
+                    "type": "string"
+                  },
+                  "target_installed": {
+                    "const": false
+                  }
+                }
+              }
+            },
+            "aggregates": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ordinary_trigger_count",
+                "external_effect_trigger_count",
+                "provider_event_trigger_count",
+                "application_event_trigger_count",
+                "webhook_count",
+                "pg_net_queue_count",
+                "pg_net_response_history_count",
+                "realtime_publication_count",
+                "realtime_published_table_count",
+                "vault_secret_count",
+                "storage_bucket_count",
+                "storage_object_count",
+                "auth_user_count",
+                "auth_identity_count",
+                "wrapper_count",
+                "foreign_server_count",
+                "foreign_table_count",
+                "logical_subscription_count",
+                "pgmq_installed"
+              ],
+              "properties": {
+                "ordinary_trigger_count": {
+                  "const": 6
+                },
+                "external_effect_trigger_count": {
+                  "const": 0
+                },
+                "provider_event_trigger_count": {
+                  "const": 6
+                },
+                "application_event_trigger_count": {
+                  "const": 0
+                },
+                "webhook_count": {
+                  "const": 0
+                },
+                "pg_net_queue_count": {
+                  "const": 0
+                },
+                "pg_net_response_history_count": {
+                  "const": 360
+                },
+                "realtime_publication_count": {
+                  "const": 1
+                },
+                "realtime_published_table_count": {
+                  "const": 0
+                },
+                "vault_secret_count": {
+                  "const": 0
+                },
+                "storage_bucket_count": {
+                  "const": 0
+                },
+                "storage_object_count": {
+                  "const": 0
+                },
+                "auth_user_count": {
+                  "const": 0
+                },
+                "auth_identity_count": {
+                  "const": 0
+                },
+                "wrapper_count": {
+                  "const": 0
+                },
+                "foreign_server_count": {
+                  "const": 0
+                },
+                "foreign_table_count": {
+                  "const": 0
+                },
+                "logical_subscription_count": {
+                  "const": 0
+                },
+                "pgmq_installed": {
+                  "const": false
+                }
+              }
+            }
+          }
+        },
+        "rehearsal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "target_project_ref",
+            "restore_project_ref",
+            "snapshot_id",
+            "observed_at",
+            "maximum_age_seconds",
+            "inventory_evidence_sha256"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "target_project_ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            },
+            "restore_project_ref": {
+              "anyOf": [
+                {
+                  "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "snapshot_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^FP-DOS-REHEARSAL-SNAPSHOT-[A-Z0-9-]+$"
+            },
+            "observed_at": {
+              "$ref": "#/$defs/timestamp_or_null"
+            },
+            "maximum_age_seconds": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "inventory_evidence_sha256": {
+              "$ref": "#/$defs/nullable_digest"
+            }
+          }
+        },
+        "quarantine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "sink_mode",
+            "scheduler_activation_held",
+            "edge_deployment_held",
+            "secrets_held",
+            "aliases_held",
+            "provider_writes_held",
+            "apply_admitted",
+            "steps",
+            "observation"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "sink_mode": {
+              "enum": [
+                "UNKNOWN",
+                "DENIED_EGRESS",
+                "SYNTHETIC_SINK_ONLY"
+              ]
+            },
+            "scheduler_activation_held": {
+              "const": true
+            },
+            "edge_deployment_held": {
+              "const": true
+            },
+            "secrets_held": {
+              "const": true
+            },
+            "aliases_held": {
+              "const": true
+            },
+            "provider_writes_held": {
+              "const": true
+            },
+            "apply_admitted": {
+              "const": false
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 9,
+              "maxItems": 9,
+              "items": {
+                "enum": [
+                  "deny_network_egress",
+                  "disable_data_api",
+                  "withhold_application_credentials",
+                  "withhold_edge_deployments",
+                  "withhold_scheduler_activation",
+                  "replay_inert_schema_only",
+                  "prove_zero_external_effects",
+                  "run_sink_only_compatibility_tests",
+                  "observe_zero_growth"
+                ]
+              }
+            },
+            "observation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "minimum_interval_seconds",
+                "first_observed_at",
+                "second_observed_at",
+                "first_evidence_sha256",
+                "second_evidence_sha256",
+                "cron_growth",
+                "queue_growth",
+                "response_growth",
+                "sink_effect_count",
+                "edge_invocation_growth"
+              ],
+              "properties": {
+                "status": {
+                  "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+                },
+                "minimum_interval_seconds": {
+                  "const": 121
+                },
+                "first_observed_at": {
+                  "$ref": "#/$defs/timestamp_or_null"
+                },
+                "second_observed_at": {
+                  "$ref": "#/$defs/timestamp_or_null"
+                },
+                "first_evidence_sha256": {
+                  "$ref": "#/$defs/nullable_digest"
+                },
+                "second_evidence_sha256": {
+                  "$ref": "#/$defs/nullable_digest"
+                },
+                "cron_growth": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "queue_growth": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "response_growth": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "sink_effect_count": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "edge_invocation_growth": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "steps"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 7,
+              "maxItems": 7,
+              "items": {
+                "enum": [
+                  "keep_network_egress_denied",
+                  "deactivate_scheduler_first",
+                  "remove_credentials_and_routing",
+                  "disable_edge_routing",
+                  "preserve_queue_history_and_evidence",
+                  "restore_captured_preimage_or_discard_rehearsal",
+                  "retain_source_project_active"
+                ]
+              }
+            }
+          }
+        },
+        "pg_net_compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_version",
+            "target_version",
+            "static_status",
+            "sql_upgrade_changes",
+            "behavioral_status",
+            "behavioral_evidence_sha256",
+            "tests"
+          ],
+          "properties": {
+            "source_version": {
+              "const": "0.20.0"
+            },
+            "target_version": {
+              "const": "0.20.4"
+            },
+            "static_status": {
+              "const": "CURRENT"
+            },
+            "sql_upgrade_changes": {
+              "const": 0
+            },
+            "behavioral_status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "behavioral_evidence_sha256": {
+              "$ref": "#/$defs/nullable_digest"
+            },
+            "tests": {
+              "type": "array",
+              "minItems": 9,
+              "maxItems": 9,
+              "items": {
+                "enum": [
+                  "sql_signature_and_return_type",
+                  "transaction_commit_dispatch",
+                  "single_queue_consume",
+                  "sink_only_egress",
+                  "timeout_dns_invalid_scheme",
+                  "http_failure_capture",
+                  "worker_restart_no_duplicate",
+                  "inactive_cron_zero_growth",
+                  "transient_response_not_durable_evidence"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

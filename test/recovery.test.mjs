@@ -11,10 +11,14 @@ import {
   evaluateFreshness,
   externalEffectsManifestDigest,
   expectedCoverageUnits,
+  expectedDiscordEdgeFunctions,
+  expectedDiscordQuarantineSteps,
+  expectedDiscordRollbackSteps,
   expectedExecutionGates,
   expectedExternalEffectUnits,
   expectedOwnerDecisionFields,
   expectedParityUnits,
+  expectedPgNetBehavioralTests,
   measureRecovery,
   recoveryDocumentPaths,
   restoreReceiptDigest,
@@ -88,10 +92,70 @@ function buildActionDocuments() {
   effects.quarantine.network_egress_denied = true;
   effects.quarantine.data_api_status = 'CURRENT';
   effects.quarantine.data_api_disabled = true;
+  const discordos = effects.discordos;
+  const rehearsalSnapshotId = 'FP-DOS-REHEARSAL-SNAPSHOT-001';
+  const rehearsalObservedAt = '2026-07-18T15:50:00Z';
+  const rehearsalInventoryEvidence = sha256Hex({
+    restore_project_ref: effects.restore_project_ref,
+    snapshot_id: rehearsalSnapshotId,
+    source_snapshot_id: discordos.source.snapshot_id
+  });
+  discordos.status = 'CURRENT';
+  discordos.rehearsal = {
+    status: 'CURRENT',
+    target_project_ref: 'bxtcuhkotumitoqtrcej',
+    restore_project_ref: effects.restore_project_ref,
+    snapshot_id: rehearsalSnapshotId,
+    observed_at: rehearsalObservedAt,
+    maximum_age_seconds: 7200,
+    inventory_evidence_sha256: rehearsalInventoryEvidence
+  };
+  discordos.quarantine.status = 'CURRENT';
+  discordos.quarantine.sink_mode = 'SYNTHETIC_SINK_ONLY';
+  discordos.quarantine.observation = {
+    status: 'CURRENT',
+    minimum_interval_seconds: 121,
+    first_observed_at: '2026-07-18T15:50:00Z',
+    second_observed_at: '2026-07-18T15:53:00Z',
+    first_evidence_sha256: sha256Hex({ read: 1, snapshot_id: rehearsalSnapshotId }),
+    second_evidence_sha256: sha256Hex({ read: 2, snapshot_id: rehearsalSnapshotId }),
+    cron_growth: 0,
+    queue_growth: 0,
+    response_growth: 0,
+    sink_effect_count: 0,
+    edge_invocation_growth: 0
+  };
+  discordos.rollback.status = 'CURRENT';
+  discordos.pg_net_compatibility.behavioral_status = 'CURRENT';
+  discordos.pg_net_compatibility.behavioral_evidence_sha256 = sha256Hex({
+    source_version: '0.20.0',
+    target_version: '0.20.4',
+    test_denominator: expectedPgNetBehavioralTests
+  });
   for (const effect of effects.effects) {
     effect.status = 'CURRENT';
     effect.disabled = true;
-    effect.evidence_digest = sha256Hex({ disabled: true, status: 'CURRENT', unit: effect.unit });
+    const suffix = effect.unit.replaceAll('_', '-').toUpperCase();
+    effect.evidence = {
+      evidence_id: `FP-DOS-EFFECT-EVIDENCE-${suffix}`,
+      unit: effect.unit,
+      source_project_ref: 'nwexsktuuenfdegzrbut',
+      target_project_ref: 'bxtcuhkotumitoqtrcej',
+      restore_project_ref: effects.restore_project_ref,
+      snapshot_id: rehearsalSnapshotId,
+      observed_at: rehearsalObservedAt,
+      maximum_age_seconds: 7200,
+      disabled: true,
+      coverage_count: 0,
+      coverage_sha256: sha256Hex({ coverage_count: 0, snapshot_id: rehearsalSnapshotId, unit: effect.unit }),
+      inventory_manifest_sha256: rehearsalInventoryEvidence,
+      authenticator_class: 'detached_signed_metadata_receipt',
+      verification_status: 'CURRENT',
+      verification_receipt_id: `FP-DOS-EFFECT-VERIFY-${suffix}`,
+      verification_receipt_sha256: sha256Hex({ receipt_id: `FP-DOS-EFFECT-VERIFY-${suffix}`, unit: effect.unit }),
+      verified_at: '2026-07-18T15:51:00Z'
+    };
+    effect.evidence_digest = sha256Hex(effect.evidence);
   }
 
   const restore = documents[recoveryDocumentPaths.restore];
@@ -256,6 +320,228 @@ test('external-effects action acceptance requires canonical distinct per-unit ev
     assert.ok(failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
     if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
   }
+});
+
+test('DiscordOS inventory freezes the exact Edge Cron helper extension and aggregate denominator', () => {
+  assert.equal(expectedDiscordEdgeFunctions.length, 6);
+  assert.equal(new Set(expectedDiscordEdgeFunctions.map((entry) => entry.slug)).size, 6);
+  assert.equal(expectedDiscordQuarantineSteps.length, 9);
+  assert.equal(expectedDiscordRollbackSteps.length, 7);
+  assert.equal(expectedPgNetBehavioralTests.length, 9);
+
+  const scenarios = [
+    {
+      name: 'missing Edge identity',
+      mutate: (discordos) => { discordos.inventory.edge_functions.pop(); },
+      expected: 'six-function source/deployment identity denominator changed'
+    },
+    {
+      name: 'duplicate Edge identity',
+      mutate: (discordos) => { discordos.inventory.edge_functions[0] = structuredClone(discordos.inventory.edge_functions[1]); },
+      expected: 'six-function source/deployment identity denominator changed'
+    },
+    {
+      name: 'provider bundle digest drift',
+      mutate: (discordos) => { discordos.inventory.edge_functions[0].provider_bundle_sha256 = 'f'.repeat(64); },
+      expected: 'six-function source/deployment identity denominator changed'
+    },
+    {
+      name: 'Cron schedule drift',
+      mutate: (discordos) => { discordos.inventory.cron.schedule = '*/2 * * * *'; },
+      expected: 'Cron source snapshot changed'
+    },
+    {
+      name: 'helper search path drift',
+      mutate: (discordos) => { discordos.inventory.helper.search_path = 'pg_catalog'; },
+      expected: 'network helper source snapshot changed'
+    },
+    {
+      name: 'extension version drift',
+      mutate: (discordos) => { discordos.inventory.extensions[1].target_available_version = '0.20.5'; },
+      expected: 'extension source/target denominator changed'
+    },
+    {
+      name: 'aggregate drift',
+      mutate: (discordos) => { discordos.inventory.aggregates.webhook_count = 1; },
+      expected: 'aggregate external-effect denominator changed'
+    },
+    {
+      name: 'source receipt drift',
+      mutate: (discordos) => { discordos.source.evidence_receipt_sha256 = 'f'.repeat(64); },
+      expected: 'source evidence receipt digest changed'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents[recoveryDocumentPaths.effects].discordos);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+  }
+});
+
+test('DiscordOS action evidence rejects digest-only self-reported circular stale mismatched and unsafe proof', () => {
+  const scenarios = [
+    {
+      name: 'digest-only evidence',
+      mutate: (effect) => { effect.evidence = null; },
+      expected: 'structured evidence; digest-only proof is forbidden'
+    },
+    {
+      name: 'generic self report',
+      mutate: (effect) => { effect.evidence.authenticator_class = 'self_report'; },
+      expected: 'evidence authenticator is unsupported'
+    },
+    {
+      name: 'source-receipt circular digest',
+      mutate: (effect, manifest) => { effect.evidence.verification_receipt_sha256 = manifest.discordos.source.evidence_receipt_sha256; },
+      expected: 'cannot reuse a manifest, inventory, compatibility, observation, or source-receipt digest'
+    },
+    {
+      name: 'missing verification identity',
+      mutate: (effect) => { delete effect.evidence.verification_receipt_id; },
+      expected: 'evidence identities are missing'
+    },
+    {
+      name: 'malformed verification digest',
+      mutate: (effect) => { effect.evidence.verification_receipt_sha256 = 'A'.repeat(64); },
+      expected: 'verification receipt digest is malformed'
+    },
+    {
+      name: 'stale observation',
+      mutate: (effect) => { effect.evidence.observed_at = '2026-07-18T14:00:00Z'; effect.evidence.verified_at = '2026-07-18T14:01:00Z'; },
+      expected: 'evidence freshness failed'
+    },
+    {
+      name: 'future observation',
+      mutate: (effect) => { effect.evidence.observed_at = '2026-07-18T17:00:01Z'; effect.evidence.verified_at = '2026-07-18T17:00:02Z'; },
+      expected: 'evidence freshness failed'
+    },
+    {
+      name: 'source project mismatch',
+      mutate: (effect) => { effect.evidence.source_project_ref = 'abcdefghijklmnopqrst'; },
+      expected: 'evidence project mismatch'
+    },
+    {
+      name: 'snapshot mismatch',
+      mutate: (effect) => { effect.evidence.snapshot_id = 'FP-DOS-REHEARSAL-SNAPSHOT-OTHER'; },
+      expected: 'evidence snapshot mismatch'
+    },
+    {
+      name: 'positive enabled denominator',
+      mutate: (effect) => { effect.evidence.coverage_count = 1; },
+      expected: 'must prove an exact zero enabled denominator'
+    },
+    {
+      name: 'missing coverage digest',
+      mutate: (effect) => { delete effect.evidence.coverage_sha256; },
+      expected: 'coverage digest is malformed'
+    },
+    {
+      name: 'raw body field',
+      mutate: (effect) => { effect.evidence.raw_body = 'opaque'; },
+      expected: 'forbidden value-bearing field'
+    },
+    {
+      name: 'secret field',
+      mutate: (effect) => { effect.evidence.secret = 'opaque'; },
+      expected: 'forbidden value-bearing field'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const manifest = documents[recoveryDocumentPaths.effects];
+    const effect = manifest.effects[0];
+    scenario.mutate(effect, manifest);
+    if (effect.evidence !== null) effect.evidence_digest = sha256Hex(effect.evidence);
+    refreshActionDigests(documents);
+    const first = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    const second = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.deepEqual(first, second, scenario.name);
+    assert.ok(first.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+  }
+
+  const duplicate = buildActionDocuments();
+  const manifest = duplicate[recoveryDocumentPaths.effects];
+  manifest.effects[1].evidence.evidence_id = manifest.effects[0].evidence.evidence_id;
+  manifest.effects[1].evidence.verification_receipt_id = manifest.effects[0].evidence.verification_receipt_id;
+  manifest.effects[1].evidence.coverage_sha256 = manifest.effects[0].evidence.coverage_sha256;
+  manifest.effects[1].evidence.verification_receipt_sha256 = manifest.effects[0].evidence.verification_receipt_sha256;
+  manifest.effects[1].evidence_digest = sha256Hex(manifest.effects[1].evidence);
+  refreshActionDigests(duplicate);
+  const duplicateFailures = validateRecoveryDocuments(duplicate, { mode: 'action', now: observedAt }).failures;
+  assert.ok(duplicateFailures.some((failure) => failure.includes('evidence identities must be unique')));
+  assert.ok(duplicateFailures.some((failure) => failure.includes('verification receipt identities must be unique')));
+  assert.ok(duplicateFailures.some((failure) => failure.includes('coverage digests must be unique')));
+});
+
+test('DiscordOS quarantine replay rollback observation and pg_net behavior gates remain fail closed', () => {
+  const scenarios = [
+    {
+      name: 'quarantine order',
+      mutate: (discordos) => { [discordos.quarantine.steps[0], discordos.quarantine.steps[1]] = [discordos.quarantine.steps[1], discordos.quarantine.steps[0]]; },
+      expected: 'fail-closed quarantine order changed'
+    },
+    {
+      name: 'rollback order',
+      mutate: (discordos) => { [discordos.rollback.steps[0], discordos.rollback.steps[1]] = [discordos.rollback.steps[1], discordos.rollback.steps[0]]; },
+      expected: 'rollback order changed'
+    },
+    {
+      name: 'unknown sink',
+      mutate: (discordos) => { discordos.quarantine.sink_mode = 'UNKNOWN'; },
+      expected: 'requires denied or sink-only egress'
+    },
+    {
+      name: 'short observation interval',
+      mutate: (discordos) => { discordos.quarantine.observation.second_observed_at = '2026-07-18T15:51:00Z'; },
+      expected: 'observation interval is too short'
+    },
+    {
+      name: 'queue growth',
+      mutate: (discordos) => { discordos.quarantine.observation.queue_growth = 1; },
+      expected: 'requires zero external-effect growth'
+    },
+    {
+      name: 'reused observation digest',
+      mutate: (discordos) => { discordos.quarantine.observation.second_evidence_sha256 = discordos.quarantine.observation.first_evidence_sha256; },
+      expected: 'requires independent evidence digests'
+    },
+    {
+      name: 'behavioral replay blocked',
+      mutate: (discordos) => { discordos.pg_net_compatibility.behavioral_status = 'BLOCKED'; discordos.pg_net_compatibility.behavioral_evidence_sha256 = null; },
+      expected: 'requires pg_net behavioral evidence'
+    },
+    {
+      name: 'behavioral denominator missing',
+      mutate: (discordos) => { discordos.pg_net_compatibility.tests.pop(); },
+      expected: 'pg_net behavioral acceptance denominator changed'
+    },
+    {
+      name: 'static compatibility drift',
+      mutate: (discordos) => { discordos.pg_net_compatibility.sql_upgrade_changes = 1; },
+      expected: 'static compatibility contract changed'
+    },
+    {
+      name: 'apply admission widened',
+      mutate: (discordos) => { discordos.quarantine.apply_admitted = true; },
+      expected: 'held execution boundary changed'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents[recoveryDocumentPaths.effects].discordos);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+  }
+
+  const withoutClock = buildActionDocuments();
+  const report = validateRecoveryDocuments(withoutClock, { mode: 'action' });
+  assert.ok(report.failures.some((failure) => failure.includes('requires an injected validation clock')));
 });
 
 test('CURRENT retention covers completion rehearsal acceptance and the injected validation clock', () => {

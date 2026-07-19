@@ -152,6 +152,16 @@ Deletion requires a separate destructive action-time approval naming the exact p
 
 Before any raw-data or project retirement, produce an exact archive-first disposition manifest. Each item must be classified as raw, derived, canonical, duplicate, obsolete, quarantined, immutable evidence, retention-bound, or secret-bearing. Retirement requires accepted derivative coverage, deterministic replay, complete provenance and digest correlation, schema validity, idempotency, backup/restore, retention satisfaction, rollback, DiscordOS functional parity, observation, and separate exact action-time deletion authority.
 
+## DiscordOS isolated-rehearsal boundary
+
+DiscordOS schema or data may not enter an isolated rehearsal until the product-specific external-effect manifest passes alongside the generic twelve-unit denominator. The manifest must correlate the accepted source snapshot, exact source and package commits/digests, all six Edge versions and digest classes, the sole Cron/helper path, extension versions, and every zero or non-zero aggregate external-effect surface to the named rehearsal snapshot.
+
+The inert schema stage may precede provider extension installation only when the Data API is disabled, outbound network access is denied, no application credentials or traffic exist, and Edge, Cron, helper activation, aliases, provider writes, and `apply_admitted` all remain held. Shared Auth or application data still waits for the accepted independent backup and quarantined restore rehearsal.
+
+`pg_net` 0.20.0-to-0.20.4 static parity does not admit runtime use. Behavioral acceptance requires the complete disposable synthetic-sink test denominator and two zero-growth observations separated by more than two source Cron intervals. Any enabled effect, stale or future evidence, missing or duplicate identity, circular digest, source/target/snapshot mismatch, positive enabled count, unverified receipt, or raw value-bearing evidence blocks rehearsal.
+
+Rollback is evidence-preserving: keep egress denied, deactivate scheduling first, withdraw credentials and routing, preserve queue/history and sink receipts, and restore only the captured rehearsal preimage or discard the disposable project. The active DiscordOS source, PR #105, PR #106, and production behavior remain outside this source contract and cannot be changed by implication.
+
 ## Current receipt
 
 - Target writes: `BLOCKED`

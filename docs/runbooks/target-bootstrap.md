@@ -120,3 +120,27 @@ All of the following remain `BLOCKED`: target apply; contained replay acceptance
 Before shared Auth or application data load, FP-MAN-013 additionally requires a current encrypted independent backup manifest, retention receipt, quarantined restore-to-new-project rehearsal, aggregate catalog/security/data/Auth parity, and accepted measured RPO/RTO. Database recovery cannot satisfy Storage object-body recovery; a non-zero Storage denominator activates the separate body-recovery gate. See `docs/runbooks/micro-recovery.md`.
 
 A future apply packet must re-read the target and source preimages, use disposable no-egress rehearsals, close every dynamic identity through two identical catalog readbacks, prove rollback, and obtain explicit action-time authority. Only then may it promote or copy digest-verified reviewed artifact bytes into a separate execution-only migration bundle. This source packet grants none of that authority and must not create that bundle, migration-path indirection, or a duplicate executable representation.
+
+## DiscordOS external-effect quarantine contract
+
+The DiscordOS source snapshot is closed in `contracts/v1/recovery/external-effects-disable-manifest.example.json`. It binds the six recovered Edge identities, the one-minute `discordos_message_commands_poll` job, its network helper, the source and target extension versions, trigger and webhook counts, transient `pg_net` queue/history aggregates, Realtime, Vault, Storage, Auth, wrappers, foreign objects, and logical subscriptions to the accepted source and package digests. The source snapshot is evidence, not rehearsal admission: the live source Cron job remains active and the target example remains `BLOCKED`.
+
+Every action-time external-effect unit requires structured, independently authenticated evidence. A digest without its correlated evidence object is insufficient. The evidence must bind the source, target, named rehearsal project, snapshot, unit, exact zero enabled denominator, freshness window, inventory manifest, verification receipt identity, and verification receipt digest. Evidence identities, coverage digests, structured-evidence digests, and verification-receipt digests must be unique. Reuse of a source receipt, inventory, observation, compatibility, or enclosing manifest digest is circular proof and fails closed. Raw bodies, headers, payloads, URLs, secrets, identities, and machine paths are forbidden.
+
+The action order is fixed:
+
+1. Deny outbound network access.
+2. Disable the Data API.
+3. Withhold application credentials.
+4. Withhold all Edge deployments.
+5. Withhold scheduler activation.
+6. Replay inert schema objects only.
+7. Prove the complete external-effect denominator is zero.
+8. Run only the separately admitted synthetic-sink compatibility tests.
+9. Take two independent zero-growth readbacks more than two one-minute Cron intervals apart.
+
+`apply_admitted` remains false. Scheduler activation, Edge deployment, secrets, aliases, provider writes, source pause, and production routing remain held. A `CURRENT` quarantine requires denied or synthetic-sink-only egress, zero Cron/queue/response/sink/Edge growth, fresh independent readbacks, current rollback evidence, and current behavioral evidence for `pg_net`.
+
+The source uses `pg_net` 0.20.0 while the target currently offers 0.20.4. The intervening extension upgrade scripts declare no SQL-level changes, so static compatibility is `CURRENT`; behavioral compatibility remains `BLOCKED` in source. A disposable rehearsal must prove the function signature and return type, commit-triggered dispatch, single queue consumption, sink-only egress, timeout/DNS/invalid-scheme handling, HTTP failure capture, worker-restart deduplication, inactive-Cron zero growth, and that transient response history is not treated as durable evidence.
+
+Rollback keeps egress denied, deactivates the scheduler first, removes credentials and routing, disables Edge routing, preserves queue/history and evidence, restores only a captured preimage or discards the named rehearsal, and leaves the DiscordOS source active. Broad drops, history deletion, source mutation, and inferred grants are not rollback mechanisms.
