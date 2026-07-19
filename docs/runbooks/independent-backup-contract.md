@@ -62,7 +62,7 @@ The deterministic validator requires:
 7. an immutable destination version plus a separate closed Object Lock readback whose canonical digest matches the receipt and whose exact destination, object version, ciphertext digest, lock state, retention mode, and retention deadline correlate to that export;
 8. a separate, closed, current accepted-exports manifest whose canonical digest matches the receipt, whose immutable export identities are strictly time-ordered and distinct, and whose exact current-export entry lets the validator derive first-of-month status; retention is 35 days generally and 400 days when the current export is the first manifest entry;
 9. all eight coverage units with aggregate counts and private digests;
-10. current independent-watchdog and provider Physical-backup evidence;
+10. independent-watchdog and provider Physical-backup evidence bound to the source project and observed no earlier than backup completion, no later than the injected action-time clock, and within the eight-hour freshness window;
 11. current budget-stop control, the four-unit monthly report, and projected cost at or below the $15 manual-approval ceiling;
 12. a canonical `FP-MAN-015` decision reference;
 13. production-service RTO remaining `UNKNOWN`.
@@ -75,7 +75,7 @@ The JSON Schema closes the complete receipt, accepted-exports manifest, and ever
 
 ## Restore-to-new-project quarantine
 
-`RESTORE_REHEARSED` requires a new isolated project with no application environment, Auth delivery/hooks, database webhooks, DNS/aliases, Edge schedules, `pg_cron`, `pg_net`, queues, Realtime, Storage events, subscriptions, or wrappers enabled. Each disabled unit requires a distinct evidence digest. Traffic remains off and canaries are synthetic only.
+`RESTORE_REHEARSED` requires a new isolated project with no application environment, Auth delivery/hooks, database webhooks, DNS/aliases, Edge schedules, `pg_cron`, `pg_net`, queues, Realtime, Storage events, subscriptions, or wrappers enabled. The closed receipt records a sanitized target name and immutable project reference, requires that reference to differ from the source project, and binds the target evidence to the canonical source-project identity digest. Missing, malformed, source-equal, or mismatched target correlation fails closed. Each disabled unit requires a distinct evidence digest. Traffic remains off and canaries are synthetic only.
 
 Catalog, security, Auth, and data parity each require an aggregate count and private digest. The rehearsal records failure declaration, restore start, and data-plane-ready timestamps. The validator derives RPO from `snapshot_at` to failure declaration and derives quarantined data-plane RTO from failure declaration to data-plane readiness; the submitted numerical values must exactly equal those calculations. The derived RPO must be no more than eight hours and the derived quarantined data-plane RTO no more than twelve hours. These are approved objectives, not production-service measurements. Production-service RTO stays `UNKNOWN` until a separately authorized rehearsal measures the entire service path.
 

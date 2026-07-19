@@ -150,8 +150,20 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
       receipt_sha256: digest('FP-MAN-015'),
       accepted_at: '2026-07-18T16:00:00Z'
     },
-    watchdog: { status: 'CURRENT', independent_from_scheduler: true, evidence_sha256: digest('watchdog') },
-    provider_physical_backup: { status: 'CURRENT', retention_days: 7, evidence_sha256: digest('physical-backup') },
+    watchdog: {
+      status: 'CURRENT',
+      independent_from_scheduler: true,
+      project: { name: 'Fawxzzy shared Supabase project', ref: 'bxtcuhkotumitoqtrcej' },
+      observed_at: '2026-07-18T17:45:00Z',
+      evidence_sha256: digest('watchdog')
+    },
+    provider_physical_backup: {
+      status: 'CURRENT',
+      retention_days: 7,
+      project: { name: 'Fawxzzy shared Supabase project', ref: 'bxtcuhkotumitoqtrcej' },
+      observed_at: '2026-07-18T17:46:00Z',
+      evidence_sha256: digest('physical-backup')
+    },
     cost: {
       budget_stop_control_status: 'CURRENT',
       projected_usd_monthly: 0,
@@ -164,6 +176,11 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
   if (restore) {
     receipt.restore = {
       status: 'CURRENT',
+      target_project: {
+        name: 'Fawxzzy restore rehearsal',
+        ref: 'restoretarget0000000',
+        source_project_sha256: sha256Hex(receipt.project)
+      },
       traffic_released: false,
       synthetic_canary_status: 'CURRENT',
       external_effects: externalEffectUnits.map((unit) => ({
@@ -464,6 +481,92 @@ test('missing provider Physical backup complement fails closed', () => {
   receipt.provider_physical_backup.status = 'UNKNOWN';
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('provider Physical backup complement is unproved'));
+});
+
+test('watchdog and Physical backup evidence is project-bound and fresh at the validation clock', () => {
+  const boundary = buildReceipt();
+  boundary.watchdog.observed_at = boundary.completed_at;
+  boundary.provider_physical_backup.observed_at = boundary.completed_at;
+  boundary.manifest_sha256 = independentBackupManifestDigest(boundary);
+  assert.deepEqual(validate(boundary), { ok: true, failures: [] });
+
+  for (const field of ['watchdog', 'provider_physical_backup']) {
+    const missing = buildReceipt();
+    delete missing[field].observed_at;
+    missing.manifest_sha256 = independentBackupManifestDigest(missing);
+    const missingResult = validate(missing);
+    assert.equal(missingResult.ok, false);
+    assert(missingResult.failures.some((failure) => failure.includes(`${field}.observed_at`) && failure.includes('invalid UTC timestamp')));
+
+    const malformed = buildReceipt();
+    malformed[field].observed_at = 'not-a-timestamp';
+    malformed.manifest_sha256 = independentBackupManifestDigest(malformed);
+    assert(validate(malformed).failures.some((failure) => failure.includes(`${field}.observed_at`) && failure.includes('invalid UTC timestamp')));
+
+    const future = buildReceipt();
+    future[field].observed_at = '2026-07-18T18:00:01Z';
+    future.manifest_sha256 = independentBackupManifestDigest(future);
+    const futureMessage = field === 'watchdog'
+      ? 'independent watchdog evidence cannot be future-dated'
+      : 'provider Physical backup evidence cannot be future-dated';
+    assert(validate(future).failures.includes(futureMessage));
+
+    const stale = buildReceipt();
+    stale[field].observed_at = '2026-07-18T09:59:59Z';
+    stale.manifest_sha256 = independentBackupManifestDigest(stale);
+    const staleMessage = field === 'watchdog'
+      ? 'independent watchdog evidence is stale'
+      : 'provider Physical backup evidence is stale';
+    assert(validate(stale).failures.includes(staleMessage));
+
+    const predatesCompletion = buildReceipt();
+    predatesCompletion[field].observed_at = '2026-07-18T17:39:59Z';
+    predatesCompletion.manifest_sha256 = independentBackupManifestDigest(predatesCompletion);
+    const chronologyMessage = field === 'watchdog'
+      ? 'independent watchdog evidence predates backup completion'
+      : 'provider Physical backup evidence predates backup completion';
+    assert(validate(predatesCompletion).failures.includes(chronologyMessage));
+
+    const wrongProject = buildReceipt();
+    wrongProject[field].project.ref = 'differentproject00001';
+    wrongProject.manifest_sha256 = independentBackupManifestDigest(wrongProject);
+    const correlationMessage = field === 'watchdog'
+      ? 'independent watchdog project correlation mismatch'
+      : 'provider Physical backup project correlation mismatch';
+    assert(validate(wrongProject).failures.includes(correlationMessage));
+  }
+});
+
+test('restore rehearsal requires a distinct sanitized target correlated to the source project', () => {
+  assert.deepEqual(validate(buildReceipt({ restore: true })), { ok: true, failures: [] });
+
+  const missing = buildReceipt({ restore: true });
+  delete missing.restore.target_project;
+  missing.manifest_sha256 = independentBackupManifestDigest(missing);
+  assert(validate(missing).failures.includes('restore target project identity is missing or malformed'));
+
+  for (const target of [
+    { name: 'unsafe/project', ref: 'restoretarget0000000', source_project_sha256: digest('source-project') },
+    { name: 'Fawxzzy restore rehearsal', ref: 'short', source_project_sha256: digest('source-project') },
+    { name: 'Fawxzzy restore rehearsal', ref: 'restoretarget0000000', source_project_sha256: 'malformed' }
+  ]) {
+    const malformed = buildReceipt({ restore: true });
+    malformed.restore.target_project = target;
+    malformed.manifest_sha256 = independentBackupManifestDigest(malformed);
+    assert.equal(validate(malformed).ok, false);
+  }
+
+  const sameTarget = buildReceipt({ restore: true });
+  sameTarget.restore.target_project.name = sameTarget.project.name;
+  sameTarget.restore.target_project.ref = sameTarget.project.ref;
+  sameTarget.restore.target_project.source_project_sha256 = sha256Hex(sameTarget.project);
+  sameTarget.manifest_sha256 = independentBackupManifestDigest(sameTarget);
+  assert(validate(sameTarget).failures.includes('restore target project must be distinct from the source project'));
+
+  const mismatchedCorrelation = buildReceipt({ restore: true });
+  mismatchedCorrelation.restore.target_project.source_project_sha256 = digest('other-source-project');
+  mismatchedCorrelation.manifest_sha256 = independentBackupManifestDigest(mismatchedCorrelation);
+  assert(validate(mismatchedCorrelation).failures.includes('restore target source-project correlation mismatch'));
 });
 
 test('non-empty Storage bodies validate only with a correlated recovery receipt', () => {

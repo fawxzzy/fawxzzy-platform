@@ -58,6 +58,8 @@ const hexSha256 = /^[0-9a-f]{64}$/;
 const commitSha = /^[0-9a-f]{40}$/;
 const stableId = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
 const safeReference = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const safeProjectName = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,127}$/;
+const projectRef = /^[a-z0-9]{20}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const schemaPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'contracts', 'v1', 'schemas', 'independent-backup-contract.schema.json');
 const sourceSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
@@ -214,6 +216,7 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const snapshotAt = parseTimestamp(receipt.snapshot_at, 'snapshot_at', failures);
   const completedAt = parseTimestamp(receipt.completed_at, 'completed_at', failures);
   const retentionUntil = parseTimestamp(receipt.retention_until, 'retention_until', failures);
+  const maximumEvidenceAgeMs = contract.policy.schedule.freshness_limit_hours * 3600000;
   requireCondition(receipt.lifecycle_state === 'BACKUP_CURRENT' || receipt.lifecycle_state === 'RESTORE_REHEARSED', 'accepted receipt lifecycle must be BACKUP_CURRENT or RESTORE_REHEARSED', failures);
   requireCondition(receipt.project?.name === contract.project.name && receipt.project?.ref === contract.project.ref, 'receipt project identity mismatch', failures);
   requireCondition(commitSha.test(receipt.source_commit ?? ''), 'source commit must be a lowercase 40-character digest', failures);
@@ -221,7 +224,7 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(receipt.tool_versions && Object.keys(receipt.tool_versions).length > 0 && Object.values(receipt.tool_versions).every((value) => safeReference.test(value)), 'tool versions are missing or unsafe', failures);
   requireCondition(snapshotAt !== null && completedAt !== null && snapshotAt <= completedAt, 'backup completion cannot precede snapshot', failures);
   requireCondition(now !== null && completedAt !== null && completedAt <= now, 'backup completion cannot be future-dated', failures);
-  requireCondition(now !== null && snapshotAt !== null && now - snapshotAt <= contract.policy.schedule.freshness_limit_hours * 3600000, 'backup recovery point is stale', failures);
+  requireCondition(now !== null && snapshotAt !== null && now - snapshotAt <= maximumEvidenceAgeMs, 'backup recovery point is stale', failures);
   requireCondition(receipt.freshness?.status === 'CURRENT' && receipt.freshness?.maximum_age_seconds === 28800, 'freshness evidence must be CURRENT at the approved threshold', failures);
   requireCondition(hexSha256.test(receipt.plaintext_sha256 ?? '') && hexSha256.test(receipt.ciphertext_sha256 ?? '') && hexSha256.test(receipt.migration_ledger_sha256 ?? ''), 'required backup digests are malformed', failures);
   requireCondition(Number.isInteger(receipt.ciphertext_bytes) && receipt.ciphertext_bytes > 0, 'ciphertext byte count must be positive', failures);
@@ -337,8 +340,18 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   requireCondition(hexSha256.test(decision?.receipt_sha256 ?? ''), 'owner decision digest is malformed', failures);
   const decisionAt = parseTimestamp(decision?.accepted_at, 'owner_decision.accepted_at', failures);
   requireCondition(decisionAt !== null && completedAt !== null && decisionAt <= completedAt, 'owner decision must predate backup completion', failures);
+  const watchdogObservedAt = parseTimestamp(receipt.watchdog?.observed_at, 'watchdog.observed_at', failures);
+  const physicalBackupObservedAt = parseTimestamp(receipt.provider_physical_backup?.observed_at, 'provider_physical_backup.observed_at', failures);
   requireCondition(receipt.watchdog?.status === 'CURRENT' && receipt.watchdog?.independent_from_scheduler === true && hexSha256.test(receipt.watchdog?.evidence_sha256 ?? ''), 'independent watchdog evidence is incomplete', failures);
+  requireCondition(receipt.watchdog?.project?.name === receipt.project?.name && receipt.watchdog?.project?.ref === receipt.project?.ref, 'independent watchdog project correlation mismatch', failures);
+  requireCondition(watchdogObservedAt !== null && completedAt !== null && watchdogObservedAt >= completedAt, 'independent watchdog evidence predates backup completion', failures);
+  requireCondition(watchdogObservedAt !== null && now !== null && watchdogObservedAt <= now, 'independent watchdog evidence cannot be future-dated', failures);
+  requireCondition(watchdogObservedAt !== null && now !== null && now - watchdogObservedAt <= maximumEvidenceAgeMs, 'independent watchdog evidence is stale', failures);
   requireCondition(receipt.provider_physical_backup?.status === 'CURRENT' && receipt.provider_physical_backup?.retention_days === 7 && hexSha256.test(receipt.provider_physical_backup?.evidence_sha256 ?? ''), 'provider Physical backup complement is unproved', failures);
+  requireCondition(receipt.provider_physical_backup?.project?.name === receipt.project?.name && receipt.provider_physical_backup?.project?.ref === receipt.project?.ref, 'provider Physical backup project correlation mismatch', failures);
+  requireCondition(physicalBackupObservedAt !== null && completedAt !== null && physicalBackupObservedAt >= completedAt, 'provider Physical backup evidence predates backup completion', failures);
+  requireCondition(physicalBackupObservedAt !== null && now !== null && physicalBackupObservedAt <= now, 'provider Physical backup evidence cannot be future-dated', failures);
+  requireCondition(physicalBackupObservedAt !== null && now !== null && now - physicalBackupObservedAt <= maximumEvidenceAgeMs, 'provider Physical backup evidence is stale', failures);
   requireCondition(receipt.cost?.budget_stop_control_status === 'CURRENT', 'provider budget stop control is unavailable or unproved', failures);
   requireCondition(Number.isFinite(receipt.cost?.projected_usd_monthly) && receipt.cost.projected_usd_monthly >= 0, 'projected monthly cost is invalid', failures);
   requireCondition(receipt.cost?.projected_usd_monthly <= contract.policy.cost.manual_approval_ceiling_usd_monthly, 'projected monthly cost exceeds the manual-approval ceiling', failures);
@@ -348,6 +361,10 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
 
   if (receipt.lifecycle_state === 'RESTORE_REHEARSED') {
     requireCondition(receipt.restore?.status === 'CURRENT', 'RESTORE_REHEARSED requires a current restore receipt', failures);
+    const restoreTarget = receipt.restore?.target_project;
+    requireCondition(safeProjectName.test(restoreTarget?.name ?? '') && projectRef.test(restoreTarget?.ref ?? ''), 'restore target project identity is missing or malformed', failures);
+    requireCondition(restoreTarget?.ref !== receipt.project?.ref, 'restore target project must be distinct from the source project', failures);
+    requireCondition(restoreTarget?.source_project_sha256 === sha256Hex(receipt.project), 'restore target source-project correlation mismatch', failures);
     requireCondition(receipt.restore?.traffic_released === false && receipt.restore?.synthetic_canary_status === 'CURRENT', 'restore clone must remain quarantined with synthetic-only canaries', failures);
     const externalEffects = guardedUnitEntries(receipt.restore?.external_effects, 'restore.external_effects', failures);
     requireCondition(Array.isArray(receipt.restore?.external_effects) && externalEffects.length === receipt.restore.external_effects.length && sameSet(externalEffects.map((entry) => entry.unit), externalEffectUnits), 'restore external-effect denominator changed', failures);

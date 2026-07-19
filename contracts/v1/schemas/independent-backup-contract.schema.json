@@ -1166,6 +1166,8 @@
       "required": [
         "status",
         "independent_from_scheduler",
+        "project",
+        "observed_at",
         "evidence_sha256"
       ],
       "properties": {
@@ -1174,6 +1176,25 @@
         },
         "independent_from_scheduler": {
           "const": true
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
         },
         "evidence_sha256": {
           "$ref": "#/$defs/sha256"
@@ -1186,6 +1207,8 @@
       "required": [
         "status",
         "retention_days",
+        "project",
+        "observed_at",
         "evidence_sha256"
       ],
       "properties": {
@@ -1194,6 +1217,25 @@
         },
         "retention_days": {
           "const": 7
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref"
+          ],
+          "properties": {
+            "name": {
+              "const": "Fawxzzy shared Supabase project"
+            },
+            "ref": {
+              "const": "bxtcuhkotumitoqtrcej"
+            }
+          }
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
         },
         "evidence_sha256": {
           "$ref": "#/$defs/sha256"
@@ -1257,6 +1299,7 @@
       "additionalProperties": false,
       "required": [
         "status",
+        "target_project",
         "traffic_released",
         "synthetic_canary_status",
         "external_effects",
@@ -1271,6 +1314,9 @@
       "properties": {
         "status": {
           "const": "CURRENT"
+        },
+        "target_project": {
+          "$ref": "#/$defs/restore_target_project"
         },
         "traffic_released": {
           "const": false
@@ -1313,6 +1359,30 @@
         },
         "failed_clone_deletion_authority_status": {
           "const": "BLOCKED"
+        }
+      }
+    },
+    "restore_target_project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref",
+        "source_project_sha256"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,127}$"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^[a-z0-9]{20}$"
+        },
+        "source_project_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
