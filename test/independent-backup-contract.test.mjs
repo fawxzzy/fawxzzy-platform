@@ -199,7 +199,7 @@ function buildReceipt({ restore = false, storageObjectCount = 0 } = {}) {
 }
 
 function validate(receipt, validationNow = now, acceptedExportsManifest = buildAcceptedExportsManifest(receipt), evidence = {}) {
-  const storage = receipt.coverage?.find((entry) => entry.unit === 'storage_object_bodies');
+  const storage = receipt.coverage?.find((entry) => entry?.unit === 'storage_object_bodies');
   const storageClaimed = storage?.status === 'CURRENT' || (storage?.aggregate_count ?? 0) > 0;
   const objectLockReadback = Object.hasOwn(evidence, 'objectLockReadback')
     ? evidence.objectLockReadback
@@ -417,6 +417,46 @@ test('incomplete export coverage fails closed', () => {
   receipt.coverage.pop();
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   assert(validate(receipt).failures.includes('receipt coverage denominator changed'));
+});
+
+test('malformed coverage entries return deterministic fail-closed issues without throwing', () => {
+  const malformedEntries = [
+    null,
+    'application_data',
+    7,
+    true,
+    [],
+    {},
+    { unit: 7, status: 'CURRENT', aggregate_count: 1, private_digest: digest('malformed-unit') },
+    { unit: 'application_schemas_and_catalog', status: 7, aggregate_count: 'one', private_digest: false }
+  ];
+
+  for (const [index, malformedEntry] of malformedEntries.entries()) {
+    const receipt = buildReceipt();
+    receipt.coverage[0] = malformedEntry;
+    receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
+    let result;
+    assert.doesNotThrow(() => { result = validate(receipt); }, `malformed coverage case ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('receipt schema /coverage/0')));
+    if (index < 7) assert(result.failures.includes('coverage[0]: coverage entry is malformed'));
+    else assert(result.failures.includes('application_schemas_and_catalog: coverage is incomplete'));
+  }
+
+  const mixed = buildReceipt();
+  mixed.coverage[0] = null;
+  mixed.manifest_sha256 = independentBackupManifestDigest(mixed);
+  const mixedResult = validate(mixed);
+  assert.equal(mixedResult.ok, false);
+  assert(mixedResult.failures.includes('coverage[0]: coverage entry is malformed'));
+  assert(mixedResult.failures.includes('receipt coverage denominator changed'));
+
+  const duplicate = buildReceipt();
+  duplicate.coverage[0] = structuredClone(duplicate.coverage[1]);
+  duplicate.manifest_sha256 = independentBackupManifestDigest(duplicate);
+  const duplicateResult = validate(duplicate);
+  assert.equal(duplicateResult.ok, false);
+  assert(duplicateResult.failures.includes('receipt coverage denominator changed'));
 });
 
 test('missing provider Physical backup complement fails closed', () => {

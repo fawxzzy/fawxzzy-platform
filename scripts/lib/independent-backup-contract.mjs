@@ -255,7 +255,11 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
   const receiptCoverage = Array.isArray(receipt.coverage) ? receipt.coverage : [];
   requireCondition(sameSet(receiptCoverage.map((entry) => entry?.unit), coverageUnits), 'receipt coverage denominator changed', failures);
   const storageBodiesEntry = receiptCoverage.find((entry) => entry?.unit === 'storage_object_bodies');
-  for (const entry of receiptCoverage) {
+  for (const [index, entry] of receiptCoverage.entries()) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.unit !== 'string') {
+      failures.push(`coverage[${index}]: coverage entry is malformed`);
+      continue;
+    }
     const isStorageBodies = entry.unit === 'storage_object_bodies';
     const emptyStorageBodies = isStorageBodies && entry.status === 'NOT_APPLICABLE' && entry.aggregate_count === 0 && entry.private_digest === null;
     const current = entry.status === 'CURRENT' && Number.isInteger(entry.aggregate_count) && entry.aggregate_count >= 0 && hexSha256.test(entry.private_digest ?? '');
