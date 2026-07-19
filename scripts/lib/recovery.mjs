@@ -489,10 +489,19 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     { name: 'pg_cron', source_installed_version: '1.6.4', target_available_version: '1.6.4', target_installed: false },
     { name: 'pg_net', source_installed_version: '0.20.0', target_available_version: '0.20.4', target_installed: false }
   ];
-  const extensions = Array.isArray(inventory.extensions)
-    ? [...inventory.extensions].sort((left, right) => String(left.name).localeCompare(String(right.name)))
-    : [];
-  requireCondition(canonicalSerialize(extensions) === canonicalSerialize(expectedExtensions), 'DiscordOS extension source/target denominator changed');
+  const extensionEntries = Array.isArray(inventory.extensions) ? inventory.extensions : [];
+  const extensionEntriesAreRecords = extensionEntries.every(isRecord);
+  requireCondition(extensionEntriesAreRecords, 'DiscordOS extension inventory entries must be objects');
+  const normalizedExtensions = extensionEntries
+    .filter(isRecord)
+    .map((entry) => ({
+      name: entry.name,
+      source_installed_version: entry.source_installed_version,
+      target_available_version: entry.target_available_version,
+      target_installed: entry.target_installed
+    }))
+    .sort((left, right) => String(left.name).localeCompare(String(right.name)));
+  requireCondition(canonicalSerialize(normalizedExtensions) === canonicalSerialize(expectedExtensions), 'DiscordOS extension source/target denominator changed');
   const expectedAggregates = {
     application_event_trigger_count: 0,
     auth_identity_count: 0,

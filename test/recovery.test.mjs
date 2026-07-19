@@ -490,6 +490,71 @@ test('malformed DiscordOS Edge inventory entries fail closed without throwing', 
   }
 });
 
+test('malformed DiscordOS extension inventory entries fail closed without throwing', () => {
+  const scenarios = [
+    {
+      name: 'null entry',
+      mutate: (entries) => { entries[0] = null; },
+      expected: 'extension inventory entries must be objects'
+    },
+    {
+      name: 'non-object entry',
+      mutate: (entries) => { entries[0] = 'not-an-extension'; },
+      expected: 'extension inventory entries must be objects'
+    },
+    {
+      name: 'missing name',
+      mutate: (entries) => { delete entries[0].name; },
+      expected: 'extension source/target denominator changed'
+    },
+    {
+      name: 'missing version',
+      mutate: (entries) => { delete entries[0].source_installed_version; },
+      expected: 'extension source/target denominator changed'
+    },
+    {
+      name: 'wrong installed type',
+      mutate: (entries) => { entries[0].target_installed = 'false'; },
+      expected: 'extension source/target denominator changed'
+    },
+    {
+      name: 'duplicate entry',
+      mutate: (entries) => { entries[0] = structuredClone(entries[1]); },
+      expected: 'extension source/target denominator changed',
+      schemaFailure: false
+    },
+    {
+      name: 'mixed valid and invalid entries',
+      mutate: (entries) => { entries.push(null); },
+      expected: 'extension inventory entries must be objects'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents[recoveryDocumentPaths.effects].discordos.inventory.extensions);
+    refreshActionDigests(documents);
+    let report;
+    assert.doesNotThrow(() => {
+      report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    }, scenario.name);
+    assert.equal(report.ok, false, scenario.name);
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    assert.deepEqual(report, validateRecoveryDocuments(documents, { mode: 'action', now: observedAt }), scenario.name);
+    if (scenario.schemaFailure !== false) {
+      assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+    }
+  }
+
+  const reordered = buildActionDocuments();
+  reordered[recoveryDocumentPaths.effects].discordos.inventory.extensions.reverse();
+  refreshActionDigests(reordered);
+  assert.deepEqual(
+    validateRecoveryDocuments(reordered, { mode: 'action', now: observedAt }).failures,
+    [operationalAuthenticatorBlocker]
+  );
+});
+
 test('DiscordOS restore identity is distinct from every complete protected-project identity', () => {
   const setRestoreProject = (documents, projectRef) => {
     const effects = documents[recoveryDocumentPaths.effects];
