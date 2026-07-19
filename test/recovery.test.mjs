@@ -115,6 +115,7 @@ function buildActionDocuments() {
   discordos.quarantine.observation = {
     status: 'CURRENT',
     minimum_interval_seconds: 121,
+    maximum_age_seconds: 7200,
     first_observed_at: '2026-07-18T15:50:00Z',
     second_observed_at: '2026-07-18T15:53:00Z',
     first_evidence_sha256: sha256Hex({ read: 1, snapshot_id: rehearsalSnapshotId }),
@@ -381,6 +382,84 @@ test('DiscordOS inventory freezes the exact Edge Cron helper extension and aggre
   }
 });
 
+test('DiscordOS restore identity is distinct from every complete protected-project identity', () => {
+  const setRestoreProject = (documents, projectRef) => {
+    const effects = documents[recoveryDocumentPaths.effects];
+    effects.restore_project_ref = projectRef;
+    effects.discordos.rehearsal.restore_project_ref = projectRef;
+    for (const effect of effects.effects) {
+      effect.evidence.restore_project_ref = projectRef;
+      effect.evidence_digest = sha256Hex(effect.evidence);
+    }
+    documents[recoveryDocumentPaths.restore].clone.project_ref = projectRef;
+  };
+  const scenarios = [
+    {
+      name: 'shared target equality',
+      mutate: (documents) => {
+        const protectedProjects = documents[recoveryDocumentPaths.effects].protected_projects;
+        setRestoreProject(documents, protectedProjects.find((entry) => entry.identity_class === 'shared_target').project_ref);
+      },
+      expected: 'distinct from every protected source or production project'
+    },
+    {
+      name: 'DiscordOS source equality',
+      mutate: (documents) => {
+        const protectedProjects = documents[recoveryDocumentPaths.effects].protected_projects;
+        setRestoreProject(documents, protectedProjects.find((entry) => entry.identity_class === 'discordos_source').project_ref);
+      },
+      expected: 'distinct from every protected source or production project'
+    },
+    {
+      name: 'additional protected identity equality',
+      mutate: (documents) => {
+        const effects = documents[recoveryDocumentPaths.effects];
+        const additionalRef = 'qrstuvwxyzabcdefghij';
+        effects.protected_projects.push({ identity_class: 'additional_protected_source_or_production', project_ref: additionalRef });
+        setRestoreProject(documents, additionalRef);
+      },
+      expected: 'distinct from every protected source or production project'
+    },
+    {
+      name: 'duplicate protected identity',
+      mutate: (documents) => {
+        const protectedProjects = documents[recoveryDocumentPaths.effects].protected_projects;
+        protectedProjects[1].project_ref = protectedProjects[0].project_ref;
+      },
+      expected: 'protected-project identities must be unique'
+    },
+    {
+      name: 'missing protected source',
+      mutate: (documents) => { documents[recoveryDocumentPaths.effects].protected_projects.pop(); },
+      expected: 'protected-project denominator is incomplete',
+      schemaFailure: true
+    },
+    {
+      name: 'protected identity substitution',
+      mutate: (documents) => {
+        const protectedProjects = documents[recoveryDocumentPaths.effects].protected_projects;
+        protectedProjects.find((entry) => entry.identity_class === 'shared_target').project_ref = 'zyxwvutsrqponmlkjihg';
+      },
+      expected: 'protected shared-target identity must correlate'
+    },
+    {
+      name: 'malformed protected identity',
+      mutate: (documents) => { documents[recoveryDocumentPaths.effects].protected_projects[0].project_ref = 'INVALID'; },
+      expected: 'protected-project identity is malformed',
+      schemaFailure: true
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+});
+
 test('DiscordOS action evidence rejects digest-only self-reported circular stale mismatched and unsafe proof', () => {
   const scenarios = [
     {
@@ -542,6 +621,69 @@ test('DiscordOS quarantine replay rollback observation and pg_net behavior gates
   const withoutClock = buildActionDocuments();
   const report = validateRecoveryDocuments(withoutClock, { mode: 'action' });
   assert.ok(report.failures.some((failure) => failure.includes('requires an injected validation clock')));
+});
+
+test('DiscordOS zero-growth observations enforce the closed freshness and chronology policy', () => {
+  const scenarios = [
+    {
+      name: 'stale first observation',
+      mutate: (observation) => {
+        observation.first_observed_at = '2026-07-18T14:59:59Z';
+        observation.second_observed_at = '2026-07-18T15:02:00Z';
+      },
+      expected: 'first zero-growth observation freshness failed'
+    },
+    {
+      name: 'future second observation',
+      mutate: (observation) => {
+        observation.first_observed_at = '2026-07-18T16:57:59Z';
+        observation.second_observed_at = '2026-07-18T17:00:01Z';
+      },
+      expected: 'second zero-growth observation freshness failed'
+    },
+    {
+      name: 'missing first timestamp',
+      mutate: (observation) => { observation.first_observed_at = null; },
+      expected: 'first_observed_at: timestamp must use exact UTC seconds'
+    },
+    {
+      name: 'malformed second timestamp',
+      mutate: (observation) => { observation.second_observed_at = 'not-a-timestamp'; },
+      expected: 'second_observed_at: timestamp must use exact UTC seconds',
+      schemaFailure: true
+    },
+    {
+      name: 'missing freshness policy',
+      mutate: (observation) => { delete observation.maximum_age_seconds; },
+      expected: 'freshness-policy denominator changed',
+      schemaFailure: true
+    },
+    {
+      name: 'non-monotonic observations',
+      mutate: (observation) => {
+        observation.first_observed_at = '2026-07-18T15:54:00Z';
+        observation.second_observed_at = '2026-07-18T15:53:00Z';
+      },
+      expected: 'observation chronology is non-monotonic'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    scenario.mutate(documents[recoveryDocumentPaths.effects].discordos.quarantine.observation);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+
+  const exactBoundary = buildActionDocuments();
+  const observation = exactBoundary[recoveryDocumentPaths.effects].discordos.quarantine.observation;
+  observation.first_observed_at = '2026-07-18T15:00:00Z';
+  observation.second_observed_at = '2026-07-18T15:03:00Z';
+  refreshActionDigests(exactBoundary);
+  assert.deepEqual(validateSchemaInstances(exactBoundary, createValidator()), []);
+  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, []);
 });
 
 test('CURRENT retention covers completion rehearsal acceptance and the injected validation clock', () => {

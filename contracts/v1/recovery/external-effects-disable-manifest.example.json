@@ -6,6 +6,16 @@
     "name": "Fawxzzy shared Supabase project",
     "ref": "bxtcuhkotumitoqtrcej"
   },
+  "protected_projects": [
+    {
+      "identity_class": "shared_target",
+      "project_ref": "bxtcuhkotumitoqtrcej"
+    },
+    {
+      "identity_class": "discordos_source",
+      "project_ref": "nwexsktuuenfdegzrbut"
+    }
+  ],
   "restore_project_ref": null,
   "quarantine": {
     "network_egress_status": "UNKNOWN",
@@ -172,6 +182,7 @@
       "observation": {
         "status": "BLOCKED",
         "minimum_interval_seconds": 121,
+        "maximum_age_seconds": 7200,
         "first_observed_at": null,
         "second_observed_at": null,
         "first_evidence_sha256": null,

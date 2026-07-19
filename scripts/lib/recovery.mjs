@@ -105,6 +105,7 @@ export const expectedOwnerDecisionFields = Object.freeze([
 
 const hexSha256 = /^[0-9a-f]{64}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const projectRef = /^[a-z]{20}$/;
 const stableDecisionId = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
 const email = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const uuid = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i;
@@ -375,6 +376,27 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   };
   requireCondition(canonicalSerialize(inventory.aggregates) === canonicalSerialize(expectedAggregates), 'DiscordOS aggregate external-effect denominator changed');
 
+  const protectedProjects = Array.isArray(effects.protected_projects) ? effects.protected_projects : [];
+  const protectedProjectRefs = protectedProjects
+    .filter(isRecord)
+    .map((entry) => entry.project_ref);
+  const targetProtections = protectedProjects.filter((entry) => isRecord(entry) && entry.identity_class === 'shared_target');
+  const sourceProtections = protectedProjects.filter((entry) => isRecord(entry) && entry.identity_class === 'discordos_source');
+  requireCondition(protectedProjects.length >= 2, 'DiscordOS protected-project denominator is incomplete');
+  requireCondition(
+    protectedProjects.every((entry) => isRecord(entry) && projectRef.test(entry.project_ref ?? '')),
+    'DiscordOS protected-project identity is malformed'
+  );
+  requireCondition(new Set(protectedProjectRefs).size === protectedProjects.length, 'DiscordOS protected-project identities must be unique');
+  requireCondition(
+    targetProtections.length === 1 && targetProtections[0].project_ref === rehearsal.target_project_ref,
+    'DiscordOS protected shared-target identity must correlate to the rehearsal target'
+  );
+  requireCondition(
+    sourceProtections.length === 1 && sourceProtections[0].project_ref === source.project_ref,
+    'DiscordOS protected source identity must correlate to the source project'
+  );
+
   requireCondition(rehearsal.target_project_ref === 'bxtcuhkotumitoqtrcej', 'DiscordOS target rehearsal identity changed');
   requireCondition(sameOrderedValues(quarantine.steps, expectedDiscordQuarantineSteps), 'DiscordOS fail-closed quarantine order changed');
   requireCondition(sameOrderedValues(rollback.steps, expectedDiscordRollbackSteps), 'DiscordOS rollback order changed');
@@ -398,9 +420,13 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
 
   if (sourceExamples) {
     requireCondition(discordos.status === 'BLOCKED', 'DiscordOS source quarantine must remain BLOCKED');
+    requireCondition(
+      protectedProjects.length === 2 && targetProtections.length === 1 && sourceProtections.length === 1,
+      'DiscordOS source example must contain only the shared-target and source protected identities'
+    );
     requireCondition(rehearsal.status === 'BLOCKED' && rehearsal.restore_project_ref === null && rehearsal.snapshot_id === null && rehearsal.observed_at === null && rehearsal.maximum_age_seconds === null && rehearsal.inventory_evidence_sha256 === null, 'DiscordOS source example must not invent rehearsal evidence');
     requireCondition(quarantine.status === 'BLOCKED' && quarantine.sink_mode === 'UNKNOWN', 'DiscordOS source example must not claim active quarantine');
-    requireCondition(quarantine.observation?.status === 'BLOCKED', 'DiscordOS source example must not claim observation proof');
+    requireCondition(quarantine.observation?.status === 'BLOCKED' && quarantine.observation?.maximum_age_seconds === 7200, 'DiscordOS source example must retain the blocked observation freshness policy without claiming proof');
     requireCondition(rollback.status === 'BLOCKED', 'DiscordOS source example must not claim rollback proof');
     requireCondition(compatibility.behavioral_status === 'BLOCKED' && compatibility.behavioral_evidence_sha256 === null, 'DiscordOS source example must not claim pg_net behavioral compatibility');
     requireCondition(effects.effects.every((entry) => entry.evidence === null), 'DiscordOS source example must not invent authenticated per-effect evidence');
@@ -410,6 +436,8 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   requireCondition(discordos.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT status');
   requireCondition(rehearsal.status === 'CURRENT', 'accepted DiscordOS quarantine requires a CURRENT rehearsal inventory');
   requireCondition(rehearsal.restore_project_ref === effects.restore_project_ref, 'DiscordOS rehearsal project must correlate to the external-effects manifest');
+  requireCondition(projectRef.test(rehearsal.restore_project_ref ?? ''), 'accepted DiscordOS quarantine requires a valid disposable rehearsal-project identity');
+  requireCondition(!protectedProjectRefs.includes(rehearsal.restore_project_ref), 'DiscordOS rehearsal project must be distinct from every protected source or production project');
   requireCondition(typeof rehearsal.snapshot_id === 'string', 'accepted DiscordOS quarantine requires a rehearsal snapshot identity');
   requireCondition(typeof rehearsal.observed_at === 'string' && timestamp.test(rehearsal.observed_at), 'accepted DiscordOS quarantine requires a rehearsal observation timestamp');
   requireCondition(Number.isInteger(rehearsal.maximum_age_seconds) && rehearsal.maximum_age_seconds > 0, 'accepted DiscordOS quarantine requires a positive freshness window');
@@ -432,6 +460,7 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   requireCondition(isRecord(observation) && observation.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT two-read observation');
   if (isRecord(observation)) {
     requireCondition(observation.minimum_interval_seconds === 121, 'DiscordOS two-read interval denominator changed');
+    requireCondition(observation.maximum_age_seconds === 7200, 'DiscordOS two-read freshness-policy denominator changed');
     requireCondition(hexSha256.test(observation.first_evidence_sha256 ?? '') && hexSha256.test(observation.second_evidence_sha256 ?? ''), 'DiscordOS two-read observation requires canonical evidence digests');
     requireCondition(observation.first_evidence_sha256 !== observation.second_evidence_sha256, 'DiscordOS two-read observation requires independent evidence digests');
     requireCondition(
@@ -445,8 +474,14 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     try {
       const first = parseTimestamp(observation.first_observed_at, 'discordos.quarantine.observation.first_observed_at');
       const second = parseTimestamp(observation.second_observed_at, 'discordos.quarantine.observation.second_observed_at');
+      requireCondition(second >= first, 'DiscordOS two-read observation chronology is non-monotonic');
       requireCondition(second - first >= observation.minimum_interval_seconds * 1000, 'DiscordOS two-read observation interval is too short');
-      if (now !== undefined) requireCondition(second <= parseTimestamp(now, 'now'), 'DiscordOS second observation is in the future');
+      if (now !== undefined && Number.isInteger(observation.maximum_age_seconds)) {
+        for (const [label, observedAt] of [['first', observation.first_observed_at], ['second', observation.second_observed_at]]) {
+          const freshness = evaluateFreshness({ completedAt: observedAt, maxAgeSeconds: observation.maximum_age_seconds, now });
+          requireCondition(freshness.status === 'CURRENT', `DiscordOS ${label} zero-growth observation freshness failed: ${freshness.reason}`);
+        }
+      }
     } catch (error) {
       failures.push(error.message);
     }

@@ -127,6 +127,8 @@ The DiscordOS source snapshot is closed in `contracts/v1/recovery/external-effec
 
 Every action-time external-effect unit requires structured, independently authenticated evidence. A digest without its correlated evidence object is insufficient. The evidence must bind the source, target, named rehearsal project, snapshot, unit, exact zero enabled denominator, freshness window, inventory manifest, verification receipt identity, and verification receipt digest. Evidence identities, coverage digests, structured-evidence digests, and verification-receipt digests must be unique. Reuse of a source receipt, inventory, observation, compatibility, or enclosing manifest digest is circular proof and fails closed. Raw bodies, headers, payloads, URLs, secrets, identities, and machine paths are forbidden.
 
+The manifest carries a closed protected-project identity set. It must contain exactly one identity correlated to the shared target and exactly one correlated to the DiscordOS source; a later action packet may add other explicitly protected source or production projects. Every reference must be a valid project identity and unique. The disposable rehearsal project must be valid, must correlate across the manifest, per-effect evidence, and restore receipt, and must not equal any protected identity. The protected-set comparison is data-driven from the manifest and does not add action-time provider identities as reusable-validator constants.
+
 The action order is fixed:
 
 1. Deny outbound network access.
@@ -137,9 +139,9 @@ The action order is fixed:
 6. Replay inert schema objects only.
 7. Prove the complete external-effect denominator is zero.
 8. Run only the separately admitted synthetic-sink compatibility tests.
-9. Take two independent zero-growth readbacks more than two one-minute Cron intervals apart.
+9. Take two independent zero-growth readbacks more than two one-minute Cron intervals apart. Both observations must be within the closed 7,200-second freshness window at validation time; malformed, missing, future, stale, duplicate, or non-monotonic timestamps fail closed. The exact freshness boundary is inclusive.
 
-`apply_admitted` remains false. Scheduler activation, Edge deployment, secrets, aliases, provider writes, source pause, and production routing remain held. A `CURRENT` quarantine requires denied or synthetic-sink-only egress, zero Cron/queue/response/sink/Edge growth, fresh independent readbacks, current rollback evidence, and current behavioral evidence for `pg_net`.
+`apply_admitted` remains false. Scheduler activation, Edge deployment, secrets, aliases, provider writes, source pause, and production routing remain held. A `CURRENT` quarantine requires a disposable project outside the protected-project set, denied or synthetic-sink-only egress, zero Cron/queue/response/sink/Edge growth, fresh independent readbacks, current rollback evidence, and current behavioral evidence for `pg_net`.
 
 The source uses `pg_net` 0.20.0 while the target currently offers 0.20.4. The intervening extension upgrade scripts declare no SQL-level changes, so static compatibility is `CURRENT`; behavioral compatibility remains `BLOCKED` in source. A disposable rehearsal must prove the function signature and return type, commit-triggered dispatch, single queue consumption, sink-only egress, timeout/DNS/invalid-scheme handling, HTTP failure capture, worker-restart deduplication, inactive-Cron zero growth, and that transient response history is not treated as durable evidence.
 

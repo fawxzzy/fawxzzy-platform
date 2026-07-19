@@ -9,6 +9,7 @@
     "status",
     "backup_id",
     "project",
+    "protected_projects",
     "restore_project_ref",
     "quarantine",
     "discordos",
@@ -40,6 +41,15 @@
         "ref": {
           "const": "bxtcuhkotumitoqtrcej"
         }
+      }
+    },
+    "protected_projects": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/protected_project"
       }
     },
     "restore_project_ref": {
@@ -175,6 +185,26 @@
         "null"
       ],
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "protected_project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_class",
+        "project_ref"
+      ],
+      "properties": {
+        "identity_class": {
+          "enum": [
+            "shared_target",
+            "discordos_source",
+            "additional_protected_source_or_production"
+          ]
+        },
+        "project_ref": {
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/project_ref"
+        }
+      }
     },
     "authenticated_effect_evidence": {
       "type": "object",
@@ -731,6 +761,7 @@
               "required": [
                 "status",
                 "minimum_interval_seconds",
+                "maximum_age_seconds",
                 "first_observed_at",
                 "second_observed_at",
                 "first_evidence_sha256",
@@ -747,6 +778,9 @@
                 },
                 "minimum_interval_seconds": {
                   "const": 121
+                },
+                "maximum_age_seconds": {
+                  "const": 7200
                 },
                 "first_observed_at": {
                   "$ref": "#/$defs/timestamp_or_null"
