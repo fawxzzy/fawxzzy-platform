@@ -89,6 +89,54 @@ const storageBodyRecoveryReceiptSchema = {
   $ref: '#/$defs/storage_body_recovery_receipt',
   $defs: sourceSchema.$defs
 };
+const storageInventoryEvidenceSchema = {
+  $schema: sourceSchema.$schema,
+  $id: 'urn:fawxzzy:platform:schemas:v1:independent-backup-storage-inventory-evidence',
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'version', 'status', 'canonical_serialization', 'observed_at', 'source_evidence_sha256',
+    'project', 'snapshot_at', 'export_identity', 'denominator'
+  ],
+  properties: {
+    version: { const: '1.0.0' },
+    status: { const: 'CURRENT' },
+    canonical_serialization: { const: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf' },
+    observed_at: { $ref: '#/$defs/utc_timestamp' },
+    source_evidence_sha256: { $ref: '#/$defs/sha256' },
+    project: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'ref'],
+      properties: {
+        name: { const: 'Fawxzzy shared Supabase project' },
+        ref: { const: 'bxtcuhkotumitoqtrcej' }
+      }
+    },
+    snapshot_at: { $ref: '#/$defs/utc_timestamp' },
+    export_identity: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['destination_version', 'ciphertext_sha256'],
+      properties: {
+        destination_version: { $ref: '#/$defs/safe_reference' },
+        ciphertext_sha256: { $ref: '#/$defs/sha256' }
+      }
+    },
+    denominator: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['bucket_count', 'object_count', 'total_bytes', 'inventory_manifest_sha256'],
+      properties: {
+        bucket_count: { type: 'integer', minimum: 0 },
+        object_count: { type: 'integer', minimum: 0 },
+        total_bytes: { type: 'integer', minimum: 0 },
+        inventory_manifest_sha256: { $ref: '#/$defs/sha256' }
+      }
+    }
+  },
+  $defs: sourceSchema.$defs
+};
 const contractAjv = new Ajv2020({ allErrors: true, strict: true });
 contractAjv.addSchema(commonSchema);
 const contractShapeValidator = contractAjv.compile(sourceSchema);
@@ -96,6 +144,7 @@ const receiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).com
 const acceptedExportsManifestShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(acceptedExportsManifestSchema);
 const objectLockReadbackShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(objectLockReadbackSchema);
 const storageBodyRecoveryReceiptShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageBodyRecoveryReceiptSchema);
+const storageInventoryEvidenceShapeValidator = new Ajv2020({ allErrors: true, strict: true }).compile(storageInventoryEvidenceSchema);
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -111,6 +160,27 @@ export function canonicalSerialize(value) {
 
 export function sha256Hex(value) {
   return crypto.createHash('sha256').update(typeof value === 'string' ? value : canonicalSerialize(value), 'utf8').digest('hex');
+}
+
+export function storageInventoryManifestDigest(evidence) {
+  return sha256Hex({
+    denominator: {
+      bucket_count: evidence?.denominator?.bucket_count ?? null,
+      object_count: evidence?.denominator?.object_count ?? null,
+      total_bytes: evidence?.denominator?.total_bytes ?? null
+    },
+    export_identity: evidence?.export_identity ?? null,
+    observed_at: evidence?.observed_at ?? null,
+    project: evidence?.project ?? null,
+    snapshot_at: evidence?.snapshot_at ?? null
+  });
+}
+
+function storageInventorySelfCorrelationDigest(evidence) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
+  const copy = { ...evidence };
+  delete copy.source_evidence_sha256;
+  return sha256Hex(copy);
 }
 
 export function independentBackupManifestDigest(receipt) {
@@ -312,6 +382,41 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
       requireCondition(current, `${entry.unit}: coverage is incomplete`, failures);
     }
   }
+  const storageInventoryEvidence = options.storageInventoryEvidence;
+  failures.push(...shapeFailures(storageInventoryEvidenceShapeValidator, storageInventoryEvidence, 'Storage inventory evidence'));
+  failures.push(...validateSanitizedReceipt(storageInventoryEvidence, 'Storage inventory evidence'));
+  const storageInventoryObservedAt = parseTimestamp(storageInventoryEvidence?.observed_at, 'storage_inventory_evidence.observed_at', failures);
+  const storageInventoryBucketCount = storageInventoryEvidence?.denominator?.bucket_count;
+  const storageInventoryObjectCount = storageInventoryEvidence?.denominator?.object_count;
+  const storageInventoryTotalBytes = storageInventoryEvidence?.denominator?.total_bytes;
+  const storageInventorySourceDigest = storageInventoryEvidence?.source_evidence_sha256;
+  requireCondition(storageInventoryEvidence?.status === 'CURRENT', 'Storage inventory evidence must be CURRENT', failures);
+  requireCondition(storageInventoryEvidence?.project?.name === receipt.project?.name && storageInventoryEvidence?.project?.ref === receipt.project?.ref, 'Storage inventory evidence project mismatch', failures);
+  requireCondition(storageInventoryEvidence?.snapshot_at === receipt.snapshot_at, 'Storage inventory evidence snapshot mismatch', failures);
+  requireCondition(storageInventoryEvidence?.export_identity?.destination_version === receipt.destination_version && storageInventoryEvidence?.export_identity?.ciphertext_sha256 === receipt.ciphertext_sha256, 'Storage inventory evidence export identity mismatch', failures);
+  requireCondition(storageInventoryObservedAt !== null && completedAt !== null && storageInventoryObservedAt >= completedAt, 'Storage inventory evidence cannot predate backup completion', failures);
+  requireCondition(storageInventoryObservedAt !== null && now !== null && storageInventoryObservedAt <= now, 'Storage inventory evidence cannot be future-dated', failures);
+  requireCondition(storageInventoryObservedAt !== null && now !== null && now - storageInventoryObservedAt <= maximumEvidenceAgeMs, 'Storage inventory evidence is stale', failures);
+  requireCondition(storageInventoryEvidence?.denominator?.inventory_manifest_sha256 === storageInventoryManifestDigest(storageInventoryEvidence), 'Storage inventory manifest digest mismatch', failures);
+  requireCondition(Number.isInteger(storageInventoryBucketCount) && storageInventoryBucketCount >= 0 && Number.isInteger(storageInventoryObjectCount) && storageInventoryObjectCount >= 0 && Number.isInteger(storageInventoryTotalBytes) && storageInventoryTotalBytes >= 0, 'Storage inventory aggregate denominator is malformed', failures);
+  requireCondition(storageInventoryObjectCount === storageBodiesEntry?.aggregate_count, 'Storage inventory does not match the Storage object denominator', failures);
+  requireCondition(storageInventoryObjectCount === 0
+    ? storageInventoryBucketCount === 0 && storageInventoryTotalBytes === 0
+    : storageInventoryBucketCount > 0, 'Storage inventory zero/positive state is contradictory', failures);
+  const storageInventorySourceDigestValid = hexSha256.test(storageInventorySourceDigest ?? '');
+  requireCondition(storageInventorySourceDigestValid, 'Storage inventory source evidence is malformed', failures);
+  if (storageInventorySourceDigestValid) {
+    const selfCorrelationDigests = [
+      storageInventoryEvidence?.denominator?.inventory_manifest_sha256,
+      storageInventorySelfCorrelationDigest(storageInventoryEvidence),
+      receipt.manifest_sha256,
+      receipt.plaintext_sha256,
+      receipt.ciphertext_sha256
+    ];
+    requireCondition(!selfCorrelationDigests.includes(storageInventorySourceDigest), 'Storage inventory source evidence is self-correlated', failures);
+    const independentEvidenceDigests = [objectLockReadback?.source_evidence_sha256, acceptedExportsManifest?.source_evidence_sha256].filter(Boolean);
+    requireCondition(!independentEvidenceDigests.includes(storageInventorySourceDigest), 'Storage inventory source evidence must be distinct from other evidence', failures);
+  }
   const storageBodiesClaimed = storageBodiesEntry?.status === 'CURRENT'
     || (storageBodiesEntry?.aggregate_count ?? 0) > 0
     || storageBodiesEntry?.body_recovery_receipt_status === 'CURRENT'
@@ -345,8 +450,10 @@ export function validateIndependentBackupReceipt(contract, receipt, options = {}
     const storageByteCount = storageBuckets.reduce((sum, bucket) => sum + (Number.isInteger(bucket?.total_bytes) ? bucket.total_bytes : 0), 0);
     requireCondition(storageBodyRecoveryReceipt?.denominator?.object_count === storageObjectCount && storageBodyRecoveryReceipt?.denominator?.body_count === storageBodyCount && storageBodyRecoveryReceipt?.denominator?.total_bytes === storageByteCount, 'Storage body recovery aggregate denominator mismatch', failures);
     requireCondition(storageObjectCount === storageBodiesEntry?.aggregate_count && storageBodyCount === storageBodiesEntry?.aggregate_count, 'Storage body recovery does not cover the exact Storage object denominator', failures);
+    requireCondition(storageInventoryBucketCount === storageBodyRecoveryReceipt?.denominator?.bucket_count && storageInventoryObjectCount === storageObjectCount && storageInventoryTotalBytes === storageByteCount, 'Storage inventory does not match the body recovery denominator', failures);
     requireCondition(storageBodiesEntry?.private_digest === storageBodyRecoveryReceipt?.denominator?.buckets_manifest_sha256, 'Storage body coverage digest does not match the recovery manifest', failures);
     requireCondition(hexSha256.test(storageBodyRecoveryReceipt?.source_evidence_sha256 ?? ''), 'Storage body recovery source evidence is malformed', failures);
+    requireCondition(!storageInventorySourceDigestValid || storageBodyRecoveryReceipt?.source_evidence_sha256 !== storageInventorySourceDigest, 'Storage inventory and body recovery source evidence must be distinct', failures);
   }
   requireCondition(receipt.aggregate_counts && Object.keys(receipt.aggregate_counts).length > 0 && Object.values(receipt.aggregate_counts).every((value) => Number.isInteger(value) && value >= 0), 'aggregate counts are incomplete', failures);
   const decision = receipt.owner_decision;

@@ -8,6 +8,7 @@ import {
   independentBackupContractPath,
   independentBackupManifestDigest,
   sha256Hex,
+  storageInventoryManifestDigest,
   validateIndependentBackupContract,
   validateIndependentBackupReceipt
 } from '../scripts/lib/independent-backup-contract.mjs';
@@ -63,6 +64,32 @@ function buildObjectLockReadback(receipt) {
       retention_until: receipt.retention_until
     }
   };
+}
+
+function buildStorageInventoryEvidence(receipt) {
+  const storage = receipt.coverage?.find((entry) => entry?.unit === 'storage_object_bodies');
+  const objectCount = Number.isInteger(storage?.aggregate_count) ? storage.aggregate_count : 0;
+  const evidence = {
+    version: '1.0.0',
+    status: 'CURRENT',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    observed_at: '2026-07-18T17:49:00Z',
+    source_evidence_sha256: digest('storage-inventory-source-readback'),
+    project: structuredClone(receipt.project),
+    snapshot_at: receipt.snapshot_at,
+    export_identity: {
+      destination_version: receipt.destination_version,
+      ciphertext_sha256: receipt.ciphertext_sha256
+    },
+    denominator: {
+      bucket_count: objectCount === 0 ? 0 : 1,
+      object_count: objectCount,
+      total_bytes: objectCount * 1024,
+      inventory_manifest_sha256: null
+    }
+  };
+  evidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(evidence);
+  return evidence;
 }
 
 function buildStorageBodyRecoveryReceipt(receipt) {
@@ -224,10 +251,14 @@ function validate(receipt, validationNow = now, acceptedExportsManifest = buildA
   const storageBodyRecoveryReceipt = Object.hasOwn(evidence, 'storageBodyRecoveryReceipt')
     ? evidence.storageBodyRecoveryReceipt
     : (storageClaimed ? buildStorageBodyRecoveryReceipt(receipt) : undefined);
+  const storageInventoryEvidence = Object.hasOwn(evidence, 'storageInventoryEvidence')
+    ? evidence.storageInventoryEvidence
+    : buildStorageInventoryEvidence(receipt);
   return validateIndependentBackupReceipt(contract(), receipt, {
     now: validationNow,
     acceptedExportsManifest,
     objectLockReadback,
+    storageInventoryEvidence,
     storageBodyRecoveryReceipt
   });
 }
@@ -687,6 +718,101 @@ test('Storage body status, count, and digest are bound to the authoritative deno
   assert(validate(positiveNotApplicable).failures.includes('Storage body coverage state contradicts its authoritative denominator'));
 
   assert.deepEqual(validate(buildReceipt({ storageObjectCount: 2 })), { ok: true, failures: [] });
+});
+
+test('every Storage denominator requires independent current inventory evidence', () => {
+  const empty = buildReceipt();
+  const emptyEvidence = buildStorageInventoryEvidence(empty);
+  assert.deepEqual(validate(empty, now, buildAcceptedExportsManifest(empty), { storageInventoryEvidence: emptyEvidence }), { ok: true, failures: [] });
+  assert.equal(emptyEvidence.denominator.inventory_manifest_sha256, storageInventoryManifestDigest(emptyEvidence));
+  assert.equal(storageInventoryManifestDigest(emptyEvidence), storageInventoryManifestDigest(structuredClone(emptyEvidence)));
+
+  const positive = buildReceipt({ storageObjectCount: 2 });
+  const positiveEvidence = buildStorageInventoryEvidence(positive);
+  assert.deepEqual(validate(positive, now, buildAcceptedExportsManifest(positive), { storageInventoryEvidence: positiveEvidence }), { ok: true, failures: [] });
+
+  for (const [index, malformedEvidence] of [undefined, null, 'malformed', [], { denominator: null }, { denominator: { object_count: 0 } }].entries()) {
+    const receipt = buildReceipt();
+    let result;
+    assert.doesNotThrow(() => {
+      result = validate(receipt, now, buildAcceptedExportsManifest(receipt), { storageInventoryEvidence: malformedEvidence });
+    }, `malformed Storage inventory evidence ${index} must not throw`);
+    assert.equal(result.ok, false);
+    assert(result.failures.some((failure) => failure.startsWith('Storage inventory evidence schema')));
+  }
+
+  const stale = buildReceipt();
+  const staleEvidence = buildStorageInventoryEvidence(stale);
+  staleEvidence.observed_at = '2026-07-18T09:59:59Z';
+  staleEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(staleEvidence);
+  assert(validate(stale, now, buildAcceptedExportsManifest(stale), { storageInventoryEvidence: staleEvidence }).failures.includes('Storage inventory evidence is stale'));
+
+  const future = buildReceipt();
+  const futureEvidence = buildStorageInventoryEvidence(future);
+  futureEvidence.observed_at = '2026-07-18T18:00:01Z';
+  futureEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(futureEvidence);
+  assert(validate(future, now, buildAcceptedExportsManifest(future), { storageInventoryEvidence: futureEvidence }).failures.includes('Storage inventory evidence cannot be future-dated'));
+
+  const wrongProject = buildReceipt();
+  const wrongProjectEvidence = buildStorageInventoryEvidence(wrongProject);
+  wrongProjectEvidence.project.name = 'Another project';
+  wrongProjectEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(wrongProjectEvidence);
+  assert(validate(wrongProject, now, buildAcceptedExportsManifest(wrongProject), { storageInventoryEvidence: wrongProjectEvidence }).failures.includes('Storage inventory evidence project mismatch'));
+
+  const wrongSnapshot = buildReceipt();
+  const wrongSnapshotEvidence = buildStorageInventoryEvidence(wrongSnapshot);
+  wrongSnapshotEvidence.snapshot_at = '2026-07-18T17:29:59Z';
+  wrongSnapshotEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(wrongSnapshotEvidence);
+  assert(validate(wrongSnapshot, now, buildAcceptedExportsManifest(wrongSnapshot), { storageInventoryEvidence: wrongSnapshotEvidence }).failures.includes('Storage inventory evidence snapshot mismatch'));
+
+  const wrongExport = buildReceipt();
+  const wrongExportEvidence = buildStorageInventoryEvidence(wrongExport);
+  wrongExportEvidence.export_identity.destination_version = 'backup-version-other';
+  wrongExportEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(wrongExportEvidence);
+  assert(validate(wrongExport, now, buildAcceptedExportsManifest(wrongExport), { storageInventoryEvidence: wrongExportEvidence }).failures.includes('Storage inventory evidence export identity mismatch'));
+
+  const contradictory = buildReceipt();
+  const contradictoryEvidence = buildStorageInventoryEvidence(contradictory);
+  contradictoryEvidence.denominator.bucket_count = 1;
+  contradictoryEvidence.denominator.object_count = 1;
+  contradictoryEvidence.denominator.total_bytes = 1024;
+  contradictoryEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(contradictoryEvidence);
+  const contradictoryFailures = validate(contradictory, now, buildAcceptedExportsManifest(contradictory), { storageInventoryEvidence: contradictoryEvidence }).failures;
+  assert(contradictoryFailures.includes('Storage inventory does not match the Storage object denominator'));
+
+  const structurallyContradictory = buildReceipt({ storageObjectCount: 2 });
+  const structurallyContradictoryEvidence = buildStorageInventoryEvidence(structurallyContradictory);
+  structurallyContradictoryEvidence.denominator.bucket_count = 0;
+  structurallyContradictoryEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(structurallyContradictoryEvidence);
+  assert(validate(structurallyContradictory, now, buildAcceptedExportsManifest(structurallyContradictory), { storageInventoryEvidence: structurallyContradictoryEvidence }).failures.includes('Storage inventory zero/positive state is contradictory'));
+
+  const digestMismatch = buildReceipt();
+  const digestMismatchEvidence = buildStorageInventoryEvidence(digestMismatch);
+  digestMismatchEvidence.denominator.inventory_manifest_sha256 = digest('tampered-storage-inventory-manifest');
+  assert(validate(digestMismatch, now, buildAcceptedExportsManifest(digestMismatch), { storageInventoryEvidence: digestMismatchEvidence }).failures.includes('Storage inventory manifest digest mismatch'));
+
+  const selfCorrelated = buildReceipt();
+  const selfCorrelatedEvidence = buildStorageInventoryEvidence(selfCorrelated);
+  const selfCorrelationPayload = { ...selfCorrelatedEvidence };
+  delete selfCorrelationPayload.source_evidence_sha256;
+  selfCorrelatedEvidence.source_evidence_sha256 = sha256Hex(selfCorrelationPayload);
+  assert(validate(selfCorrelated, now, buildAcceptedExportsManifest(selfCorrelated), { storageInventoryEvidence: selfCorrelatedEvidence }).failures.includes('Storage inventory source evidence is self-correlated'));
+
+  const duplicate = buildReceipt();
+  const duplicateEvidence = buildStorageInventoryEvidence(duplicate);
+  duplicateEvidence.source_evidence_sha256 = buildObjectLockReadback(duplicate).source_evidence_sha256;
+  assert(validate(duplicate, now, buildAcceptedExportsManifest(duplicate), { storageInventoryEvidence: duplicateEvidence }).failures.includes('Storage inventory source evidence must be distinct from other evidence'));
+
+  const duplicateBody = buildReceipt({ storageObjectCount: 2 });
+  const duplicateBodyEvidence = buildStorageInventoryEvidence(duplicateBody);
+  duplicateBodyEvidence.source_evidence_sha256 = buildStorageBodyRecoveryReceipt(duplicateBody).source_evidence_sha256;
+  assert(validate(duplicateBody, now, buildAcceptedExportsManifest(duplicateBody), { storageInventoryEvidence: duplicateBodyEvidence }).failures.includes('Storage inventory and body recovery source evidence must be distinct'));
+
+  const positiveMismatch = buildReceipt({ storageObjectCount: 2 });
+  const positiveMismatchEvidence = buildStorageInventoryEvidence(positiveMismatch);
+  positiveMismatchEvidence.denominator.total_bytes = 1024;
+  positiveMismatchEvidence.denominator.inventory_manifest_sha256 = storageInventoryManifestDigest(positiveMismatchEvidence);
+  assert(validate(positiveMismatch, now, buildAcceptedExportsManifest(positiveMismatch), { storageInventoryEvidence: positiveMismatchEvidence }).failures.includes('Storage inventory does not match the body recovery denominator'));
 });
 
 test('Storage body recovery evidence rejects stale, mismatched, partial, duplicate, and unproved coverage', () => {
