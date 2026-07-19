@@ -75,10 +75,25 @@ export const expectedPgNetBehavioralTests = Object.freeze([
   'transient_response_not_durable_evidence'
 ]);
 
-export const discordExternalEffectEvidencePolicy = Object.freeze({
+export const discordExternalEffectAuthorizedEvidencePolicy = Object.freeze({
   version: '1.0.0',
+  status: 'BLOCKED',
   maximum_age_seconds: 7200,
-  signature_domain: 'fawxzzy-platform:discordos-external-effect-authentication:v1'
+  signature_domain: 'fawxzzy-platform:discordos-external-effect-authentication:v1',
+  trust_anchor: Object.freeze({
+    status: 'BLOCKED',
+    algorithm: 'Ed25519',
+    key_id: 'UNKNOWN',
+    verifier_reference: 'UNKNOWN',
+    public_key_spki_base64: null,
+    public_key_spki_sha256: null
+  })
+});
+
+export const discordExternalEffectEvidencePolicy = Object.freeze({
+  version: discordExternalEffectAuthorizedEvidencePolicy.version,
+  maximum_age_seconds: discordExternalEffectAuthorizedEvidencePolicy.maximum_age_seconds,
+  signature_domain: discordExternalEffectAuthorizedEvidencePolicy.signature_domain
 });
 
 export const expectedParityUnits = Object.freeze([
@@ -231,7 +246,7 @@ function decodeCanonicalBase64(value, expectedByteLength = null) {
   return decoded;
 }
 
-function verifyExternalEffectAuthenticationSignature(trustAnchor, result) {
+function verifyExternalEffectAuthenticationSignature(trustAnchor, signatureDomain, result) {
   const failures = [];
   const requireCondition = (condition, failure) => { if (!condition) failures.push(failure); };
   requireCondition(trustAnchor?.status === 'CURRENT', 'DiscordOS external-effect authentication trust anchor is not CURRENT');
@@ -248,7 +263,7 @@ function verifyExternalEffectAuthenticationSignature(trustAnchor, result) {
   requireCondition(result?.key_id === trustAnchor?.key_id
     && result?.verifier_reference === trustAnchor?.verifier_reference
     && result?.signature_algorithm === trustAnchor?.algorithm
-    && result?.signature_domain === discordExternalEffectEvidencePolicy.signature_domain, 'DiscordOS external-effect authentication signer does not match the pinned trust anchor');
+    && result?.signature_domain === signatureDomain, 'DiscordOS external-effect authentication signer does not match the pinned trust anchor');
   const signedBytes = externalEffectAuthenticationSignedBytes(result);
   const signedPayloadDigest = signedBytes === null ? null : crypto.createHash('sha256').update(signedBytes).digest('hex');
   requireCondition(signedPayloadDigest !== null && result?.signed_payload_sha256 === signedPayloadDigest, 'DiscordOS external-effect authentication signed payload digest mismatch');
@@ -264,6 +279,31 @@ function verifyExternalEffectAuthenticationSignature(trustAnchor, result) {
       failures.push('DiscordOS external-effect authentication trust-anchor key cannot be verified');
     }
   }
+  return failures;
+}
+
+export function verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(authorizedPolicy, presentedPolicy, result) {
+  const failures = [];
+  const requireCondition = (condition, failure) => { if (!condition) failures.push(failure); };
+  let exactPolicyMatch = false;
+  try {
+    exactPolicyMatch = canonicalSerialize(presentedPolicy) === canonicalSerialize(authorizedPolicy);
+  } catch {
+    exactPolicyMatch = false;
+  }
+  requireCondition(exactPolicyMatch, 'DiscordOS external-effect authentication policy does not exactly match the immutable contract-authorized policy');
+  if (!exactPolicyMatch) return failures;
+  requireCondition(authorizedPolicy?.version === '1.0.0'
+    && authorizedPolicy?.maximum_age_seconds === 7200
+    && authorizedPolicy?.signature_domain === discordExternalEffectEvidencePolicy.signature_domain,
+  'DiscordOS immutable contract-authorized authenticator policy identity is invalid');
+  requireCondition(authorizedPolicy?.status === 'CURRENT', 'DiscordOS immutable contract-authorized authenticator policy remains BLOCKED');
+  if (authorizedPolicy?.status !== 'CURRENT') return failures;
+  failures.push(...verifyExternalEffectAuthenticationSignature(
+    authorizedPolicy.trust_anchor,
+    authorizedPolicy.signature_domain,
+    result
+  ));
   return failures;
 }
 
@@ -526,28 +566,15 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     requireCondition(compatibility.behavioral_status === 'BLOCKED' && compatibility.behavioral_evidence_sha256 === null, 'DiscordOS source example must not claim pg_net behavioral compatibility');
     requireCondition(effects.effects.every((entry) => entry.evidence === null), 'DiscordOS source example must not invent authenticated per-effect evidence');
     requireCondition(
-      evidencePolicy.version === discordExternalEffectEvidencePolicy.version
-        && evidencePolicy.status === 'BLOCKED'
-        && evidencePolicy.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds
-        && evidencePolicy.signature_domain === discordExternalEffectEvidencePolicy.signature_domain
-        && evidencePolicy.trust_anchor?.status === 'BLOCKED'
-        && evidencePolicy.trust_anchor?.algorithm === 'Ed25519'
-        && evidencePolicy.trust_anchor?.key_id === 'UNKNOWN'
-        && evidencePolicy.trust_anchor?.verifier_reference === 'UNKNOWN'
-        && evidencePolicy.trust_anchor?.public_key_spki_base64 === null
-        && evidencePolicy.trust_anchor?.public_key_spki_sha256 === null,
+      canonicalSerialize(evidencePolicy) === canonicalSerialize(discordExternalEffectAuthorizedEvidencePolicy),
       'DiscordOS source example must retain the blocked contract-owned evidence policy without inventing an operational trust anchor'
     );
     return;
   }
 
-  requireCondition(
-    evidencePolicy.version === discordExternalEffectEvidencePolicy.version
-      && evidencePolicy.status === 'CURRENT'
-      && evidencePolicy.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds
-      && evidencePolicy.signature_domain === discordExternalEffectEvidencePolicy.signature_domain,
-    'DiscordOS external-effect evidence policy is not the closed contract-owned policy'
-  );
+  const exactAuthorizedPolicy = canonicalSerialize(evidencePolicy) === canonicalSerialize(discordExternalEffectAuthorizedEvidencePolicy);
+  requireCondition(exactAuthorizedPolicy, 'DiscordOS external-effect evidence policy does not exactly match the immutable contract-authorized policy');
+  requireCondition(discordExternalEffectAuthorizedEvidencePolicy.status === 'CURRENT', 'DiscordOS immutable contract-authorized authenticator policy remains BLOCKED');
   requireCondition(discordos.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT status');
   requireCondition(rehearsal.status === 'CURRENT', 'accepted DiscordOS quarantine requires a CURRENT rehearsal inventory');
   requireCondition(rehearsal.restore_project_ref === effects.restore_project_ref, 'DiscordOS rehearsal project must correlate to the external-effects manifest');
@@ -655,7 +682,13 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
       requireCondition(authenticationResult.external_receipt_sha256 === evidence.verification_receipt_sha256, `DiscordOS ${entry.unit} authentication result external receipt mismatch`);
       requireCondition(authenticationResult.verified_at === evidence.verified_at, `DiscordOS ${entry.unit} authentication result verification timestamp mismatch`);
       requireCondition(resultDigest !== null && authenticationResult.result_sha256 === resultDigest, `DiscordOS ${entry.unit} authentication result digest mismatch`);
-      failures.push(...verifyExternalEffectAuthenticationSignature(evidencePolicy.trust_anchor, authenticationResult));
+      if (exactAuthorizedPolicy && discordExternalEffectAuthorizedEvidencePolicy.status === 'CURRENT') {
+        failures.push(...verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+          discordExternalEffectAuthorizedEvidencePolicy,
+          evidencePolicy,
+          authenticationResult
+        ));
+      }
       authenticationResultIds.push(authenticationResult.result_id);
       authenticationResultDigests.push(authenticationResult.result_sha256);
     }

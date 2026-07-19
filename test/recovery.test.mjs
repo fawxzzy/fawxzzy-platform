@@ -9,6 +9,7 @@ import {
 import {
   backupManifestDigest,
   canonicalSerialize,
+  discordExternalEffectAuthorizedEvidencePolicy,
   evaluateFreshness,
   externalEffectAuthenticationManifestIdentityDigest,
   externalEffectAuthenticationResultDigest,
@@ -30,7 +31,8 @@ import {
   restoreReceiptDigest,
   sha256Hex,
   validateRecoveryDocuments,
-  validateSanitizedReceipt
+  validateSanitizedReceipt,
+  verifyExternalEffectAuthenticationAgainstAuthorizedPolicy
 } from '../scripts/lib/recovery.mjs';
 
 const observedAt = '2026-07-18T17:00:00Z';
@@ -49,6 +51,14 @@ const testExternalEffectTrustAnchor = Object.freeze({
   public_key_spki_base64: testEd25519PublicSpki.toString('base64'),
   public_key_spki_sha256: crypto.createHash('sha256').update(testEd25519PublicSpki).digest('hex')
 });
+const testExternalEffectAuthorizedPolicy = Object.freeze({
+  version: '1.0.0',
+  status: 'CURRENT',
+  maximum_age_seconds: 7200,
+  signature_domain: externalEffectSignatureDomain,
+  trust_anchor: testExternalEffectTrustAnchor
+});
+const operationalAuthenticatorBlocker = 'DiscordOS immutable contract-authorized authenticator policy remains BLOCKED';
 
 function signExternalEffectAuthenticationResult(result, privateKey = testEd25519PrivateKey) {
   result.signed_payload_sha256 = externalEffectAuthenticationSignedPayloadDigest(result);
@@ -157,8 +167,6 @@ function buildActionDocuments() {
     source_snapshot_id: discordos.source.snapshot_id
   });
   discordos.status = 'CURRENT';
-  discordos.evidence_policy.status = 'CURRENT';
-  discordos.evidence_policy.trust_anchor = structuredClone(testExternalEffectTrustAnchor);
   discordos.rehearsal = {
     status: 'CURRENT',
     target_project_ref: 'bxtcuhkotumitoqtrcej',
@@ -315,14 +323,15 @@ test('accepted recovery units cannot retain UNKNOWN evidence', () => {
   assert.ok(failures.some((failure) => failure.includes('accepted restore cannot contain UNKNOWN parity')));
 });
 
-test('fully correlated action-time receipts can pass without weakening the blocked source contract', () => {
+test('fully correlated action-time receipts remain held by the immutable operational authenticator anchor', () => {
   const documents = buildActionDocuments();
 
   assert.deepEqual(validateSchemaInstances(documents, createValidator()), []);
   const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
-  assert.deepEqual(report.failures, []);
-  assert.equal(report.ok, true);
+  assert.deepEqual(report.failures, [operationalAuthenticatorBlocker]);
+  assert.equal(report.ok, false);
   assert.equal(documents[recoveryDocumentPaths.contract].status, 'BLOCKED');
+  assert.deepEqual(documents[recoveryDocumentPaths.effects].discordos.evidence_policy, discordExternalEffectAuthorizedEvidencePolicy);
 });
 
 test('non-empty Storage fails closed without a current body-recovery receipt', () => {
@@ -622,7 +631,7 @@ test('DiscordOS per-effect freshness is fixed by the versioned contract policy',
   bindExternalEffectAuthentication(exactBoundary[recoveryDocumentPaths.effects], exactEffect);
   refreshActionDigests(exactBoundary);
   assert.deepEqual(validateSchemaInstances(exactBoundary, createValidator()), []);
-  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, []);
+  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, [operationalAuthenticatorBlocker]);
 
   const scenarios = [
     {
@@ -640,7 +649,7 @@ test('DiscordOS per-effect freshness is fixed by the versioned contract policy',
     {
       name: 'mismatched contract policy',
       mutate: (manifest) => { manifest.discordos.evidence_policy.maximum_age_seconds = 7201; },
-      expected: 'external-effect evidence policy is not the closed contract-owned policy',
+      expected: 'external-effect evidence policy does not exactly match the immutable contract-authorized policy',
       schemaFailure: true
     },
     {
@@ -674,53 +683,97 @@ test('DiscordOS per-effect freshness is fixed by the versioned contract policy',
   }
 });
 
-test('DiscordOS external-effect evidence requires the pinned Ed25519 trust anchor', () => {
+test('DiscordOS external-effect evidence requires the immutable source-authorized Ed25519 trust anchor', () => {
   const valid = buildActionDocuments();
   assert.deepEqual(validateSchemaInstances(valid, createValidator()), []);
-  assert.deepEqual(validateRecoveryDocuments(valid, { mode: 'action', now: observedAt }).failures, []);
+  assert.deepEqual(validateRecoveryDocuments(valid, { mode: 'action', now: observedAt }).failures, [operationalAuthenticatorBlocker]);
+
+  const substitutedActionPolicy = buildActionDocuments();
+  substitutedActionPolicy[recoveryDocumentPaths.effects].discordos.evidence_policy = structuredClone(testExternalEffectAuthorizedPolicy);
+  refreshActionDigests(substitutedActionPolicy);
+  assert.ok(validateRecoveryDocuments(substitutedActionPolicy, { mode: 'action', now: observedAt }).failures.some(
+    (failure) => failure.includes('does not exactly match the immutable contract-authorized policy')
+  ));
+
+  const validResult = valid[recoveryDocumentPaths.effects].effects[0].evidence.authentication_result;
+  assert.deepEqual(
+    verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+      testExternalEffectAuthorizedPolicy,
+      testExternalEffectAuthorizedPolicy,
+      validResult
+    ),
+    []
+  );
+
+  const alternatePublicKey = Buffer.from(`302a300506032b6570032100${'3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'}`, 'hex');
+  const policySubstitutions = [
+    ['attacker key substitution', (policy) => {
+      policy.trust_anchor.key_id = 'attacker-effect-key-v1';
+      policy.trust_anchor.public_key_spki_base64 = alternatePublicKey.toString('base64');
+      policy.trust_anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(alternatePublicKey).digest('hex');
+    }],
+    ['same key different identity', (policy) => { policy.trust_anchor.key_id = 'substituted-effect-key-v1'; }],
+    ['same identity different key', (policy) => {
+      policy.trust_anchor.public_key_spki_base64 = alternatePublicKey.toString('base64');
+      policy.trust_anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(alternatePublicKey).digest('hex');
+    }],
+    ['verifier substitution', (policy) => { policy.trust_anchor.verifier_reference = 'substituted-effect-verifier-v1'; }],
+    ['algorithm substitution', (policy) => { policy.trust_anchor.algorithm = 'RSA-PSS'; }],
+    ['signature-domain substitution', (policy) => { policy.signature_domain = 'substituted:domain:v1'; }],
+    ['policy-version substitution', (policy) => { policy.version = '2.0.0'; }],
+    ['policy-status substitution', (policy) => { policy.status = 'BLOCKED'; }],
+    ['anchor-status substitution', (policy) => { policy.trust_anchor.status = 'BLOCKED'; }]
+  ];
+  for (const [name, mutate] of policySubstitutions) {
+    const presentedPolicy = structuredClone(testExternalEffectAuthorizedPolicy);
+    mutate(presentedPolicy);
+    const failures = verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+      testExternalEffectAuthorizedPolicy,
+      presentedPolicy,
+      validResult
+    );
+    assert.deepEqual(failures, ['DiscordOS external-effect authentication policy does not exactly match the immutable contract-authorized policy'], name);
+  }
+
+  const malformedPolicy = structuredClone(testExternalEffectAuthorizedPolicy);
+  malformedPolicy.trust_anchor.public_key_spki_base64 = 'AQIDBA==';
+  malformedPolicy.trust_anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(Buffer.from([1, 2, 3, 4])).digest('hex');
+  assert.ok(verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+    malformedPolicy,
+    structuredClone(malformedPolicy),
+    validResult
+  ).some((failure) => failure.includes('trust-anchor key cannot be verified')));
+
+  const authenticationResultScenarios = [
+    ['unknown key identity', (result) => { result.key_id = 'unknown-effect-key'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
+    ['unknown verifier identity', (result) => { result.verifier_reference = 'unknown-effect-verifier'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
+    ['wrong algorithm', (result) => { result.signature_algorithm = 'RSA-PSS'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
+    ['wrong signature domain', (result) => { result.signature_domain = 'substituted:domain:v1'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
+    ['malformed signature', (result) => { result.signature_base64 = 'not-a-signature'; result.result_sha256 = externalEffectAuthenticationResultDigest(result); }, 'signature is malformed'],
+    ['bad signature', (result) => {
+      const bytes = Buffer.from(result.signature_base64, 'base64');
+      bytes[0] ^= 1;
+      result.signature_base64 = bytes.toString('base64');
+      result.result_sha256 = externalEffectAuthenticationResultDigest(result);
+    }, 'signature verification failed'],
+    ['result metadata substitution', (result) => {
+      result.result_id = 'FP-DOS-EFFECT-AUTH-RESULT-SUBSTITUTED';
+      result.result_sha256 = externalEffectAuthenticationResultDigest(result);
+    }, 'signed payload digest mismatch'],
+    ['self-asserted verification', (result) => { result.signature_base64 = null; result.result_sha256 = externalEffectAuthenticationResultDigest(result); }, 'signature is malformed']
+  ];
+  for (const [name, mutate, expected] of authenticationResultScenarios) {
+    const result = structuredClone(validResult);
+    mutate(result);
+    const failures = verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
+      testExternalEffectAuthorizedPolicy,
+      testExternalEffectAuthorizedPolicy,
+      result
+    );
+    assert.ok(failures.some((failure) => failure.includes(expected)), name);
+  }
 
   const scenarios = [
-    {
-      name: 'unknown key identity',
-      mutate: (manifest, effect, result) => { result.key_id = 'unknown-effect-key'; signExternalEffectAuthenticationResult(result); },
-      expected: 'signer does not match the pinned trust anchor'
-    },
-    {
-      name: 'unknown verifier identity',
-      mutate: (manifest, effect, result) => { result.verifier_reference = 'unknown-effect-verifier'; signExternalEffectAuthenticationResult(result); },
-      expected: 'signer does not match the pinned trust anchor'
-    },
-    {
-      name: 'wrong algorithm',
-      mutate: (manifest, effect, result) => { result.signature_algorithm = 'RSA-PSS'; signExternalEffectAuthenticationResult(result); },
-      expected: 'signer does not match the pinned trust anchor',
-      schemaFailure: true
-    },
-    {
-      name: 'malformed anchor key',
-      mutate: (manifest) => {
-        const anchor = manifest.discordos.evidence_policy.trust_anchor;
-        anchor.public_key_spki_base64 = 'AQIDBA==';
-        anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(Buffer.from([1, 2, 3, 4])).digest('hex');
-      },
-      expected: 'trust-anchor key cannot be verified'
-    },
-    {
-      name: 'malformed signature',
-      mutate: (manifest, effect, result) => { result.signature_base64 = 'not-a-signature'; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
-      expected: 'signature is malformed',
-      schemaFailure: true
-    },
-    {
-      name: 'bad signature',
-      mutate: (manifest, effect, result) => {
-        const bytes = Buffer.from(result.signature_base64, 'base64');
-        bytes[0] ^= 1;
-        result.signature_base64 = bytes.toString('base64');
-        result.result_sha256 = externalEffectAuthenticationResultDigest(result);
-      },
-      expected: 'signature verification failed'
-    },
     {
       name: 'manifest substitution',
       mutate: (manifest) => { manifest.backup_id = 'FP-RECOVERY-BACKUP-SUBSTITUTED'; },
@@ -740,17 +793,6 @@ test('DiscordOS external-effect evidence requires the pinned Ed25519 trust ancho
       name: 'external receipt substitution',
       mutate: (manifest, effect) => { effect.evidence.verification_receipt_sha256 = sha256Hex({ substituted: 'external-receipt' }); },
       expected: 'authentication result external receipt mismatch'
-    },
-    {
-      name: 'result metadata substitution',
-      mutate: (manifest, effect, result) => { result.result_id = 'FP-DOS-EFFECT-AUTH-RESULT-SUBSTITUTED'; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
-      expected: 'signed payload digest mismatch'
-    },
-    {
-      name: 'self-reported verification',
-      mutate: (manifest, effect, result) => { result.signature_base64 = null; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
-      expected: 'signature is malformed',
-      schemaFailure: true
     },
     {
       name: 'cross-effect replay',
@@ -899,14 +941,14 @@ test('DiscordOS zero-growth observations enforce the closed freshness and chrono
   observation.second_observed_at = '2026-07-18T15:03:00Z';
   refreshActionDigests(exactBoundary);
   assert.deepEqual(validateSchemaInstances(exactBoundary, createValidator()), []);
-  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, []);
+  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, [operationalAuthenticatorBlocker]);
 });
 
 test('CURRENT retention covers completion rehearsal acceptance and the injected validation clock', () => {
   const equality = buildActionDocuments();
   equality[recoveryDocumentPaths.backup].retention.expires_at = '2026-07-18T16:10:00Z';
   refreshActionDigests(equality);
-  assert.deepEqual(validateRecoveryDocuments(equality, { mode: 'action', now: '2026-07-18T16:10:00Z' }).failures, []);
+  assert.deepEqual(validateRecoveryDocuments(equality, { mode: 'action', now: '2026-07-18T16:10:00Z' }).failures, [operationalAuthenticatorBlocker]);
 
   const beforeCompletion = buildActionDocuments();
   beforeCompletion[recoveryDocumentPaths.backup].retention.expires_at = '2026-07-18T14:09:59Z';

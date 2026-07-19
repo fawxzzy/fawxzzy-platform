@@ -94,6 +94,7 @@ Required evidence:
 - exact redirect, recovery, and custom SMTP configuration plan with no live mutation.
 - current encrypted independent backup and retention receipts under FP-MAN-013;
 - one quarantined restore-to-new-project rehearsal with the closed external-effects denominator disabled;
+- immutable source authorization of the DiscordOS external-effect authenticator policy before signature verification; action receipts cannot substitute the key identity, public key, verifier, algorithm, signature domain, policy version, or status, and the operational anchor remains `BLOCKED` until a separately authorized source change installs it;
 - aggregate catalog, security, application-data, Auth-identity, and Auth-control-plane parity;
 - measured RPO/RTO evidence and explicit objective acceptance;
 - a separate Storage object-body recovery receipt when the object denominator is non-zero.
