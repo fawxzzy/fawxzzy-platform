@@ -249,6 +249,8 @@ function decodeCanonicalBase64(value, expectedByteLength = null) {
 function verifyExternalEffectAuthenticationSignature(trustAnchor, signatureDomain, result) {
   const failures = [];
   const requireCondition = (condition, failure) => { if (!condition) failures.push(failure); };
+  requireCondition(result?.status === 'CURRENT', 'DiscordOS external-effect authentication result lifecycle is not CURRENT');
+  requireCondition(isRecord(result?.verification) && result.verification.outcome === 'PASS', 'DiscordOS external-effect authentication verification outcome is not PASS');
   requireCondition(trustAnchor?.status === 'CURRENT', 'DiscordOS external-effect authentication trust anchor is not CURRENT');
   requireCondition(trustAnchor?.algorithm === 'Ed25519'
     && safeReference.test(trustAnchor?.key_id ?? '')
@@ -671,10 +673,12 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
       const resultDigest = externalEffectAuthenticationResultDigest(authenticationResult);
       const manifestIdentityDigest = externalEffectAuthenticationManifestIdentityDigest(effects);
       requireCondition(authenticationResult.version === '1.0.0'
-        && authenticationResult.status === 'VERIFIED'
+        && authenticationResult.status === 'CURRENT'
+        && isRecord(authenticationResult.verification)
+        && authenticationResult.verification.outcome === 'PASS'
         && authenticationResult.canonical_serialization === 'lexicographic_object_keys_array_order_preserved_two_space_json_lf'
         && authenticationResult.result_class === 'trusted_external_effect_authentication'
-        && authenticationResult.verification_method === 'external_signature_verification', `DiscordOS ${entry.unit} authentication result is not VERIFIED`);
+        && authenticationResult.verification_method === 'external_signature_verification', `DiscordOS ${entry.unit} authentication result must separate CURRENT lifecycle from PASS cryptographic verification`);
       requireCondition(authenticationResult.unit === entry.unit
         && authenticationResult.evidence_id === evidence.evidence_id, `DiscordOS ${entry.unit} authentication result effect identity mismatch`);
       requireCondition(authenticationResult.manifest_identity_sha256 === manifestIdentityDigest, `DiscordOS ${entry.unit} authentication result manifest identity mismatch`);

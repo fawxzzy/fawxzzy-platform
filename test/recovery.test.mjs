@@ -71,7 +71,10 @@ function bindExternalEffectAuthentication(manifest, effect, privateKey = testEd2
   const suffix = effect.unit.replaceAll('_', '-').toUpperCase();
   const result = {
     version: '1.0.0',
-    status: 'VERIFIED',
+    status: 'CURRENT',
+    verification: {
+      outcome: 'PASS'
+    },
     canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
     result_class: 'trusted_external_effect_authentication',
     result_id: `FP-DOS-EFFECT-AUTH-RESULT-${suffix}`,
@@ -745,6 +748,14 @@ test('DiscordOS external-effect evidence requires the immutable source-authorize
   ).some((failure) => failure.includes('trust-anchor key cannot be verified')));
 
   const authenticationResultScenarios = [
+    ['status and verification conflation', (result) => { result.status = 'PASS'; signExternalEffectAuthenticationResult(result); }, 'result lifecycle is not CURRENT', true],
+    ['unknown lifecycle alias', (result) => { result.status = 'VERIFIED'; signExternalEffectAuthenticationResult(result); }, 'result lifecycle is not CURRENT', true],
+    ['lifecycle case variant', (result) => { result.status = 'current'; signExternalEffectAuthenticationResult(result); }, 'result lifecycle is not CURRENT', true],
+    ['omitted verification result', (result) => { delete result.verification; signExternalEffectAuthenticationResult(result); }, 'verification outcome is not PASS', true],
+    ['unknown verification alias', (result) => { result.verification.outcome = 'VERIFIED'; signExternalEffectAuthenticationResult(result); }, 'verification outcome is not PASS', true],
+    ['verification case variant', (result) => { result.verification.outcome = 'pass'; signExternalEffectAuthenticationResult(result); }, 'verification outcome is not PASS', true],
+    ['verified signature with non-CURRENT lifecycle', (result) => { result.status = 'BLOCKED'; signExternalEffectAuthenticationResult(result); }, 'result lifecycle is not CURRENT'],
+    ['PASS without a valid signature', (result) => { result.signature_base64 = null; result.result_sha256 = externalEffectAuthenticationResultDigest(result); }, 'signature is malformed'],
     ['unknown key identity', (result) => { result.key_id = 'unknown-effect-key'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
     ['unknown verifier identity', (result) => { result.verifier_reference = 'unknown-effect-verifier'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
     ['wrong algorithm', (result) => { result.signature_algorithm = 'RSA-PSS'; signExternalEffectAuthenticationResult(result); }, 'signer does not match the pinned trust anchor'],
@@ -762,7 +773,7 @@ test('DiscordOS external-effect evidence requires the immutable source-authorize
     }, 'signed payload digest mismatch'],
     ['self-asserted verification', (result) => { result.signature_base64 = null; result.result_sha256 = externalEffectAuthenticationResultDigest(result); }, 'signature is malformed']
   ];
-  for (const [name, mutate, expected] of authenticationResultScenarios) {
+  for (const [name, mutate, expected, schemaFailure = false] of authenticationResultScenarios) {
     const result = structuredClone(validResult);
     mutate(result);
     const failures = verifyExternalEffectAuthenticationAgainstAuthorizedPolicy(
@@ -771,6 +782,13 @@ test('DiscordOS external-effect evidence requires the immutable source-authorize
       result
     );
     assert.ok(failures.some((failure) => failure.includes(expected)), name);
+    if (schemaFailure) {
+      const documents = buildActionDocuments();
+      documents[recoveryDocumentPaths.effects].effects[0].evidence.authentication_result = result;
+      documents[recoveryDocumentPaths.effects].effects[0].evidence_digest = sha256Hex(documents[recoveryDocumentPaths.effects].effects[0].evidence);
+      refreshActionDigests(documents);
+      assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], name);
+    }
   }
 
   const scenarios = [

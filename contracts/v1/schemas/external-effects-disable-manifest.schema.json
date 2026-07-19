@@ -253,6 +253,7 @@
       "required": [
         "version",
         "status",
+        "verification",
         "canonical_serialization",
         "result_class",
         "result_id",
@@ -276,7 +277,19 @@
           "const": "1.0.0"
         },
         "status": {
-          "const": "VERIFIED"
+          "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome"
+          ],
+          "properties": {
+            "outcome": {
+              "const": "PASS"
+            }
+          }
         },
         "canonical_serialization": {
           "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
