@@ -206,6 +206,150 @@
         }
       }
     },
+    "external_effect_trust_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "algorithm",
+        "key_id",
+        "verifier_reference",
+        "public_key_spki_base64",
+        "public_key_spki_sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "CURRENT"
+          ]
+        },
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^(UNKNOWN|[a-z0-9]+(?:[._-][a-z0-9]+)*)$"
+        },
+        "verifier_reference": {
+          "type": "string",
+          "pattern": "^(UNKNOWN|[a-z0-9]+(?:[._-][a-z0-9]+)*)$"
+        },
+        "public_key_spki_base64": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+        },
+        "public_key_spki_sha256": {
+          "$ref": "#/$defs/nullable_digest"
+        }
+      }
+    },
+    "external_effect_authentication_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "canonical_serialization",
+        "result_class",
+        "result_id",
+        "verified_at",
+        "verifier_reference",
+        "verification_method",
+        "key_id",
+        "signature_algorithm",
+        "signature_domain",
+        "manifest_identity_sha256",
+        "unit",
+        "evidence_id",
+        "subject_sha256",
+        "external_receipt_sha256",
+        "signed_payload_sha256",
+        "signature_base64",
+        "result_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "VERIFIED"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "result_class": {
+          "const": "trusted_external_effect_authentication"
+        },
+        "result_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-AUTH-RESULT-[A-Z0-9-]+$"
+        },
+        "verified_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "verifier_reference": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "verification_method": {
+          "const": "external_signature_verification"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "signature_algorithm": {
+          "const": "Ed25519"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:discordos-external-effect-authentication:v1"
+        },
+        "manifest_identity_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "unit": {
+          "enum": [
+            "application_traffic",
+            "auth_delivery_and_hooks",
+            "cron",
+            "database_network_calls",
+            "dns",
+            "edge_schedules",
+            "environment_routing",
+            "host_aliases",
+            "queues",
+            "realtime",
+            "storage_events",
+            "webhooks"
+          ]
+        },
+        "evidence_id": {
+          "type": "string",
+          "pattern": "^FP-DOS-EFFECT-EVIDENCE-[A-Z0-9-]+$"
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "external_receipt_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "signature_base64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
     "authenticated_effect_evidence": {
       "type": "object",
       "additionalProperties": false,
@@ -226,7 +370,8 @@
         "verification_status",
         "verification_receipt_id",
         "verification_receipt_sha256",
-        "verified_at"
+        "verified_at",
+        "authentication_result"
       ],
       "properties": {
         "evidence_id": {
@@ -267,8 +412,7 @@
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
         },
         "maximum_age_seconds": {
-          "type": "integer",
-          "minimum": 1
+          "const": 7200
         },
         "disabled": {
           "const": true
@@ -284,10 +428,7 @@
           "$ref": "#/$defs/digest"
         },
         "authenticator_class": {
-          "enum": [
-            "detached_signed_metadata_receipt",
-            "provider_authenticated_metadata_receipt"
-          ]
+          "const": "pinned_ed25519_signature_result"
         },
         "verification_status": {
           "const": "CURRENT"
@@ -302,6 +443,9 @@
         "verified_at": {
           "type": "string",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "authentication_result": {
+          "$ref": "#/$defs/external_effect_authentication_result"
         }
       }
     },
@@ -351,6 +495,7 @@
       "required": [
         "status",
         "source",
+        "evidence_policy",
         "inventory",
         "rehearsal",
         "quarantine",
@@ -360,6 +505,37 @@
       "properties": {
         "status": {
           "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+        },
+        "evidence_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "status",
+            "maximum_age_seconds",
+            "signature_domain",
+            "trust_anchor"
+          ],
+          "properties": {
+            "version": {
+              "const": "1.0.0"
+            },
+            "status": {
+              "enum": [
+                "BLOCKED",
+                "CURRENT"
+              ]
+            },
+            "maximum_age_seconds": {
+              "const": 7200
+            },
+            "signature_domain": {
+              "const": "fawxzzy-platform:discordos-external-effect-authentication:v1"
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/external_effect_trust_anchor"
+            }
+          }
         },
         "source": {
           "type": "object",

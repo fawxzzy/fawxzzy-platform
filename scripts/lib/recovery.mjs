@@ -75,6 +75,12 @@ export const expectedPgNetBehavioralTests = Object.freeze([
   'transient_response_not_durable_evidence'
 ]);
 
+export const discordExternalEffectEvidencePolicy = Object.freeze({
+  version: '1.0.0',
+  maximum_age_seconds: 7200,
+  signature_domain: 'fawxzzy-platform:discordos-external-effect-authentication:v1'
+});
+
 export const expectedParityUnits = Object.freeze([
   'application_data',
   'auth_control_plane_configuration',
@@ -107,6 +113,8 @@ const hexSha256 = /^[0-9a-f]{64}$/;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const projectRef = /^[a-z]{20}$/;
 const stableDecisionId = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
+const safeReference = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+const canonicalBase64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const email = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const uuid = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i;
 const providerUrl = /https?:\/\//i;
@@ -171,6 +179,92 @@ export function backupManifestDigest(manifest) {
 
 export function externalEffectsManifestDigest(manifest) {
   return sha256Hex(withoutDigest(manifest));
+}
+
+export function externalEffectAuthenticationManifestIdentityDigest(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return null;
+  const discordos = manifest.discordos;
+  if (!discordos || typeof discordos !== 'object' || Array.isArray(discordos)) return null;
+  return sha256Hex({
+    backup_id: manifest.backup_id,
+    rehearsal_snapshot_id: discordos.rehearsal?.snapshot_id,
+    restore_project_ref: manifest.restore_project_ref,
+    source_project_ref: discordos.source?.project_ref,
+    source_snapshot_id: discordos.source?.snapshot_id,
+    target_project_ref: discordos.rehearsal?.target_project_ref,
+    version: manifest.version
+  });
+}
+
+export function externalEffectAuthenticationSubjectDigest(evidence) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
+  const subject = structuredClone(evidence);
+  delete subject.authentication_result;
+  return sha256Hex(subject);
+}
+
+export function externalEffectAuthenticationResultDigest(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+  const copy = { ...result };
+  delete copy.result_sha256;
+  return sha256Hex(copy);
+}
+
+export function externalEffectAuthenticationSignedBytes(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+  const payload = structuredClone(result);
+  delete payload.result_sha256;
+  delete payload.signature_base64;
+  delete payload.signed_payload_sha256;
+  return Buffer.from(`${discordExternalEffectEvidencePolicy.signature_domain}\0${canonicalSerialize(payload)}`, 'utf8');
+}
+
+export function externalEffectAuthenticationSignedPayloadDigest(result) {
+  const signedBytes = externalEffectAuthenticationSignedBytes(result);
+  return signedBytes === null ? null : crypto.createHash('sha256').update(signedBytes).digest('hex');
+}
+
+function decodeCanonicalBase64(value, expectedByteLength = null) {
+  if (typeof value !== 'string' || value.length === 0 || value.length % 4 !== 0 || !canonicalBase64.test(value)) return null;
+  const decoded = Buffer.from(value, 'base64');
+  if (decoded.toString('base64') !== value || (expectedByteLength !== null && decoded.length !== expectedByteLength)) return null;
+  return decoded;
+}
+
+function verifyExternalEffectAuthenticationSignature(trustAnchor, result) {
+  const failures = [];
+  const requireCondition = (condition, failure) => { if (!condition) failures.push(failure); };
+  requireCondition(trustAnchor?.status === 'CURRENT', 'DiscordOS external-effect authentication trust anchor is not CURRENT');
+  requireCondition(trustAnchor?.algorithm === 'Ed25519'
+    && safeReference.test(trustAnchor?.key_id ?? '')
+    && trustAnchor?.key_id !== 'UNKNOWN'
+    && safeReference.test(trustAnchor?.verifier_reference ?? '')
+    && trustAnchor?.verifier_reference !== 'UNKNOWN', 'DiscordOS external-effect authentication trust-anchor identity is invalid');
+  const publicKeyBytes = decodeCanonicalBase64(trustAnchor?.public_key_spki_base64);
+  const publicKeyDigest = publicKeyBytes === null ? null : crypto.createHash('sha256').update(publicKeyBytes).digest('hex');
+  requireCondition(publicKeyBytes !== null
+    && hexSha256.test(trustAnchor?.public_key_spki_sha256 ?? '')
+    && publicKeyDigest === trustAnchor?.public_key_spki_sha256, 'DiscordOS external-effect authentication trust anchor is malformed or unpinned');
+  requireCondition(result?.key_id === trustAnchor?.key_id
+    && result?.verifier_reference === trustAnchor?.verifier_reference
+    && result?.signature_algorithm === trustAnchor?.algorithm
+    && result?.signature_domain === discordExternalEffectEvidencePolicy.signature_domain, 'DiscordOS external-effect authentication signer does not match the pinned trust anchor');
+  const signedBytes = externalEffectAuthenticationSignedBytes(result);
+  const signedPayloadDigest = signedBytes === null ? null : crypto.createHash('sha256').update(signedBytes).digest('hex');
+  requireCondition(signedPayloadDigest !== null && result?.signed_payload_sha256 === signedPayloadDigest, 'DiscordOS external-effect authentication signed payload digest mismatch');
+  const signatureBytes = decodeCanonicalBase64(result?.signature_base64, 64);
+  requireCondition(signatureBytes !== null, 'DiscordOS external-effect authentication signature is malformed');
+  if (publicKeyBytes !== null && signatureBytes !== null && signedBytes !== null) {
+    try {
+      const publicKey = crypto.createPublicKey({ key: publicKeyBytes, format: 'der', type: 'spki' });
+      requireCondition(publicKey.asymmetricKeyType === 'ed25519', 'DiscordOS external-effect authentication trust anchor is not an Ed25519 key');
+      requireCondition(publicKey.asymmetricKeyType === 'ed25519'
+        && crypto.verify(null, signedBytes, publicKey, signatureBytes), 'DiscordOS external-effect authentication signature verification failed');
+    } catch {
+      failures.push('DiscordOS external-effect authentication trust-anchor key cannot be verified');
+    }
+  }
+  return failures;
 }
 
 export function restoreReceiptDigest(receipt) {
@@ -283,12 +377,13 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   }
 
   const source = discordos.source;
+  const evidencePolicy = discordos.evidence_policy;
   const inventory = discordos.inventory;
   const rehearsal = discordos.rehearsal;
   const quarantine = discordos.quarantine;
   const rollback = discordos.rollback;
   const compatibility = discordos.pg_net_compatibility;
-  if (![source, inventory, rehearsal, quarantine, rollback, compatibility].every(isRecord)) {
+  if (![source, evidencePolicy, inventory, rehearsal, quarantine, rollback, compatibility].every(isRecord)) {
     failures.push('DiscordOS quarantine contract is incomplete');
     return;
   }
@@ -430,9 +525,29 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     requireCondition(rollback.status === 'BLOCKED', 'DiscordOS source example must not claim rollback proof');
     requireCondition(compatibility.behavioral_status === 'BLOCKED' && compatibility.behavioral_evidence_sha256 === null, 'DiscordOS source example must not claim pg_net behavioral compatibility');
     requireCondition(effects.effects.every((entry) => entry.evidence === null), 'DiscordOS source example must not invent authenticated per-effect evidence');
+    requireCondition(
+      evidencePolicy.version === discordExternalEffectEvidencePolicy.version
+        && evidencePolicy.status === 'BLOCKED'
+        && evidencePolicy.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds
+        && evidencePolicy.signature_domain === discordExternalEffectEvidencePolicy.signature_domain
+        && evidencePolicy.trust_anchor?.status === 'BLOCKED'
+        && evidencePolicy.trust_anchor?.algorithm === 'Ed25519'
+        && evidencePolicy.trust_anchor?.key_id === 'UNKNOWN'
+        && evidencePolicy.trust_anchor?.verifier_reference === 'UNKNOWN'
+        && evidencePolicy.trust_anchor?.public_key_spki_base64 === null
+        && evidencePolicy.trust_anchor?.public_key_spki_sha256 === null,
+      'DiscordOS source example must retain the blocked contract-owned evidence policy without inventing an operational trust anchor'
+    );
     return;
   }
 
+  requireCondition(
+    evidencePolicy.version === discordExternalEffectEvidencePolicy.version
+      && evidencePolicy.status === 'CURRENT'
+      && evidencePolicy.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds
+      && evidencePolicy.signature_domain === discordExternalEffectEvidencePolicy.signature_domain,
+    'DiscordOS external-effect evidence policy is not the closed contract-owned policy'
+  );
   requireCondition(discordos.status === 'CURRENT', 'accepted DiscordOS quarantine requires CURRENT status');
   requireCondition(rehearsal.status === 'CURRENT', 'accepted DiscordOS quarantine requires a CURRENT rehearsal inventory');
   requireCondition(rehearsal.restore_project_ref === effects.restore_project_ref, 'DiscordOS rehearsal project must correlate to the external-effects manifest');
@@ -492,6 +607,8 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   const evidenceDigests = [];
   const verificationDigests = [];
   const coverageDigests = [];
+  const authenticationResultIds = [];
+  const authenticationResultDigests = [];
   for (const entry of effects.effects) {
     const evidence = entry.evidence;
     requireCondition(isRecord(evidence), `DiscordOS ${entry.unit} requires authenticated structured evidence; digest-only proof is forbidden`);
@@ -504,7 +621,9 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     requireCondition(evidence.inventory_manifest_sha256 === rehearsal.inventory_evidence_sha256, `DiscordOS ${entry.unit} evidence inventory correlation mismatch`);
     requireCondition(evidence.disabled === true && evidence.coverage_count === 0, `DiscordOS ${entry.unit} evidence must prove an exact zero enabled denominator`);
     requireCondition(hexSha256.test(evidence.coverage_sha256 ?? ''), `DiscordOS ${entry.unit} coverage digest is malformed`);
-    requireCondition(['detached_signed_metadata_receipt', 'provider_authenticated_metadata_receipt'].includes(evidence.authenticator_class), `DiscordOS ${entry.unit} evidence authenticator is unsupported`);
+    requireCondition(evidence.maximum_age_seconds === evidencePolicy.maximum_age_seconds
+      && evidence.maximum_age_seconds === discordExternalEffectEvidencePolicy.maximum_age_seconds, `DiscordOS ${entry.unit} evidence freshness policy does not match the contract-owned maximum`);
+    requireCondition(evidence.authenticator_class === 'pinned_ed25519_signature_result', `DiscordOS ${entry.unit} evidence authenticator is unsupported`);
     requireCondition(evidence.verification_status === 'CURRENT', `DiscordOS ${entry.unit} evidence is not independently verified`);
     requireCondition(hexSha256.test(evidence.verification_receipt_sha256 ?? ''), `DiscordOS ${entry.unit} verification receipt digest is malformed`);
     requireCondition(typeof evidence.evidence_id === 'string' && typeof evidence.verification_receipt_id === 'string', `DiscordOS ${entry.unit} evidence identities are missing`);
@@ -518,6 +637,28 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     } catch (error) {
       failures.push(error.message);
     }
+    const authenticationResult = evidence.authentication_result;
+    requireCondition(isRecord(authenticationResult), `DiscordOS ${entry.unit} requires a structured cryptographic authentication result`);
+    if (isRecord(authenticationResult)) {
+      const subjectDigest = externalEffectAuthenticationSubjectDigest(evidence);
+      const resultDigest = externalEffectAuthenticationResultDigest(authenticationResult);
+      const manifestIdentityDigest = externalEffectAuthenticationManifestIdentityDigest(effects);
+      requireCondition(authenticationResult.version === '1.0.0'
+        && authenticationResult.status === 'VERIFIED'
+        && authenticationResult.canonical_serialization === 'lexicographic_object_keys_array_order_preserved_two_space_json_lf'
+        && authenticationResult.result_class === 'trusted_external_effect_authentication'
+        && authenticationResult.verification_method === 'external_signature_verification', `DiscordOS ${entry.unit} authentication result is not VERIFIED`);
+      requireCondition(authenticationResult.unit === entry.unit
+        && authenticationResult.evidence_id === evidence.evidence_id, `DiscordOS ${entry.unit} authentication result effect identity mismatch`);
+      requireCondition(authenticationResult.manifest_identity_sha256 === manifestIdentityDigest, `DiscordOS ${entry.unit} authentication result manifest identity mismatch`);
+      requireCondition(authenticationResult.subject_sha256 === subjectDigest, `DiscordOS ${entry.unit} authentication result evidence subject mismatch`);
+      requireCondition(authenticationResult.external_receipt_sha256 === evidence.verification_receipt_sha256, `DiscordOS ${entry.unit} authentication result external receipt mismatch`);
+      requireCondition(authenticationResult.verified_at === evidence.verified_at, `DiscordOS ${entry.unit} authentication result verification timestamp mismatch`);
+      requireCondition(resultDigest !== null && authenticationResult.result_sha256 === resultDigest, `DiscordOS ${entry.unit} authentication result digest mismatch`);
+      failures.push(...verifyExternalEffectAuthenticationSignature(evidencePolicy.trust_anchor, authenticationResult));
+      authenticationResultIds.push(authenticationResult.result_id);
+      authenticationResultDigests.push(authenticationResult.result_sha256);
+    }
     evidenceIds.push(evidence.evidence_id);
     verificationIds.push(evidence.verification_receipt_id);
     evidenceDigests.push(entry.evidence_digest);
@@ -529,6 +670,8 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
   requireCondition(new Set(evidenceDigests).size === expectedExternalEffectUnits.length, 'DiscordOS structured evidence digests must be unique and complete');
   requireCondition(new Set(verificationDigests).size === expectedExternalEffectUnits.length, 'DiscordOS verification receipt digests must be unique and complete');
   requireCondition(new Set(coverageDigests).size === expectedExternalEffectUnits.length, 'DiscordOS coverage digests must be unique and complete');
+  requireCondition(new Set(authenticationResultIds).size === expectedExternalEffectUnits.length, 'DiscordOS authentication result identities must be unique and complete');
+  requireCondition(new Set(authenticationResultDigests).size === expectedExternalEffectUnits.length, 'DiscordOS authentication result digests must be unique and complete');
   const circularDigests = new Set([
     effects.manifest_sha256,
     source.evidence_receipt_sha256,
@@ -538,7 +681,7 @@ function validateDiscordQuarantine(effects, { sourceExamples, now, requireCondit
     observation?.first_evidence_sha256,
     observation?.second_evidence_sha256
   ].filter(Boolean));
-  const allPerEffectDigests = [...evidenceDigests, ...verificationDigests, ...coverageDigests];
+  const allPerEffectDigests = [...evidenceDigests, ...verificationDigests, ...coverageDigests, ...authenticationResultDigests];
   requireCondition(new Set(allPerEffectDigests).size === allPerEffectDigests.length, 'DiscordOS evidence contains reused or circular per-effect digests');
   requireCondition(allPerEffectDigests.every((digest) => !circularDigests.has(digest)), 'DiscordOS evidence cannot reuse a manifest, inventory, compatibility, observation, or source-receipt digest');
 }

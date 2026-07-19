@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import test from 'node:test';
 import {
   createValidator,
@@ -9,6 +10,11 @@ import {
   backupManifestDigest,
   canonicalSerialize,
   evaluateFreshness,
+  externalEffectAuthenticationManifestIdentityDigest,
+  externalEffectAuthenticationResultDigest,
+  externalEffectAuthenticationSignedBytes,
+  externalEffectAuthenticationSignedPayloadDigest,
+  externalEffectAuthenticationSubjectDigest,
   externalEffectsManifestDigest,
   expectedCoverageUnits,
   expectedDiscordEdgeFunctions,
@@ -28,6 +34,56 @@ import {
 } from '../scripts/lib/recovery.mjs';
 
 const observedAt = '2026-07-18T17:00:00Z';
+const externalEffectSignatureDomain = 'fawxzzy-platform:discordos-external-effect-authentication:v1';
+
+// RFC 8032 test vector 1. This public test identity exists only in deterministic
+// test memory; it is not a production credential or admitted operational anchor.
+const testEd25519PublicSpki = Buffer.from(`302a300506032b6570032100${'d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a'}`, 'hex');
+const testEd25519PrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'}`, 'hex');
+const testEd25519PrivateKey = crypto.createPrivateKey({ key: testEd25519PrivatePkcs8, format: 'der', type: 'pkcs8' });
+const testExternalEffectTrustAnchor = Object.freeze({
+  status: 'CURRENT',
+  algorithm: 'Ed25519',
+  key_id: 'discordos-effect-test-ed25519-v1',
+  verifier_reference: 'discordos-effect-test-verifier-v1',
+  public_key_spki_base64: testEd25519PublicSpki.toString('base64'),
+  public_key_spki_sha256: crypto.createHash('sha256').update(testEd25519PublicSpki).digest('hex')
+});
+
+function signExternalEffectAuthenticationResult(result, privateKey = testEd25519PrivateKey) {
+  result.signed_payload_sha256 = externalEffectAuthenticationSignedPayloadDigest(result);
+  result.signature_base64 = crypto.sign(null, externalEffectAuthenticationSignedBytes(result), privateKey).toString('base64');
+  result.result_sha256 = externalEffectAuthenticationResultDigest(result);
+}
+
+function bindExternalEffectAuthentication(manifest, effect, privateKey = testEd25519PrivateKey) {
+  const evidence = effect.evidence;
+  const suffix = effect.unit.replaceAll('_', '-').toUpperCase();
+  const result = {
+    version: '1.0.0',
+    status: 'VERIFIED',
+    canonical_serialization: 'lexicographic_object_keys_array_order_preserved_two_space_json_lf',
+    result_class: 'trusted_external_effect_authentication',
+    result_id: `FP-DOS-EFFECT-AUTH-RESULT-${suffix}`,
+    verified_at: evidence.verified_at,
+    verifier_reference: testExternalEffectTrustAnchor.verifier_reference,
+    verification_method: 'external_signature_verification',
+    key_id: testExternalEffectTrustAnchor.key_id,
+    signature_algorithm: 'Ed25519',
+    signature_domain: externalEffectSignatureDomain,
+    manifest_identity_sha256: externalEffectAuthenticationManifestIdentityDigest(manifest),
+    unit: effect.unit,
+    evidence_id: evidence.evidence_id,
+    subject_sha256: externalEffectAuthenticationSubjectDigest(evidence),
+    external_receipt_sha256: evidence.verification_receipt_sha256,
+    signed_payload_sha256: null,
+    signature_base64: null,
+    result_sha256: null
+  };
+  signExternalEffectAuthenticationResult(result, privateKey);
+  evidence.authentication_result = result;
+  effect.evidence_digest = sha256Hex(evidence);
+}
 
 function refreshActionDigests(documents) {
   const backup = documents[recoveryDocumentPaths.backup];
@@ -101,6 +157,8 @@ function buildActionDocuments() {
     source_snapshot_id: discordos.source.snapshot_id
   });
   discordos.status = 'CURRENT';
+  discordos.evidence_policy.status = 'CURRENT';
+  discordos.evidence_policy.trust_anchor = structuredClone(testExternalEffectTrustAnchor);
   discordos.rehearsal = {
     status: 'CURRENT',
     target_project_ref: 'bxtcuhkotumitoqtrcej',
@@ -150,13 +208,13 @@ function buildActionDocuments() {
       coverage_count: 0,
       coverage_sha256: sha256Hex({ coverage_count: 0, snapshot_id: rehearsalSnapshotId, unit: effect.unit }),
       inventory_manifest_sha256: rehearsalInventoryEvidence,
-      authenticator_class: 'detached_signed_metadata_receipt',
+      authenticator_class: 'pinned_ed25519_signature_result',
       verification_status: 'CURRENT',
       verification_receipt_id: `FP-DOS-EFFECT-VERIFY-${suffix}`,
       verification_receipt_sha256: sha256Hex({ receipt_id: `FP-DOS-EFFECT-VERIFY-${suffix}`, unit: effect.unit }),
       verified_at: '2026-07-18T15:51:00Z'
     };
-    effect.evidence_digest = sha256Hex(effect.evidence);
+    bindExternalEffectAuthentication(effects, effect);
   }
 
   const restore = documents[recoveryDocumentPaths.restore];
@@ -554,6 +612,164 @@ test('DiscordOS action evidence rejects digest-only self-reported circular stale
   assert.ok(duplicateFailures.some((failure) => failure.includes('evidence identities must be unique')));
   assert.ok(duplicateFailures.some((failure) => failure.includes('verification receipt identities must be unique')));
   assert.ok(duplicateFailures.some((failure) => failure.includes('coverage digests must be unique')));
+});
+
+test('DiscordOS per-effect freshness is fixed by the versioned contract policy', () => {
+  const exactBoundary = buildActionDocuments();
+  const exactEffect = exactBoundary[recoveryDocumentPaths.effects].effects[0];
+  exactEffect.evidence.observed_at = '2026-07-18T15:00:00Z';
+  exactEffect.evidence.verified_at = '2026-07-18T15:00:00Z';
+  bindExternalEffectAuthentication(exactBoundary[recoveryDocumentPaths.effects], exactEffect);
+  refreshActionDigests(exactBoundary);
+  assert.deepEqual(validateSchemaInstances(exactBoundary, createValidator()), []);
+  assert.deepEqual(validateRecoveryDocuments(exactBoundary, { mode: 'action', now: observedAt }).failures, []);
+
+  const scenarios = [
+    {
+      name: 'caller maximum inflation',
+      mutate: (manifest, effect) => { effect.evidence.maximum_age_seconds = 86400; bindExternalEffectAuthentication(manifest, effect); },
+      expected: 'freshness policy does not match the contract-owned maximum',
+      schemaFailure: true
+    },
+    {
+      name: 'missing contract policy',
+      mutate: (manifest) => { delete manifest.discordos.evidence_policy; },
+      expected: 'quarantine contract is incomplete',
+      schemaFailure: true
+    },
+    {
+      name: 'mismatched contract policy',
+      mutate: (manifest) => { manifest.discordos.evidence_policy.maximum_age_seconds = 7201; },
+      expected: 'external-effect evidence policy is not the closed contract-owned policy',
+      schemaFailure: true
+    },
+    {
+      name: 'boundary plus one second',
+      mutate: (manifest, effect) => {
+        effect.evidence.observed_at = '2026-07-18T14:59:59Z';
+        effect.evidence.verified_at = '2026-07-18T15:00:00Z';
+        bindExternalEffectAuthentication(manifest, effect);
+      },
+      expected: 'evidence freshness failed: backup is stale'
+    },
+    {
+      name: 'future evidence',
+      mutate: (manifest, effect) => {
+        effect.evidence.observed_at = '2026-07-18T17:00:01Z';
+        effect.evidence.verified_at = '2026-07-18T17:00:01Z';
+        bindExternalEffectAuthentication(manifest, effect);
+      },
+      expected: 'evidence freshness failed: completion time is in the future'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const manifest = documents[recoveryDocumentPaths.effects];
+    scenario.mutate(manifest, manifest.effects[0]);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
+});
+
+test('DiscordOS external-effect evidence requires the pinned Ed25519 trust anchor', () => {
+  const valid = buildActionDocuments();
+  assert.deepEqual(validateSchemaInstances(valid, createValidator()), []);
+  assert.deepEqual(validateRecoveryDocuments(valid, { mode: 'action', now: observedAt }).failures, []);
+
+  const scenarios = [
+    {
+      name: 'unknown key identity',
+      mutate: (manifest, effect, result) => { result.key_id = 'unknown-effect-key'; signExternalEffectAuthenticationResult(result); },
+      expected: 'signer does not match the pinned trust anchor'
+    },
+    {
+      name: 'unknown verifier identity',
+      mutate: (manifest, effect, result) => { result.verifier_reference = 'unknown-effect-verifier'; signExternalEffectAuthenticationResult(result); },
+      expected: 'signer does not match the pinned trust anchor'
+    },
+    {
+      name: 'wrong algorithm',
+      mutate: (manifest, effect, result) => { result.signature_algorithm = 'RSA-PSS'; signExternalEffectAuthenticationResult(result); },
+      expected: 'signer does not match the pinned trust anchor',
+      schemaFailure: true
+    },
+    {
+      name: 'malformed anchor key',
+      mutate: (manifest) => {
+        const anchor = manifest.discordos.evidence_policy.trust_anchor;
+        anchor.public_key_spki_base64 = 'AQIDBA==';
+        anchor.public_key_spki_sha256 = crypto.createHash('sha256').update(Buffer.from([1, 2, 3, 4])).digest('hex');
+      },
+      expected: 'trust-anchor key cannot be verified'
+    },
+    {
+      name: 'malformed signature',
+      mutate: (manifest, effect, result) => { result.signature_base64 = 'not-a-signature'; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
+      expected: 'signature is malformed',
+      schemaFailure: true
+    },
+    {
+      name: 'bad signature',
+      mutate: (manifest, effect, result) => {
+        const bytes = Buffer.from(result.signature_base64, 'base64');
+        bytes[0] ^= 1;
+        result.signature_base64 = bytes.toString('base64');
+        result.result_sha256 = externalEffectAuthenticationResultDigest(result);
+      },
+      expected: 'signature verification failed'
+    },
+    {
+      name: 'manifest substitution',
+      mutate: (manifest) => { manifest.backup_id = 'FP-RECOVERY-BACKUP-SUBSTITUTED'; },
+      expected: 'manifest identity mismatch'
+    },
+    {
+      name: 'effect substitution',
+      mutate: (manifest, effect) => { effect.evidence.evidence_id = 'FP-DOS-EFFECT-EVIDENCE-SUBSTITUTED'; },
+      expected: 'authentication result effect identity mismatch'
+    },
+    {
+      name: 'observation substitution',
+      mutate: (manifest, effect) => { effect.evidence.observed_at = '2026-07-18T15:50:01Z'; },
+      expected: 'authentication result evidence subject mismatch'
+    },
+    {
+      name: 'external receipt substitution',
+      mutate: (manifest, effect) => { effect.evidence.verification_receipt_sha256 = sha256Hex({ substituted: 'external-receipt' }); },
+      expected: 'authentication result external receipt mismatch'
+    },
+    {
+      name: 'result metadata substitution',
+      mutate: (manifest, effect, result) => { result.result_id = 'FP-DOS-EFFECT-AUTH-RESULT-SUBSTITUTED'; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
+      expected: 'signed payload digest mismatch'
+    },
+    {
+      name: 'self-reported verification',
+      mutate: (manifest, effect, result) => { result.signature_base64 = null; result.result_sha256 = externalEffectAuthenticationResultDigest(result); },
+      expected: 'signature is malformed',
+      schemaFailure: true
+    },
+    {
+      name: 'cross-effect replay',
+      mutate: (manifest, effect) => { effect.evidence.authentication_result = structuredClone(manifest.effects[1].evidence.authentication_result); },
+      expected: 'authentication result effect identity mismatch'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const documents = buildActionDocuments();
+    const manifest = documents[recoveryDocumentPaths.effects];
+    const effect = manifest.effects[0];
+    scenario.mutate(manifest, effect, effect.evidence.authentication_result);
+    effect.evidence_digest = sha256Hex(effect.evidence);
+    refreshActionDigests(documents);
+    const report = validateRecoveryDocuments(documents, { mode: 'action', now: observedAt });
+    assert.ok(report.failures.some((failure) => failure.includes(scenario.expected)), scenario.name);
+    if (scenario.schemaFailure) assert.notDeepEqual(validateSchemaInstances(documents, createValidator()), [], scenario.name);
+  }
 });
 
 test('DiscordOS quarantine replay rollback observation and pg_net behavior gates remain fail closed', () => {
