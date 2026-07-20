@@ -1,8 +1,348 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "BLOCKED",
   "sql_generation": "next_separately_authorized_packet",
   "semantic_cross_product_merges": "forbidden",
+  "provider_canonical_provenance": {
+    "status": "CURRENT",
+    "apply_admitted": false,
+    "combined_provenance_sha256": "25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684",
+    "accepted_package": {
+      "migration_count": 122,
+      "source_counts": {
+        "discordos": 17,
+        "fitness": 101,
+        "mazer": 4
+      },
+      "deterministic_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+      "apply_admitted": false,
+      "historical_path_rewrite_forbidden": true,
+      "current_source_substitution_forbidden": true
+    },
+    "sources": [
+      {
+        "app": "discordos",
+        "project_ref": "nwexsktuuenfdegzrbut",
+        "provider_ledger_migration_count": 17,
+        "current_git_migration_count": 11,
+        "current_git_canonicality": "not_provider_canonical",
+        "complete_catalog_sha256": "d5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7"
+      },
+      {
+        "app": "mazer",
+        "project_ref": "geknvnrmktchljnyddwp",
+        "provider_ledger_migration_count": 4,
+        "current_git_migration_count": 3,
+        "current_git_canonicality": "not_provider_canonical",
+        "complete_catalog_sha256": "7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436"
+      }
+    ],
+    "effect_mappings_sha256": "b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491",
+    "effect_mappings": [
+      {
+        "app": "discordos",
+        "ledger_version": "20260612082758",
+        "ledger_name": "discordos_feedback_runtime_schema_v1",
+        "accepted_path": "supabase/migrations/20260612082758_discordos_feedback_runtime_schema_v1.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "9c980b931a63f380d1e1fd23b7036b63292ff32b",
+        "raw_sha256": "9ccf19680336d55c1e907b3a37e046ab51c782f3e01a3a40537e7bb55c7d7bea",
+        "byte_count": 5333,
+        "effect_classes": [
+          "relations",
+          "functions",
+          "triggers",
+          "indexes"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260612082854",
+        "ledger_name": "discordos_set_updated_at_search_path",
+        "accepted_path": "supabase/migrations/20260612082854_discordos_set_updated_at_search_path.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "0ff111bd7e04052ca953d8cec29dbce06f7e9599",
+        "raw_sha256": "ad7ccd4b44ae3848d1301f32869231b5868621a27e50b7129cc80645904a6ac7",
+        "byte_count": 80,
+        "effect_classes": [
+          "functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260612162531",
+        "ledger_name": "discordos_feedback_proof_rpc",
+        "accepted_path": "supabase/migrations/20260612162531_discordos_feedback_proof_rpc.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "0d7c65a82d79380452ee8d2afaccdd4ddd8d1d59",
+        "raw_sha256": "548b695c619e71acc8f6da4ac7fd86f643f1688ecf379c5d6016c09982b62bb3",
+        "byte_count": 2298,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260612175354",
+        "ledger_name": "discordos_feedback_shadow_transfer_proof_rpc",
+        "accepted_path": "supabase/migrations/20260612175354_discordos_feedback_shadow_transfer_proof_rpc.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "174bba7c8de97c7c3ac693e29bf0c3b38826c480",
+        "raw_sha256": "0c2f0e8a5b36af7637523e0933d46050202caa00cd33d16fb02fbf84c8fcc3a7",
+        "byte_count": 2407,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260612212851",
+        "ledger_name": "discordos_feedback_fitness_live_transfer_proof_rpc",
+        "accepted_path": "supabase/migrations/20260612212851_discordos_feedback_fitness_live_transfer_proof_rpc.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "5fb6cf93956e632af19e8451757e769570a254fa",
+        "raw_sha256": "3bc17726abd4c930862264523dc294fd50face8c56f8db7e14b4a303074b1c60",
+        "byte_count": 2494,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260612222352",
+        "ledger_name": "discordos_live_transfer_status_rpc",
+        "accepted_path": "supabase/migrations/20260612222352_discordos_live_transfer_status_rpc.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "40e26b2709f8937fec067f75da44cd8589340972",
+        "raw_sha256": "449924e88fe3a2a1a0ad2c0fdfb82a17e5364fb609b88e222428b0210d68afcb",
+        "byte_count": 2886,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260613144114",
+        "ledger_name": "discordos_runtime_health_cron_runs",
+        "accepted_path": "supabase/migrations/20260613144114_discordos_runtime_health_cron_runs.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "ecc1c8913c67eab728b24164fae3baff755db19a",
+        "raw_sha256": "b19d9f31e4fb7d14bfe74e4033fccc8bf115abda199895619671de45abc73f7c",
+        "byte_count": 6882,
+        "effect_classes": [
+          "relations",
+          "functions",
+          "indexes",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260615005519",
+        "ledger_name": "discordos_board_cards",
+        "accepted_path": "supabase/migrations/20260615005519_discordos_board_cards.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "8270e0284c62a36dc968ca6a9276a34b72052df0",
+        "raw_sha256": "271b1204835324dcd37f5c8d7d5930ee465d5d256f6f3f6f8254d3cdd2f4f4fd",
+        "byte_count": 2132,
+        "effect_classes": [
+          "relations",
+          "triggers",
+          "indexes"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260615005542",
+        "ledger_name": "discordos_moderation_audit_log",
+        "accepted_path": "supabase/migrations/20260615005542_discordos_moderation_audit_log.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "61ce93ee1f8063badf4005d330b3bc7d37dbacde",
+        "raw_sha256": "082cadea1d7380556d6788c7984daa43b631d1449ef2045a0adbdf71644cbcb0",
+        "byte_count": 2279,
+        "effect_classes": [
+          "relations",
+          "indexes"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260615020059",
+        "ledger_name": "discordos_board_moderation_writer_rpcs",
+        "accepted_path": "supabase/migrations/20260615020059_discordos_board_moderation_writer_rpcs.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "d552f52ed5107e2fab0aea4fbb5209a1e71fec67",
+        "raw_sha256": "5468f43543a2640afd30061904cd06be158c9cbfc117f19cefbf35905fa1b094",
+        "byte_count": 8974,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260615034751",
+        "ledger_name": "discordos_music_sesh_storage",
+        "accepted_path": "supabase/migrations/20260615034751_discordos_music_sesh_storage.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "871cd8e76673828aae04f223f1e0049d69a629a2",
+        "raw_sha256": "b8f32e82f494c7b970b2b8afddb94f9525cd8d9da88344e6c14d235247738cbd",
+        "byte_count": 4664,
+        "effect_classes": [
+          "relations",
+          "triggers",
+          "indexes"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260615034829",
+        "ledger_name": "discordos_music_sesh_writer_rpcs",
+        "accepted_path": "supabase/migrations/20260615034829_discordos_music_sesh_writer_rpcs.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "cfdf19b3ba84223143222e6d130536d52721c5cf",
+        "raw_sha256": "d1d6d74f651c384c4bada1e3ca798ef8267d7ca5f10bb331596035e9e44c4036",
+        "byte_count": 5756,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260627201353",
+        "ledger_name": "discordos_feedback_runtime_extract_v2",
+        "accepted_path": "supabase/migrations/20260627201353_discordos_feedback_runtime_extract_v2.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "d27ab78e338e514dd7934adba33d82f10709087f",
+        "raw_sha256": "479544d4aaf95b53847058158bc817e1131f84dd751a7bd461fddeb71bb85fd9",
+        "byte_count": 3620,
+        "effect_classes": [
+          "indexes",
+          "held_data_effects"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260627202737",
+        "ledger_name": "enable_discordos_message_poll_scheduler",
+        "accepted_path": "supabase/migrations/20260627202737_enable_discordos_message_poll_scheduler.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "600e4230f3ae3a11d8d881b4c2aad968a8612731",
+        "raw_sha256": "b8297104b22be36124aa6a3e60e884f472b298c1edddf72d5d337f2ee088169a",
+        "byte_count": 80,
+        "effect_classes": [
+          "extensions",
+          "scheduler"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260627202816",
+        "ledger_name": "add_discordos_message_poll_scheduler_helper",
+        "accepted_path": "supabase/migrations/20260627202816_add_discordos_message_poll_scheduler_helper.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "b23d153f54a777d2d2f954c2bdcd64e6bf8cdace",
+        "raw_sha256": "eab4a09a3f07a3b5f8e502cdc61c5a5694a2337f64ec7ec95bb147b5bf486ac0",
+        "byte_count": 448,
+        "effect_classes": [
+          "functions",
+          "scheduler",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260627210302",
+        "ledger_name": "discordos_update_drafts_runtime",
+        "accepted_path": "supabase/migrations/20260627210302_discordos_update_drafts_runtime.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "5dc5fd11637d319f9f3c870e2ae5caebbd4091ba",
+        "raw_sha256": "5d6c420a86f0d6320b7b5a5586a92d751bbf50abdd8d106ef68f14e82580f512",
+        "byte_count": 3862,
+        "effect_classes": [
+          "relations",
+          "triggers",
+          "indexes",
+          "held_dynamic_effects"
+        ]
+      },
+      {
+        "app": "discordos",
+        "ledger_version": "20260627211548",
+        "ledger_name": "discordos_update_draft_rpcs",
+        "accepted_path": "supabase/migrations/20260627211548_discordos_update_draft_rpcs.sql",
+        "source_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+        "blob": "c03fe8bad125e6d21e328436899ab9fab5e66e39",
+        "raw_sha256": "1f5a9c890e28afb17adf0df19a0c096bad9d19fffc7befc28253336aeb2b5809",
+        "byte_count": 9947,
+        "effect_classes": [
+          "functions",
+          "held_functions"
+        ]
+      },
+      {
+        "app": "mazer",
+        "ledger_version": "20260709045557",
+        "ledger_name": "mazer_progression_state",
+        "accepted_path": "supabase/migrations/20260709045557_mazer_progression_state.sql",
+        "source_commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
+        "blob": "c388edfb799b4f90ba2e28efbe3065bbc2e8e4c1",
+        "raw_sha256": "8df9389fd41e293814fbf8f65caef0555a077e55314d9ac58ef04dc78eb3411a",
+        "byte_count": 1601,
+        "effect_classes": [
+          "relations",
+          "policies"
+        ]
+      },
+      {
+        "app": "mazer",
+        "ledger_version": "20260709045648",
+        "ledger_name": "mazer_account_storage_contracts",
+        "accepted_path": "supabase/migrations/20260709045648_mazer_account_storage_contracts.sql",
+        "source_commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
+        "blob": "d81ff74cae0293f30391deea6f8bdf7ef6fc5612",
+        "raw_sha256": "ff1bc232ab0383acd3fbf4f6d5147a17639be5f2f45585cd26f148b18ec88943",
+        "byte_count": 8715,
+        "effect_classes": [
+          "relations",
+          "policies",
+          "indexes"
+        ]
+      },
+      {
+        "app": "mazer",
+        "ledger_version": "20260709045725",
+        "ledger_name": "mazer_tighten_public_table_grants",
+        "accepted_path": "supabase/migrations/20260709045725_mazer_tighten_public_table_grants.sql",
+        "source_commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
+        "blob": "85f723c96e82773fc5cc99c69b7fb5ba1db320f1",
+        "raw_sha256": "4bf5fd2cc2f4156615461d144279ed67cfb3d65a5277e1acdda4c2b0c2fbd6c5",
+        "byte_count": 1013,
+        "effect_classes": [
+          "acls"
+        ]
+      },
+      {
+        "app": "mazer",
+        "ledger_version": "20260716211513",
+        "ledger_name": "account_state_revisions",
+        "accepted_path": "supabase/migrations/20260716211513_account_state_revisions.sql",
+        "source_commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
+        "blob": "f8803b9660a96acbca3f94b2130fd71c86f63ed3",
+        "raw_sha256": "ce2916685ab9a7734988a1e0403bb03818f78c6f2fbcc9832ce5f552086448ae",
+        "byte_count": 593,
+        "effect_classes": [
+          "provider_ledger",
+          "terminal_catalog"
+        ]
+      }
+    ]
+  },
   "operation_gates": [
     {
       "operation": "target_writes",
@@ -44,6 +384,10 @@
     {
       "name": "source schema and data manifests",
       "status": "REQUIRED"
+    },
+    {
+      "name": "provider-ledger canonical historical package",
+      "status": "CURRENT"
     },
     {
       "name": "identity collision adjudication",

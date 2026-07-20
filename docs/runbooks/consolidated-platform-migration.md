@@ -21,6 +21,7 @@ Move DiscordOS, Fitness, and Mazer to the target platform while preserving sourc
 - Treat cleanup as classify, normalize, deduplicate, archive, and quarantine—not deletion authority.
 - Prefer reversible cutover steps. Source pause comes after proven target operation and rollback readiness; deletion is a separate destructive decision.
 - Generate SQL only in the next separately authorized packet and prove it locally before any target write.
+- Treat the 122-unit Platform package as provider-ledger canonical history. DiscordOS and Mazer current repository chains are discovery evidence only and cannot silently refresh, rename, remove, or replace accepted historical bytes or paths.
 
 ## Gate 0: Contract freeze
 
@@ -34,6 +35,7 @@ Required evidence:
 4. Deterministic schema, semantic, negative, path, line-ending, JSON, secret, and machine-path checks.
 5. Hosted CI green on the exact contract head.
 6. Approved FP-MAN-001 through FP-MAN-010 policy contracts, with execution gates still independently blocked.
+7. Closed provider-canonical provenance evidence for the 17 DiscordOS and 4 Mazer historical units, bound to the accepted 122-unit package without promoting apply authority.
 
 Exit: draft PR reviewed and accepted. This gate does not admit a target write.
 

@@ -16,6 +16,8 @@ Fitness PR #108 and hosted-replay-harness PR #2 are tracked by the versioned `fi
 
 The repository stores the exact raw migration bytes under `bootstrap/sources`. Each byte stream is bound to its source app, commit, tree, path, Git blob, raw digest, byte count, and order in `source-migrations.v1.json`. The verifier independently recomputes each frozen source-chain digest from the actual copied bytes using `version|path|git_blob|raw_sha256|raw_bytes` lines, then recomputes the combined digest from app label, immutable commit, immutable root tree, and recomputed chain digest. Frozen acceptance values are verifier-owned and must match both generator configuration and generated manifests; copied-byte substitution, source-identity substitution, stale digests, or missing bindings fail closed. The accepted combined-manifest digest and each source-chain digest remain separate from the repository package digest.
 
+The provider-ledger canonical provenance ratchet is a separate closed gate. It records the accepted 17 DiscordOS and 4 Mazer historical units, their catalog/provenance digests, and each unit's provider-ledger identity, accepted path, commit, Git blob, raw digest, byte count, and terminal effect classes. Current DiscordOS and Mazer default-branch discovery is explicitly non-canonical and cannot rename, replace, delete, collapse, or regenerate an accepted historical unit. The verifier binds all 21 records back to the exact inert 122-unit package and fails if the deterministic package digest, mapping digest, source counts, or non-executable state drift.
+
 The target namespace is closed:
 
 - `public` contains no product tables. A public RPC requires a later control-plane and security proof.
@@ -50,6 +52,7 @@ The merged identity contract remains authoritative for target-only relation, gra
 - membership remains distinct from billing entitlement;
 - the global-number transformation remains `BLOCKED`.
 - Fitness PR #108 exact-head review, adapter merge, replay execution, Fitness merge, and target apply remain `BLOCKED`; only the adapter source review is `CURRENT`.
+- Provider-ledger canonical provenance is `CURRENT` evidence only; it preserves historical package bytes and paths and does not admit a source refresh, SQL generation, or target apply.
 
 PostgreSQL 17 is the required source contract; the live target version remains `UNKNOWN`. The 36 creator/schema/object-class entries are an assertion and disposition matrix, not 36 executable statements. Twelve `postgres` TABLES/SEQUENCES units enter inert SQL. Six `postgres` FUNCTIONS units require the existing same-transaction, signature-specific EXECUTE revocation because PostgreSQL schema-scoped default revokes cannot subtract the global/built-in function default. The 18 `supabase_admin` units are `BLOCKED_PROVIDER_ROLE` / `NOT_EXECUTABLE`, bound to sanitized receipts `FP-TGT-SECURITY-BASELINE-001` (SQLSTATE `42501`, exact rollback) and `FP-TGT-PROVIDER-DEFAULT-ACL-001`. No generated artifact contains `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin`.
 

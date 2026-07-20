@@ -8,6 +8,7 @@ import {
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
   verifyFitnessPr108ReplayGate,
+  verifyProviderCanonicalProvenance,
   verifyTargetBootstrap
 } from '../scripts/verify-target-bootstrap.mjs';
 
@@ -36,6 +37,21 @@ test('immutable source manifest and accepted denominators verify', () => {
     index_identities: 134, constraint_units: 281, extension_dependencies: 3,
     held_data_effects: 358, dynamic_templates: 11, held_cron_units: 1
   });
+});
+
+test('provider-canonical historical provenance binds the accepted DiscordOS and Mazer package', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  const report = verifyTargetBootstrap({ checkDeterminism: false });
+  assert.deepEqual(verifyProviderCanonicalProvenance({ gate, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }), []);
+
+  const substituted = structuredClone(gate);
+  substituted.provider_canonical_provenance.effect_mappings[0].accepted_path = substituted.provider_canonical_provenance.effect_mappings[1].accepted_path;
+  assert.ok(verifyProviderCanonicalProvenance({ gate: substituted, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }).some((failure) => failure.includes('effect mapping digest drift')));
+
+  const promoted = structuredClone(gate);
+  promoted.provider_canonical_provenance.apply_admitted = true;
+  assert.ok(verifyProviderCanonicalProvenance({ gate: promoted, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }).some((failure) => failure.includes('non-executable')));
 });
 
 test('every copied source file matches its byte count, raw digest, and Git blob identity', () => {

@@ -447,6 +447,48 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+export function verifyProviderCanonicalProvenance({ gate, sourceManifest, deterministicPackageSha256 }) {
+  const failures = [];
+  const provenance = gate?.provider_canonical_provenance ?? {};
+  const accepted = provenance.accepted_package ?? {};
+  const mappings = Array.isArray(provenance.effect_mappings) ? provenance.effect_mappings : [];
+  const expectedSources = [
+    ['discordos', 'nwexsktuuenfdegzrbut', 17, 11, 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7'],
+    ['mazer', 'geknvnrmktchljnyddwp', 4, 3, '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436']
+  ];
+  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.1.0', 'provider-canonical migration gate must remain BLOCKED at version 1.1.0');
+  fail(failures, provenance.status === 'CURRENT' && provenance.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
+  fail(failures, provenance.combined_provenance_sha256 === '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684', 'provider-canonical combined provenance digest drift');
+  fail(failures, accepted.migration_count === 122 && accepted.source_counts?.discordos === 17 && accepted.source_counts?.fitness === 101 && accepted.source_counts?.mazer === 4, 'provider-canonical accepted package denominator drift');
+  fail(failures, accepted.apply_admitted === false && accepted.historical_path_rewrite_forbidden === true && accepted.current_source_substitution_forbidden === true, 'provider-canonical package protections drift');
+  fail(failures, accepted.deterministic_package_sha256 === deterministicPackageSha256, 'provider-canonical deterministic package digest drift');
+  fail(failures, Array.isArray(provenance.sources) && provenance.sources.length === 2, 'provider-canonical source evidence denominator drift');
+  for (const [app, projectRef, acceptedCount, currentCount, catalogSha256] of expectedSources) {
+    const source = provenance.sources?.find((candidate) => candidate?.app === app);
+    fail(failures, source?.project_ref === projectRef && source?.provider_ledger_migration_count === acceptedCount && source?.current_git_migration_count === currentCount && source?.current_git_canonicality === 'not_provider_canonical' && source?.complete_catalog_sha256 === catalogSha256, `${app}: provider-canonical source evidence drift`);
+  }
+  fail(failures, mappings.length === 21, 'provider-canonical effect mapping denominator must contain 21 units');
+  fail(failures, sha256(canonicalJson(mappings)) === provenance.effect_mappings_sha256, 'provider-canonical effect mapping digest drift');
+  const manifestRows = Array.isArray(sourceManifest?.migrations) ? sourceManifest.migrations.filter((migration) => migration.app === 'discordos' || migration.app === 'mazer') : [];
+  fail(failures, manifestRows.length === 21, 'accepted DiscordOS/Mazer manifest denominator must contain 21 units');
+  const mappingKeys = new Set();
+  for (const mapping of mappings) {
+    const key = `${mapping?.app}:${mapping?.ledger_version}`;
+    fail(failures, !mappingKeys.has(key), `${key}: duplicate provider-canonical effect mapping`);
+    mappingKeys.add(key);
+    const matching = manifestRows.filter((migration) => migration.app === mapping?.app && migration.path === mapping?.accepted_path);
+    fail(failures, matching.length === 1, `${key}: mapping must bind exactly one accepted source path`);
+    const migration = matching[0];
+    if (!migration) continue;
+    const basename = path.posix.basename(migration.path);
+    const parsed = /^([0-9]{14})_([a-z0-9_]+)\.sql$/.exec(basename);
+    fail(failures, parsed?.[1] === mapping.ledger_version && parsed?.[2] === mapping.ledger_name, `${key}: provider-ledger identity drift`);
+    fail(failures, migration.commit === mapping.source_commit && migration.blob === mapping.blob && migration.raw_sha256 === mapping.raw_sha256 && migration.byte_count === mapping.byte_count, `${key}: accepted historical bytes/path binding drift`);
+  }
+  fail(failures, mappings.filter((mapping) => mapping.app === 'discordos').length === 17 && mappings.filter((mapping) => mapping.app === 'mazer').length === 4, 'provider-canonical effect mapping source counts drift');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 function verifySourceManifest(config, manifest, failures) {
   fail(failures, manifest.apply_admitted === false, 'source manifest must set apply_admitted=false');
   fail(failures, manifest.migrations.length === exactExpected.migrations, 'source migration denominator must be 122');
@@ -1142,6 +1184,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const manifestNames = fs.readdirSync(path.join(root, 'bootstrap', 'manifests')).filter((name) => name.endsWith('.json')).sort();
   fail(failures, canonicalJson(manifestNames) === canonicalJson(expectedManifestFiles), 'manifest path denominator drift');
   const sourceManifest = readJson('bootstrap/manifests/source-migrations.v1.json');
+  const migrationGate = readJson('contracts/v1/gates/migration-gate-state.json');
   const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
   const objects = readJson('bootstrap/manifests/source-objects.v1.json');
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
@@ -1149,6 +1192,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const dispositions = readJson('bootstrap/manifests/dispositions.v1.json');
   const namespacePlan = readJson('bootstrap/manifests/namespace-plan.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
+  failures.push(...verifyProviderCanonicalProvenance({ gate: migrationGate, sourceManifest, deterministicPackageSha256: digestPackageOutputs().digest }));
   failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1176,6 +1220,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'dynamic_fail_closed', 'data_effect_hold', 'cron_hold', 'namespace_boundary',
       'path_level_inertness',
       'fitness_pr108_replay_provenance_gate',
+      'provider_canonical_historical_provenance_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',
