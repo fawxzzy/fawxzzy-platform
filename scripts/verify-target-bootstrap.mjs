@@ -18,7 +18,13 @@ import {
   splitSqlStatements,
   verifyFitnessFunctionSearchPaths
 } from './generate-target-bootstrap.mjs';
-import { createValidator, validateAppDataReceiptSanitization } from './lib/contracts.mjs';
+import {
+  createValidator,
+  loadDocuments,
+  validateAppDataReceiptSanitization,
+  validateSchemaInstances,
+  validateSemantics
+} from './lib/contracts.mjs';
 import { listWorkingTreeFiles } from './lib/repository.mjs';
 
 const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
@@ -553,6 +559,18 @@ export function verifyAppDataTransportContracts({ contract, receipt, journal, ga
 
 export function verifyMazerAppDataAdapter({ adapter, gate }) {
   const failures = [];
+  const documents = loadDocuments();
+  documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'] = adapter;
+  documents['contracts/v1/gates/migration-gate-state.json'] = gate;
+  const schemaFailures = validateSchemaInstances(documents, createValidator());
+  failures.push(...schemaFailures.map((failure) => `Mazer app data schema validation: ${failure}`));
+  if (schemaFailures.length === 0) {
+    try {
+      failures.push(...validateSemantics(documents).map((failure) => `Mazer app data semantic validation: ${failure}`));
+    } catch {
+      failures.push('Mazer app data semantic validation failed closed');
+    }
+  }
   const adapterGate = gate?.app_data_adapters ?? {};
   const provenance = gate?.provider_canonical_provenance ?? {};
   const mazerSource = (provenance.sources ?? []).find((source) => source.app === 'mazer');
@@ -563,7 +581,7 @@ export function verifyMazerAppDataAdapter({ adapter, gate }) {
     ['public.mazer_ai_progression_states', 'mazer.mazer_ai_progression_states', 'AUTHORITATIVE_PER_RUNNER_STATE', ['user_id', 'runner_key'], 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
     ['public.mazer_cycle_receipts', 'mazer.mazer_cycle_receipts', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', ['id'], 'PRESERVE_IDENTITY_APPEND_ONLY']
   ];
-  const actualRelations = (adapter?.relations ?? []).map((relation) => [relation.source_relation, relation.target_relation, relation.classification, relation.primary_key, relation.transport_mode]);
+  const actualRelations = (Array.isArray(adapter?.relations) ? adapter.relations : []).map((relation) => [relation.source_relation, relation.target_relation, relation.classification, relation.primary_key, relation.transport_mode]);
   fail(failures, adapter?.status === 'CURRENT' && adapter?.lifecycle?.source_contract === 'SOURCE_READY' && adapter?.lifecycle?.execution === 'EXECUTION_BLOCKED' && adapter?.apply_admitted === false, 'Mazer app data adapter lifecycle drift');
   fail(failures, canonicalJson(actualRelations) === canonicalJson(expectedRelations), 'Mazer app data adapter relation denominator drift');
   const profileSeed = adapter?.identity_and_activation?.profile_seed ?? {};
@@ -579,7 +597,7 @@ export function verifyMazerAppDataAdapter({ adapter, gate }) {
   fail(failures, adapter?.deletion_and_rollback?.explicit_tombstones_required === true && adapter?.deletion_and_rollback?.implicit_cascade_authority === false && adapter?.deletion_and_rollback?.profile_delete_action === 'SUSPEND_AND_PRESERVE', 'Mazer app data deletion boundary drift');
   const forbiddenReceiptClasses = ['raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers_or_ranges', 'uuids_or_ranges', 'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'];
   fail(failures, canonicalJson(adapter?.public_receipt_policy?.forbidden_classes) === canonicalJson(forbiddenReceiptClasses) && adapter?.canonicalization?.raw_values_in_public_receipts === false, 'Mazer app data receipt redaction drift');
-  fail(failures, adapter?.dependency_gates?.data_api_containment === 'BLOCKED' && adapter?.dependency_gates?.fitness_adapter === 'BLOCKED' && adapter?.dependency_gates?.discordos_adapter === 'BLOCKED' && adapter?.dependency_gates?.target_apply === 'BLOCKED', 'Mazer app data dependency gate promotion');
+  fail(failures, adapter?.dependency_gates?.data_api_containment === 'BLOCKED' && adapter?.dependency_gates?.accepted_recovery_and_quarantined_restore === 'BLOCKED' && adapter?.dependency_gates?.faithful_contained_replay === 'BLOCKED' && adapter?.dependency_gates?.target_bootstrap === 'BLOCKED' && adapter?.dependency_gates?.shared_auth_identity_mapping === 'BLOCKED' && adapter?.dependency_gates?.service_membership_readiness === 'SOURCE_READY_EXECUTION_BLOCKED' && adapter?.dependency_gates?.fitness_adapter === 'BLOCKED' && adapter?.dependency_gates?.discordos_adapter === 'BLOCKED' && adapter?.dependency_gates?.target_apply === 'BLOCKED', 'Mazer app data dependency gate promotion');
   fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer']) && canonicalJson(adapterGate.blocked) === canonicalJson(['fitness', 'discordos']), 'Mazer app data adapter readiness gate drift');
   fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
   fail(failures, adapter?.provider_canonical?.provider_ledger_migration_count === mazerSource?.provider_ledger_migration_count && adapter?.provider_canonical?.complete_catalog_sha256 === mazerSource?.complete_catalog_sha256, 'Mazer app data provider catalog binding drift');
