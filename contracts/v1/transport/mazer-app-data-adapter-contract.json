@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "contract_id": "mazer-app-data-adapter-contract",
   "status": "CURRENT",
   "lifecycle": {
@@ -38,10 +38,35 @@
       "lookup": "SERVER_SIDE_IDENTITY_MAPPING",
       "consumption": "ATOMIC_WITH_ACTIVATION",
       "direct_pre_activation_insert_allowed": false,
-      "exact_profile_parity_required": true,
+      "source_profile_present_exact_parity_required": true,
       "missing_target_action": "CREATE_FROM_SEED",
       "exact_target_action": "IDEMPOTENT_REUSE",
-      "conflicting_target_action": "QUARANTINE"
+      "conflicting_target_action": "QUARANTINE",
+      "source_profile_absent_policy": {
+        "detection": "COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE",
+        "trigger_relations": [
+          "public.mazer_progression_states",
+          "public.mazer_ai_progression_states",
+          "public.mazer_cycle_receipts"
+        ],
+        "seed_version": "mazer-profile-default-v1",
+        "seed_origin": "SERVER_OWNED_SCHEMA_DEFAULT",
+        "default_columns": {
+          "display_name": null,
+          "selected_control_mode": "stick",
+          "settings": {}
+        },
+        "server_timestamp_columns": [
+          "created_at",
+          "updated_at"
+        ],
+        "caller_values_allowed": false,
+        "direct_pre_activation_insert_allowed": false,
+        "activation": "ATOMIC_WITH_PENDING_MEMBERSHIP",
+        "source_rows_transport_outcome": "PRESERVE_AFTER_ACTIVATION",
+        "unproven_absence_outcome": "QUARANTINE_PENDING_MEMBERSHIP",
+        "silent_drop_allowed": false
+      }
     },
     "presentation_only_columns": [
       "display_name"
@@ -91,15 +116,28 @@
     {
       "source_relation": "public.mazer_ai_progression_states",
       "target_relation": "mazer.mazer_ai_progression_states",
-      "classification": "DERIVED_INDEXED_MIRROR",
+      "classification": "AUTHORITATIVE_PER_RUNNER_STATE",
       "primary_key": [
         "user_id",
         "runner_key"
       ],
       "owner_key": "user_id",
-      "transport_mode": "EXCLUDE_AND_REBUILD",
-      "rebuild_source": "mazer.mazer_progression_states.state",
-      "rebuild_timing": "AFTER_AUTHORITATIVE_PARITY",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "all_source_columns_authoritative": true,
+      "independent_runner_keys_preserved": true,
+      "authoritative_payload_columns": [
+        "state",
+        "summary"
+      ],
+      "complete_runner_key_set_parity_required": true,
+      "rebuild_from_human_progression_allowed": false,
+      "target_default_runner_key_allowed": false,
+      "allowed_operations": [
+        "INSERT",
+        "UPDATE",
+        "IDEMPOTENT_REUSE",
+        "EXPLICIT_TOMBSTONE"
+      ],
       "accelerators": [],
       "accelerators_replace_complete_comparison": false
     },
@@ -128,12 +166,12 @@
       "pending_membership",
       "atomic_profile_seed_activation",
       "progression",
-      "cycle_receipts",
-      "AI_mirror_rebuild"
+      "ai_runner_progression",
+      "cycle_receipts"
     ],
     "delete_order": [
-      "AI_mirror_discard",
       "cycle_receipt_tombstones",
+      "ai_runner_progression_tombstones",
       "progression_tombstones",
       "profile_preserve"
     ],

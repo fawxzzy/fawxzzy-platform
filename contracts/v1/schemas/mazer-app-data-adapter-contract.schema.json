@@ -23,7 +23,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "contract_id": {
       "const": "mazer-app-data-adapter-contract"
@@ -160,10 +160,11 @@
             "lookup",
             "consumption",
             "direct_pre_activation_insert_allowed",
-            "exact_profile_parity_required",
+            "source_profile_present_exact_parity_required",
             "missing_target_action",
             "exact_target_action",
-            "conflicting_target_action"
+            "conflicting_target_action",
+            "source_profile_absent_policy"
           ],
           "properties": {
             "source_relation": {
@@ -184,7 +185,7 @@
             "direct_pre_activation_insert_allowed": {
               "const": false
             },
-            "exact_profile_parity_required": {
+            "source_profile_present_exact_parity_required": {
               "const": true
             },
             "missing_target_action": {
@@ -195,6 +196,73 @@
             },
             "conflicting_target_action": {
               "const": "QUARANTINE"
+            },
+            "source_profile_absent_policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "detection",
+                "trigger_relations",
+                "seed_version",
+                "seed_origin",
+                "default_columns",
+                "server_timestamp_columns",
+                "caller_values_allowed",
+                "direct_pre_activation_insert_allowed",
+                "activation",
+                "source_rows_transport_outcome",
+                "unproven_absence_outcome",
+                "silent_drop_allowed"
+              ],
+              "properties": {
+                "detection": {
+                  "const": "COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE"
+                },
+                "trigger_relations": {
+                  "const": [
+                    "public.mazer_progression_states",
+                    "public.mazer_ai_progression_states",
+                    "public.mazer_cycle_receipts"
+                  ]
+                },
+                "seed_version": {
+                  "const": "mazer-profile-default-v1"
+                },
+                "seed_origin": {
+                  "const": "SERVER_OWNED_SCHEMA_DEFAULT"
+                },
+                "default_columns": {
+                  "const": {
+                    "display_name": null,
+                    "selected_control_mode": "stick",
+                    "settings": {}
+                  }
+                },
+                "server_timestamp_columns": {
+                  "const": [
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "caller_values_allowed": {
+                  "const": false
+                },
+                "direct_pre_activation_insert_allowed": {
+                  "const": false
+                },
+                "activation": {
+                  "const": "ATOMIC_WITH_PENDING_MEMBERSHIP"
+                },
+                "source_rows_transport_outcome": {
+                  "const": "PRESERVE_AFTER_ACTIVATION"
+                },
+                "unproven_absence_outcome": {
+                  "const": "QUARANTINE_PENDING_MEMBERSHIP"
+                },
+                "silent_drop_allowed": {
+                  "const": false
+                }
+              }
             }
           }
         },
@@ -289,14 +357,14 @@
             "pending_membership",
             "atomic_profile_seed_activation",
             "progression",
-            "cycle_receipts",
-            "AI_mirror_rebuild"
+            "ai_runner_progression",
+            "cycle_receipts"
           ]
         },
         "delete_order": {
           "const": [
-            "AI_mirror_discard",
             "cycle_receipt_tombstones",
+            "ai_runner_progression_tombstones",
             "progression_tombstones",
             "profile_preserve"
           ]
@@ -540,6 +608,28 @@
           "items": {
             "type": "string"
           }
+        },
+        "all_source_columns_authoritative": {
+          "type": "boolean"
+        },
+        "independent_runner_keys_preserved": {
+          "type": "boolean"
+        },
+        "authoritative_payload_columns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "complete_runner_key_set_parity_required": {
+          "type": "boolean"
+        },
+        "rebuild_from_human_progression_allowed": {
+          "type": "boolean"
+        },
+        "target_default_runner_key_allowed": {
+          "type": "boolean"
         }
       }
     },
@@ -619,8 +709,13 @@
         {
           "type": "object",
           "required": [
-            "rebuild_source",
-            "rebuild_timing"
+            "all_source_columns_authoritative",
+            "independent_runner_keys_preserved",
+            "authoritative_payload_columns",
+            "complete_runner_key_set_parity_required",
+            "rebuild_from_human_progression_allowed",
+            "target_default_runner_key_allowed",
+            "allowed_operations"
           ],
           "properties": {
             "source_relation": {
@@ -630,7 +725,7 @@
               "const": "mazer.mazer_ai_progression_states"
             },
             "classification": {
-              "const": "DERIVED_INDEXED_MIRROR"
+              "const": "AUTHORITATIVE_PER_RUNNER_STATE"
             },
             "primary_key": {
               "const": [
@@ -639,13 +734,36 @@
               ]
             },
             "transport_mode": {
-              "const": "EXCLUDE_AND_REBUILD"
+              "const": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP"
             },
-            "rebuild_source": {
-              "const": "mazer.mazer_progression_states.state"
+            "all_source_columns_authoritative": {
+              "const": true
             },
-            "rebuild_timing": {
-              "const": "AFTER_AUTHORITATIVE_PARITY"
+            "independent_runner_keys_preserved": {
+              "const": true
+            },
+            "authoritative_payload_columns": {
+              "const": [
+                "state",
+                "summary"
+              ]
+            },
+            "complete_runner_key_set_parity_required": {
+              "const": true
+            },
+            "rebuild_from_human_progression_allowed": {
+              "const": false
+            },
+            "target_default_runner_key_allowed": {
+              "const": false
+            },
+            "allowed_operations": {
+              "const": [
+                "INSERT",
+                "UPDATE",
+                "IDEMPOTENT_REUSE",
+                "EXPLICIT_TOMBSTONE"
+              ]
             },
             "accelerators": {
               "const": []

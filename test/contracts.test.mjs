@@ -754,15 +754,67 @@ test('Mazer app data adapter is closed, provider-canonical, and execution-blocke
   const adapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyMazerAppDataAdapter({ adapter, gate }), []);
+  assert.equal(adapter.version, '1.1.0');
   assert.equal(adapter.relations.length, 4);
   assert.deepEqual(adapter.relations.map((relation) => relation.classification), [
     'AUTHORITATIVE_ACTIVATION_SEED',
     'AUTHORITATIVE_STATE',
-    'DERIVED_INDEXED_MIRROR',
+    'AUTHORITATIVE_PER_RUNNER_STATE',
     'AUTHORITATIVE_APPEND_ONLY_HISTORY'
   ]);
+  assert.deepEqual(adapter.relations[2].authoritative_payload_columns, ['state', 'summary']);
+  assert.equal(adapter.relations[2].complete_runner_key_set_parity_required, true);
+  assert.equal(adapter.relations[2].rebuild_from_human_progression_allowed, false);
+  assert.equal(adapter.identity_and_activation.profile_seed.source_profile_absent_policy.activation, 'ATOMIC_WITH_PENDING_MEMBERSHIP');
+  assert.equal(adapter.identity_and_activation.profile_seed.source_profile_absent_policy.silent_drop_allowed, false);
   assert.equal(gate.app_data_adapters.all_adapters_ready, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
+});
+
+test('Mazer AI runner data remains authoritative in both validator surfaces', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(adapter) => { adapter.relations[2].classification = 'DERIVED_INDEXED_MIRROR'; }, 'relation denominator'],
+    [(adapter) => { adapter.relations[2].transport_mode = 'EXCLUDE_AND_REBUILD'; }, 'relation denominator'],
+    [(adapter) => { adapter.relations[2].independent_runner_keys_preserved = false; }, 'AI runner authoritative state'],
+    [(adapter) => { adapter.relations[2].authoritative_payload_columns = ['state']; }, 'AI runner authoritative state'],
+    [(adapter) => { adapter.relations[2].complete_runner_key_set_parity_required = false; }, 'AI runner authoritative state'],
+    [(adapter) => { adapter.relations[2].rebuild_from_human_progression_allowed = true; }, 'AI runner authoritative state'],
+    [(adapter) => { adapter.relations[2].target_default_runner_key_allowed = true; }, 'AI runner authoritative state']
+  ];
+  for (const [mutate, expected] of cases) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutate(adapter);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('mazer-app-data-adapter-contract.json')), expected);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(expected)), expected);
+    assert.ok(verifyMazerAppDataAdapter({ adapter, gate }).some((failure) => failure.includes(expected)), expected);
+  }
+});
+
+test('Mazer profile-less authoritative owners fail closed or activate from the server default seed', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(policy) => { policy.detection = 'TIMESTAMP_ONLY'; }],
+    [(policy) => { policy.trigger_relations = ['public.mazer_progression_states']; }],
+    [(policy) => { policy.default_columns.selected_control_mode = 'arrows'; }],
+    [(policy) => { policy.caller_values_allowed = true; }],
+    [(policy) => { policy.direct_pre_activation_insert_allowed = true; }],
+    [(policy) => { policy.activation = 'PREINSERT_THEN_ACTIVATE'; }],
+    [(policy) => { policy.source_rows_transport_outcome = 'DROP'; }],
+    [(policy) => { policy.unproven_absence_outcome = 'ACTIVATE'; }],
+    [(policy) => { policy.silent_drop_allowed = true; }]
+  ];
+  for (const [mutate] of cases) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutate(adapter.identity_and_activation.profile_seed.source_profile_absent_policy);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('mazer-app-data-adapter-contract.json')));
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes('absent-source-profile activation')));
+    assert.ok(verifyMazerAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('absent-source-profile activation')));
+  }
 });
 
 test('Mazer app data adapter fails closed across every admitted drift class', () => {
