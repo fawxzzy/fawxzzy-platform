@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:app-data-transport-contract",
+  "title": "Application data transport contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "apply_admitted",
+    "research_evidence",
+    "scope",
+    "transport_lifecycle",
+    "snapshot_protocol",
+    "dependency_ordering",
+    "mutation_model",
+    "compare_and_swap",
+    "derived_and_external_effects",
+    "journal_and_rollback",
+    "dependency_gates",
+    "public_receipt_policy"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "app-data-transport-contract"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        }
+      }
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "research_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "research_denominator_sha256",
+        "design_path_sha256"
+      ],
+      "properties": {
+        "research_denominator_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "design_path_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_agnostic",
+        "app_adapter_count_required",
+        "app_relation_mappings_included",
+        "auth_state_included",
+        "provider_execution_included"
+      ],
+      "properties": {
+        "app_agnostic": {
+          "const": true
+        },
+        "app_adapter_count_required": {
+          "const": 3
+        },
+        "app_relation_mappings_included": {
+          "const": false
+        },
+        "auth_state_included": {
+          "const": false
+        },
+        "provider_execution_included": {
+          "const": false
+        }
+      }
+    },
+    "transport_lifecycle": {
+      "const": [
+        "S0_COMPLETE_SNAPSHOT",
+        "SOURCE_WRITES_CONTINUE",
+        "S1_COMPLETE_KEY_AND_ROW_DIFF",
+        "EXPLICIT_TOMBSTONES",
+        "AUTHORIZED_WRITE_BARRIER",
+        "S2_FINAL_DIFF",
+        "CAS_APPLY",
+        "PARITY",
+        "OBSERVATION",
+        "SEPARATELY_APPROVED_SOURCE_PAUSE"
+      ]
+    },
+    "snapshot_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_snapshots",
+        "complete_primary_key_set_comparison",
+        "canonical_row_digest_comparison",
+        "accelerators",
+        "accelerators_replace_complete_comparison",
+        "S1_diff_classes",
+        "S2_final_diff_required_after_write_barrier"
+      ],
+      "properties": {
+        "required_snapshots": {
+          "const": [
+            "S0",
+            "S1",
+            "S2"
+          ]
+        },
+        "complete_primary_key_set_comparison": {
+          "const": true
+        },
+        "canonical_row_digest_comparison": {
+          "const": true
+        },
+        "accelerators": {
+          "const": [
+            "timestamps",
+            "revisions",
+            "high_water_marks"
+          ]
+        },
+        "accelerators_replace_complete_comparison": {
+          "const": false
+        },
+        "S1_diff_classes": {
+          "const": [
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "RESURRECTION"
+          ]
+        },
+        "S2_final_diff_required_after_write_barrier": {
+          "const": true
+        }
+      }
+    },
+    "dependency_ordering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inserts_and_updates",
+        "deletes",
+        "foreign_key_cycles"
+      ],
+      "properties": {
+        "inserts_and_updates": {
+          "const": "PARENT_FIRST"
+        },
+        "deletes": {
+          "const": "CHILD_FIRST"
+        },
+        "foreign_key_cycles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declared_staging_plan_required",
+            "synthetic_proof_required",
+            "implicit_cycle_breaking_forbidden"
+          ],
+          "properties": {
+            "declared_staging_plan_required": {
+              "const": true
+            },
+            "synthetic_proof_required": {
+              "const": true
+            },
+            "implicit_cycle_breaking_forbidden": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "mutation_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operations",
+        "deletes_require_explicit_tombstones",
+        "reappearing_key_requires",
+        "implicit_resurrection_as_update_forbidden",
+        "idempotency_key_components",
+        "matching_applied_mutation"
+      ],
+      "properties": {
+        "operations": {
+          "const": [
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "RESURRECTION"
+          ]
+        },
+        "deletes_require_explicit_tombstones": {
+          "const": true
+        },
+        "reappearing_key_requires": {
+          "const": [
+            "EXPLICIT_RESURRECTION",
+            "NEW_GENERATION"
+          ]
+        },
+        "implicit_resurrection_as_update_forbidden": {
+          "const": true
+        },
+        "idempotency_key_components": {
+          "const": [
+            "contract_id",
+            "contract_version",
+            "source_anchor",
+            "snapshot_commitment",
+            "relation",
+            "private_key_commitment",
+            "operation",
+            "source_row_digest",
+            "transform_version"
+          ]
+        },
+        "matching_applied_mutation": {
+          "const": "IDEMPOTENT_REUSE"
+        }
+      }
+    },
+    "compare_and_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_expected_target",
+        "absent_target_allows",
+        "exact_digest_allows",
+        "unexpected_target_digest",
+        "unexpected_target_overwrite_forbidden"
+      ],
+      "properties": {
+        "accepted_expected_target": {
+          "const": [
+            "ABSENT",
+            "EXACT_DIGEST"
+          ]
+        },
+        "absent_target_allows": {
+          "const": "INSERT"
+        },
+        "exact_digest_allows": {
+          "const": [
+            "UPDATE",
+            "DELETE",
+            "RESURRECTION"
+          ]
+        },
+        "unexpected_target_digest": {
+          "const": "QUARANTINE"
+        },
+        "unexpected_target_overwrite_forbidden": {
+          "const": true
+        }
+      }
+    },
+    "derived_and_external_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derived_cache_source_transport",
+        "derived_cache_rebuild_after_authoritative_parity",
+        "external_effects_during_rehearsal_and_rollback"
+      ],
+      "properties": {
+        "derived_cache_source_transport": {
+          "const": [
+            "EXCLUDE",
+            "DETERMINISTIC_REBUILD"
+          ]
+        },
+        "derived_cache_rebuild_after_authoritative_parity": {
+          "const": true
+        },
+        "external_effects_during_rehearsal_and_rollback": {
+          "const": "QUARANTINED"
+        }
+      }
+    },
+    "journal_and_rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journal_contract_path",
+        "append_only",
+        "complete_reverse_evidence_required",
+        "rollback_order",
+        "reverse_catch_up_to_source"
+      ],
+      "properties": {
+        "journal_contract_path": {
+          "const": "contracts/v1/transport/app-data-mutation-journal-contract.json"
+        },
+        "append_only": {
+          "const": true
+        },
+        "complete_reverse_evidence_required": {
+          "const": true
+        },
+        "rollback_order": {
+          "const": "REVERSE_DEPENDENCY_ORDER"
+        },
+        "reverse_catch_up_to_source": {
+          "const": "SEPARATE_EXPLICIT_AUTHORITY"
+        }
+      }
+    },
+    "dependency_gates": {
+      "const": [
+        "DATA_API_CONTAINMENT",
+        "ACCEPTED_RECOVERY_AND_QUARANTINED_RESTORE",
+        "FAITHFUL_CONTAINED_REPLAY",
+        "TARGET_BOOTSTRAP",
+        "SHARED_AUTH_IDENTITY_MAPPING",
+        "SERVICE_MEMBERSHIP_READINESS",
+        "THREE_APP_ADAPTERS"
+      ]
+    },
+    "public_receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_classes",
+        "forbidden_classes"
+      ],
+      "properties": {
+        "allowed_classes": {
+          "const": [
+            "aggregate_counts",
+            "booleans",
+            "cutoffs",
+            "non_identifying_high_water_marks",
+            "quarantine_classes",
+            "private_commitments",
+            "digests"
+          ]
+        },
+        "forbidden_classes": {
+          "const": [
+            "raw_rows",
+            "primary_keys",
+            "names",
+            "emails",
+            "usernames",
+            "user_numbers_or_ranges",
+            "uuids_or_ranges",
+            "secrets",
+            "project_refs",
+            "sql",
+            "payloads",
+            "provider_responses",
+            "machine_paths"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -7,6 +7,7 @@ import {
   computeCombinedSourceSha256,
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
+  verifyAppDataTransportContracts,
   verifyFitnessPr108ReplayGate,
   verifyProviderCanonicalProvenance,
   verifySharedAuthImportRehearsal,
@@ -65,6 +66,42 @@ test('shared Auth import rehearsal remains source-ready and execution-blocked', 
   const substituted = structuredClone(contract);
   substituted.source_anchors[0].commit = '0'.repeat(40);
   assert.ok(verifySharedAuthImportRehearsal({ contract: substituted, gate }).some((failure) => failure.includes('source anchors drift')));
+});
+
+test('app data transport remains source-ready, execution-blocked, and package-neutral', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const contract = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-transport-contract.json`, 'utf8'));
+  const receipt = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-receipt.example.json`, 'utf8'));
+  const journal = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-mutation-journal-contract.json`, 'utf8'));
+  assert.deepEqual(verifyAppDataTransportContracts({ contract, receipt, journal, gate }), []);
+
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  assert.equal(sourceManifest.migrations.length, 122);
+  assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(gate.app_data_transport.apply_admitted, false);
+});
+
+test('app data verifier rejects snapshot, CAS, journal, and gate promotion', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const contract = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-transport-contract.json`, 'utf8'));
+  const receipt = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-receipt.example.json`, 'utf8'));
+  const journal = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/app-data-mutation-journal-contract.json`, 'utf8'));
+
+  const incomplete = structuredClone(receipt);
+  incomplete.snapshot_completeness.S2_complete_key_and_row_diff = false;
+  assert.ok(verifyAppDataTransportContracts({ contract, receipt: incomplete, journal, gate }).some((failure) => failure.includes('snapshot completeness')));
+
+  const conflicted = structuredClone(receipt);
+  conflicted.cas_counts.unexpected_overwrite = 1;
+  assert.ok(verifyAppDataTransportContracts({ contract, receipt: conflicted, journal, gate }).some((failure) => failure.includes('CAS conflict')));
+
+  const mutableJournal = structuredClone(journal);
+  mutableJournal.append_only = false;
+  assert.ok(verifyAppDataTransportContracts({ contract, receipt, journal: mutableJournal, gate }).some((failure) => failure.includes('journal lifecycle')));
+
+  const promotedGate = structuredClone(gate);
+  promotedGate.app_data_transport.apply_admitted = true;
+  assert.ok(verifyAppDataTransportContracts({ contract, receipt, journal, gate: promotedGate }).some((failure) => failure.includes('migration gate drift')));
 });
 
 test('every copied source file matches its byte count, raw digest, and Git blob identity', () => {

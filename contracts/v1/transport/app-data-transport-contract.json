@@ -1,0 +1,154 @@
+{
+  "version": "1.0.0",
+  "contract_id": "app-data-transport-contract",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED"
+  },
+  "apply_admitted": false,
+  "research_evidence": {
+    "research_denominator_sha256": "ae397c89afaf23231c2911d571d9799fabbb7a21196044f6679763e7515cf087",
+    "design_path_sha256": "f7554683cf3d9add36634afb6e6b543983d9968a600e05cf3ee885cc0a6f53ac"
+  },
+  "scope": {
+    "app_agnostic": true,
+    "app_adapter_count_required": 3,
+    "app_relation_mappings_included": false,
+    "auth_state_included": false,
+    "provider_execution_included": false
+  },
+  "transport_lifecycle": [
+    "S0_COMPLETE_SNAPSHOT",
+    "SOURCE_WRITES_CONTINUE",
+    "S1_COMPLETE_KEY_AND_ROW_DIFF",
+    "EXPLICIT_TOMBSTONES",
+    "AUTHORIZED_WRITE_BARRIER",
+    "S2_FINAL_DIFF",
+    "CAS_APPLY",
+    "PARITY",
+    "OBSERVATION",
+    "SEPARATELY_APPROVED_SOURCE_PAUSE"
+  ],
+  "snapshot_protocol": {
+    "required_snapshots": [
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "complete_primary_key_set_comparison": true,
+    "canonical_row_digest_comparison": true,
+    "accelerators": [
+      "timestamps",
+      "revisions",
+      "high_water_marks"
+    ],
+    "accelerators_replace_complete_comparison": false,
+    "S1_diff_classes": [
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "RESURRECTION"
+    ],
+    "S2_final_diff_required_after_write_barrier": true
+  },
+  "dependency_ordering": {
+    "inserts_and_updates": "PARENT_FIRST",
+    "deletes": "CHILD_FIRST",
+    "foreign_key_cycles": {
+      "declared_staging_plan_required": true,
+      "synthetic_proof_required": true,
+      "implicit_cycle_breaking_forbidden": true
+    }
+  },
+  "mutation_model": {
+    "operations": [
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "RESURRECTION"
+    ],
+    "deletes_require_explicit_tombstones": true,
+    "reappearing_key_requires": [
+      "EXPLICIT_RESURRECTION",
+      "NEW_GENERATION"
+    ],
+    "implicit_resurrection_as_update_forbidden": true,
+    "idempotency_key_components": [
+      "contract_id",
+      "contract_version",
+      "source_anchor",
+      "snapshot_commitment",
+      "relation",
+      "private_key_commitment",
+      "operation",
+      "source_row_digest",
+      "transform_version"
+    ],
+    "matching_applied_mutation": "IDEMPOTENT_REUSE"
+  },
+  "compare_and_swap": {
+    "accepted_expected_target": [
+      "ABSENT",
+      "EXACT_DIGEST"
+    ],
+    "absent_target_allows": "INSERT",
+    "exact_digest_allows": [
+      "UPDATE",
+      "DELETE",
+      "RESURRECTION"
+    ],
+    "unexpected_target_digest": "QUARANTINE",
+    "unexpected_target_overwrite_forbidden": true
+  },
+  "derived_and_external_effects": {
+    "derived_cache_source_transport": [
+      "EXCLUDE",
+      "DETERMINISTIC_REBUILD"
+    ],
+    "derived_cache_rebuild_after_authoritative_parity": true,
+    "external_effects_during_rehearsal_and_rollback": "QUARANTINED"
+  },
+  "journal_and_rollback": {
+    "journal_contract_path": "contracts/v1/transport/app-data-mutation-journal-contract.json",
+    "append_only": true,
+    "complete_reverse_evidence_required": true,
+    "rollback_order": "REVERSE_DEPENDENCY_ORDER",
+    "reverse_catch_up_to_source": "SEPARATE_EXPLICIT_AUTHORITY"
+  },
+  "dependency_gates": [
+    "DATA_API_CONTAINMENT",
+    "ACCEPTED_RECOVERY_AND_QUARANTINED_RESTORE",
+    "FAITHFUL_CONTAINED_REPLAY",
+    "TARGET_BOOTSTRAP",
+    "SHARED_AUTH_IDENTITY_MAPPING",
+    "SERVICE_MEMBERSHIP_READINESS",
+    "THREE_APP_ADAPTERS"
+  ],
+  "public_receipt_policy": {
+    "allowed_classes": [
+      "aggregate_counts",
+      "booleans",
+      "cutoffs",
+      "non_identifying_high_water_marks",
+      "quarantine_classes",
+      "private_commitments",
+      "digests"
+    ],
+    "forbidden_classes": [
+      "raw_rows",
+      "primary_keys",
+      "names",
+      "emails",
+      "usernames",
+      "user_numbers_or_ranges",
+      "uuids_or_ranges",
+      "secrets",
+      "project_refs",
+      "sql",
+      "payloads",
+      "provider_responses",
+      "machine_paths"
+    ]
+  }
+}

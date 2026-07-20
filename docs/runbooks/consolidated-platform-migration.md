@@ -126,6 +126,12 @@ Sequence:
 
 Before any real Auth import, run the separately authorized synthetic-only shared-Auth import and controlled-reauthentication rehearsal. Freeze S0 authoritative evidence, then require S1 complete re-export/diff for additions, changes, and tombstones. Quarantine normalized-email, missing, or contradictory identity evidence; never merge on username, display name, cross-project UUID, or password-hash equality. Exclude source sessions, tokens, cookies, signing material, keys, and provider settings. Stage memberships as pending; activate only when immutable mapping, exact profile parity, a new per-origin target session, `auth.uid()` binding, and recovery/rollback evidence all pass. The rehearsal preview order is account shell, Mazer, Fitness, DiscordOS. It is `EXECUTION_BLOCKED` until a separate target packet admits it.
 
+Application-data transport is governed by `contracts/v1/transport/app-data-transport-contract.json`, its closed public receipt, and the append-only mutation-journal contract. The fixed lifecycle is S0 complete snapshot, source-write continuation, S1 complete key-and-row diff, explicit tombstones, authorized write barrier, S2 final diff, CAS apply, parity, observation, and only then separately approved source pause. S1 and S2 compare complete primary-key sets and canonical row digests; timestamps, revisions, and high-water marks are accelerators only.
+
+For each later product adapter, declare parent-first insert/update order, child-first delete order, and a staging plan plus synthetic proof for every foreign-key cycle. Treat a reappearing tombstoned key as an explicit resurrection or new generation. Compare-and-swap may act only on `ABSENT` or an exact expected digest. Matching committed mutations are reused idempotently; conflicts are quarantined and never overwritten. Keep derived caches excluded or rebuild them only after authoritative parity, and keep all external effects quarantined throughout rehearsal and rollback.
+
+The mutation journal is append-only and must cover every committed mutation, idempotent reuse, and conflict quarantine. Rollback follows reverse dependency and reverse commit order using digest-bound preimage and postimage evidence. Catch-up back into a source is a separate mutation requiring separate authority. Public receipts remain aggregate-only and cannot contain raw rows, identifiers, user-number or UUID ranges, secrets, project references, SQL, payloads, provider responses, or machine paths.
+
 Rollback: stop target writes, restore the pre-migration target anchor, keep source routing unchanged, and preserve evidence. No source pause or deletion is implied.
 
 ## Gate 5: Application cutover
@@ -185,3 +191,5 @@ Rollback is evidence-preserving: keep egress denied, deactivate scheduling first
 - Source pause: `BLOCKED`
 - Source deletion: `BLOCKED`
 - Executable migration SQL: `NOT_APPLICABLE` to this packet
+- Generic application-data contract: `SOURCE_READY`
+- Application-data execution and all three product adapters: `BLOCKED`

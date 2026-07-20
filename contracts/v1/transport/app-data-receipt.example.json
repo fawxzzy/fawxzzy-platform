@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "contract_id": "app-data-transport-contract",
+  "status": "BLOCKED",
+  "execution_lifecycle": "EXECUTION_BLOCKED",
+  "apply_admitted": false,
+  "synthetic_fixture": true,
+  "source_anchor_commitment": "5a7ce807c497c1589b60f75c9ae1d408ac4df91026838e03ee614f8b1e513846",
+  "snapshot_commitments": {
+    "S0": "96034f01641adfb5bdbf03e0e482fe6bf69ef2c3255c0d01b22510700a26e258",
+    "S1": "85643cda63873a0a4725e6d57e9c46e5b3334bb61ec230e736efd6850fd0d626",
+    "S2": "1c763d13808c061241a44ef9ce43d4841fd2de97ed5a377798b13e0df9b8a3d5"
+  },
+  "snapshot_completeness": {
+    "S0_complete": true,
+    "S1_complete_key_and_row_diff": true,
+    "S2_complete_key_and_row_diff": true,
+    "explicit_tombstones_complete": true
+  },
+  "mutation_counts": {
+    "insert": 1,
+    "update": 1,
+    "delete": 1,
+    "resurrection": 1,
+    "idempotent_reuse": 1,
+    "quarantined": 1
+  },
+  "cas_counts": {
+    "expected_absent": 1,
+    "exact_digest_match": 4,
+    "conflict_quarantine": 1,
+    "unexpected_overwrite": 0
+  },
+  "ordering_proof": {
+    "parent_first_insert_update": true,
+    "child_first_delete": true,
+    "declared_cycle_staging_complete": true,
+    "synthetic_cycle_proof_passed": true
+  },
+  "cache_and_effects": {
+    "derived_cache_action": "DETERMINISTIC_REBUILD_AFTER_PARITY",
+    "external_effects_quarantined": true
+  },
+  "journal_and_rollback": {
+    "append_only": true,
+    "complete": true,
+    "reverse_dependency_order_proven": true,
+    "journal_digest": "98668e05e6cce8049186b77947f307a73495cb7f98ff7c2a17dee47358ca0897"
+  },
+  "parity_and_observation": {
+    "authoritative_parity": true,
+    "parity_digest": "615ce78a165a2f9e3dc255c62dc6c8152477a51a83f91d9ab98f4b1bb3aafcd6",
+    "observation_complete": true,
+    "observation_digest": "939b3047ce56e07c8d4e2995a00da00e301035a9cc73fa8e1413a2df70d16564"
+  },
+  "quarantine_classes": [
+    "CAS_CONFLICT"
+  ],
+  "source_pause_authorized": false
+}

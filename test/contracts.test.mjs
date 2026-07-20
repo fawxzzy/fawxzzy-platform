@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   createValidator,
   loadDocuments,
+  validateAppDataReceiptSanitization,
   validateContracts,
   validateSchemaInstances,
   validateSemantics
@@ -568,4 +569,104 @@ test('manual decision bindings separate verified identity from legacy numbering'
   identityDrift['contracts/v1/identity/identity-map.json'].username_contract.identity_matching.decision_id = 'FP-MAN-009';
   assert.ok(validateSchemaInstances(identityDrift, createValidator()).some((failure) => failure.includes('identity-map.json')));
   assert.ok(validateSemantics(identityDrift).some((failure) => failure.includes('verified identity matching must remain bound to FP-MAN-007')));
+});
+
+test('app data transport contracts are closed, source-ready, and execution-blocked', () => {
+  const documents = loadDocuments();
+  assert.deepEqual(validateSchemaInstances(documents, createValidator()), []);
+  assert.deepEqual(validateSemantics(documents), []);
+
+  const unknown = structuredClone(documents);
+  unknown['contracts/v1/transport/app-data-transport-contract.json'].undeclared_adapter = {};
+  assert.ok(validateSchemaInstances(unknown, createValidator()).some((failure) => failure.includes('app-data-transport-contract.json')));
+
+  const malformed = structuredClone(documents);
+  malformed['contracts/v1/transport/app-data-receipt.example.json'].cache_and_effects.derived_cache_action = 'REBUILD_NOW';
+  assert.ok(validateSchemaInstances(malformed, createValidator()).some((failure) => failure.includes('app-data-receipt.example.json')));
+});
+
+test('app data transport enforces complete S0/S1/S2 comparisons and explicit mutation classes', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(contract) => { contract.snapshot_protocol.required_snapshots = ['S0', 'S1']; }, 'snapshot denominator'],
+    [(contract) => { contract.snapshot_protocol.complete_primary_key_set_comparison = false; }, 'snapshot denominator'],
+    [(contract) => { contract.snapshot_protocol.canonical_row_digest_comparison = false; }, 'snapshot denominator'],
+    [(contract) => { contract.snapshot_protocol.accelerators_replace_complete_comparison = true; }, 'snapshot denominator'],
+    [(contract) => { contract.snapshot_protocol.S2_final_diff_required_after_write_barrier = false; }, 'snapshot denominator'],
+    [(contract) => { contract.snapshot_protocol.S1_diff_classes = ['INSERT', 'UPDATE', 'DELETE']; }, 'diff classes'],
+    [(contract) => { contract.mutation_model.deletes_require_explicit_tombstones = false; }, 'tombstone'],
+    [(contract) => { contract.mutation_model.reappearing_key_requires = ['EXPLICIT_RESURRECTION']; }, 'tombstone'],
+    [(contract) => { contract.mutation_model.matching_applied_mutation = 'OVERWRITE'; }, 'idempotency-key']
+  ];
+  for (const [mutate, message] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/transport/app-data-transport-contract.json']);
+    assert.ok(validateSchemaInstances(documents, createValidator()).length > 0);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(message)));
+  }
+});
+
+test('app data transport rejects idempotency, CAS, dependency, cache, and journal weakening', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].mutation_model.idempotency_key_components.reverse(); }, 'idempotency-key'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].compare_and_swap.accepted_expected_target = ['EXACT_DIGEST']; }, 'CAS conflict'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].compare_and_swap.unexpected_target_overwrite_forbidden = false; }, 'CAS conflict'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].dependency_ordering.inserts_and_updates = 'CHILD_FIRST'; }, 'dependency and cycle'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].dependency_ordering.foreign_key_cycles.synthetic_proof_required = false; }, 'dependency and cycle'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].derived_and_external_effects.derived_cache_rebuild_after_authoritative_parity = false; }, 'cache or external-effect'],
+    [(documents) => { documents['contracts/v1/transport/app-data-transport-contract.json'].derived_and_external_effects.external_effects_during_rehearsal_and_rollback = 'CURRENT'; }, 'cache or external-effect'],
+    [(documents) => { documents['contracts/v1/transport/app-data-mutation-journal-contract.json'].append_only = false; }, 'mutation journal'],
+    [(documents) => { documents['contracts/v1/transport/app-data-mutation-journal-contract.json'].completeness.every_conflict_quarantine_recorded = false; }, 'journal completeness'],
+    [(documents) => { documents['contracts/v1/transport/app-data-mutation-journal-contract.json'].rollback.reverse_dependency_order = false; }, 'rollback evidence']
+  ];
+  for (const [mutate, message] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    assert.ok(validateSchemaInstances(documents, createValidator()).length > 0);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(message)));
+  }
+});
+
+test('app data public receipt redaction rejects every prohibited field and raw-value class', () => {
+  const receipt = loadDocuments()['contracts/v1/transport/app-data-receipt.example.json'];
+  assert.deepEqual(validateAppDataReceiptSanitization(receipt), []);
+  for (const key of [
+    'raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers', 'uuid_ranges',
+    'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'
+  ]) {
+    const leaked = structuredClone(receipt);
+    leaked[key] = 'redacted-fixture';
+    assert.notEqual(validateAppDataReceiptSanitization(leaked).length, 0, key);
+  }
+  const syntheticMachinePath = ['C:', 'Users', 'operator', 'receipt.json'].join('\\');
+  for (const value of [
+    'person@example.invalid',
+    '018f8f64-47a2-7a31-8d4c-5501de0d0880',
+    'bxtcuhkotumitoqtrcej',
+    syntheticMachinePath,
+    'select private_value from protected_relation'
+  ]) {
+    const leaked = structuredClone(receipt);
+    leaked.quarantine_classes = [value];
+    assert.notEqual(validateAppDataReceiptSanitization(leaked).length, 0, value);
+  }
+});
+
+test('app data migration gate cannot promote execution or package application', () => {
+  const baseline = loadDocuments();
+  const mutations = [
+    (gate) => { gate.execution_lifecycle = 'CURRENT'; },
+    (gate) => { gate.apply_admitted = true; },
+    (gate) => { gate.dependency_status = 'CURRENT'; },
+    (gate) => { gate.contract_path = 'contracts/v1/auth/import-rehearsal-contract.json'; }
+  ];
+  for (const mutate of mutations) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/gates/migration-gate-state.json'].app_data_transport);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('migration-gate-state.json')));
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes('app data migration gate')));
+  }
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_count, 122);
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
 });

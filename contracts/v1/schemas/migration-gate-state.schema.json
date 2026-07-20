@@ -12,7 +12,8 @@
     "operation_gates",
     "required_evidence",
     "provider_canonical_provenance",
-    "shared_auth_import_reauth_rehearsal"
+    "shared_auth_import_reauth_rehearsal",
+    "app_data_transport"
   ],
   "properties": {
     "version": {
@@ -57,6 +58,54 @@
         "research_denominator_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "app_data_transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source_contract_lifecycle",
+        "execution_lifecycle",
+        "apply_admitted",
+        "contract_path",
+        "receipt_path",
+        "mutation_journal_contract_path",
+        "research_denominator_sha256",
+        "design_path_sha256",
+        "dependency_status"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "source_contract_lifecycle": {
+          "const": "SOURCE_READY"
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "contract_path": {
+          "const": "contracts/v1/transport/app-data-transport-contract.json"
+        },
+        "receipt_path": {
+          "const": "contracts/v1/transport/app-data-receipt.example.json"
+        },
+        "mutation_journal_contract_path": {
+          "const": "contracts/v1/transport/app-data-mutation-journal-contract.json"
+        },
+        "research_denominator_sha256": {
+          "const": "ae397c89afaf23231c2911d571d9799fabbb7a21196044f6679763e7515cf087"
+        },
+        "design_path_sha256": {
+          "const": "f7554683cf3d9add36634afb6e6b543983d9968a600e05cf3ee885cc0a6f53ac"
+        },
+        "dependency_status": {
+          "const": "BLOCKED"
         }
       }
     },
