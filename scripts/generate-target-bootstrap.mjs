@@ -287,6 +287,151 @@ function validatePathChain(repository, targetPath, finalType, label) {
   }
 }
 
+function bigintPathState(absolutePath) {
+  const stats = fs.lstatSync(absolutePath, { bigint: true });
+  return Object.freeze({
+    device: String(stats.dev),
+    inode: String(stats.ino),
+    mode: String(stats.mode),
+    links: String(stats.nlink),
+    size: String(stats.size),
+    modified_ns: String(stats.mtimeNs),
+    changed_ns: String(stats.ctimeNs),
+    type: stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : stats.isSymbolicLink() ? 'link' : 'unsupported'
+  });
+}
+
+function descriptorState(descriptor) {
+  const stats = fs.fstatSync(descriptor, { bigint: true });
+  return Object.freeze({
+    device: String(stats.dev),
+    inode: String(stats.ino),
+    mode: String(stats.mode),
+    links: String(stats.nlink),
+    size: String(stats.size),
+    modified_ns: String(stats.mtimeNs),
+    changed_ns: String(stats.ctimeNs),
+    type: stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : 'unsupported'
+  });
+}
+
+function requireSameFilesystemState(expected, actual, label) {
+  if (canonicalJson(expected) !== canonicalJson(actual)) {
+    throw new Error(`${label} changed during immutable source validation`);
+  }
+}
+
+function requireImmutableSourcePhysicalPath(repository, sourceRoot, absolutePath, expectedType, label) {
+  validatePathChain(repository, absolutePath, expectedType, label);
+  const state = bigintPathState(absolutePath);
+  if (state.type === 'link') throw new Error(`${label} is link-like`);
+  if (state.type !== expectedType) throw new Error(`${label} is not a regular ${expectedType}`);
+  if (expectedType === 'file' && state.links !== '1') throw new Error(`${label} has an unexpected link count`);
+  if (expectedType === 'directory' && BigInt(state.links) < 1n) throw new Error(`${label} has an unexpected link count`);
+
+  const physical = realpath(absolutePath);
+  const expectedPhysical = path.resolve(repository.physical, path.relative(repository.lexical, absolutePath));
+  if (!isPathWithin(sourceRoot.physical, physical)
+    || !isPathWithin(repository.physical, physical)
+    || !isSamePath(physical, expectedPhysical)) {
+    throw new Error(`${label} has a physical containment mismatch`);
+  }
+  return Object.freeze({ state, physical });
+}
+
+function readImmutableSourceFile(repository, sourceRoot, absolutePath, label) {
+  const admitted = requireImmutableSourcePhysicalPath(repository, sourceRoot, absolutePath, 'file', label);
+  const noFollow = Number.isInteger(fs.constants.O_NOFOLLOW) ? fs.constants.O_NOFOLLOW : 0;
+  const descriptor = fs.openSync(absolutePath, fs.constants.O_RDONLY | noFollow);
+  try {
+    const opened = descriptorState(descriptor);
+    requireSameFilesystemState(admitted.state, opened, `${label} opened descriptor`);
+    if (opened.type !== 'file' || opened.links !== '1') throw new Error(`${label} opened an unsafe file identity`);
+    const bytes = fs.readFileSync(descriptor);
+    requireSameFilesystemState(opened, descriptorState(descriptor), `${label} opened descriptor`);
+    requireSameFilesystemState(admitted.state, bigintPathState(absolutePath), `${label} path identity`);
+    const physical = realpath(absolutePath);
+    if (!isSamePath(physical, admitted.physical)) throw new Error(`${label} physical identity changed during validation`);
+    return bytes;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+export function validateImmutableSourceTree(repositoryRoot = root) {
+  const repository = validateRepositoryRoot(repositoryRoot);
+  const sourceRootPath = path.resolve(repository.lexical, 'bootstrap', 'sources');
+  const sourceRootStats = lstatIfPresent(sourceRootPath);
+  if (!sourceRootStats) {
+    return Object.freeze({ root_present: false, entries: Object.freeze([]), files: Object.freeze([]) });
+  }
+  validatePathChain(repository, sourceRootPath, 'directory', 'immutable source root');
+  const sourceRoot = Object.freeze({ lexical: sourceRootPath, physical: realpath(sourceRootPath) });
+  const entries = [];
+  const files = [];
+
+  function visitDirectory(directory) {
+    const relativeDirectory = path.relative(sourceRoot.lexical, directory).split(path.sep).join('/');
+    const label = relativeDirectory ? `immutable source directory ${relativeDirectory}` : 'immutable source root';
+    const admitted = requireImmutableSourcePhysicalPath(repository, sourceRoot, directory, 'directory', label);
+    entries.push(Object.freeze({ path: relativeDirectory || '.', type: 'directory', ...admitted.state }));
+    const children = fs.readdirSync(directory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const child of children) {
+      const absolutePath = path.join(directory, child.name);
+      const relativePath = path.relative(sourceRoot.lexical, absolutePath).split(path.sep).join('/');
+      const childState = bigintPathState(absolutePath);
+      if (child.isSymbolicLink() || childState.type === 'link') {
+        throw new Error(`immutable source entry ${relativePath} is link-like`);
+      }
+      if (childState.type === 'directory') {
+        visitDirectory(absolutePath);
+        continue;
+      }
+      if (childState.type !== 'file') {
+        throw new Error(`immutable source entry ${relativePath} has an unsupported filesystem type`);
+      }
+      const bytes = readImmutableSourceFile(repository, sourceRoot, absolutePath, `immutable source file ${relativePath}`);
+      const finalState = bigintPathState(absolutePath);
+      entries.push(Object.freeze({ path: relativePath, type: 'file', ...finalState }));
+      files.push(Object.freeze({
+        copied_path: `bootstrap/sources/${relativePath}`,
+        byte_count: bytes.length,
+        raw_sha256: sha256(bytes)
+      }));
+    }
+    requireSameFilesystemState(admitted.state, bigintPathState(directory), `${label} identity`);
+    if (!isSamePath(realpath(directory), admitted.physical)) {
+      throw new Error(`${label} physical identity changed during validation`);
+    }
+  }
+
+  visitDirectory(sourceRoot.lexical);
+  return Object.freeze({ root_present: true, entries: Object.freeze(entries), files: Object.freeze(files) });
+}
+
+function requireExpectedImmutableSources(manifests, sourceTree) {
+  const sourceManifest = manifests.get('source-migrations.v1.json');
+  if (!sourceTree.root_present) {
+    if (Array.isArray(sourceManifest?.migrations) && sourceManifest.migrations.length > 0) {
+      throw new Error('immutable source root is missing for the accepted source migration manifest');
+    }
+    return;
+  }
+  if (!sourceManifest || !Array.isArray(sourceManifest.migrations)) {
+    throw new Error('immutable source discovery requires a closed source migration manifest');
+  }
+  const expected = sourceManifest.migrations.map((migration) => ({
+    copied_path: migration.copied_path,
+    byte_count: migration.byte_count,
+    raw_sha256: migration.raw_sha256
+  })).sort((left, right) => left.copied_path.localeCompare(right.copied_path));
+  const actual = [...sourceTree.files].sort((left, right) => left.copied_path.localeCompare(right.copied_path));
+  if (canonicalJson(expected) !== canonicalJson(actual)) {
+    throw new Error('immutable source files do not match the generated source migration manifest');
+  }
+}
+
 export function validateGeneratedInertArtifactLayout(repositoryRoot = root, options = {}) {
   const repository = validateRepositoryRoot(repositoryRoot);
   const output = path.resolve(repository.lexical, ...generatedInertArtifactContractV1.directory.split('/'));
@@ -299,6 +444,7 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
   validatePathChain(repository, sourceInputs, 'directory', 'immutable source discovery');
   validatePathChain(repository, generatorConfig, 'file', 'generator configuration input');
   validatePathChain(repository, securityMatrix, 'file', 'security matrix input');
+  const sourceTree = validateImmutableSourceTree(repositoryRoot);
   validatePathChain(repository, manifests, 'directory', 'generated manifest directory');
   for (const filename of generatedManifestContractV1.filenames) {
     validatePathChain(repository, path.join(manifests, filename), 'file', `generated manifest ${filename}`);
@@ -322,6 +468,10 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
   const plannedPathEntries = [
     { target: standardMigrations, label: 'standard Supabase migration discovery' },
     { target: sourceInputs, label: 'immutable source discovery' },
+    ...sourceTree.entries.filter((entry) => entry.path !== '.').map((entry) => ({
+      target: path.resolve(sourceInputs, ...entry.path.split('/')),
+      label: `immutable source ${entry.type} ${entry.path}`
+    })),
     { target: generatorConfig, label: 'generator configuration input' },
     { target: securityMatrix, label: 'security matrix input' },
     { target: manifests, label: 'generated manifest directory' },
@@ -344,6 +494,7 @@ export function validateGeneratedInertArtifactLayout(repositoryRoot = root, opti
     sourceInputs,
     generatorConfig,
     securityMatrix,
+    sourceTree,
     identityModel,
     linuxMount
   };
@@ -1014,16 +1165,27 @@ function relativeSourcePath(app, filename) {
 }
 
 function readSourceRecords(config) {
+  const repository = validateRepositoryRoot(root);
+  const sourceRoot = Object.freeze({
+    lexical: path.join(repository.lexical, 'bootstrap', 'sources'),
+    physical: realpath(path.join(repository.lexical, 'bootstrap', 'sources'))
+  });
   const records = [];
   for (const source of config.sources) {
     const directory = path.join(root, 'bootstrap', 'sources', source.app, 'supabase', 'migrations');
-    const filenames = fs.readdirSync(directory).filter((name) => name.endsWith('.sql')).sort();
+    requireImmutableSourcePhysicalPath(repository, sourceRoot, directory, 'directory', `${source.app} migration directory`);
+    const filenames = fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
+      if (entry.isSymbolicLink()) throw new Error(`${source.app}: migration entry ${entry.name} is link-like`);
+      if (!entry.isFile()) throw new Error(`${source.app}: migration entry ${entry.name} is not a regular file`);
+      if (!entry.name.endsWith('.sql')) throw new Error(`${source.app}: migration entry ${entry.name} is not an SQL migration`);
+      return entry.name;
+    }).sort();
     if (filenames.length !== source.migration_count) {
       throw new Error(`${source.app}: expected ${source.migration_count} migrations, found ${filenames.length}`);
     }
     filenames.forEach((filename, index) => {
       const absolutePath = path.join(directory, filename);
-      const bytes = fs.readFileSync(absolutePath);
+      const bytes = readImmutableSourceFile(repository, sourceRoot, absolutePath, `${source.app} migration ${filename}`);
       const text = bytes.toString('utf8');
       if (Buffer.from(text, 'utf8').compare(bytes) !== 0) throw new Error(`${filename}: invalid UTF-8`);
       records.push({
@@ -1563,6 +1725,7 @@ function validateCompletePublicationDiscovery(manifests, inertSql, repositoryRoo
   requireExactFilenameDenominator(manifests, generatedManifestContractV1, 'generated manifest');
   requireExactFilenameDenominator(inertSql, generatedInertArtifactContractV1, 'generated inert artifact');
   const layout = validateGeneratedInertArtifactLayout(repositoryRoot, options);
+  requireExpectedImmutableSources(manifests, layout.sourceTree);
   validateClosedGeneratedDirectory(layout.manifests, generatedManifestContractV1.filenames, 'generated manifest directory');
   validateClosedGeneratedDirectory(layout.output, generatedInertArtifactContractV1.filenames, 'generated inert artifact directory');
   const executableSql = listSqlFiles(layout.standardMigrations);
