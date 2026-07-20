@@ -18,6 +18,7 @@ import {
   splitSqlStatements,
   verifyFitnessFunctionSearchPaths
 } from './generate-target-bootstrap.mjs';
+import { createValidator, validateAppDataReceiptSanitization } from './lib/contracts.mjs';
 import { listWorkingTreeFiles } from './lib/repository.mjs';
 
 const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
@@ -507,6 +508,46 @@ export function verifySharedAuthImportRehearsal({ contract, gate }) {
   fail(failures, canonicalJson(contract?.snapshot_and_idempotency?.idempotency_key) === canonicalJson(['source_project', 'relation', 'source_key_digest', 'row_digest', 'transform_version']), 'shared Auth import idempotency key binding drift');
   fail(failures, contract?.totp?.portability === 'UNKNOWN' && contract?.totp?.default === 'REENROLL', 'shared Auth import TOTP portability must remain unknown with reenrollment default');
   fail(failures, importGate.status === 'CURRENT' && importGate.source_contract_lifecycle === 'SOURCE_READY' && importGate.execution_lifecycle === 'EXECUTION_BLOCKED' && importGate.apply_admitted === false, 'shared Auth import gate drift');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function verifyAppDataTransportContracts({ contract, receipt, journal, gate }) {
+  const failures = [];
+  const receiptValidator = createValidator().getSchema('urn:fawxzzy:platform:schemas:v1:app-data-receipt');
+  if (!receiptValidator(receipt)) {
+    failures.push(...(receiptValidator.errors ?? []).map((error) =>
+      `app data receipt schema ${error.instancePath || '$'}: ${error.keyword}`));
+  }
+  failures.push(...validateAppDataReceiptSanitization(receipt).map((failure) =>
+    `app data receipt sanitization: ${failure}`));
+  const transportGate = gate?.app_data_transport ?? {};
+  const expectedLifecycle = [
+    'S0_COMPLETE_SNAPSHOT',
+    'SOURCE_WRITES_CONTINUE',
+    'S1_COMPLETE_KEY_AND_ROW_DIFF',
+    'EXPLICIT_TOMBSTONES',
+    'AUTHORIZED_WRITE_BARRIER',
+    'S2_FINAL_DIFF',
+    'CAS_APPLY',
+    'PARITY',
+    'OBSERVATION',
+    'SEPARATELY_APPROVED_SOURCE_PAUSE'
+  ];
+  fail(failures, contract?.status === 'CURRENT' && contract?.lifecycle?.source_contract === 'SOURCE_READY' && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED' && contract?.apply_admitted === false, 'app data transport must remain source-ready, execution-blocked, and non-executable');
+  fail(failures, contract?.research_evidence?.research_denominator_sha256 === 'ae397c89afaf23231c2911d571d9799fabbb7a21196044f6679763e7515cf087' && contract?.research_evidence?.design_path_sha256 === 'f7554683cf3d9add36634afb6e6b543983d9968a600e05cf3ee885cc0a6f53ac', 'app data transport research binding drift');
+  fail(failures, canonicalJson(contract?.transport_lifecycle) === canonicalJson(expectedLifecycle), 'app data transport lifecycle order drift');
+  fail(failures, contract?.snapshot_protocol?.complete_primary_key_set_comparison === true && contract?.snapshot_protocol?.canonical_row_digest_comparison === true && contract?.snapshot_protocol?.accelerators_replace_complete_comparison === false && contract?.snapshot_protocol?.S2_final_diff_required_after_write_barrier === true, 'app data transport complete snapshot proof drift');
+  fail(failures, contract?.mutation_model?.deletes_require_explicit_tombstones === true && contract?.mutation_model?.implicit_resurrection_as_update_forbidden === true && contract?.mutation_model?.matching_applied_mutation === 'IDEMPOTENT_REUSE', 'app data transport tombstone or idempotent-reuse semantics drift');
+  fail(failures, canonicalJson(contract?.compare_and_swap?.accepted_expected_target) === canonicalJson(['ABSENT', 'EXACT_DIGEST']) && contract?.compare_and_swap?.unexpected_target_digest === 'QUARANTINE' && contract?.compare_and_swap?.unexpected_target_overwrite_forbidden === true, 'app data transport CAS boundary drift');
+  fail(failures, contract?.dependency_ordering?.inserts_and_updates === 'PARENT_FIRST' && contract?.dependency_ordering?.deletes === 'CHILD_FIRST' && contract?.dependency_ordering?.foreign_key_cycles?.declared_staging_plan_required === true && contract?.dependency_ordering?.foreign_key_cycles?.synthetic_proof_required === true, 'app data transport dependency ordering drift');
+  fail(failures, contract?.derived_and_external_effects?.derived_cache_rebuild_after_authoritative_parity === true && contract?.derived_and_external_effects?.external_effects_during_rehearsal_and_rollback === 'QUARANTINED', 'app data transport cache or external-effect boundary drift');
+  fail(failures, journal?.status === 'CURRENT' && journal?.lifecycle?.source_contract === 'SOURCE_READY' && journal?.lifecycle?.execution === 'EXECUTION_BLOCKED' && journal?.apply_admitted === false && journal?.append_only === true, 'app data mutation journal lifecycle drift');
+  fail(failures, journal?.completeness?.every_committed_mutation_recorded === true && journal?.completeness?.every_idempotent_reuse_recorded === true && journal?.completeness?.every_conflict_quarantine_recorded === true && journal?.rollback?.reverse_dependency_order === true && journal?.rollback?.reverse_catch_up_to_source === 'SEPARATE_EXPLICIT_AUTHORITY', 'app data mutation journal completeness or rollback drift');
+  fail(failures, receipt?.status === 'BLOCKED' && receipt?.execution_lifecycle === 'EXECUTION_BLOCKED' && receipt?.apply_admitted === false && receipt?.synthetic_fixture === true && receipt?.source_pause_authorized === false, 'app data receipt must remain synthetic, blocked, and non-executable');
+  fail(failures, receipt?.snapshot_completeness?.S0_complete === true && receipt?.snapshot_completeness?.S1_complete_key_and_row_diff === true && receipt?.snapshot_completeness?.S2_complete_key_and_row_diff === true && receipt?.snapshot_completeness?.explicit_tombstones_complete === true, 'app data receipt snapshot completeness drift');
+  fail(failures, receipt?.cas_counts?.unexpected_overwrite === 0 && receipt?.cas_counts?.conflict_quarantine > 0, 'app data receipt CAS conflict proof drift');
+  fail(failures, transportGate.status === 'CURRENT' && transportGate.source_contract_lifecycle === 'SOURCE_READY' && transportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && transportGate.apply_admitted === false && transportGate.dependency_status === 'BLOCKED', 'app data transport migration gate drift');
+  fail(failures, transportGate.contract_path === 'contracts/v1/transport/app-data-transport-contract.json' && transportGate.receipt_path === 'contracts/v1/transport/app-data-receipt.example.json' && transportGate.mutation_journal_contract_path === 'contracts/v1/transport/app-data-mutation-journal-contract.json', 'app data transport path binding drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -1207,6 +1248,9 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const sourceManifest = readJson('bootstrap/manifests/source-migrations.v1.json');
   const migrationGate = readJson('contracts/v1/gates/migration-gate-state.json');
   const importRehearsal = readJson('contracts/v1/auth/import-rehearsal-contract.json');
+  const appDataTransport = readJson('contracts/v1/transport/app-data-transport-contract.json');
+  const appDataReceipt = readJson('contracts/v1/transport/app-data-receipt.example.json');
+  const appDataJournal = readJson('contracts/v1/transport/app-data-mutation-journal-contract.json');
   const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
   const objects = readJson('bootstrap/manifests/source-objects.v1.json');
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
@@ -1216,6 +1260,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   verifySourceManifest(config, sourceManifest, failures);
   failures.push(...verifyProviderCanonicalProvenance({ gate: migrationGate, sourceManifest, deterministicPackageSha256: digestPackageOutputs().digest }));
   failures.push(...verifySharedAuthImportRehearsal({ contract: importRehearsal, gate: migrationGate }));
+  failures.push(...verifyAppDataTransportContracts({ contract: appDataTransport, receipt: appDataReceipt, journal: appDataJournal, gate: migrationGate }));
   failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1245,6 +1290,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'fitness_pr108_replay_provenance_gate',
       'provider_canonical_historical_provenance_gate',
       'shared_auth_import_reauth_rehearsal_gate',
+      'app_data_transport_contract_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',

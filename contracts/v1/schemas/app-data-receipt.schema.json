@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:app-data-receipt",
+  "title": "Sanitized application data transport receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "execution_lifecycle",
+    "apply_admitted",
+    "synthetic_fixture",
+    "source_anchor_commitment",
+    "snapshot_commitments",
+    "snapshot_completeness",
+    "mutation_counts",
+    "cas_counts",
+    "ordering_proof",
+    "cache_and_effects",
+    "journal_and_rollback",
+    "parity_and_observation",
+    "quarantine_classes",
+    "source_pause_authorized"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "app-data-transport-contract"
+    },
+    "status": {
+      "const": "BLOCKED"
+    },
+    "execution_lifecycle": {
+      "const": "EXECUTION_BLOCKED"
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "synthetic_fixture": {
+      "const": true
+    },
+    "source_anchor_commitment": {
+      "$ref": "#/$defs/sha256"
+    },
+    "snapshot_commitments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "S0",
+        "S1",
+        "S2"
+      ],
+      "properties": {
+        "S0": {
+          "$ref": "#/$defs/sha256"
+        },
+        "S1": {
+          "$ref": "#/$defs/sha256"
+        },
+        "S2": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "snapshot_completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "S0_complete",
+        "S1_complete_key_and_row_diff",
+        "S2_complete_key_and_row_diff",
+        "explicit_tombstones_complete"
+      ],
+      "properties": {
+        "S0_complete": {
+          "const": true
+        },
+        "S1_complete_key_and_row_diff": {
+          "const": true
+        },
+        "S2_complete_key_and_row_diff": {
+          "const": true
+        },
+        "explicit_tombstones_complete": {
+          "const": true
+        }
+      }
+    },
+    "mutation_counts": {
+      "$ref": "#/$defs/nonnegative_operation_counts"
+    },
+    "cas_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_absent",
+        "exact_digest_match",
+        "conflict_quarantine",
+        "unexpected_overwrite"
+      ],
+      "properties": {
+        "expected_absent": {
+          "$ref": "#/$defs/count"
+        },
+        "exact_digest_match": {
+          "$ref": "#/$defs/count"
+        },
+        "conflict_quarantine": {
+          "$ref": "#/$defs/count"
+        },
+        "unexpected_overwrite": {
+          "const": 0
+        }
+      }
+    },
+    "ordering_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_first_insert_update",
+        "child_first_delete",
+        "declared_cycle_staging_complete",
+        "synthetic_cycle_proof_passed"
+      ],
+      "properties": {
+        "parent_first_insert_update": {
+          "const": true
+        },
+        "child_first_delete": {
+          "const": true
+        },
+        "declared_cycle_staging_complete": {
+          "const": true
+        },
+        "synthetic_cycle_proof_passed": {
+          "const": true
+        }
+      }
+    },
+    "cache_and_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derived_cache_action",
+        "external_effects_quarantined"
+      ],
+      "properties": {
+        "derived_cache_action": {
+          "enum": [
+            "EXCLUDED",
+            "DETERMINISTIC_REBUILD_AFTER_PARITY"
+          ]
+        },
+        "external_effects_quarantined": {
+          "const": true
+        }
+      }
+    },
+    "journal_and_rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "append_only",
+        "complete",
+        "reverse_dependency_order_proven",
+        "journal_digest"
+      ],
+      "properties": {
+        "append_only": {
+          "const": true
+        },
+        "complete": {
+          "const": true
+        },
+        "reverse_dependency_order_proven": {
+          "const": true
+        },
+        "journal_digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "parity_and_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_parity",
+        "parity_digest",
+        "observation_complete",
+        "observation_digest"
+      ],
+      "properties": {
+        "authoritative_parity": {
+          "const": true
+        },
+        "parity_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observation_complete": {
+          "const": true
+        },
+        "observation_digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "quarantine_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CAS_CONFLICT",
+          "MISSING_TOMBSTONE",
+          "DEPENDENCY_ORDER",
+          "FK_CYCLE_PROOF",
+          "PARITY_MISMATCH",
+          "EXTERNAL_EFFECT",
+          "JOURNAL_GAP"
+        ]
+      }
+    },
+    "source_pause_authorized": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nonnegative_operation_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "insert",
+        "update",
+        "delete",
+        "resurrection",
+        "idempotent_reuse",
+        "quarantined"
+      ],
+      "properties": {
+        "insert": {
+          "$ref": "#/$defs/count"
+        },
+        "update": {
+          "$ref": "#/$defs/count"
+        },
+        "delete": {
+          "$ref": "#/$defs/count"
+        },
+        "resurrection": {
+          "$ref": "#/$defs/count"
+        },
+        "idempotent_reuse": {
+          "$ref": "#/$defs/count"
+        },
+        "quarantined": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    }
+  }
+}

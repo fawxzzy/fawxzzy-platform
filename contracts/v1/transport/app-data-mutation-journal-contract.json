@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "contract_id": "app-data-mutation-journal-contract",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED"
+  },
+  "apply_admitted": false,
+  "append_only": true,
+  "entry_contract": {
+    "required_fields": [
+      "journal_sequence",
+      "idempotency_key_digest",
+      "relation_commitment",
+      "private_key_commitment",
+      "operation",
+      "dependency_rank",
+      "expected_target_state",
+      "expected_target_digest",
+      "source_row_digest",
+      "previous_target_digest",
+      "committed_target_digest",
+      "transform_version_digest",
+      "mutation_committed",
+      "rollback_commitment"
+    ],
+    "operations": [
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "RESURRECTION"
+    ],
+    "expected_target_states": [
+      "ABSENT",
+      "EXACT_DIGEST"
+    ],
+    "raw_values_allowed": false,
+    "entries_mutable": false,
+    "entries_deletable": false
+  },
+  "completeness": {
+    "every_committed_mutation_recorded": true,
+    "every_idempotent_reuse_recorded": true,
+    "every_conflict_quarantine_recorded": true,
+    "sequence_contiguous": true,
+    "digest_chain_required": true
+  },
+  "rollback": {
+    "reverse_dependency_order": true,
+    "reverse_commit_sequence": true,
+    "preimage_digest_required": true,
+    "post_rollback_digest_required": true,
+    "partial_rollback_quarantined": true,
+    "reverse_catch_up_to_source": "SEPARATE_EXPLICIT_AUTHORITY"
+  },
+  "receipt_boundary": {
+    "public_summary_only": true,
+    "raw_rows_or_identifiers_allowed": false,
+    "private_commitments_and_digests_only": true
+  }
+}

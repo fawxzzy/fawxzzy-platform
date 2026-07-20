@@ -21,6 +21,8 @@ Fitness PR #108 is dependency evidence only. Its candidate head is not an execut
 
 DiscordOS and Mazer current default-branch migration discovery is not a package-refresh input. The migration gate carries a closed provider-ledger canonical provenance map for their 21 accepted historical units. Verification binds every map entry to the committed path, commit, blob, raw digest, byte count, ledger identity, and effect-class denominator. Any current-source substitution, ambiguous rename, historical path rewrite, missing mapping, package digest drift, or `apply_admitted=true` claim fails closed.
 
+The generic application-data transport contract is also source-ready but execution-blocked. It adds no migration input, generated manifest, inert SQL, provider command, or product relation map. The verifier requires the fixed S0/S1/S2 lifecycle, complete key-and-row comparisons, explicit tombstones, CAS conflict quarantine, dependency-safe ordering, append-only rollback evidence, aggregate-only receipts, and blocked application state. Data API containment, recovery and quarantined restore, faithful contained replay, bootstrap, shared identity mapping, service membership, and the three product adapters remain independent prerequisites.
+
 ## Generate and verify
 
 From the repository root:
@@ -113,9 +115,10 @@ Raw historical migrations may contain effects or legacy grants because they are 
 4. Confirm the generated function ACL closure covers exactly six signatures: five Fitness identities across eleven definition statements and the DiscordOS `set_updated_at()` trigger helper. No application-role regrant is admitted.
 5. Confirm the 36 default-ACL entries close as 12 executable, 6 signature-specific assertions, and 18 provider-role holds; confirm all six owner/CREATE/current-user invariants precede governed object creation.
 6. Confirm Data API gate v1.1.0 preserves the exact current preimage, required postimage, failed-attempt accounting, submitted Support evidence, blocked retry authority, blocked apply admission, and `UNKNOWN` view/probe/Support-result fields without conflation or promotion. The terminal containment class remains `CONTAINABLE_WITH_HARD_GATES`.
-7. Run focused parser, manifest, generator, replay, and security tests.
-8. Run full repository verification twice and compare complete output bytes.
-9. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.
+7. Confirm the application-data gate remains `SOURCE_READY` / `EXECUTION_BLOCKED` with `apply_admitted=false`, all seven dependency gates blocked, the public receipt redacted, and the accepted 122-migration package unchanged.
+8. Run focused parser, manifest, generator, replay, and security tests.
+9. Run full repository verification twice and compare complete output bytes.
+10. Publish only the source branch as a draft pull request. Do not merge or apply it in this packet.
 
 Repository-wide validation must enumerate same-named root files even when `node_modules`, `outputs`, or `work` directories are excluded. It may omit an exact excluded root link only after proving its target is a directory and without traversing it; unknown, nested, broken, or file-target links and unsupported entry types must fail closed.
 

@@ -14,6 +14,9 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/catalog/service-catalog.json', 'urn:fawxzzy:platform:schemas:v1:service-catalog'],
   ['contracts/v1/identity/identity-map.json', 'urn:fawxzzy:platform:schemas:v1:identity-map'],
   ['contracts/v1/auth/import-rehearsal-contract.json', 'urn:fawxzzy:platform:schemas:v1:import-rehearsal-contract'],
+  ['contracts/v1/transport/app-data-transport-contract.json', 'urn:fawxzzy:platform:schemas:v1:app-data-transport-contract'],
+  ['contracts/v1/transport/app-data-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:app-data-receipt'],
+  ['contracts/v1/transport/app-data-mutation-journal-contract.json', 'urn:fawxzzy:platform:schemas:v1:app-data-mutation-journal-contract'],
   ['contracts/v1/membership/membership-lifecycle.json', 'urn:fawxzzy:platform:schemas:v1:membership-lifecycle'],
   ['contracts/v1/activation/activation-request.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-request'],
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
@@ -172,6 +175,57 @@ const providerCanonicalProvenance = Object.freeze({
   ])
 });
 
+const appDataTransportLifecycle = Object.freeze([
+  'S0_COMPLETE_SNAPSHOT',
+  'SOURCE_WRITES_CONTINUE',
+  'S1_COMPLETE_KEY_AND_ROW_DIFF',
+  'EXPLICIT_TOMBSTONES',
+  'AUTHORIZED_WRITE_BARRIER',
+  'S2_FINAL_DIFF',
+  'CAS_APPLY',
+  'PARITY',
+  'OBSERVATION',
+  'SEPARATELY_APPROVED_SOURCE_PAUSE'
+]);
+
+const appDataIdempotencyComponents = Object.freeze([
+  'contract_id',
+  'contract_version',
+  'source_anchor',
+  'snapshot_commitment',
+  'relation',
+  'private_key_commitment',
+  'operation',
+  'source_row_digest',
+  'transform_version'
+]);
+
+const appDataDependencyGates = Object.freeze([
+  'DATA_API_CONTAINMENT',
+  'ACCEPTED_RECOVERY_AND_QUARANTINED_RESTORE',
+  'FAITHFUL_CONTAINED_REPLAY',
+  'TARGET_BOOTSTRAP',
+  'SHARED_AUTH_IDENTITY_MAPPING',
+  'SERVICE_MEMBERSHIP_READINESS',
+  'THREE_APP_ADAPTERS'
+]);
+
+const appDataReceiptForbiddenClasses = Object.freeze([
+  'raw_rows',
+  'primary_keys',
+  'names',
+  'emails',
+  'usernames',
+  'user_numbers_or_ranges',
+  'uuids_or_ranges',
+  'secrets',
+  'project_refs',
+  'sql',
+  'payloads',
+  'provider_responses',
+  'machine_paths'
+]);
+
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8'));
 }
@@ -254,6 +308,61 @@ function collectStatusValues(value, pointer = '$', output = []) {
   return output;
 }
 
+export function validateAppDataReceiptSanitization(receipt) {
+  const failures = [];
+  const forbiddenKeyPatterns = [
+    [/^raw_?rows?$/i, 'FORBIDDEN_FIELD_RAW_ROWS'],
+    [/^primary_?keys?$/i, 'FORBIDDEN_FIELD_PRIMARY_KEYS'],
+    [/^(?:full_?)?names?$/i, 'FORBIDDEN_FIELD_NAMES'],
+    [/^emails?$/i, 'FORBIDDEN_FIELD_EMAILS'],
+    [/^usernames?$/i, 'FORBIDDEN_FIELD_USERNAMES'],
+    [/^user_?numbers?(?:_ranges?)?$/i, 'FORBIDDEN_FIELD_USER_NUMBERS'],
+    [/^uuids?(?:_ranges?)?$/i, 'FORBIDDEN_FIELD_UUIDS'],
+    [/(?:^|_)secrets?$/i, 'FORBIDDEN_FIELD_SECRETS'],
+    [/^project_?refs?$/i, 'FORBIDDEN_FIELD_PROJECT_REFS'],
+    [/^(?:raw_?)?sql$/i, 'FORBIDDEN_FIELD_SQL'],
+    [/^payloads?$/i, 'FORBIDDEN_FIELD_PAYLOADS'],
+    [/^provider_?responses?$/i, 'FORBIDDEN_FIELD_PROVIDER_RESPONSES'],
+    [/^machine_?paths?$/i, 'FORBIDDEN_FIELD_MACHINE_PATHS'],
+    [/(?:^|_)(?:tokens?|credentials?|api_?keys?|passwords?)$/i, 'FORBIDDEN_FIELD_CREDENTIALS']
+  ];
+  let failureOrdinal = 0;
+  const emit = (code) => {
+    failureOrdinal += 1;
+    failures.push(`receipt sanitization failure ${String(failureOrdinal).padStart(6, '0')}: ${code}`);
+  };
+  const classifyString = (value) => {
+    const classes = [];
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) classes.push('EMAIL');
+    if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) classes.push('UUID');
+    if (/^[a-z]{20}$/.test(value)) classes.push('PROJECT_REF');
+    if (/^(?:[A-Za-z]:\\|\/(?:home|Users|tmp|var|workspace)\/)/.test(value)) classes.push('MACHINE_PATH');
+    if (/\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|create\s+(?:table|function|schema)|alter\s+(?:table|function|schema)|drop\s+(?:table|function|schema))\b/i.test(value)) classes.push('SQL');
+    if (/^(?:gh[pousr]_[A-Za-z0-9]{20,}|(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})$/.test(value)) classes.push('CREDENTIAL');
+    return classes;
+  };
+  const inspect = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => inspect(entry));
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [key, entry] of Object.entries(value)) {
+        for (const [pattern, code] of forbiddenKeyPatterns) {
+          if (pattern.test(key)) emit(code);
+        }
+        for (const classification of classifyString(key)) emit(`FORBIDDEN_PROPERTY_NAME_${classification}`);
+        inspect(entry);
+      }
+      return;
+    }
+    if (typeof value !== 'string') return;
+    for (const classification of classifyString(value)) emit(`FORBIDDEN_VALUE_${classification}`);
+  };
+  inspect(receipt);
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateSemantics(documents) {
   const failures = [];
   const requireCondition = (condition, message) => {
@@ -309,6 +418,34 @@ export function validateSemantics(documents) {
   const sharedAuthImportGate = migrationGate.shared_auth_import_reauth_rehearsal ?? {};
   requireCondition(sharedAuthImportGate.status === 'CURRENT' && sharedAuthImportGate.source_contract_lifecycle === 'SOURCE_READY' && sharedAuthImportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && sharedAuthImportGate.apply_admitted === false, 'shared Auth import migration gate must remain source-ready, execution-blocked, and non-executable');
   requireCondition(sharedAuthImportGate.contract_path === 'contracts/v1/auth/import-rehearsal-contract.json' && sharedAuthImportGate.research_denominator_sha256 === 'e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820', 'shared Auth import migration gate binding drift');
+  const appDataTransport = documents['contracts/v1/transport/app-data-transport-contract.json'] ?? {};
+  const appDataReceipt = documents['contracts/v1/transport/app-data-receipt.example.json'] ?? {};
+  const appDataJournal = documents['contracts/v1/transport/app-data-mutation-journal-contract.json'] ?? {};
+  const appDataGate = migrationGate.app_data_transport ?? {};
+  requireCondition(appDataTransport.status === 'CURRENT' && appDataTransport.lifecycle?.source_contract === 'SOURCE_READY' && appDataTransport.lifecycle?.execution === 'EXECUTION_BLOCKED' && appDataTransport.apply_admitted === false, 'app data transport must remain source-ready, execution-blocked, and non-executable');
+  requireCondition(appDataTransport.research_evidence?.research_denominator_sha256 === 'ae397c89afaf23231c2911d571d9799fabbb7a21196044f6679763e7515cf087' && appDataTransport.research_evidence?.design_path_sha256 === 'f7554683cf3d9add36634afb6e6b543983d9968a600e05cf3ee885cc0a6f53ac', 'app data transport research bindings drift');
+  requireCondition(appDataTransport.scope?.app_agnostic === true && appDataTransport.scope?.app_adapter_count_required === 3 && appDataTransport.scope?.app_relation_mappings_included === false && appDataTransport.scope?.auth_state_included === false && appDataTransport.scope?.provider_execution_included === false, 'app data transport must remain generic and provider-free');
+  requireCondition(exactOrderedValues(appDataTransport.transport_lifecycle, appDataTransportLifecycle), 'app data transport lifecycle order drift');
+  requireCondition(exactOrderedValues(appDataTransport.snapshot_protocol?.required_snapshots, ['S0', 'S1', 'S2']) && appDataTransport.snapshot_protocol?.complete_primary_key_set_comparison === true && appDataTransport.snapshot_protocol?.canonical_row_digest_comparison === true && appDataTransport.snapshot_protocol?.accelerators_replace_complete_comparison === false && appDataTransport.snapshot_protocol?.S2_final_diff_required_after_write_barrier === true, 'app data snapshot denominator must remain complete at S0, S1, and S2');
+  requireCondition(exactOrderedValues(appDataTransport.snapshot_protocol?.S1_diff_classes, ['INSERT', 'UPDATE', 'DELETE', 'RESURRECTION']), 'app data diff classes must include explicit insert, update, delete, and resurrection');
+  requireCondition(appDataTransport.dependency_ordering?.inserts_and_updates === 'PARENT_FIRST' && appDataTransport.dependency_ordering?.deletes === 'CHILD_FIRST' && appDataTransport.dependency_ordering?.foreign_key_cycles?.declared_staging_plan_required === true && appDataTransport.dependency_ordering?.foreign_key_cycles?.synthetic_proof_required === true, 'app data dependency and cycle ordering drift');
+  requireCondition(appDataTransport.mutation_model?.deletes_require_explicit_tombstones === true && exactOrderedValues(appDataTransport.mutation_model?.reappearing_key_requires, ['EXPLICIT_RESURRECTION', 'NEW_GENERATION']) && appDataTransport.mutation_model?.implicit_resurrection_as_update_forbidden === true, 'app data tombstone and resurrection semantics drift');
+  requireCondition(exactOrderedValues(appDataTransport.mutation_model?.idempotency_key_components, appDataIdempotencyComponents) && appDataTransport.mutation_model?.matching_applied_mutation === 'IDEMPOTENT_REUSE', 'app data idempotency-key binding drift');
+  requireCondition(exactOrderedValues(appDataTransport.compare_and_swap?.accepted_expected_target, ['ABSENT', 'EXACT_DIGEST']) && appDataTransport.compare_and_swap?.unexpected_target_digest === 'QUARANTINE' && appDataTransport.compare_and_swap?.unexpected_target_overwrite_forbidden === true, 'app data CAS conflict handling must remain fail-closed');
+  requireCondition(appDataTransport.derived_and_external_effects?.derived_cache_rebuild_after_authoritative_parity === true && appDataTransport.derived_and_external_effects?.external_effects_during_rehearsal_and_rollback === 'QUARANTINED', 'app data cache or external-effect boundary drift');
+  requireCondition(appDataTransport.journal_and_rollback?.append_only === true && appDataTransport.journal_and_rollback?.complete_reverse_evidence_required === true && appDataTransport.journal_and_rollback?.rollback_order === 'REVERSE_DEPENDENCY_ORDER' && appDataTransport.journal_and_rollback?.reverse_catch_up_to_source === 'SEPARATE_EXPLICIT_AUTHORITY', 'app data rollback contract drift');
+  requireCondition(exactOrderedValues(appDataTransport.dependency_gates, appDataDependencyGates), 'app data dependency-gate denominator drift');
+  requireCondition(exactOrderedValues(appDataTransport.public_receipt_policy?.forbidden_classes, appDataReceiptForbiddenClasses), 'app data public receipt forbidden-class denominator drift');
+  requireCondition(appDataJournal.status === 'CURRENT' && appDataJournal.lifecycle?.source_contract === 'SOURCE_READY' && appDataJournal.lifecycle?.execution === 'EXECUTION_BLOCKED' && appDataJournal.apply_admitted === false && appDataJournal.append_only === true, 'app data mutation journal must remain source-ready, execution-blocked, append-only, and non-executable');
+  requireCondition(appDataJournal.completeness?.every_committed_mutation_recorded === true && appDataJournal.completeness?.every_idempotent_reuse_recorded === true && appDataJournal.completeness?.every_conflict_quarantine_recorded === true && appDataJournal.completeness?.sequence_contiguous === true && appDataJournal.completeness?.digest_chain_required === true, 'app data mutation journal completeness drift');
+  requireCondition(appDataJournal.rollback?.reverse_dependency_order === true && appDataJournal.rollback?.reverse_commit_sequence === true && appDataJournal.rollback?.preimage_digest_required === true && appDataJournal.rollback?.post_rollback_digest_required === true && appDataJournal.rollback?.reverse_catch_up_to_source === 'SEPARATE_EXPLICIT_AUTHORITY', 'app data mutation journal rollback evidence drift');
+  requireCondition(appDataReceipt.status === 'BLOCKED' && appDataReceipt.execution_lifecycle === 'EXECUTION_BLOCKED' && appDataReceipt.apply_admitted === false && appDataReceipt.synthetic_fixture === true && appDataReceipt.source_pause_authorized === false, 'app data public receipt must remain synthetic, blocked, and non-executable');
+  requireCondition(appDataReceipt.snapshot_completeness?.S0_complete === true && appDataReceipt.snapshot_completeness?.S1_complete_key_and_row_diff === true && appDataReceipt.snapshot_completeness?.S2_complete_key_and_row_diff === true && appDataReceipt.snapshot_completeness?.explicit_tombstones_complete === true, 'app data public receipt snapshot denominator drift');
+  requireCondition(appDataReceipt.cas_counts?.unexpected_overwrite === 0 && appDataReceipt.cas_counts?.conflict_quarantine > 0, 'app data public receipt must quarantine CAS conflicts without overwriting');
+  requireCondition(appDataReceipt.journal_and_rollback?.append_only === true && appDataReceipt.journal_and_rollback?.complete === true && appDataReceipt.journal_and_rollback?.reverse_dependency_order_proven === true, 'app data public receipt journal proof drift');
+  failures.push(...validateAppDataReceiptSanitization(appDataReceipt));
+  requireCondition(appDataGate.status === 'CURRENT' && appDataGate.source_contract_lifecycle === 'SOURCE_READY' && appDataGate.execution_lifecycle === 'EXECUTION_BLOCKED' && appDataGate.apply_admitted === false && appDataGate.dependency_status === 'BLOCKED', 'app data migration gate must remain source-ready, execution-blocked, dependency-blocked, and non-executable');
+  requireCondition(appDataGate.contract_path === 'contracts/v1/transport/app-data-transport-contract.json' && appDataGate.receipt_path === 'contracts/v1/transport/app-data-receipt.example.json' && appDataGate.mutation_journal_contract_path === 'contracts/v1/transport/app-data-mutation-journal-contract.json' && appDataGate.research_denominator_sha256 === appDataTransport.research_evidence?.research_denominator_sha256 && appDataGate.design_path_sha256 === appDataTransport.research_evidence?.design_path_sha256, 'app data migration gate binding drift');
   const provenance = migrationGate.provider_canonical_provenance;
   requireCondition(migrationGate.version === '1.1.0', 'migration gate version must remain 1.1.0');
   requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
@@ -647,7 +784,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 22,
+    semantic_check_groups: 23,
     failures
   };
 }

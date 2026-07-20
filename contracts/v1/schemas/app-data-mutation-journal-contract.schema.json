@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:app-data-mutation-journal-contract",
+  "title": "Application data mutation journal contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "apply_admitted",
+    "append_only",
+    "entry_contract",
+    "completeness",
+    "rollback",
+    "receipt_boundary"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "app-data-mutation-journal-contract"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        }
+      }
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "append_only": {
+      "const": true
+    },
+    "entry_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_fields",
+        "operations",
+        "expected_target_states",
+        "raw_values_allowed",
+        "entries_mutable",
+        "entries_deletable"
+      ],
+      "properties": {
+        "required_fields": {
+          "const": [
+            "journal_sequence",
+            "idempotency_key_digest",
+            "relation_commitment",
+            "private_key_commitment",
+            "operation",
+            "dependency_rank",
+            "expected_target_state",
+            "expected_target_digest",
+            "source_row_digest",
+            "previous_target_digest",
+            "committed_target_digest",
+            "transform_version_digest",
+            "mutation_committed",
+            "rollback_commitment"
+          ]
+        },
+        "operations": {
+          "const": [
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "RESURRECTION"
+          ]
+        },
+        "expected_target_states": {
+          "const": [
+            "ABSENT",
+            "EXACT_DIGEST"
+          ]
+        },
+        "raw_values_allowed": {
+          "const": false
+        },
+        "entries_mutable": {
+          "const": false
+        },
+        "entries_deletable": {
+          "const": false
+        }
+      }
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_committed_mutation_recorded",
+        "every_idempotent_reuse_recorded",
+        "every_conflict_quarantine_recorded",
+        "sequence_contiguous",
+        "digest_chain_required"
+      ],
+      "properties": {
+        "every_committed_mutation_recorded": {
+          "const": true
+        },
+        "every_idempotent_reuse_recorded": {
+          "const": true
+        },
+        "every_conflict_quarantine_recorded": {
+          "const": true
+        },
+        "sequence_contiguous": {
+          "const": true
+        },
+        "digest_chain_required": {
+          "const": true
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reverse_dependency_order",
+        "reverse_commit_sequence",
+        "preimage_digest_required",
+        "post_rollback_digest_required",
+        "partial_rollback_quarantined",
+        "reverse_catch_up_to_source"
+      ],
+      "properties": {
+        "reverse_dependency_order": {
+          "const": true
+        },
+        "reverse_commit_sequence": {
+          "const": true
+        },
+        "preimage_digest_required": {
+          "const": true
+        },
+        "post_rollback_digest_required": {
+          "const": true
+        },
+        "partial_rollback_quarantined": {
+          "const": true
+        },
+        "reverse_catch_up_to_source": {
+          "const": "SEPARATE_EXPLICIT_AUTHORITY"
+        }
+      }
+    },
+    "receipt_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_summary_only",
+        "raw_rows_or_identifiers_allowed",
+        "private_commitments_and_digests_only"
+      ],
+      "properties": {
+        "public_summary_only": {
+          "const": true
+        },
+        "raw_rows_or_identifiers_allowed": {
+          "const": false
+        },
+        "private_commitments_and_digests_only": {
+          "const": true
+        }
+      }
+    }
+  }
+}
