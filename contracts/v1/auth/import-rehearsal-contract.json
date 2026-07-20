@@ -1,0 +1,162 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED"
+  },
+  "apply_admitted": false,
+  "research_denominator_sha256": "e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820",
+  "source_anchors": [
+    {
+      "app": "platform",
+      "commit": "bef5f17f4b82c36daeada9cb8cefa4d845158382"
+    },
+    {
+      "app": "web",
+      "commit": "b6118a24aca9a6b7686c8c9622137bdb5d5e894f"
+    },
+    {
+      "app": "fitness",
+      "commit": "317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3"
+    },
+    {
+      "app": "mazer",
+      "commit": "3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4"
+    },
+    {
+      "app": "discordos",
+      "commit": "aef01f277e006e3cb46550e507ebd8e4a1be9d21"
+    }
+  ],
+  "import_boundary": {
+    "adjudicated_canonical_humans_only": true,
+    "provider_identities_require_accepted_source_mapping": true,
+    "password_hashes": "opaque_provider_compatible_never_serialized",
+    "excluded": [
+      "source_sessions",
+      "refresh_tokens",
+      "access_tokens",
+      "cookies",
+      "signing_secrets",
+      "api_keys",
+      "smtp_secrets",
+      "captcha_secrets",
+      "raw_provider_settings"
+    ],
+    "mutable_user_metadata": "presentation_only_never_authorization_or_linking"
+  },
+  "collision_matrix": [
+    {
+      "case": "identical_source_identity_identical_payload_digest",
+      "outcome": "IDEMPOTENT_RETRY"
+    },
+    {
+      "case": "accepted_deterministic_cross_source_evidence",
+      "outcome": "ONE_TARGET_MAPPING"
+    },
+    {
+      "case": "normalized_email_collision",
+      "outcome": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+    },
+    {
+      "case": "username_or_display_name_collision",
+      "outcome": "NEVER_MERGE"
+    },
+    {
+      "case": "cross_project_uuid_or_password_hash_equality",
+      "outcome": "NEVER_SUFFICIENT"
+    },
+    {
+      "case": "service_or_automation",
+      "outcome": "EXCLUDE_HUMAN_IMPORT"
+    },
+    {
+      "case": "missing_or_contradictory_evidence",
+      "outcome": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+    },
+    {
+      "case": "quarantine_not_isolatable",
+      "outcome": "FAIL_ENTIRE_BATCH"
+    }
+  ],
+  "staging_and_activation": {
+    "membership_initial_state": "pending",
+    "activation_requirements": [
+      "imported_non_quarantined_auth_identity",
+      "accepted_immutable_mapping",
+      "exact_product_profile_parity",
+      "no_unresolved_identity_delta",
+      "new_target_session_on_origin",
+      "auth_uid_derived_subject",
+      "current_recovery_and_rollback_evidence"
+    ],
+    "suspended_remains_suspended": true,
+    "fitness_profile_key": "fitness.profiles.id",
+    "mazer_profile_key": "mazer.mazer_profiles.user_id",
+    "fitness_numbers": "copy_exactly_never_reallocate",
+    "mazer_only_human_allocation": "BLOCKED_SEQUENCE_HIGH_WATER_GATE",
+    "discordos": "SERVICE_RUNTIME_NOT_HUMAN_COHORT"
+  },
+  "snapshot_and_idempotency": {
+    "S0": "AUTHORITATIVE_SNAPSHOT_REQUIRED",
+    "S1": "COMPLETE_REEXPORT_DIFF_REQUIRED",
+    "diff_requires": [
+      "additions",
+      "changes",
+      "tombstones"
+    ],
+    "timestamps_alone_sufficient": false,
+    "idempotency_key": [
+      "source_project",
+      "relation",
+      "source_key_digest",
+      "row_digest",
+      "transform_version"
+    ]
+  },
+  "synthetic_cohorts": [
+    "fitness_legacy_hash",
+    "mazer_hash",
+    "verified_cross_source_human",
+    "normalized_email_collision",
+    "username_display_collision",
+    "cross_project_uuid_collision",
+    "service_identity",
+    "missing_evidence",
+    "optional_synthetic_totp"
+  ],
+  "totp": {
+    "portability": "UNKNOWN",
+    "default": "REENROLL",
+    "proof": "SYNTHETIC_PORTABILITY_REHEARSAL_AND_ACTION_TIME_AGGREGATE_INVENTORY"
+  },
+  "proofs": [
+    "deterministic_export_transform_import_replay",
+    "legacy_hash_sign_in",
+    "source_token_rejection",
+    "per_origin_target_sessions",
+    "centralized_pkce_recovery",
+    "no_url_token_leakage",
+    "non_enumeration",
+    "local_sign_out_truth",
+    "atomic_idempotent_activation",
+    "suspended_rejection",
+    "zero_outbound_effects",
+    "disposable_rollback_sources_active"
+  ],
+  "preview_order": [
+    "FawxzzyWeb_account_shell",
+    "Mazer",
+    "Fitness",
+    "DiscordOS"
+  ],
+  "receipt_boundary": [
+    "aggregate_counts",
+    "booleans",
+    "ranges",
+    "timestamps",
+    "synthetic_cohort_labels",
+    "one_way_digests"
+  ]
+}

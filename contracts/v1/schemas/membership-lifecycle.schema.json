@@ -12,6 +12,7 @@
     "revision",
     "client_writes",
     "activation",
+    "import_staging",
     "hard_delete",
     "retirement_tombstone",
     "states",
@@ -49,6 +50,15 @@
         "caller_supplied_user_id_allowed": false,
         "atomic_profile_creation": true,
         "idempotent": true
+      }
+    },
+    "import_staging": {
+      "const": {
+        "initial_state": "pending",
+        "requires_auth_uid_derived_subject": true,
+        "requires_new_target_session_on_origin": true,
+        "requires_exact_product_profile_parity": true,
+        "suspended_preserved": true
       }
     },
     "hard_delete": {

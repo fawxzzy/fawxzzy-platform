@@ -3,6 +3,14 @@
   "status": "BLOCKED",
   "sql_generation": "next_separately_authorized_packet",
   "semantic_cross_product_merges": "forbidden",
+  "shared_auth_import_reauth_rehearsal": {
+    "status": "CURRENT",
+    "source_contract_lifecycle": "SOURCE_READY",
+    "execution_lifecycle": "EXECUTION_BLOCKED",
+    "apply_admitted": false,
+    "contract_path": "contracts/v1/auth/import-rehearsal-contract.json",
+    "research_denominator_sha256": "e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820"
+  },
   "provider_canonical_provenance": {
     "status": "CURRENT",
     "apply_admitted": false,

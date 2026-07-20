@@ -9,6 +9,7 @@ import {
   verifyFrozenSourceAcceptance,
   verifyFitnessPr108ReplayGate,
   verifyProviderCanonicalProvenance,
+  verifySharedAuthImportRehearsal,
   verifyTargetBootstrap
 } from '../scripts/verify-target-bootstrap.mjs';
 
@@ -52,6 +53,18 @@ test('provider-canonical historical provenance binds the accepted DiscordOS and 
   const promoted = structuredClone(gate);
   promoted.provider_canonical_provenance.apply_admitted = true;
   assert.ok(verifyProviderCanonicalProvenance({ gate: promoted, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }).some((failure) => failure.includes('non-executable')));
+});
+
+test('shared Auth import rehearsal remains source-ready and execution-blocked', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const contract = JSON.parse(fs.readFileSync(`${root}/contracts/v1/auth/import-rehearsal-contract.json`, 'utf8'));
+  assert.deepEqual(verifySharedAuthImportRehearsal({ contract, gate }), []);
+  const promoted = structuredClone(gate);
+  promoted.shared_auth_import_reauth_rehearsal.apply_admitted = true;
+  assert.ok(verifySharedAuthImportRehearsal({ contract, gate: promoted }).some((failure) => failure.includes('gate drift')));
+  const substituted = structuredClone(contract);
+  substituted.source_anchors[0].commit = '0'.repeat(40);
+  assert.ok(verifySharedAuthImportRehearsal({ contract: substituted, gate }).some((failure) => failure.includes('source anchors drift')));
 });
 
 test('every copied source file matches its byte count, raw digest, and Git blob identity', () => {

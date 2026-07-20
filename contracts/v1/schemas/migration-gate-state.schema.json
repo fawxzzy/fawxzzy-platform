@@ -11,7 +11,8 @@
     "semantic_cross_product_merges",
     "operation_gates",
     "required_evidence",
-    "provider_canonical_provenance"
+    "provider_canonical_provenance",
+    "shared_auth_import_reauth_rehearsal"
   ],
   "properties": {
     "version": {
@@ -25,6 +26,39 @@
     },
     "semantic_cross_product_merges": {
       "const": "forbidden"
+    },
+    "shared_auth_import_reauth_rehearsal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source_contract_lifecycle",
+        "execution_lifecycle",
+        "apply_admitted",
+        "contract_path",
+        "research_denominator_sha256"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "source_contract_lifecycle": {
+          "const": "SOURCE_READY"
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "contract_path": {
+          "const": "contracts/v1/auth/import-rehearsal-contract.json"
+        },
+        "research_denominator_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
     },
     "operation_gates": {
       "type": "array",

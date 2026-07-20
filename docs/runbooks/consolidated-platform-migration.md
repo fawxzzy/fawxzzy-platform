@@ -124,6 +124,8 @@ Sequence:
 5. Verify counts, checksums, foreign keys, policies, grants, functions, and application probes.
 6. Record an immutable receipt before releasing the next gate.
 
+Before any real Auth import, run the separately authorized synthetic-only shared-Auth import and controlled-reauthentication rehearsal. Freeze S0 authoritative evidence, then require S1 complete re-export/diff for additions, changes, and tombstones. Quarantine normalized-email, missing, or contradictory identity evidence; never merge on username, display name, cross-project UUID, or password-hash equality. Exclude source sessions, tokens, cookies, signing material, keys, and provider settings. Stage memberships as pending; activate only when immutable mapping, exact profile parity, a new per-origin target session, `auth.uid()` binding, and recovery/rollback evidence all pass. The rehearsal preview order is account shell, Mazer, Fitness, DiscordOS. It is `EXECUTION_BLOCKED` until a separate target packet admits it.
+
 Rollback: stop target writes, restore the pre-migration target anchor, keep source routing unchanged, and preserve evidence. No source pause or deletion is implied.
 
 ## Gate 5: Application cutover

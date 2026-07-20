@@ -147,6 +147,14 @@
       "action_time_reread_required": true
     }
   },
+  "import_rehearsal_binding": {
+    "status": "CURRENT",
+    "apply_admitted": false,
+    "mapping_receipts": "DIGEST_ONLY_NO_RAW_IDENTITIES",
+    "quarantine_default": "QUARANTINE_PENDING_VERIFIED_EVIDENCE",
+    "password_hash_equality": "NEVER_SUFFICIENT",
+    "metadata_authorization_or_linking": false
+  },
   "entries": [],
   "ledger": {
     "relation": "platform_private.source_identity_ledger",

@@ -12,6 +12,7 @@
     "user_number_contract",
     "cleanup_contract",
     "auth_migration_contract",
+    "import_rehearsal_binding",
     "entries",
     "ledger",
     "collision_summary"
@@ -77,6 +78,38 @@
           "status": {
             "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
           }
+        }
+      }
+    },
+    "import_rehearsal_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "apply_admitted",
+        "mapping_receipts",
+        "quarantine_default",
+        "password_hash_equality",
+        "metadata_authorization_or_linking"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "mapping_receipts": {
+          "const": "DIGEST_ONLY_NO_RAW_IDENTITIES"
+        },
+        "quarantine_default": {
+          "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+        },
+        "password_hash_equality": {
+          "const": "NEVER_SUFFICIENT"
+        },
+        "metadata_authorization_or_linking": {
+          "const": false
         }
       }
     },
