@@ -50,18 +50,18 @@ const expectedOperations = Object.freeze([
 const expectedServiceBindings = Object.freeze({
   discordos: Object.freeze({
     schema: 'discordos',
-    product_profile: 'discordos.user_profiles',
-    entitlement_contract: 'discordos.entitlements'
+    product_profile: null,
+    entitlement_contract: null
   }),
   fitness: Object.freeze({
     schema: 'fitness',
-    product_profile: 'fitness.user_profiles',
-    entitlement_contract: 'fitness.entitlements'
+    product_profile: 'fitness.profiles',
+    entitlement_contract: 'fitness.user_entitlements'
   }),
   mazer: Object.freeze({
     schema: 'mazer',
-    product_profile: 'mazer.user_profiles',
-    entitlement_contract: 'mazer.entitlements'
+    product_profile: 'mazer.mazer_profiles',
+    entitlement_contract: null
   })
 });
 
@@ -125,22 +125,19 @@ const expectedMembershipTransitions = Object.freeze([
 ]);
 
 const expectedRelationDigests = Object.freeze({
-  'platform_shared.global_profiles': 'edcaff331c9fde92d3d72905f5ee0b08d65aa1e9882b93bb05d12d70f649e074',
+  'platform_shared.global_profiles': '6b1045570f892d3a43c025671abde390f05e65c8168d398b51ddb4029d3c1a3d',
   'platform_shared.services': '6355c701c16b03370ed099858f4c1458293c608a5f704366b5589caa64528638',
-  'platform_shared.user_service_memberships': '32f05fcaac5a8499927c40f27a81a009bce482a8aad08420059147a3c2e5524f',
+  'platform_shared.user_service_memberships': '8c2b419a75dfe9dd5391f48b31a98f3c8e1ee24443346cd4f5112147419bd5b9',
   'platform_shared.service_activation_receipts': '792af06db4ceb095a9f6cbdec0c63c8640af217287fa2125371e946e4608310c',
   'platform_private.source_identity_ledger': '9b08ad8a5420b29dc5426491453a01b078cdd4496f8b7183dcfab1e87e56dcb1',
   'platform_private.identity_collision_adjudications': '84df17b7ea9813742fee571d3b0930dfc9be2a798286669e99a5818d054adc95',
-  'discordos.user_profiles': 'dbcc716ce3c9ddc03877c2b9167702aeb8f332e799eb7a1f8a00fd37ef13a57e',
-  'fitness.user_profiles': 'be24823d5ed6b70412313ea0578b15e019668c7673e36cc2fdae4f34cbce3bd8',
-  'mazer.user_profiles': '2bebe35c5874b26bccce99b7fde74a8a1d1e774235b69c26d70a4da9b8be8ac5',
-  'discordos.entitlements': '2a69394bed6d40d07eb51797ad03219918f77bfb2f19af71baf27897cdd736ef',
-  'fitness.entitlements': '876c5927822c902d4dee312b628042ff490283f4ac3454993e72fe3d7d897ff4',
-  'mazer.entitlements': '2cd0330ff0e0dd80616a8e2c5d487297f96f35d6c88f43e4297293b665221804'
+  'fitness.profiles': '5a073ae6e9d5b8a8695c08b44e304b0e93db7c45462f3819cea6da10add893a6',
+  'mazer.mazer_profiles': '323b12075b0653d30d58ae2b7bc2ece79cf89d7e24017e2a251e27c2be5edbca',
+  'fitness.user_entitlements': '0bbe4fcc3689edca3f2a97a42cc517aa90ffabcaab93491305a58285e82b06de'
 });
 
 const expectedFunctionDigests = Object.freeze({
-  'platform_shared.activate_service': '010456c0f327205c54aa5339de85dcc76bba34b48fea4dbf8dafa790bd96abfe',
+  'platform_shared.activate_service': '37eb1247251921a3afc20f1da434655d6e72f20284b1bb078817f7d870cc9994',
   'platform_private.on_auth_user_created': '644cc3631feb2e19b651e1d1ce8ec215b5e376c275f5a60ede97bafb3849aa51'
 });
 
@@ -155,9 +152,8 @@ const protectedGlobalProfileColumns = Object.freeze([
 ]);
 
 const productProfileServices = Object.freeze({
-  'discordos.user_profiles': 'discordos',
-  'fitness.user_profiles': 'fitness',
-  'mazer.user_profiles': 'mazer'
+  'fitness.profiles': 'fitness',
+  'mazer.mazer_profiles': 'mazer'
 });
 
 function readJson(relativePath) {
@@ -290,7 +286,13 @@ export function validateSemantics(documents) {
   }
 
   const catalog = documents['contracts/v1/catalog/service-catalog.json'];
+  requireCondition(catalog.version === '1.1.0', 'service catalog version must remain 1.1.0');
   requireCondition(catalog.membership_is_billing_entitlement === false, 'membership must not become a billing entitlement');
+  requireCondition(catalog.canonical_human_key === 'auth.users.id', 'auth.users.id must remain the sole canonical human key');
+  requireCondition(catalog.global_profile_relation === 'platform_shared.global_profiles', 'global profile relation changed');
+  requireCondition(catalog.source_identity_ledger_relation === 'platform_private.source_identity_ledger', 'source identity ledger relation changed');
+  requireCondition(catalog.global_username?.unique === true && catalog.global_username?.mutation_authority === 'server_only' && catalog.global_username?.presentation_or_linking_evidence === false, 'global username must remain unique, server-mutated, and non-authorizing');
+  requireCondition(catalog.account_portal_membership_read_model === 'sanitized_authoritative', 'account portal membership read model must remain sanitized and authoritative');
   requireCondition(sameValues(catalog.services.map((service) => service.id), ['discordos', 'fitness', 'mazer']), 'service catalog membership changed');
   for (const [id, expectedBinding] of Object.entries(expectedServiceBindings)) {
     const matchingServices = catalog.services.filter((service) => service.id === id);
@@ -306,6 +308,13 @@ export function validateSemantics(documents) {
     requireCondition(service?.global_signup_may_create_pending === true, `${id} must allow pending discovery membership`);
     requireCondition(service?.activation_mode === 'authenticated_first_visit', `${id} must activate on first authenticated visit`);
   }
+  const discordos = catalog.services.find((service) => service.id === 'discordos');
+  requireCondition(discordos?.discoverable === false && discordos?.global_signup_may_create_pending === false && discordos?.activation_mode === 'operational_only', 'DiscordOS human activation must remain unapproved');
+  requireCondition(discordos?.product_profile === null && discordos?.entitlement_contract === null, 'DiscordOS must not declare a human profile or entitlement contract');
+  const fitness = catalog.services.find((service) => service.id === 'fitness');
+  requireCondition(fitness?.member_number_contract?.existing_human_numbers_copy_unchanged === true && fitness?.member_number_contract?.high_water_preserved === true && fitness?.member_number_contract?.never_reused === true && fitness?.member_number_contract?.gaps_never_filled === true && fitness?.member_number_contract?.never_renumbered === true, 'Fitness member numbers must remain preserved without reuse, gap fill, or renumbering');
+  const mazer = catalog.services.find((service) => service.id === 'mazer');
+  requireCondition(mazer?.entitlement_contract === null, 'Mazer generic entitlement contract must remain undefined');
 
   const identity = documents['contracts/v1/identity/identity-map.json'];
   requireCondition(identity.entries.length === 0, 'repository identity map must contain no user records');
@@ -339,6 +348,13 @@ export function validateSemantics(documents) {
   requireCondition(identity.auth_migration_contract.storage_object_bodies.action_time_status === 'UNKNOWN', 'Storage object body denominator must be re-read at action time');
 
   const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
+  requireCondition(lifecycle.version === '1.1.0', 'membership lifecycle version must remain 1.1.0');
+  requireCondition(lifecycle.membership_relation === 'platform_shared.user_service_memberships', 'membership relation changed');
+  requireCondition(exactOrderedValues(lifecycle.immutable_key, ['user_id', 'service_id']), 'membership key must remain immutable user_id/service_id');
+  requireCondition(lifecycle.revision?.monotonic === true && lifecycle.revision?.transition_audited === true, 'membership revisions must remain monotonic and transition-audited');
+  requireCondition(lifecycle.client_writes === 'DENIED', 'client membership writes must remain denied');
+  requireCondition(lifecycle.activation?.subject_source === 'auth.uid()' && lifecycle.activation?.caller_supplied_user_id_allowed === false && lifecycle.activation?.atomic_profile_creation === true && lifecycle.activation?.idempotent === true, 'activation must remain auth.uid-bound, atomic, and idempotent without caller-selected user IDs');
+  requireCondition(lifecycle.hard_delete === 'FORBIDDEN' && lifecycle.retirement_tombstone === 'BLOCKED', 'hard delete must remain forbidden and retirement/tombstone must remain unapproved');
   const transitionSignature = (transition) => JSON.stringify([
     transition.from,
     transition.event,
@@ -463,6 +479,7 @@ export function validateSemantics(documents) {
   requireCondition(smtp.credentials_present === false && smtp.live_configuration_allowed === false, 'repository must not contain SMTP credentials or live configuration authority');
 
   const security = documents['contracts/v1/security/rls-grant-function-matrix.json'];
+  requireCondition(security.version === '1.1.0', 'security matrix version must remain 1.1.0');
   const schemaMap = Object.fromEntries(security.schemas.map((schema) => [schema.name, schema]));
   requireCondition(schemaMap.public?.product_tables_allowed === false, 'product tables must remain forbidden in public');
   requireCondition(schemaMap.platform_private?.data_api === 'not_exposed', 'platform_private must remain outside the Data API');
@@ -477,12 +494,9 @@ export function validateSemantics(documents) {
     'platform_shared.service_activation_receipts',
     'platform_private.source_identity_ledger',
     'platform_private.identity_collision_adjudications',
-    'discordos.user_profiles',
-    'fitness.user_profiles',
-    'mazer.user_profiles',
-    'discordos.entitlements',
-    'fitness.entitlements',
-    'mazer.entitlements'
+    'fitness.profiles',
+    'mazer.mazer_profiles',
+    'fitness.user_entitlements'
   ];
   requireCondition(sameValues(security.relations.map((relation) => relation.name), expectedRelations), 'security matrix relation set changed');
 
@@ -508,11 +522,19 @@ export function validateSemantics(documents) {
   }
 
   const globalProfile = security.relations.find((relation) => relation.name === 'platform_shared.global_profiles');
+  requireCondition(globalProfile?.canonical_user_key === 'auth.users.id' && globalProfile?.one_to_one_with_auth_users === true, 'global profile must remain one-to-one with auth.users.id');
   requireCondition(!globalProfile?.grants.authenticated.includes('UPDATE'), 'platform_shared.global_profiles: relation-wide authenticated UPDATE is forbidden');
   requireCondition(Array.isArray(globalProfile?.authenticated_update_columns) && globalProfile.authenticated_update_columns.length === 0, 'platform_shared.global_profiles: direct authenticated update columns must remain empty until explicitly declared');
   requireCondition(sameValues(globalProfile?.server_owned_columns ?? [], protectedGlobalProfileColumns), 'platform_shared.global_profiles: server-owned column set changed');
   requireCondition((globalProfile?.authenticated_update_columns ?? []).every((column) => !protectedGlobalProfileColumns.includes(column)), 'platform_shared.global_profiles: immutable or server-owned columns cannot receive authenticated UPDATE');
   requireCondition(globalProfile?.policies.every((policy) => policy.command !== 'UPDATE'), 'platform_shared.global_profiles: direct authenticated UPDATE policy is forbidden without declared mutable columns');
+
+  const memberships = security.relations.find((relation) => relation.name === 'platform_shared.user_service_memberships');
+  requireCondition(exactOrderedValues(memberships?.immutable_key, ['user_id', 'service_id']) && memberships?.client_writes === 'DENIED' && memberships?.revision === 'MONOTONIC', 'membership identity must remain immutable, client-write denied, and monotonic');
+  requireCondition(!memberships?.grants.authenticated.some((operation) => ['INSERT', 'UPDATE', 'DELETE'].includes(operation)), 'memberships must not grant client writes');
+  requireCondition(!security.relations.some((relation) => relation.name.startsWith('discordos.') && ['product_profile', 'product_entitlement'].includes(relation.kind)), 'DiscordOS human profile and entitlement surfaces remain unapproved');
+  requireCondition(!security.relations.some((relation) => relation.name.startsWith('mazer.') && relation.kind === 'product_entitlement'), 'Mazer generic entitlement surface remains undefined');
+  requireCondition(security.invariants.membership_client_writes_forbidden === true && security.invariants.profile_access_requires_owner_and_active_same_service_membership === true && security.invariants.presentation_and_external_identifiers_authorization_forbidden === true && security.invariants.account_portal_membership_read_model === 'sanitized_authoritative', 'membership security separation and account-portal read model changed');
 
   requireCondition(sameValues(security.functions.map((databaseFunction) => databaseFunction.name), Object.keys(expectedFunctionDigests)), 'security matrix function set changed');
   requireCondition(security.functions.length === Object.keys(expectedFunctionDigests).length, 'security matrix function count changed');
@@ -531,6 +553,7 @@ export function validateSemantics(documents) {
   const activationFunction = security.functions.find((databaseFunction) => databaseFunction.name === 'platform_shared.activate_service');
   requireCondition(activationFunction?.exposure === 'allowlisted_rpc', 'activation function must remain the only allowlisted RPC');
   requireCondition(activationFunction?.auth_uid_check === true && activationFunction?.subject_source === 'auth.uid()', 'caller-accessible activation RPC must derive and check auth.uid()');
+  requireCondition(exactOrderedValues(activationFunction?.atomic_relations, ['platform_shared.user_service_memberships', 'platform_shared.service_activation_receipts', 'fitness.profiles', 'mazer.mazer_profiles']), 'activation must atomically create only approved human-service profiles');
   const authTrigger = security.functions.find((databaseFunction) => databaseFunction.name === 'platform_private.on_auth_user_created');
   requireCondition(authTrigger?.exposure === 'trigger_only', 'Auth user creation function must remain trigger-only');
   requireCondition(authTrigger?.auth_uid_check === false && authTrigger?.subject_source === 'NEW.id', 'Auth insert trigger must derive its subject from NEW.id without auth.uid()');

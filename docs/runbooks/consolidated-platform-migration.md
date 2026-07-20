@@ -29,7 +29,7 @@ Entry: repository bootstrap admitted.
 Required evidence:
 
 1. Versioned project, service, identity, membership, activation, migration, cutover, domain/session, and security contracts.
-2. Position-bound registry roles, exact service-to-schema/profile/entitlement mappings, and the complete seven-entry membership lifecycle with explicit authorization semantics.
+2. Position-bound registry roles, `auth.users.id` as the sole canonical human key, exact service-to-schema/profile/entitlement mappings, and the complete seven-entry membership lifecycle with immutable `(user_id, service_id)`, monotonic revision, auditable transitions, and no client writes.
 3. Closed status vocabulary and machine-readable blocked operations.
 4. Deterministic schema, semantic, negative, path, line-ending, JSON, secret, and machine-path checks.
 5. Hosted CI green on the exact contract head.
@@ -67,6 +67,9 @@ Required evidence:
 - lifecycle generation matching all seven admitted transitions and their `system_account_creation`, `authenticated_self`, or `privileged_service_control` authorization boundary;
 - fixed search paths, `NEW.id` derivation in the Auth insert trigger, `auth.uid()` guards only on caller-accessible RPCs, revoked default execute, and negative authorization tests;
 - product-profile predicates that bind membership rows directly to `auth.uid()` and require the caller's service membership to be active;
+- activation that accepts no caller-supplied user ID and atomically creates only `fitness.profiles` or `mazer.mazer_profiles`; DiscordOS human activation/profile/entitlement remains unapproved;
+- Fitness member numbers that copy unchanged, preserve high-water, and never reuse, fill gaps, or renumber; Mazer generic entitlement/admin semantics remain undefined;
+- authorization predicates that never use user metadata, usernames, display names, Discord IDs, or Fitness numbers; account-portal membership reads remain sanitized and authoritative;
 - no relation-wide authenticated `UPDATE` on the global profile, no direct update policy, and an empty direct column-update set until a later contract explicitly declares mutable profile columns;
 - a deterministic normalized global-username key with a database `UNIQUE` boundary and atomic server-side claim/create/rename;
 - a global `user_number` field on the global profile with an authoritative sequence, uniqueness, post-migration non-nullability, immutable allocation, and exact Fitness-number preservation;

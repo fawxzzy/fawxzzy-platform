@@ -125,15 +125,62 @@ test('membership lifecycle rejects duplicate transitions', () => {
   assert.ok(failures.some((failure) => failure.includes('membership lifecycle transitions must be unique')));
 });
 
+test('service-membership v1.1.0 rejects closed identity, lifecycle, service, number, and RLS drift', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    ['wrong Fitness profile relation', (documents) => {
+      documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'fitness').product_profile = 'fitness.user_profiles';
+    }],
+    ['DiscordOS human activation', (documents) => {
+      const discordos = documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'discordos');
+      discordos.activation_mode = 'authenticated_first_visit';
+      discordos.product_profile = 'discordos.user_profiles';
+    }],
+    ['Mazer generic entitlement', (documents) => {
+      documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'mazer').entitlement_contract = 'mazer.entitlements';
+    }],
+    ['mutable membership key', (documents) => {
+      documents['contracts/v1/membership/membership-lifecycle.json'].immutable_key = ['service_id', 'user_id'];
+    }],
+    ['caller supplied activation subject', (documents) => {
+      documents['contracts/v1/membership/membership-lifecycle.json'].activation.caller_supplied_user_id_allowed = true;
+    }],
+    ['Fitness number reallocation', (documents) => {
+      documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'fitness').member_number_contract.never_reused = false;
+    }],
+    ['hard delete', (documents) => {
+      documents['contracts/v1/membership/membership-lifecycle.json'].hard_delete = 'ALLOWED';
+    }],
+    ['grant without forced RLS', (documents) => {
+      documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((relation) => relation.name === 'fitness.profiles').rls_forced = false;
+    }]
+  ];
+
+  for (const [name, mutate] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    assert.ok(validateSchemaInstances(documents, createValidator()).length > 0 || validateSemantics(documents).length > 0, name);
+  }
+});
+
+test('service-membership v1.1.0 rejects username-only linking and direct membership writes', () => {
+  const documents = structuredClone(loadDocuments());
+  documents['contracts/v1/identity/identity-map.json'].username_contract.identity_matching.username_alone_forbidden = false;
+  documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((relation) => relation.name === 'platform_shared.user_service_memberships').grants.authenticated.push('INSERT');
+  const failures = validateSemantics(documents);
+  assert.ok(failures.some((failure) => failure.includes('username-only identity matching must remain forbidden')));
+  assert.ok(failures.some((failure) => failure.includes('memberships must not grant client writes')));
+});
+
 test('service catalog rejects cross-product profile and entitlement swaps', () => {
   const baseline = loadDocuments();
   for (const [field, semanticMessage] of [
-    ['product_profile', 'fitness product profile relation must remain fitness.user_profiles'],
-    ['entitlement_contract', 'fitness entitlement relation must remain fitness.entitlements']
+    ['product_profile', 'fitness product profile relation must remain fitness.profiles'],
+    ['entitlement_contract', 'fitness entitlement relation must remain fitness.user_entitlements']
   ]) {
     const documents = structuredClone(baseline);
     const fitness = documents['contracts/v1/catalog/service-catalog.json'].services.find((service) => service.id === 'fitness');
-    fitness[field] = field === 'product_profile' ? 'mazer.user_profiles' : 'mazer.entitlements';
+    fitness[field] = field === 'product_profile' ? 'mazer.mazer_profiles' : 'mazer.user_entitlements';
     assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('service-catalog.json')), `${field} schema`);
     assert.ok(validateSemantics(documents).some((failure) => failure.includes(semanticMessage)), `${field} semantics`);
   }
@@ -146,8 +193,8 @@ test('service catalog rejects undeclared owning-schema relations', () => {
   fitness.entitlement_contract = 'fitness.alternate_entitlements';
   assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('service-catalog.json')));
   const failures = validateSemantics(documents);
-  assert.ok(failures.some((failure) => failure.includes('fitness product profile relation must remain fitness.user_profiles')));
-  assert.ok(failures.some((failure) => failure.includes('fitness entitlement relation must remain fitness.entitlements')));
+  assert.ok(failures.some((failure) => failure.includes('fitness product profile relation must remain fitness.profiles')));
+  assert.ok(failures.some((failure) => failure.includes('fitness entitlement relation must remain fitness.user_entitlements')));
 });
 
 test('project registry rejects target and source role reversal', () => {
@@ -224,7 +271,7 @@ test('closed-world relation validation rejects an extra permissive policy', () =
 
 test('product-profile policies reject tautological membership predicates', () => {
   const documents = structuredClone(loadDocuments());
-  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'discordos.user_profiles');
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'fitness.profiles');
   relation.policies[0].using = relation.policies[0].using.replace('m.user_id = (select auth.uid())', 'm.user_id = user_id');
   const failures = validateSemantics(documents);
   assert.ok(failures.some((failure) => failure.includes('membership row must bind directly to auth.uid()')));
@@ -233,7 +280,7 @@ test('product-profile policies reject tautological membership predicates', () =>
 
 test('product-profile policies reject access without membership', () => {
   const documents = structuredClone(loadDocuments());
-  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'fitness.user_profiles');
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'fitness.profiles');
   relation.policies[0].using = '(select auth.uid()) = user_id';
   const failures = validateSemantics(documents);
   assert.ok(failures.some((failure) => failure.includes('product-profile access must require its service membership')));
@@ -242,7 +289,7 @@ test('product-profile policies reject access without membership', () => {
 
 test('product-profile policies reject suspended membership access', () => {
   const documents = structuredClone(loadDocuments());
-  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'mazer.user_profiles');
+  const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'mazer.mazer_profiles');
   relation.policies[1].using = relation.policies[1].using.replace("m.state = 'active'", "m.state = 'suspended'");
   relation.policies[1].with_check = relation.policies[1].with_check.replace("m.state = 'active'", "m.state = 'suspended'");
   assert.ok(validateSemantics(documents).some((failure) => failure.includes('product-profile access must require active membership only')));

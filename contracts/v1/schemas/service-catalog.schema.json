@@ -8,17 +8,41 @@
     "version",
     "status",
     "membership_is_billing_entitlement",
+    "canonical_human_key",
+    "global_profile_relation",
+    "source_identity_ledger_relation",
+    "global_username",
+    "account_portal_membership_read_model",
     "services"
   ],
   "properties": {
     "version": {
-      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+      "const": "1.1.0"
     },
     "status": {
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
     },
     "membership_is_billing_entitlement": {
       "const": false
+    },
+    "canonical_human_key": {
+      "const": "auth.users.id"
+    },
+    "global_profile_relation": {
+      "const": "platform_shared.global_profiles"
+    },
+    "source_identity_ledger_relation": {
+      "const": "platform_private.source_identity_ledger"
+    },
+    "global_username": {
+      "const": {
+        "unique": true,
+        "mutation_authority": "server_only",
+        "presentation_or_linking_evidence": false
+      }
+    },
+    "account_portal_membership_read_model": {
+      "const": "sanitized_authoritative"
     },
     "services": {
       "type": "array",
@@ -33,9 +57,9 @@
               "schema": "discordos",
               "discoverable": false,
               "global_signup_may_create_pending": false,
-              "activation_mode": "controlled",
-              "product_profile": "discordos.user_profiles",
-              "entitlement_contract": "discordos.entitlements",
+              "activation_mode": "operational_only",
+              "product_profile": null,
+              "entitlement_contract": null,
               "status": "CURRENT"
             }
           },
@@ -46,8 +70,15 @@
               "discoverable": true,
               "global_signup_may_create_pending": true,
               "activation_mode": "authenticated_first_visit",
-              "product_profile": "fitness.user_profiles",
-              "entitlement_contract": "fitness.entitlements",
+              "product_profile": "fitness.profiles",
+              "entitlement_contract": "fitness.user_entitlements",
+              "member_number_contract": {
+                "existing_human_numbers_copy_unchanged": true,
+                "high_water_preserved": true,
+                "never_reused": true,
+                "gaps_never_filled": true,
+                "never_renumbered": true
+              },
               "status": "CURRENT"
             }
           },
@@ -58,8 +89,8 @@
               "discoverable": true,
               "global_signup_may_create_pending": true,
               "activation_mode": "authenticated_first_visit",
-              "product_profile": "mazer.user_profiles",
-              "entitlement_contract": "mazer.entitlements",
+              "product_profile": "mazer.mazer_profiles",
+              "entitlement_contract": null,
               "status": "CURRENT"
             }
           }

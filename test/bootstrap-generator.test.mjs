@@ -718,12 +718,29 @@ test('Fitness search_path regeneration preserves every non-Fitness generated SQL
   const expected = {
     '00000000000001_mazer_schema_inert.sql': 'fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313',
     '00000000000003_discordos_schema_inert.sql': '5b2783d8f6a78a2a9898c94559b31c168dcb1b5deebc1546365c1c8f09ade79f',
-    '00000000000004_platform_security_overlay_inert.sql': '591673cf965aaa19c2cf5dcdfc3458fae43173bfa435dc03b0c0c49589709541'
+    '00000000000004_platform_security_overlay_inert.sql': 'f3cf571b37a6aa756c72ec398fa0f24f26b3d93bff2a768a318ceb87aa9ece64'
   };
   for (const [filename, digest] of Object.entries(expected)) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(`${inertArtifactDirectory}/${filename}`)).digest('hex');
     assert.equal(actual, digest, filename);
   }
+});
+
+test('platform security overlay consumes the closed v1.1.0 human-service relation denominator', () => {
+  const overlay = fs.readFileSync(`${inertArtifactDirectory}/00000000000004_platform_security_overlay_inert.sql`, 'utf8');
+  for (const relation of [
+    'platform_shared.global_profiles',
+    'platform_shared.user_service_memberships',
+    'fitness.profiles',
+    'fitness.user_entitlements',
+    'mazer.mazer_profiles'
+  ]) {
+    assert.match(overlay, new RegExp(`^-- ${relation.replace('.', '\\.') } RLS=true FORCE_RLS=true`, 'm'));
+  }
+  for (const forbiddenRelation of ['discordos.user_profiles', 'discordos.entitlements', 'mazer.entitlements', 'fitness.user_profiles']) {
+    assert.doesNotMatch(overlay, new RegExp(`^-- ${forbiddenRelation.replace('.', '\\.') } RLS=true`, 'm'));
+  }
+  assert.match(overlay, /^-- APPLY_ADMITTED=false$/m);
 });
 
 test('generated function ACL closure is exact, unique, and follows the final definition', () => {

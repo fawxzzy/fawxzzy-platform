@@ -7,16 +7,55 @@
   "required": [
     "version",
     "status",
+    "membership_relation",
+    "immutable_key",
+    "revision",
+    "client_writes",
+    "activation",
+    "hard_delete",
+    "retirement_tombstone",
     "states",
     "transitions",
     "invariants"
   ],
   "properties": {
     "version": {
-      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+      "const": "1.1.0"
     },
     "status": {
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "membership_relation": {
+      "const": "platform_shared.user_service_memberships"
+    },
+    "immutable_key": {
+      "const": [
+        "user_id",
+        "service_id"
+      ]
+    },
+    "revision": {
+      "const": {
+        "monotonic": true,
+        "transition_audited": true
+      }
+    },
+    "client_writes": {
+      "const": "DENIED"
+    },
+    "activation": {
+      "const": {
+        "subject_source": "auth.uid()",
+        "caller_supplied_user_id_allowed": false,
+        "atomic_profile_creation": true,
+        "idempotent": true
+      }
+    },
+    "hard_delete": {
+      "const": "FORBIDDEN"
+    },
+    "retirement_tombstone": {
+      "const": "BLOCKED"
     },
     "states": {
       "const": [

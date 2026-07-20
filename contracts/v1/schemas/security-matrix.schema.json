@@ -14,7 +14,7 @@
   ],
   "properties": {
     "version": {
-      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+      "const": "1.1.0"
     },
     "status": {
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
@@ -56,8 +56,8 @@
     },
     "relations": {
       "type": "array",
-      "minItems": 12,
-      "maxItems": 12,
+      "minItems": 9,
+      "maxItems": 9,
       "items": {
         "$ref": "#/$defs/relation"
       }
@@ -81,7 +81,11 @@
         "auth_trigger_subject_derived_from_new_id",
         "global_profile_relation_update_for_authenticated_forbidden",
         "server_owned_profile_columns_direct_update_forbidden",
-        "membership_is_not_entitlement"
+        "membership_is_not_entitlement",
+        "membership_client_writes_forbidden",
+        "profile_access_requires_owner_and_active_same_service_membership",
+        "presentation_and_external_identifiers_authorization_forbidden",
+        "account_portal_membership_read_model"
       ],
       "properties": {
         "editable_user_metadata_authorization_forbidden": {
@@ -107,6 +111,18 @@
         },
         "membership_is_not_entitlement": {
           "const": true
+        },
+        "membership_client_writes_forbidden": {
+          "const": true
+        },
+        "profile_access_requires_owner_and_active_same_service_membership": {
+          "const": true
+        },
+        "presentation_and_external_identifiers_authorization_forbidden": {
+          "const": true
+        },
+        "account_portal_membership_read_model": {
+          "const": "sanitized_authoritative"
         }
       }
     }
@@ -245,6 +261,24 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]*$"
           }
+        },
+        "canonical_user_key": {
+          "const": "auth.users.id"
+        },
+        "one_to_one_with_auth_users": {
+          "const": true
+        },
+        "immutable_key": {
+          "const": [
+            "user_id",
+            "service_id"
+          ]
+        },
+        "client_writes": {
+          "const": "DENIED"
+        },
+        "revision": {
+          "const": "MONOTONIC"
         },
         "policies": {
           "type": "array",

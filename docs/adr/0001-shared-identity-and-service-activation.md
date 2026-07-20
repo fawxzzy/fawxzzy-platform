@@ -14,7 +14,7 @@ The project registry is directional and closed by position: `bxtcuhkotumitoqtrce
 
 ### Identity
 
-- One person has exactly one target row in `auth.users` and one `platform_shared.global_profiles` row.
+- `auth.users.id` is the sole canonical human key. One person has exactly one target row in `auth.users` and one one-to-one `platform_shared.global_profiles` row.
 - A source identity maps to the target identity through the append-only `platform_private.source_identity_ledger`.
 - Re-key events preserve source project, source identifier, target identifier, version, decision provenance, and time in the future data model.
 - Source identities are never merged merely because normalized email values match. Automatic source migration merges are forbidden.
@@ -36,7 +36,7 @@ The contracted trigger function is private, `SECURITY DEFINER`, fixed to an empt
 ### Service membership and activation
 
 - The service catalog contains DiscordOS, Fitness, and Mazer.
-- Each service owns exactly its same-named schema, `<service>.user_profiles`, and `<service>.entitlements`; cross-product swaps and undeclared catalog relations are invalid.
+- Fitness owns `fitness.profiles` and `fitness.user_entitlements`; Mazer owns `mazer.mazer_profiles` but has no generic entitlement/admin contract; DiscordOS remains operational with no human activation, profile, or entitlement contract until separately approved.
 - Membership states are exactly `pending`, `active`, and `suspended`.
 - The transition set is exactly seven entries. Global-signup discovery is authorized only by `system_account_creation`; first-visit activation, reuse, or suspended rejection is `authenticated_self`; suspension and controlled reinstatement are `privileged_service_control`. Missing, extra, duplicate, or contradictory transitions are invalid.
 - Global signup may create a pending membership for discoverable Fitness and Mazer services.
@@ -46,20 +46,23 @@ The contracted trigger function is private, `SECURITY DEFINER`, fixed to an empt
 - An existing active membership and profile are idempotently reused.
 - Suspended membership rejects self-activation and requires controlled reinstatement.
 - Activation receipts are closed-world: `ACTIVATED` pairs only with `active`/`CREATED`, `REUSED` only with `active`/`REUSED`, and `REJECTED_SUSPENDED` only with `suspended`/`PRESERVED`.
+- Membership identity is immutable `(user_id, service_id)`, revisions are monotonic, every transition is auditable, and clients cannot write membership rows.
+- Existing human Fitness member numbers copy unchanged, preserve high-water, and are never reused, gap-filled, or renumbered. Discord IDs are external linkage evidence; usernames, display names, and member numbers are snapshots only and never linking or authorization evidence.
+- Suspension preserves history. Hard delete is forbidden; retirement/tombstone behavior remains `BLOCKED`. The account portal reads only a sanitized authoritative membership model.
 
 The future activation RPC is the only exposed `SECURITY DEFINER` function in this contract. It is explicitly allowlisted, uses an empty search path, validates `auth.uid()`, accepts no user ID argument, revokes default `PUBLIC` execute, grants execute only to `authenticated`, and is covered by negative tests.
 
 ### Authorization and billing
 
-Membership means that a person may enter a service; it is not payment or subscription entitlement. Paid access stays in product-owned entitlement relations under `discordos`, `fitness`, and `mazer`.
+Membership means that a person may enter a service; it is not payment or subscription entitlement. Fitness entitlement remains product-owned; Mazer entitlement/admin semantics are deliberately undefined, and DiscordOS human entitlement remains unapproved.
 
 RLS uses ownership predicates derived from `auth.uid()`. No policy or function may authorize from `user_metadata` or `raw_user_meta_data`, because authenticated users can edit that data. Update policies require both `USING` and `WITH CHECK`.
 
-Product-profile policies require both row ownership and an active membership for the same caller. Every DiscordOS, Fitness, and Mazer membership subquery binds `m.user_id` directly to `(select auth.uid())`; an unqualified inner `user_id`, a missing membership predicate, or a suspended membership is never sufficient.
+Product-profile policies require both row ownership and an active membership for the same caller. Every admitted Fitness and Mazer membership subquery binds `m.user_id` directly to `(select auth.uid())`; an unqualified inner `user_id`, a missing membership predicate, or a suspended membership is never sufficient.
 
 The contract declares no directly mutable `platform_shared.global_profiles` storage columns. The `authenticated` role therefore has `SELECT` only, no relation-wide `UPDATE`, an empty authenticated column-update set, and no direct update policy. `user_number`, canonical username and its normalized key, source identity/provenance, lifecycle state, and server-maintained timestamps are explicitly server-owned. The approved account-update surface does not imply a broad table grant; a later schema packet must name any mutable columns and their exact validation boundary before direct updates can be admitted.
 
-The security matrix is closed-world. It admits exactly twelve named relations, their complete grant and policy sets with exact predicates, and exactly two privileged functions: the Auth insert trigger and the activation RPC. An added permissive policy, changed predicate or grant, or third privileged function fails deterministic validation even if it is otherwise well-shaped.
+The security matrix is closed-world. It admits exactly nine named relations, their complete grant and policy sets with exact predicates, and exactly two privileged functions: the Auth insert trigger and the activation RPC. Grants and RLS remain distinct proof layers. An added permissive policy, changed predicate or grant, or third privileged function fails deterministic validation even if it is otherwise well-shaped.
 
 ### Schema and API isolation
 
