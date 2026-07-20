@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "CURRENT",
   "schemas": [
     {
@@ -54,6 +54,8 @@
         "supabase_auth_admin": []
       },
       "authenticated_update_columns": [],
+      "canonical_user_key": "auth.users.id",
+      "one_to_one_with_auth_users": true,
       "server_owned_columns": [
         "user_number",
         "canonical_username",
@@ -130,6 +132,12 @@
         ],
         "supabase_auth_admin": []
       },
+      "immutable_key": [
+        "user_id",
+        "service_id"
+      ],
+      "client_writes": "DENIED",
+      "revision": "MONOTONIC",
       "policies": [
         {
           "name": "read own memberships",
@@ -202,44 +210,7 @@
       "policies": []
     },
     {
-      "name": "discordos.user_profiles",
-      "kind": "product_profile",
-      "rls_enabled": true,
-      "rls_forced": true,
-      "grants": {
-        "PUBLIC": [],
-        "anon": [],
-        "authenticated": [
-          "SELECT",
-          "UPDATE"
-        ],
-        "service_role": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE"
-        ],
-        "supabase_auth_admin": []
-      },
-      "policies": [
-        {
-          "name": "read own DiscordOS profile",
-          "command": "SELECT",
-          "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
-          "with_check": null
-        },
-        {
-          "name": "update own DiscordOS profile",
-          "command": "UPDATE",
-          "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'discordos' and m.user_id = (select auth.uid()) and m.state = 'active')"
-        }
-      ]
-    },
-    {
-      "name": "fitness.user_profiles",
+      "name": "fitness.profiles",
       "kind": "product_profile",
       "rls_enabled": true,
       "rls_forced": true,
@@ -263,20 +234,20 @@
           "name": "read own Fitness profile",
           "command": "SELECT",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "using": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
           "with_check": null
         },
         {
           "name": "update own Fitness profile",
           "command": "UPDATE",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
+          "using": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
         }
       ]
     },
     {
-      "name": "mazer.user_profiles",
+      "name": "mazer.mazer_profiles",
       "kind": "product_profile",
       "rls_enabled": true,
       "rls_forced": true,
@@ -313,36 +284,7 @@
       ]
     },
     {
-      "name": "discordos.entitlements",
-      "kind": "product_entitlement",
-      "rls_enabled": true,
-      "rls_forced": true,
-      "grants": {
-        "PUBLIC": [],
-        "anon": [],
-        "authenticated": [
-          "SELECT"
-        ],
-        "service_role": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE"
-        ],
-        "supabase_auth_admin": []
-      },
-      "policies": [
-        {
-          "name": "read own DiscordOS entitlements",
-          "command": "SELECT",
-          "role": "authenticated",
-          "using": "(select auth.uid()) = user_id",
-          "with_check": null
-        }
-      ]
-    },
-    {
-      "name": "fitness.entitlements",
+      "name": "fitness.user_entitlements",
       "kind": "product_entitlement",
       "rls_enabled": true,
       "rls_forced": true,
@@ -363,35 +305,6 @@
       "policies": [
         {
           "name": "read own Fitness entitlements",
-          "command": "SELECT",
-          "role": "authenticated",
-          "using": "(select auth.uid()) = user_id",
-          "with_check": null
-        }
-      ]
-    },
-    {
-      "name": "mazer.entitlements",
-      "kind": "product_entitlement",
-      "rls_enabled": true,
-      "rls_forced": true,
-      "grants": {
-        "PUBLIC": [],
-        "anon": [],
-        "authenticated": [
-          "SELECT"
-        ],
-        "service_role": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE"
-        ],
-        "supabase_auth_admin": []
-      },
-      "policies": [
-        {
-          "name": "read own Mazer entitlements",
           "command": "SELECT",
           "role": "authenticated",
           "using": "(select auth.uid()) = user_id",
@@ -420,8 +333,8 @@
       "atomic_relations": [
         "platform_shared.user_service_memberships",
         "platform_shared.service_activation_receipts",
-        "fitness.user_profiles",
-        "mazer.user_profiles"
+        "fitness.profiles",
+        "mazer.mazer_profiles"
       ]
     },
     {
@@ -452,6 +365,10 @@
     "auth_trigger_subject_derived_from_new_id": true,
     "global_profile_relation_update_for_authenticated_forbidden": true,
     "server_owned_profile_columns_direct_update_forbidden": true,
-    "membership_is_not_entitlement": true
+    "membership_is_not_entitlement": true,
+    "membership_client_writes_forbidden": true,
+    "profile_access_requires_owner_and_active_same_service_membership": true,
+    "presentation_and_external_identifiers_authorization_forbidden": true,
+    "account_portal_membership_read_model": "sanitized_authoritative"
   }
 }

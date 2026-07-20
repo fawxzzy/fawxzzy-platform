@@ -1,16 +1,25 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "CURRENT",
   "membership_is_billing_entitlement": false,
+  "canonical_human_key": "auth.users.id",
+  "global_profile_relation": "platform_shared.global_profiles",
+  "source_identity_ledger_relation": "platform_private.source_identity_ledger",
+  "global_username": {
+    "unique": true,
+    "mutation_authority": "server_only",
+    "presentation_or_linking_evidence": false
+  },
+  "account_portal_membership_read_model": "sanitized_authoritative",
   "services": [
     {
       "id": "discordos",
       "schema": "discordos",
       "discoverable": false,
       "global_signup_may_create_pending": false,
-      "activation_mode": "controlled",
-      "product_profile": "discordos.user_profiles",
-      "entitlement_contract": "discordos.entitlements",
+      "activation_mode": "operational_only",
+      "product_profile": null,
+      "entitlement_contract": null,
       "status": "CURRENT"
     },
     {
@@ -19,8 +28,15 @@
       "discoverable": true,
       "global_signup_may_create_pending": true,
       "activation_mode": "authenticated_first_visit",
-      "product_profile": "fitness.user_profiles",
-      "entitlement_contract": "fitness.entitlements",
+      "product_profile": "fitness.profiles",
+      "entitlement_contract": "fitness.user_entitlements",
+      "member_number_contract": {
+        "existing_human_numbers_copy_unchanged": true,
+        "high_water_preserved": true,
+        "never_reused": true,
+        "gaps_never_filled": true,
+        "never_renumbered": true
+      },
       "status": "CURRENT"
     },
     {
@@ -29,8 +45,8 @@
       "discoverable": true,
       "global_signup_may_create_pending": true,
       "activation_mode": "authenticated_first_visit",
-      "product_profile": "mazer.user_profiles",
-      "entitlement_contract": "mazer.entitlements",
+      "product_profile": "mazer.mazer_profiles",
+      "entitlement_contract": null,
       "status": "CURRENT"
     }
   ]

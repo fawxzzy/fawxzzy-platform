@@ -1,6 +1,24 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "CURRENT",
+  "membership_relation": "platform_shared.user_service_memberships",
+  "immutable_key": [
+    "user_id",
+    "service_id"
+  ],
+  "revision": {
+    "monotonic": true,
+    "transition_audited": true
+  },
+  "client_writes": "DENIED",
+  "activation": {
+    "subject_source": "auth.uid()",
+    "caller_supplied_user_id_allowed": false,
+    "atomic_profile_creation": true,
+    "idempotent": true
+  },
+  "hard_delete": "FORBIDDEN",
+  "retirement_tombstone": "BLOCKED",
   "states": [
     "pending",
     "active",
