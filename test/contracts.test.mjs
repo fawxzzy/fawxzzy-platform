@@ -665,11 +665,11 @@ test('bootstrap verification applies schema and recursive receipt sanitization w
 
   const syntheticMachinePath = ['C:', 'Users', 'operator', 'receipt.json'].join('\\');
   const cases = [
-    ['email', 'emails', ['person@example.invalid'], 'forbidden emails field'],
-    ['raw row/object payload', 'raw_rows', [{ synthetic: 'opaque' }], 'forbidden raw rows field'],
-    ['SQL text', 'sql', 'select private_value from protected_relation', 'forbidden SQL field'],
-    ['project reference', 'project_ref', 'abcdefghijklmnopqrst', 'forbidden project refs field'],
-    ['machine path', 'machine_path', syntheticMachinePath, 'forbidden machine paths field']
+    ['email', 'emails', ['person@example.invalid'], 'FORBIDDEN_FIELD_EMAILS'],
+    ['raw row/object payload', 'raw_rows', [{ synthetic: 'opaque' }], 'FORBIDDEN_FIELD_RAW_ROWS'],
+    ['SQL text', 'sql', 'select private_value from protected_relation', 'FORBIDDEN_FIELD_SQL'],
+    ['project reference', 'project_ref', 'abcdefghijklmnopqrst', 'FORBIDDEN_FIELD_PROJECT_REFS'],
+    ['machine path', 'machine_path', syntheticMachinePath, 'FORBIDDEN_FIELD_MACHINE_PATHS']
   ];
   for (const [name, field, value, expectedFailure] of cases) {
     const leaked = structuredClone(receipt);
@@ -681,6 +681,54 @@ test('bootstrap verification applies schema and recursive receipt sanitization w
     assert.ok(first.some((failure) => failure.includes(expectedFailure)), `${name} sanitization`);
     assert.ok(first.every((failure) => !failure.includes('person@example.invalid') && !failure.includes('private_value') && !failure.includes('abcdefghijklmnopqrst') && !failure.includes(syntheticMachinePath)), `${name} rejected value redaction`);
   }
+});
+
+test('receipt sanitizer redacts sensitive nested property names and values to fixed classes and ordinals', () => {
+  const receipt = structuredClone(loadDocuments()['contracts/v1/transport/app-data-receipt.example.json']);
+  const sensitiveEmail = 'nested.person@example.invalid';
+  const sensitiveSql = 'select private_value from protected_relation';
+  const sensitiveProjectRef = 'abcdefghijklmnopqrst';
+  const sensitiveMachinePath = ['C:', 'Users', 'operator', 'receipt.json'].join('\\');
+  const sensitiveCredential = ['ghp', 'A'.repeat(24)].join('_');
+  const rejectedBytes = [sensitiveEmail, sensitiveSql, sensitiveProjectRef, sensitiveMachinePath, sensitiveCredential, 'private_value'];
+  receipt.snapshot_commitments[sensitiveEmail] = {
+    [sensitiveSql]: [
+      {
+        [sensitiveProjectRef]: {
+          [sensitiveMachinePath]: {
+            [sensitiveCredential]: {
+              raw_rows: [{
+                credential: sensitiveCredential,
+                nested_values: [sensitiveEmail, sensitiveSql, sensitiveProjectRef, sensitiveMachinePath],
+                [sensitiveEmail]: sensitiveSql
+              }]
+            }
+          }
+        }
+      }
+    ]
+  };
+
+  const first = validateAppDataReceiptSanitization(receipt);
+  const second = validateAppDataReceiptSanitization(receipt);
+  assert.deepEqual(first, second);
+  assert.notEqual(first.length, 0);
+  assert.ok(first.every((failure) => /^receipt sanitization failure [0-9]{6}: [A-Z_]+$/.test(failure)));
+  for (const rejected of rejectedBytes) assert.ok(first.every((failure) => !failure.includes(rejected)), rejected);
+  for (const code of [
+    'FORBIDDEN_PROPERTY_NAME_EMAIL',
+    'FORBIDDEN_PROPERTY_NAME_SQL',
+    'FORBIDDEN_PROPERTY_NAME_PROJECT_REF',
+    'FORBIDDEN_PROPERTY_NAME_MACHINE_PATH',
+    'FORBIDDEN_PROPERTY_NAME_CREDENTIAL',
+    'FORBIDDEN_FIELD_RAW_ROWS',
+    'FORBIDDEN_FIELD_CREDENTIALS',
+    'FORBIDDEN_VALUE_EMAIL',
+    'FORBIDDEN_VALUE_SQL',
+    'FORBIDDEN_VALUE_PROJECT_REF',
+    'FORBIDDEN_VALUE_MACHINE_PATH',
+    'FORBIDDEN_VALUE_CREDENTIAL'
+  ]) assert.ok(first.some((failure) => failure.endsWith(code)), code);
 });
 
 test('app data migration gate cannot promote execution or package application', () => {

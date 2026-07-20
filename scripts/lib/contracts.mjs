@@ -311,42 +311,55 @@ function collectStatusValues(value, pointer = '$', output = []) {
 export function validateAppDataReceiptSanitization(receipt) {
   const failures = [];
   const forbiddenKeyPatterns = [
-    [/^raw_?rows?$/i, 'raw rows'],
-    [/^primary_?keys?$/i, 'primary keys'],
-    [/^(?:full_?)?names?$/i, 'names'],
-    [/^emails?$/i, 'emails'],
-    [/^usernames?$/i, 'usernames'],
-    [/^user_?numbers?(?:_ranges?)?$/i, 'user numbers'],
-    [/^uuids?(?:_ranges?)?$/i, 'UUIDs'],
-    [/(?:^|_)secrets?$/i, 'secrets'],
-    [/^project_?refs?$/i, 'project refs'],
-    [/^(?:raw_?)?sql$/i, 'SQL'],
-    [/^payloads?$/i, 'payloads'],
-    [/^provider_?responses?$/i, 'provider responses'],
-    [/^machine_?paths?$/i, 'machine paths']
+    [/^raw_?rows?$/i, 'FORBIDDEN_FIELD_RAW_ROWS'],
+    [/^primary_?keys?$/i, 'FORBIDDEN_FIELD_PRIMARY_KEYS'],
+    [/^(?:full_?)?names?$/i, 'FORBIDDEN_FIELD_NAMES'],
+    [/^emails?$/i, 'FORBIDDEN_FIELD_EMAILS'],
+    [/^usernames?$/i, 'FORBIDDEN_FIELD_USERNAMES'],
+    [/^user_?numbers?(?:_ranges?)?$/i, 'FORBIDDEN_FIELD_USER_NUMBERS'],
+    [/^uuids?(?:_ranges?)?$/i, 'FORBIDDEN_FIELD_UUIDS'],
+    [/(?:^|_)secrets?$/i, 'FORBIDDEN_FIELD_SECRETS'],
+    [/^project_?refs?$/i, 'FORBIDDEN_FIELD_PROJECT_REFS'],
+    [/^(?:raw_?)?sql$/i, 'FORBIDDEN_FIELD_SQL'],
+    [/^payloads?$/i, 'FORBIDDEN_FIELD_PAYLOADS'],
+    [/^provider_?responses?$/i, 'FORBIDDEN_FIELD_PROVIDER_RESPONSES'],
+    [/^machine_?paths?$/i, 'FORBIDDEN_FIELD_MACHINE_PATHS'],
+    [/(?:^|_)(?:tokens?|credentials?|api_?keys?|passwords?)$/i, 'FORBIDDEN_FIELD_CREDENTIALS']
   ];
-  const inspect = (value, pointer) => {
+  let failureOrdinal = 0;
+  const emit = (code) => {
+    failureOrdinal += 1;
+    failures.push(`receipt sanitization failure ${String(failureOrdinal).padStart(6, '0')}: ${code}`);
+  };
+  const classifyString = (value) => {
+    const classes = [];
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) classes.push('EMAIL');
+    if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) classes.push('UUID');
+    if (/^[a-z]{20}$/.test(value)) classes.push('PROJECT_REF');
+    if (/^(?:[A-Za-z]:\\|\/(?:home|Users|tmp|var|workspace)\/)/.test(value)) classes.push('MACHINE_PATH');
+    if (/\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|create\s+(?:table|function|schema)|alter\s+(?:table|function|schema)|drop\s+(?:table|function|schema))\b/i.test(value)) classes.push('SQL');
+    if (/^(?:gh[pousr]_[A-Za-z0-9]{20,}|(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})$/.test(value)) classes.push('CREDENTIAL');
+    return classes;
+  };
+  const inspect = (value) => {
     if (Array.isArray(value)) {
-      value.forEach((entry, index) => inspect(entry, `${pointer}[${index}]`));
+      value.forEach((entry) => inspect(entry));
       return;
     }
     if (value && typeof value === 'object') {
       for (const [key, entry] of Object.entries(value)) {
-        for (const [pattern, label] of forbiddenKeyPatterns) {
-          if (pattern.test(key)) failures.push(`${pointer}.${key}: public receipt contains forbidden ${label} field`);
+        for (const [pattern, code] of forbiddenKeyPatterns) {
+          if (pattern.test(key)) emit(code);
         }
-        inspect(entry, `${pointer}.${key}`);
+        for (const classification of classifyString(key)) emit(`FORBIDDEN_PROPERTY_NAME_${classification}`);
+        inspect(entry);
       }
       return;
     }
     if (typeof value !== 'string') return;
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) failures.push(`${pointer}: public receipt contains an email-like value`);
-    if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) failures.push(`${pointer}: public receipt contains a UUID-like value`);
-    if (/^[a-z]{20}$/.test(value)) failures.push(`${pointer}: public receipt contains a project-ref-shaped value`);
-    if (/^(?:[A-Za-z]:\\|\/(?:home|Users|tmp|var|workspace)\/)/.test(value)) failures.push(`${pointer}: public receipt contains a machine-path-shaped value`);
-    if (/\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|create\s+(?:table|function|schema)|alter\s+(?:table|function|schema)|drop\s+(?:table|function|schema))\b/i.test(value)) failures.push(`${pointer}: public receipt contains SQL-like text`);
+    for (const classification of classifyString(value)) emit(`FORBIDDEN_VALUE_${classification}`);
   };
-  inspect(receipt, '$');
+  inspect(receipt);
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
