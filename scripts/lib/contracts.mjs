@@ -131,7 +131,7 @@ const expectedRelationDigests = Object.freeze({
   'platform_shared.service_activation_receipts': '792af06db4ceb095a9f6cbdec0c63c8640af217287fa2125371e946e4608310c',
   'platform_private.source_identity_ledger': '9b08ad8a5420b29dc5426491453a01b078cdd4496f8b7183dcfab1e87e56dcb1',
   'platform_private.identity_collision_adjudications': '84df17b7ea9813742fee571d3b0930dfc9be2a798286669e99a5818d054adc95',
-  'fitness.profiles': '5a073ae6e9d5b8a8695c08b44e304b0e93db7c45462f3819cea6da10add893a6',
+  'fitness.profiles': 'd1e6f4b1e62cd3d30f3664c453bb54ba2cd1272d1a03a3c7fa2f2ee8611bb04a',
   'mazer.mazer_profiles': '323b12075b0653d30d58ae2b7bc2ece79cf89d7e24017e2a251e27c2be5edbca',
   'fitness.user_entitlements': '0bbe4fcc3689edca3f2a97a42cc517aa90ffabcaab93491305a58285e82b06de'
 });
@@ -154,6 +154,11 @@ const protectedGlobalProfileColumns = Object.freeze([
 const productProfileServices = Object.freeze({
   'fitness.profiles': 'fitness',
   'mazer.mazer_profiles': 'mazer'
+});
+
+const productProfileOwnerPredicates = Object.freeze({
+  'fitness.profiles': '(select auth.uid()) = id',
+  'mazer.mazer_profiles': '(select auth.uid()) = user_id'
 });
 
 function readJson(relativePath) {
@@ -513,6 +518,7 @@ export function validateSemantics(documents) {
       }
       const serviceId = productProfileServices[relation.name];
       if (serviceId) {
+        requireCondition(expression.includes(productProfileOwnerPredicates[relation.name]), `${relation.name}/${policy.name}: owner predicate must remain ${productProfileOwnerPredicates[relation.name]}`);
         requireCondition(expression.includes(`m.service_id = '${serviceId}'`), `${relation.name}/${policy.name}: product-profile access must require its service membership`);
         requireCondition(expression.includes('m.user_id = (select auth.uid())'), `${relation.name}/${policy.name}: membership row must bind directly to auth.uid()`);
         requireCondition(!/\bm\.user_id\s*=\s*user_id\b/.test(expression), `${relation.name}/${policy.name}: unqualified membership user predicate is tautological and forbidden`);

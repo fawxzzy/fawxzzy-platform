@@ -58,7 +58,7 @@ Membership means that a person may enter a service; it is not payment or subscri
 
 RLS uses ownership predicates derived from `auth.uid()`. No policy or function may authorize from `user_metadata` or `raw_user_meta_data`, because authenticated users can edit that data. Update policies require both `USING` and `WITH CHECK`.
 
-Product-profile policies require both row ownership and an active membership for the same caller. Every admitted Fitness and Mazer membership subquery binds `m.user_id` directly to `(select auth.uid())`; an unqualified inner `user_id`, a missing membership predicate, or a suspended membership is never sufficient.
+Product-profile policies require both row ownership and an active membership for the same caller. Row ownership preserves each accepted source relation: `fitness.profiles.id` and `mazer.mazer_profiles.user_id` bind directly to `(select auth.uid())`. Every admitted Fitness and Mazer membership subquery separately binds `m.user_id` directly to the same caller; an unqualified inner `user_id`, a missing membership predicate, or a suspended membership is never sufficient.
 
 The contract declares no directly mutable `platform_shared.global_profiles` storage columns. The `authenticated` role therefore has `SELECT` only, no relation-wide `UPDATE`, an empty authenticated column-update set, and no direct update policy. `user_number`, canonical username and its normalized key, source identity/provenance, lifecycle state, and server-maintained timestamps are explicitly server-owned. The approved account-update surface does not imply a broad table grant; a later schema packet must name any mutable columns and their exact validation boundary before direct updates can be admitted.
 

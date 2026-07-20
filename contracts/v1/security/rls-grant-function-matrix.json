@@ -234,15 +234,15 @@
           "name": "read own Fitness profile",
           "command": "SELECT",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "using": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
           "with_check": null
         },
         {
           "name": "update own Fitness profile",
           "command": "UPDATE",
           "role": "authenticated",
-          "using": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
-          "with_check": "(select auth.uid()) = user_id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
+          "using": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')",
+          "with_check": "(select auth.uid()) = id and exists (select 1 from platform_shared.user_service_memberships m where m.service_id = 'fitness' and m.user_id = (select auth.uid()) and m.state = 'active')"
         }
       ]
     },

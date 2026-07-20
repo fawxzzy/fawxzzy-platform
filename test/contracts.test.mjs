@@ -281,10 +281,28 @@ test('product-profile policies reject tautological membership predicates', () =>
 test('product-profile policies reject access without membership', () => {
   const documents = structuredClone(loadDocuments());
   const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === 'fitness.profiles');
-  relation.policies[0].using = '(select auth.uid()) = user_id';
+  relation.policies[0].using = '(select auth.uid()) = id';
   const failures = validateSemantics(documents);
   assert.ok(failures.some((failure) => failure.includes('product-profile access must require its service membership')));
   assert.ok(failures.some((failure) => failure.includes('membership row must bind directly to auth.uid()')));
+});
+
+test('product-profile policies preserve each source relation owner key', () => {
+  const baseline = loadDocuments();
+  for (const [relationName, admittedOwnerPredicate, rejectedOwnerPredicate] of [
+    ['fitness.profiles', '(select auth.uid()) = id', '(select auth.uid()) = user_id'],
+    ['mazer.mazer_profiles', '(select auth.uid()) = user_id', '(select auth.uid()) = id']
+  ]) {
+    const documents = structuredClone(baseline);
+    const relation = documents['contracts/v1/security/rls-grant-function-matrix.json'].relations.find((candidate) => candidate.name === relationName);
+    for (const policy of relation.policies) {
+      if (policy.using) policy.using = policy.using.replace(admittedOwnerPredicate, rejectedOwnerPredicate);
+      if (policy.with_check) policy.with_check = policy.with_check.replace(admittedOwnerPredicate, rejectedOwnerPredicate);
+    }
+    const failures = validateSemantics(documents);
+    assert.ok(failures.some((failure) => failure.includes(`owner predicate must remain ${admittedOwnerPredicate}`)), relationName);
+    assert.ok(failures.some((failure) => failure.includes('exact grants and complete admitted policy set changed')), relationName);
+  }
 });
 
 test('product-profile policies reject suspended membership access', () => {
