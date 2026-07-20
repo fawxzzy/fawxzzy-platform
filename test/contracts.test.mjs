@@ -8,7 +8,7 @@ import {
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
-import { verifyAppDataTransportContracts } from '../scripts/verify-target-bootstrap.mjs';
+import { verifyAppDataTransportContracts, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
 
 test('all versioned contract instances satisfy their schemas and semantics', () => {
   const report = validateContracts();
@@ -747,4 +747,61 @@ test('app data migration gate cannot promote execution or package application', 
   }
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_count, 122);
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+});
+
+test('Mazer app data adapter is closed, provider-canonical, and execution-blocked', () => {
+  const documents = loadDocuments();
+  const adapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
+  const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+  assert.deepEqual(verifyMazerAppDataAdapter({ adapter, gate }), []);
+  assert.equal(adapter.relations.length, 4);
+  assert.deepEqual(adapter.relations.map((relation) => relation.classification), [
+    'AUTHORITATIVE_ACTIVATION_SEED',
+    'AUTHORITATIVE_STATE',
+    'DERIVED_INDEXED_MIRROR',
+    'AUTHORITATIVE_APPEND_ONLY_HISTORY'
+  ]);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+  assert.equal(gate.app_data_adapters.apply_admitted, false);
+});
+
+test('Mazer app data adapter fails closed across every admitted drift class', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(adapter) => { adapter.relations[0].target_relation = 'public.mazer_profiles'; }, 'relation denominator'],
+    [(adapter) => { adapter.provider_canonical.accepted_source_commit = '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4'; }, 'source commit'],
+    [(adapter) => { adapter.provider_canonical.current_git_head = '0'.repeat(40); }, 'Git substitution'],
+    [(adapter) => { adapter.identity_and_activation.profile_seed.direct_pre_activation_insert_allowed = true; }, 'activation-seed'],
+    [(adapter) => { adapter.identity_and_activation.caller_supplied_user_id_allowed = true; }, 'activation subject'],
+    [(adapter) => { adapter.relations[2].transport_mode = 'AUTHORITATIVE_CAS'; }, 'relation denominator'],
+    [(adapter) => { adapter.relations[3].target_default_identity_generation_allowed = true; }, 'receipt identity'],
+    [(adapter) => { adapter.snapshot_and_cas.required_snapshots = ['S0', 'S1']; }, 'snapshot'],
+    [(adapter) => { adapter.deletion_and_rollback.implicit_cascade_authority = true; }, 'deletion'],
+    [(adapter) => { adapter.snapshot_and_cas.unexpected_target_overwrite_allowed = true; }, 'CAS overwrite'],
+    [(adapter) => { adapter.public_receipt_policy.forbidden_classes = ['raw_rows']; }, 'receipt redaction'],
+    [(adapter) => { adapter.apply_admitted = true; }, 'non-executable'],
+    [(adapter) => { adapter.provider_canonical.accepted_package_sha256 = '0'.repeat(64); }, 'effect mapping binding']
+  ];
+  for (const [mutate, expected] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/transport/mazer-app-data-adapter-contract.json']);
+    assert.notEqual(validateSchemaInstances(documents, createValidator()).length, 0, expected);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(expected)), expected);
+  }
+});
+
+test('Mazer app data adapter gate rejects readiness and target-apply promotion', () => {
+  const baseline = loadDocuments();
+  for (const mutate of [
+    (gate) => { gate.source_ready = ['mazer', 'fitness']; },
+    (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.all_adapters_ready = true; },
+    (gate) => { gate.execution_lifecycle = 'CURRENT'; },
+    (gate) => { gate.apply_admitted = true; }
+  ]) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/gates/migration-gate-state.json'].app_data_adapters);
+    assert.notEqual(validateSchemaInstances(documents, createValidator()).length, 0);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes('app data adapter')));
+  }
 });

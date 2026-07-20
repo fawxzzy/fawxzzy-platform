@@ -36,6 +36,17 @@ The append-only mutation journal records every committed mutation, reuse, and co
 
 Public receipts are closed and aggregate-only. They may contain counts, booleans, cutoffs, non-identifying high-water marks, quarantine classes, private commitments, and digests. They may not contain rows, primary keys, names, emails, usernames, user numbers or ranges, UUIDs or ranges, secrets, project references, SQL, payloads, provider responses, or machine paths.
 
+### Mazer adapter
+
+The first product adapter is source-ready but execution-blocked. It binds the four accepted provider-canonical Mazer relations without treating the later three-file default-branch chain as replacement history.
+
+- `mazer_profiles` is authoritative application data, but it is not preinserted. A private digest-bound seed is looked up through the immutable identity mapping and consumed in the same server-side transaction that activates the pending Mazer membership. The caller supplies no user ID. Exact existing profile state is reused; conflicting state is quarantined.
+- `mazer_progression_states` is authoritative state. Its revision can narrow change detection, but S0, S1, and S2 still compare the complete key set and complete canonical row digests.
+- `mazer_ai_progression_states` is the indexed mirror of the canonical combined progression state. It is excluded from authoritative transport and rebuilt deterministically only after progression parity.
+- `mazer_cycle_receipts` is append-only history. Existing identities are preserved; the target default UUID generator is never used during transport. Deletes remain explicit tombstones.
+
+The adapter rekeys every source `user_id` only through `platform_private.source_identity_ledger`. Presentation values such as `display_name` never become identity evidence. Profile or membership history is preserved on deletion, all CAS conflicts quarantine without overwrite, and external effects remain disabled. Public receipts retain only aggregates and one-way commitments.
+
 ## Consequences
 
-This contract is app-agnostic. DiscordOS, Fitness, and Mazer each still require a separate adapter contract. Data API containment, accepted recovery and quarantined restore, faithful contained replay, target bootstrap, shared Auth identity mapping, service-membership readiness, and all three adapters remain blocking dependencies. No source pause, reverse catch-up, target write, provider action, or deployment is admitted here.
+The generic contract remains app-agnostic. Mazer now has one closed source-ready adapter; Fitness and DiscordOS still require separate adapters. Because all three are required, application-data execution remains blocked. Data API containment, accepted recovery and quarantined restore, faithful contained replay, target bootstrap, shared Auth identity mapping, and service-membership readiness also remain blocking dependencies. No source pause, reverse catch-up, target write, provider action, or deployment is admitted here.

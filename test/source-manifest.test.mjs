@@ -8,6 +8,7 @@ import {
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
   verifyAppDataTransportContracts,
+  verifyMazerAppDataAdapter,
   verifyFitnessPr108ReplayGate,
   verifyProviderCanonicalProvenance,
   verifySharedAuthImportRehearsal,
@@ -102,6 +103,19 @@ test('app data verifier rejects snapshot, CAS, journal, and gate promotion', () 
   const promotedGate = structuredClone(gate);
   promotedGate.app_data_transport.apply_admitted = true;
   assert.ok(verifyAppDataTransportContracts({ contract, receipt, journal, gate: promotedGate }).some((failure) => failure.includes('migration gate drift')));
+});
+
+test('Mazer app data adapter remains package-neutral and execution-blocked', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const adapter = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/mazer-app-data-adapter-contract.json`, 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  assert.deepEqual(verifyMazerAppDataAdapter({ adapter, gate }), []);
+  assert.equal(sourceManifest.migrations.length, 122);
+  assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'mazer').length, 4);
+  assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(adapter.apply_admitted, false);
+  assert.equal(gate.app_data_adapters.apply_admitted, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
 });
 
 test('every copied source file matches its byte count, raw digest, and Git blob identity', () => {
