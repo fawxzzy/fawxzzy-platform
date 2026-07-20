@@ -514,6 +514,21 @@ test('identity policy rejects username-only matching and write-gate drift', () =
   assert.ok(failures.some((failure) => failure.includes('destructive cleanup must remain BLOCKED')));
 });
 
+test('provider-canonical provenance rejects digest drift, path substitution, and executable promotion', () => {
+  const digestDrift = structuredClone(loadDocuments());
+  digestDrift['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.combined_provenance_sha256 = '0'.repeat(64);
+  assert.ok(validateSemantics(digestDrift).some((failure) => failure.includes('combined provenance digest drift')));
+
+  const substituted = structuredClone(loadDocuments());
+  substituted['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.effect_mappings[0].accepted_path = 'supabase/migrations/20260709045557_progression_v1.sql';
+  assert.ok(validateSemantics(substituted).some((failure) => failure.includes('effect mapping digest drift')));
+
+  const promoted = structuredClone(loadDocuments());
+  promoted['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.apply_admitted = true;
+  assert.ok(validateSchemaInstances(promoted, createValidator()).some((failure) => failure.includes('migration-gate-state.json')));
+  assert.ok(validateSemantics(promoted).some((failure) => failure.includes('non-executable')));
+});
+
 test('global user_number invariants reject reuse or renumbering', () => {
   const documents = structuredClone(loadDocuments());
   const numbering = documents['contracts/v1/identity/identity-map.json'].user_number_contract;

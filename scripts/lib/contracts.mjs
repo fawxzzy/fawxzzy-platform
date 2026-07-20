@@ -161,6 +161,16 @@ const productProfileOwnerPredicates = Object.freeze({
   'mazer.mazer_profiles': '(select auth.uid()) = user_id'
 });
 
+const providerCanonicalProvenance = Object.freeze({
+  combined_provenance_sha256: '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684',
+  deterministic_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
+  effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
+  sources: Object.freeze([
+    Object.freeze({ app: 'discordos', project_ref: 'nwexsktuuenfdegzrbut', provider_ledger_migration_count: 17, current_git_migration_count: 11, complete_catalog_sha256: 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7' }),
+    Object.freeze({ app: 'mazer', project_ref: 'geknvnrmktchljnyddwp', provider_ledger_migration_count: 4, current_git_migration_count: 3, complete_catalog_sha256: '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436' })
+  ])
+});
+
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8'));
 }
@@ -221,6 +231,10 @@ function exactOrderedValues(actual, expected) {
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function canonicalDigest(value) {
+  return crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
 }
 
 function collectStatusValues(value, pointer = '$', output = []) {
@@ -289,6 +303,26 @@ export function validateSemantics(documents) {
   for (const lifecycleUnit of ['adapter_merge', 'replay_execution', 'fitness_merge', 'target_apply']) {
     requireCondition(fitnessReplayGate.lifecycle[lifecycleUnit] === 'BLOCKED', `${lifecycleUnit} must remain BLOCKED`);
   }
+
+  const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];
+  const provenance = migrationGate.provider_canonical_provenance;
+  requireCondition(migrationGate.version === '1.1.0', 'migration gate version must remain 1.1.0');
+  requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
+  requireCondition(provenance?.combined_provenance_sha256 === providerCanonicalProvenance.combined_provenance_sha256, 'provider-canonical combined provenance digest drift');
+  requireCondition(provenance?.accepted_package?.migration_count === 122, 'provider-canonical accepted migration count must remain 122');
+  requireCondition(provenance?.accepted_package?.source_counts?.discordos === 17 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.source_counts?.mazer === 4, 'provider-canonical source migration counts drift');
+  requireCondition(provenance?.accepted_package?.deterministic_package_sha256 === providerCanonicalProvenance.deterministic_package_sha256, 'provider-canonical deterministic package digest drift');
+  requireCondition(provenance?.accepted_package?.apply_admitted === false && provenance?.accepted_package?.historical_path_rewrite_forbidden === true && provenance?.accepted_package?.current_source_substitution_forbidden === true, 'provider-canonical package protections must remain fail-closed');
+  requireCondition(exactOrderedValues(provenance?.sources?.map((source) => source.app), ['discordos', 'mazer']), 'provider-canonical source denominator order drift');
+  for (const expected of providerCanonicalProvenance.sources) {
+    const actual = provenance?.sources?.find((source) => source.app === expected.app);
+    requireCondition(actual?.project_ref === expected.project_ref && actual?.provider_ledger_migration_count === expected.provider_ledger_migration_count && actual?.current_git_migration_count === expected.current_git_migration_count && actual?.current_git_canonicality === 'not_provider_canonical' && actual?.complete_catalog_sha256 === expected.complete_catalog_sha256, `${expected.app}: provider-canonical source evidence drift`);
+  }
+  requireCondition(Array.isArray(provenance?.effect_mappings) && provenance.effect_mappings.length === 21, 'provider-canonical effect mapping denominator must contain 21 units');
+  requireCondition(new Set((provenance?.effect_mappings ?? []).map((mapping) => `${mapping.app}:${mapping.ledger_version}`)).size === 21, 'provider-canonical effect mappings must be unique by source and ledger version');
+  requireCondition((provenance?.effect_mappings ?? []).filter((mapping) => mapping.app === 'discordos').length === 17 && (provenance?.effect_mappings ?? []).filter((mapping) => mapping.app === 'mazer').length === 4, 'provider-canonical effect mapping source counts drift');
+  requireCondition(provenance?.effect_mappings_sha256 === providerCanonicalProvenance.effect_mappings_sha256 && canonicalDigest(provenance?.effect_mappings) === providerCanonicalProvenance.effect_mappings_sha256, 'provider-canonical effect mapping digest drift');
+  requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'provider-ledger canonical historical package' && evidence.status === 'CURRENT') === true, 'provider-ledger canonical historical package evidence must remain CURRENT');
 
   const catalog = documents['contracts/v1/catalog/service-catalog.json'];
   requireCondition(catalog.version === '1.1.0', 'service catalog version must remain 1.1.0');

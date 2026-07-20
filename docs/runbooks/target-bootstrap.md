@@ -19,6 +19,8 @@ The generator reads only committed repository files:
 
 Fitness PR #108 is dependency evidence only. Its candidate head is not an executable source commit and no file from its worktree belongs in this package.
 
+DiscordOS and Mazer current default-branch migration discovery is not a package-refresh input. The migration gate carries a closed provider-ledger canonical provenance map for their 21 accepted historical units. Verification binds every map entry to the committed path, commit, blob, raw digest, byte count, ledger identity, and effect-class denominator. Any current-source substitution, ambiguous rename, historical path rewrite, missing mapping, package digest drift, or `apply_admitted=true` claim fails closed.
+
 ## Generate and verify
 
 From the repository root:
