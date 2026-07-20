@@ -489,6 +489,27 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, determ
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+export function verifySharedAuthImportRehearsal({ contract, gate }) {
+  const failures = [];
+  const expectedAnchors = [
+    ['platform', 'bef5f17f4b82c36daeada9cb8cefa4d845158382'],
+    ['web', 'b6118a24aca9a6b7686c8c9622137bdb5d5e894f'],
+    ['fitness', '317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3'],
+    ['mazer', '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4'],
+    ['discordos', 'aef01f277e006e3cb46550e507ebd8e4a1be9d21']
+  ];
+  const importGate = gate?.shared_auth_import_reauth_rehearsal ?? {};
+  fail(failures, contract?.status === 'CURRENT' && contract?.lifecycle?.source_contract === 'SOURCE_READY' && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED' && contract?.apply_admitted === false, 'shared Auth import rehearsal must remain source-ready, execution-blocked, and non-executable');
+  fail(failures, contract?.research_denominator_sha256 === 'e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820', 'shared Auth import research denominator drift');
+  fail(failures, canonicalJson(contract?.source_anchors?.map((anchor) => [anchor.app, anchor.commit])) === canonicalJson(expectedAnchors), 'shared Auth import source anchors drift');
+  fail(failures, canonicalJson(contract?.preview_order) === canonicalJson(['FawxzzyWeb_account_shell', 'Mazer', 'Fitness', 'DiscordOS']), 'shared Auth import Preview order drift');
+  fail(failures, contract?.snapshot_and_idempotency?.timestamps_alone_sufficient === false && canonicalJson(contract?.snapshot_and_idempotency?.diff_requires) === canonicalJson(['additions', 'changes', 'tombstones']), 'shared Auth import snapshot diff boundary drift');
+  fail(failures, canonicalJson(contract?.snapshot_and_idempotency?.idempotency_key) === canonicalJson(['source_project', 'relation', 'source_key_digest', 'row_digest', 'transform_version']), 'shared Auth import idempotency key binding drift');
+  fail(failures, contract?.totp?.portability === 'UNKNOWN' && contract?.totp?.default === 'REENROLL', 'shared Auth import TOTP portability must remain unknown with reenrollment default');
+  fail(failures, importGate.status === 'CURRENT' && importGate.source_contract_lifecycle === 'SOURCE_READY' && importGate.execution_lifecycle === 'EXECUTION_BLOCKED' && importGate.apply_admitted === false, 'shared Auth import gate drift');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 function verifySourceManifest(config, manifest, failures) {
   fail(failures, manifest.apply_admitted === false, 'source manifest must set apply_admitted=false');
   fail(failures, manifest.migrations.length === exactExpected.migrations, 'source migration denominator must be 122');
@@ -1185,6 +1206,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   fail(failures, canonicalJson(manifestNames) === canonicalJson(expectedManifestFiles), 'manifest path denominator drift');
   const sourceManifest = readJson('bootstrap/manifests/source-migrations.v1.json');
   const migrationGate = readJson('contracts/v1/gates/migration-gate-state.json');
+  const importRehearsal = readJson('contracts/v1/auth/import-rehearsal-contract.json');
   const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
   const objects = readJson('bootstrap/manifests/source-objects.v1.json');
   const dynamic = readJson('bootstrap/manifests/dynamic-units.v1.json');
@@ -1193,6 +1215,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const namespacePlan = readJson('bootstrap/manifests/namespace-plan.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
   failures.push(...verifyProviderCanonicalProvenance({ gate: migrationGate, sourceManifest, deterministicPackageSha256: digestPackageOutputs().digest }));
+  failures.push(...verifySharedAuthImportRehearsal({ contract: importRehearsal, gate: migrationGate }));
   failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1221,6 +1244,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'path_level_inertness',
       'fitness_pr108_replay_provenance_gate',
       'provider_canonical_historical_provenance_gate',
+      'shared_auth_import_reauth_rehearsal_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',

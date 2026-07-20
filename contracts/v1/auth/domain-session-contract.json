@@ -149,6 +149,15 @@
       "exact_rollback"
     ]
   },
+  "import_reauth_rehearsal": {
+    "status": "CURRENT",
+    "apply_admitted": false,
+    "target_signing_identity": "RETAIN",
+    "source_sessions_tokens_cookies": "EXCLUDE_AND_REJECT",
+    "new_sessions": "PER_ORIGIN_CONTROLLED_REAUTH",
+    "pkce_recovery": "CENTRALIZED_REQUIRED",
+    "url_tokens": "FORBIDDEN"
+  },
   "account_surfaces": {
     "owner_origin": "https://account.fawxzzy.com",
     "implementation_owner": "FawxzzyWeb",

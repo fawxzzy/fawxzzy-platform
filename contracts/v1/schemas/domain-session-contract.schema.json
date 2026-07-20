@@ -13,6 +13,7 @@
     "auth_configuration",
     "auth_policy",
     "provider_application_gate",
+    "import_reauth_rehearsal",
     "account_surfaces",
     "session_model",
     "smtp"
@@ -512,6 +513,42 @@
             "exact_readback",
             "exact_rollback"
           ]
+        }
+      }
+    },
+    "import_reauth_rehearsal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "apply_admitted",
+        "target_signing_identity",
+        "source_sessions_tokens_cookies",
+        "new_sessions",
+        "pkce_recovery",
+        "url_tokens"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "target_signing_identity": {
+          "const": "RETAIN"
+        },
+        "source_sessions_tokens_cookies": {
+          "const": "EXCLUDE_AND_REJECT"
+        },
+        "new_sessions": {
+          "const": "PER_ORIGIN_CONTROLLED_REAUTH"
+        },
+        "pkce_recovery": {
+          "const": "CENTRALIZED_REQUIRED"
+        },
+        "url_tokens": {
+          "const": "FORBIDDEN"
         }
       }
     },

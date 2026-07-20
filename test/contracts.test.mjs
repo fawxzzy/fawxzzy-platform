@@ -19,6 +19,20 @@ test('contract validation output is deterministic', () => {
   assert.equal(JSON.stringify(validateContracts()), JSON.stringify(validateContracts()));
 });
 
+test('shared Auth import rehearsal rejects lifecycle promotion, collision weakening, and raw identity leakage', () => {
+  const baseline = loadDocuments();
+  for (const mutate of [
+    (documents) => { documents['contracts/v1/auth/import-rehearsal-contract.json'].lifecycle.execution = 'CURRENT'; },
+    (documents) => { documents['contracts/v1/auth/import-rehearsal-contract.json'].collision_matrix[2].outcome = 'ONE_TARGET_MAPPING'; },
+    (documents) => { documents['contracts/v1/auth/import-rehearsal-contract.json'].receipt_boundary.push('raw_identity'); },
+    (documents) => { documents['contracts/v1/membership/membership-lifecycle.json'].import_staging.requires_auth_uid_derived_subject = false; }
+  ]) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    assert.ok(validateSchemaInstances(documents, createValidator()).length > 0 || validateSemantics(documents).length > 0);
+  }
+});
+
 test('activation request schema rejects a caller-selected subject', () => {
   const documents = structuredClone(loadDocuments());
   documents['contracts/v1/activation/activation-request.example.json'].user_id = '00000000-0000-4000-8000-000000000003';

@@ -13,6 +13,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/registry/project-registry.json', 'urn:fawxzzy:platform:schemas:v1:project-registry'],
   ['contracts/v1/catalog/service-catalog.json', 'urn:fawxzzy:platform:schemas:v1:service-catalog'],
   ['contracts/v1/identity/identity-map.json', 'urn:fawxzzy:platform:schemas:v1:identity-map'],
+  ['contracts/v1/auth/import-rehearsal-contract.json', 'urn:fawxzzy:platform:schemas:v1:import-rehearsal-contract'],
   ['contracts/v1/membership/membership-lifecycle.json', 'urn:fawxzzy:platform:schemas:v1:membership-lifecycle'],
   ['contracts/v1/activation/activation-request.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-request'],
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
@@ -305,6 +306,9 @@ export function validateSemantics(documents) {
   }
 
   const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];
+  const sharedAuthImportGate = migrationGate.shared_auth_import_reauth_rehearsal ?? {};
+  requireCondition(sharedAuthImportGate.status === 'CURRENT' && sharedAuthImportGate.source_contract_lifecycle === 'SOURCE_READY' && sharedAuthImportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && sharedAuthImportGate.apply_admitted === false, 'shared Auth import migration gate must remain source-ready, execution-blocked, and non-executable');
+  requireCondition(sharedAuthImportGate.contract_path === 'contracts/v1/auth/import-rehearsal-contract.json' && sharedAuthImportGate.research_denominator_sha256 === 'e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820', 'shared Auth import migration gate binding drift');
   const provenance = migrationGate.provider_canonical_provenance;
   requireCondition(migrationGate.version === '1.1.0', 'migration gate version must remain 1.1.0');
   requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
@@ -385,6 +389,32 @@ export function validateSemantics(documents) {
   requireCondition(identity.auth_migration_contract.controlled_reauthentication_required === true, 'controlled reauthentication must remain required');
   requireCondition(identity.auth_migration_contract.three_auth_schema_wholesale_merge_forbidden === true, 'wholesale three-source Auth merge must remain forbidden');
   requireCondition(identity.auth_migration_contract.storage_object_bodies.action_time_status === 'UNKNOWN', 'Storage object body denominator must be re-read at action time');
+  const importBinding = identity.import_rehearsal_binding ?? {};
+  requireCondition(importBinding.status === 'CURRENT' && importBinding.apply_admitted === false, 'identity import rehearsal binding must remain source-only');
+  requireCondition(importBinding.mapping_receipts === 'DIGEST_ONLY_NO_RAW_IDENTITIES' && importBinding.quarantine_default === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE', 'identity import rehearsal receipts and quarantine default drift');
+  requireCondition(importBinding.password_hash_equality === 'NEVER_SUFFICIENT' && importBinding.metadata_authorization_or_linking === false, 'identity import rehearsal must reject hash equality and metadata authorization');
+
+  const importRehearsal = documents['contracts/v1/auth/import-rehearsal-contract.json'] ?? {};
+  const expectedImportAnchors = [
+    ['platform', 'bef5f17f4b82c36daeada9cb8cefa4d845158382'],
+    ['web', 'b6118a24aca9a6b7686c8c9622137bdb5d5e894f'],
+    ['fitness', '317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3'],
+    ['mazer', '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4'],
+    ['discordos', 'aef01f277e006e3cb46550e507ebd8e4a1be9d21']
+  ];
+  requireCondition(importRehearsal.version === '1.0.0' && importRehearsal.status === 'CURRENT' && importRehearsal.apply_admitted === false, 'shared Auth import rehearsal must remain current and non-executable');
+  requireCondition(importRehearsal.lifecycle?.source_contract === 'SOURCE_READY' && importRehearsal.lifecycle?.execution === 'EXECUTION_BLOCKED', 'shared Auth import rehearsal lifecycle must remain source-ready and execution-blocked');
+  requireCondition(importRehearsal.research_denominator_sha256 === 'e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820', 'shared Auth import research denominator drift');
+  requireCondition(exactOrderedValues(importRehearsal.source_anchors?.map((anchor) => [anchor.app, anchor.commit]), expectedImportAnchors), 'shared Auth import source anchors drift');
+  requireCondition(importRehearsal.import_boundary?.adjudicated_canonical_humans_only === true && importRehearsal.import_boundary?.provider_identities_require_accepted_source_mapping === true, 'shared Auth import must require adjudicated canonical humans and mapped provider identities');
+  requireCondition(importRehearsal.import_boundary?.password_hashes === 'opaque_provider_compatible_never_serialized' && importRehearsal.import_boundary?.mutable_user_metadata === 'presentation_only_never_authorization_or_linking', 'shared Auth import password-hash and metadata boundary drift');
+  requireCondition(exactOrderedValues(importRehearsal.import_boundary?.excluded, ['source_sessions', 'refresh_tokens', 'access_tokens', 'cookies', 'signing_secrets', 'api_keys', 'smtp_secrets', 'captcha_secrets', 'raw_provider_settings']), 'shared Auth import exclusion denominator drift');
+  requireCondition(exactOrderedValues(importRehearsal.collision_matrix?.map((entry) => [entry.case, entry.outcome]), [
+    ['identical_source_identity_identical_payload_digest', 'IDEMPOTENT_RETRY'], ['accepted_deterministic_cross_source_evidence', 'ONE_TARGET_MAPPING'], ['normalized_email_collision', 'QUARANTINE_PENDING_VERIFIED_EVIDENCE'], ['username_or_display_name_collision', 'NEVER_MERGE'], ['cross_project_uuid_or_password_hash_equality', 'NEVER_SUFFICIENT'], ['service_or_automation', 'EXCLUDE_HUMAN_IMPORT'], ['missing_or_contradictory_evidence', 'QUARANTINE_PENDING_VERIFIED_EVIDENCE'], ['quarantine_not_isolatable', 'FAIL_ENTIRE_BATCH']
+  ]), 'shared Auth import collision matrix drift');
+  requireCondition(exactOrderedValues(importRehearsal.synthetic_cohorts, ['fitness_legacy_hash', 'mazer_hash', 'verified_cross_source_human', 'normalized_email_collision', 'username_display_collision', 'cross_project_uuid_collision', 'service_identity', 'missing_evidence', 'optional_synthetic_totp']), 'shared Auth import synthetic cohort denominator drift');
+  requireCondition(exactOrderedValues(importRehearsal.proofs, ['deterministic_export_transform_import_replay', 'legacy_hash_sign_in', 'source_token_rejection', 'per_origin_target_sessions', 'centralized_pkce_recovery', 'no_url_token_leakage', 'non_enumeration', 'local_sign_out_truth', 'atomic_idempotent_activation', 'suspended_rejection', 'zero_outbound_effects', 'disposable_rollback_sources_active']), 'shared Auth import proof denominator drift');
+  requireCondition(exactOrderedValues(importRehearsal.preview_order, ['FawxzzyWeb_account_shell', 'Mazer', 'Fitness', 'DiscordOS']), 'shared Auth import Preview order drift');
 
   const lifecycle = documents['contracts/v1/membership/membership-lifecycle.json'];
   requireCondition(lifecycle.version === '1.1.0', 'membership lifecycle version must remain 1.1.0');
@@ -394,6 +424,7 @@ export function validateSemantics(documents) {
   requireCondition(lifecycle.client_writes === 'DENIED', 'client membership writes must remain denied');
   requireCondition(lifecycle.activation?.subject_source === 'auth.uid()' && lifecycle.activation?.caller_supplied_user_id_allowed === false && lifecycle.activation?.atomic_profile_creation === true && lifecycle.activation?.idempotent === true, 'activation must remain auth.uid-bound, atomic, and idempotent without caller-selected user IDs');
   requireCondition(lifecycle.hard_delete === 'FORBIDDEN' && lifecycle.retirement_tombstone === 'BLOCKED', 'hard delete must remain forbidden and retirement/tombstone must remain unapproved');
+  requireCondition(lifecycle.import_staging?.initial_state === 'pending' && lifecycle.import_staging?.requires_auth_uid_derived_subject === true && lifecycle.import_staging?.requires_new_target_session_on_origin === true && lifecycle.import_staging?.requires_exact_product_profile_parity === true && lifecycle.import_staging?.suspended_preserved === true, 'import membership staging must remain pending, auth.uid-bound, profile-parity-gated, and suspension-preserving');
   const transitionSignature = (transition) => JSON.stringify([
     transition.from,
     transition.event,
@@ -511,6 +542,9 @@ export function validateSemantics(documents) {
   requireCondition(jwt.expiry_seconds === 'UNKNOWN' && jwt.signing_key_class === 'UNKNOWN', 'JWT expiry and signing-key class must remain UNKNOWN');
   requireCondition(jwt.secret_material_allowed === false && Object.keys(jwt).every((key) => ['expiry_seconds', 'signing_key_class', 'secret_material_allowed'].includes(key)), 'secret-bearing JWT material is structurally prohibited');
   requireCondition(providerApplicationGate.status === 'BLOCKED' && providerApplicationGate.apply_admitted === false, 'provider application gate must remain BLOCKED and non-executable');
+  const importReauth = domain.import_reauth_rehearsal ?? {};
+  requireCondition(importReauth.status === 'CURRENT' && importReauth.apply_admitted === false && importReauth.target_signing_identity === 'RETAIN', 'domain import reauthentication must preserve target signing identity without provider authority');
+  requireCondition(importReauth.source_sessions_tokens_cookies === 'EXCLUDE_AND_REJECT' && importReauth.new_sessions === 'PER_ORIGIN_CONTROLLED_REAUTH' && importReauth.pkce_recovery === 'CENTRALIZED_REQUIRED' && importReauth.url_tokens === 'FORBIDDEN', 'domain import reauthentication boundary drift');
   requireCondition(exactOrderedValues(providerApplicationGate.requirements, ['fresh_target_preimage', 'expected_state_mutation_authority', 'exact_readback', 'exact_rollback']), 'provider application evidence and rollback requirements changed');
   requireCondition(domain.account_surfaces?.owner_origin === 'https://account.fawxzzy.com', 'neutral account flow owner changed');
   requireCondition(smtp.decision_id === 'FP-MAN-003' && smtp.production_custom_smtp === 'REQUIRED', 'SMTP policy decision or production requirement changed');
