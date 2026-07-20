@@ -869,59 +869,137 @@
     }
   },
   "data_api_gate": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "status": "BLOCKED",
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
-    "bootstrap_starts_disabled": true,
-    "pre_mutation_readback": "REQUIRED",
-    "current_evidence": {
-      "receipt": "FP-TGT-PUBLIC-RESIDUAL-CONTAINMENT-RO-001",
-      "automatic_exposure": "unchecked",
-      "selected_schema_count": 2,
-      "selected_schema_denominator": 2,
-      "selected_schema_names": "UNKNOWN",
-      "table_count": 0,
-      "exposed_function_count": 0,
-      "function_denominator": 1,
-      "api_enable_state": "UNKNOWN"
+    "observed_current_preimage": {
+      "status": "CURRENT",
+      "action_time_expected_state_binding": {
+        "status": "REQUIRED",
+        "identity_binding": "ACTION_TIME_ONLY",
+        "source_artifact_contains_identity": false,
+        "fresh_project_identity_readback": "REQUIRED",
+        "fresh_preimage_readback": "REQUIRED",
+        "expected_state_guard": "REQUIRED",
+        "owner_authority": "REQUIRED"
+      },
+      "data_api_state": "ENABLED",
+      "exposed_schemas": [
+        "graphql_public",
+        "public"
+      ],
+      "extra_search_path": [
+        "public",
+        "extensions"
+      ],
+      "automatic_exposure": "OFF",
+      "tables": {
+        "available": 0,
+        "exposed": 0
+      },
+      "functions": {
+        "available": 1,
+        "exposed": 0
+      },
+      "views": {
+        "available": "UNKNOWN",
+        "exposed": "UNKNOWN"
+      },
+      "evidence_receipts": [
+        "FP-TGT-DATA-API-SELECTOR-PREIMAGE-RO-001",
+        "FP-TGT-DATA-API-CONTAINMENT-METADATA-RO-002"
+      ]
     },
-    "maximum_exposed_schemas": [
-      "platform_shared",
-      "discordos",
-      "mazer",
-      "fitness"
-    ],
-    "never_exposed_schemas": [
-      "discordos_private",
-      "platform_private",
-      "public",
-      "extensions",
-      "auth",
-      "storage",
-      "realtime"
-    ],
-    "public_absent_from_extra_search_path": true,
-    "automatic_exposure": "unchecked",
-    "negative_probe_gate": "REQUIRED",
-    "negative_probes": [
-      "current_user_or_owner_drift_aborts",
-      "supabase_admin_application_default_tuple_aborts",
-      "supabase_admin_owned_application_object_aborts",
-      "public_application_object_aborts",
-      "forbidden_exposed_schema_aborts",
-      "public_extra_search_path_aborts",
-      "automatic_exposure_enabled_aborts",
-      "unexpected_data_api_state_aborts"
-    ],
-    "exact_rollback_gate": "REQUIRED",
-    "rollback_requirements": [
-      "capture_exact_database_owner_acl_preimage",
-      "capture_exact_data_api_enable_exposed_and_search_path_preimage",
-      "database_changes_transactional_with_exact_rollback",
-      "control_plane_changes_expected_state_guarded",
-      "restore_and_reread_exact_preimage_on_failure"
-    ],
-    "setting_mutation_admitted": false
+    "desired_containment_postimage": {
+      "status": "REQUIRED",
+      "data_api_state": "DISABLED",
+      "exposed_schemas": [],
+      "extra_search_path": [
+        "extensions"
+      ],
+      "automatic_exposure": "OFF",
+      "independent_readback": "REQUIRED"
+    },
+    "attempted_execution": {
+      "status": "BLOCKED",
+      "authorized_sequence": "TWO_ORDERED_SAVES",
+      "overview_save_attempts": 2,
+      "overview_saves_persisted": 0,
+      "settings_save_attempts": 0,
+      "rollback_saves": 0,
+      "persisted_provider_mutations": 0,
+      "outcome": "OVERVIEW_SAVE_DID_NOT_PERSIST",
+      "final_state_equals_observed_preimage": true,
+      "provider_defect_classification": "UNKNOWN"
+    },
+    "support_evidence": {
+      "status": "CURRENT",
+      "sanitized_title": "Fawxzzy — Data API disable Save does not persist",
+      "original_title_sha256": "af597f221fb16fbaedfead5cfda2317a0db700fad3d7303127ca81e51099b16f",
+      "body_sha256": "bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd",
+      "confirmation": "Support request sent",
+      "confirmed_at": "2026-07-19T17:39:40.793Z",
+      "case_id": "UNKNOWN",
+      "case_status": "UNKNOWN",
+      "response": "UNKNOWN",
+      "provider_defect_classification": "UNKNOWN",
+      "dashboard_case_inbox_available": false
+    },
+    "retry_authority": {
+      "status": "BLOCKED",
+      "prior_authority_consumed": true,
+      "third_save_authorized": false,
+      "decision_ready_prerequisites": [
+        "changed_documented_support_evidence",
+        "fresh_target_preimage",
+        "new_bounded_owner_authority"
+      ],
+      "support_advice_grants_execution_authority": false
+    },
+    "bootstrap_admission": {
+      "status": "BLOCKED",
+      "setting_mutation_admitted": false,
+      "bootstrap_apply_admitted": false,
+      "target_apply_admitted": false
+    },
+    "future_activation_gates": {
+      "maximum_exposed_schemas": [
+        "platform_shared",
+        "discordos",
+        "mazer",
+        "fitness"
+      ],
+      "never_exposed_schemas": [
+        "graphql_public",
+        "public",
+        "discordos_private",
+        "platform_private",
+        "extensions",
+        "auth",
+        "storage",
+        "realtime"
+      ],
+      "public_absent_before_activation": true,
+      "automatic_exposure": "OFF",
+      "explicit_grants": "REQUIRED",
+      "row_level_security": "REQUIRED",
+      "negative_probes": {
+        "REST": "UNKNOWN",
+        "GRAPHQL": "UNKNOWN",
+        "RPC": "UNKNOWN",
+        "required_outcome": "NO_TARGET_DATA_SURFACE"
+      },
+      "rollback": {
+        "status": "REQUIRED",
+        "preimage": "observed_current_preimage",
+        "order": [
+          "restore_settings_exposed_schemas_and_extra_search_path",
+          "restore_data_api_enablement"
+        ],
+        "expected_state_guarded": true,
+        "exact_readback": "REQUIRED"
+      }
+    }
   },
   "public": {
     "product_tables_allowed": false,

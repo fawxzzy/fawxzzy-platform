@@ -7,6 +7,7 @@ import {
   creatorDefaultAclContractV1,
   dataApiGateV1,
   inspectInertSql,
+  inspectPortableBootstrapIdentity,
   publicObjectBoundaryV1,
   targetPostgresqlContractV1,
   verifyApplicationCreatorBoundary,
@@ -183,7 +184,7 @@ test('application creator boundary rejects provider CREATE and owner or creator 
   }
 });
 
-test('held public and Data API contracts reject vocabulary, exposure, evidence, and mutation drift', () => {
+test('held public and Data API contracts reject public vocabulary and object drift', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -196,16 +197,175 @@ test('held public and Data API contracts reject vocabulary, exposure, evidence, 
   assert.deepEqual(verifyHeldControlPlaneContracts(config, manifest), []);
   for (const mutate of [
     (value) => value.schemas.application.push('public'),
-    (value) => { value.data_api_gate.setting_mutation_admitted = true; },
-    (value) => { value.data_api_gate.current_evidence.selected_schema_names = ['public', 'fitness']; },
-    (value) => value.data_api_gate.maximum_exposed_schemas.push('public'),
-    (value) => value.data_api_gate.negative_probes.pop(),
-    (value) => value.data_api_gate.rollback_requirements.pop(),
     (value) => { value.public_object_boundary.application_object_count = 1; }
   ]) {
     const drifted = structuredClone(config);
     mutate(drifted);
     assert.notEqual(verifyHeldControlPlaneContracts(drifted, manifest).length, 0);
+  }
+});
+
+test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, support, authority, and admission drifts in config and manifest', () => {
+  const config = {
+    schemas: { application: [...creatorDefaultAclContractV1.schemas] },
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  const manifest = {
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  const cases = [
+    ['01 current state replaced by desired state', [
+      (gate) => { gate.observed_current_preimage = structuredClone(gate.desired_containment_postimage); },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.identity_binding = 'EMBEDDED'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.source_artifact_contains_identity = true; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.fresh_project_identity_readback = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.fresh_preimage_readback = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.expected_state_guard = 'UNKNOWN'; },
+      (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.owner_authority = 'UNKNOWN'; }
+    ]],
+    ['02 observed API state changed', [
+      (gate) => { gate.observed_current_preimage.data_api_state = 'DISABLED'; }
+    ]],
+    ['03 observed exposed-schema order changed', [
+      (gate) => gate.observed_current_preimage.exposed_schemas.reverse()
+    ]],
+    ['04 observed extra-search-path order changed', [
+      (gate) => gate.observed_current_preimage.extra_search_path.reverse()
+    ]],
+    ['05 public omitted from observed extra search path', [
+      (gate) => { gate.observed_current_preimage.extra_search_path = ['extensions']; }
+    ]],
+    ['06 observed automatic exposure promoted', [
+      (gate) => { gate.observed_current_preimage.automatic_exposure = 'ON'; }
+    ]],
+    ['07 table availability and exposure conflated', [
+      (gate) => { gate.observed_current_preimage.tables = 0; }
+    ]],
+    ['08 function availability and exposure conflated', [
+      (gate) => { gate.observed_current_preimage.functions = 0; }
+    ]],
+    ['09 unknown view denominator promoted', [
+      (gate) => { gate.observed_current_preimage.views.available = 0; },
+      (gate) => { gate.observed_current_preimage.views.exposed = 0; }
+    ]],
+    ['10 desired API containment changed', [
+      (gate) => { gate.desired_containment_postimage.data_api_state = 'ENABLED'; }
+    ]],
+    ['11 desired exposed-schema set made nonempty', [
+      (gate) => gate.desired_containment_postimage.exposed_schemas.push('public')
+    ]],
+    ['12 desired search path weakened', [
+      (gate) => { gate.desired_containment_postimage.extra_search_path = ['public', 'extensions']; },
+      (gate) => { gate.desired_containment_postimage.extra_search_path = []; }
+    ]],
+    ['13 future maximum allowlist reordered or widened', [
+      (gate) => gate.future_activation_gates.maximum_exposed_schemas.reverse(),
+      (gate) => gate.future_activation_gates.maximum_exposed_schemas.push('other'),
+      (gate) => gate.future_activation_gates.maximum_exposed_schemas.push('public')
+    ]],
+    ['14 forbidden schema removed', [
+      ...dataApiGateV1.future_activation_gates.never_exposed_schemas.map((schema) =>
+        (gate) => { gate.future_activation_gates.never_exposed_schemas = gate.future_activation_gates.never_exposed_schemas.filter((value) => value !== schema); })
+    ]],
+    ['15 failed Save promoted to persisted success', [
+      (gate) => { gate.attempted_execution.overview_saves_persisted = 1; },
+      (gate) => { gate.attempted_execution.outcome = 'PASS'; }
+    ]],
+    ['16 Settings Save invented', [
+      (gate) => { gate.attempted_execution.settings_save_attempts = 1; }
+    ]],
+    ['17 provider or rollback mutation invented', [
+      (gate) => { gate.attempted_execution.persisted_provider_mutations = 1; },
+      (gate) => { gate.attempted_execution.rollback_saves = 1; }
+    ]],
+    ['18 Support case identity, state, response, or defect invented', [
+      (gate) => { gate.support_evidence.case_id = 'case-1'; },
+      (gate) => { gate.support_evidence.case_status = 'OPEN'; },
+      (gate) => { gate.support_evidence.response = 'RECEIVED'; },
+      (gate) => { gate.support_evidence.provider_defect_classification = 'CONFIRMED'; }
+    ]],
+    ['19 accepted Support evidence changed', [
+      (gate) => { gate.support_evidence.sanitized_title = 'changed'; },
+      (gate) => { gate.support_evidence.original_title_sha256 = '0'.repeat(64); },
+      (gate) => { gate.support_evidence.body_sha256 = '0'.repeat(64); },
+      (gate) => { gate.support_evidence.confirmed_at = '2026-07-19T17:39:40.794Z'; }
+    ]],
+    ['20 third Save authorized', [
+      (gate) => { gate.retry_authority.third_save_authorized = true; }
+    ]],
+    ['21 retry promoted without all changed-evidence prerequisites', [
+      ...dataApiGateV1.retry_authority.decision_ready_prerequisites.map((prerequisite) =>
+        (gate) => { gate.retry_authority.decision_ready_prerequisites = gate.retry_authority.decision_ready_prerequisites.filter((value) => value !== prerequisite); }),
+      (gate) => { gate.retry_authority.status = 'CURRENT'; }
+    ]],
+    ['22 required REST GraphQL or RPC probe removed or falsely complete', [
+      ...['REST', 'GRAPHQL', 'RPC'].flatMap((probe) => [
+        (gate) => { delete gate.future_activation_gates.negative_probes[probe]; },
+        (gate) => { gate.future_activation_gates.negative_probes[probe] = 'CURRENT'; }
+      ])
+    ]],
+    ['23 exact rollback preimage or reverse order weakened', [
+      (gate) => { gate.future_activation_gates.rollback.preimage = 'inferred'; },
+      (gate) => gate.future_activation_gates.rollback.order.reverse(),
+      (gate) => { gate.future_activation_gates.rollback.expected_state_guarded = false; }
+    ]],
+    ['24 setting bootstrap or target apply promoted', [
+      ...['setting_mutation_admitted', 'bootstrap_apply_admitted', 'target_apply_admitted'].map((field) =>
+        (gate) => { gate.bootstrap_admission[field] = true; })
+    ]]
+  ];
+
+  assert.equal(cases.length, 24);
+  for (const [name, variants] of cases) {
+    for (const [variantIndex, mutate] of variants.entries()) {
+      const configDrift = structuredClone(config);
+      mutate(configDrift.data_api_gate);
+      assert.notEqual(
+        verifyHeldControlPlaneContracts(configDrift, manifest).length,
+        0,
+        `${name}, config variant ${variantIndex + 1}`
+      );
+
+      const manifestDrift = structuredClone(manifest);
+      mutate(manifestDrift.data_api_gate);
+      assert.notEqual(
+        verifyHeldControlPlaneContracts(config, manifestDrift).length,
+        0,
+        `${name}, manifest variant ${variantIndex + 1}`
+      );
+    }
+  }
+});
+
+test('portable bootstrap identity inspection rejects quoted and nested keys, project-ref-shaped values, and malformed inputs without throwing', () => {
+  const leakedIdentity = ['bxtcuhkotumitoqtr', 'cej'].join('');
+  const shapedIdentity = ['abcdefghijklmnop', 'qrst'].join('');
+  const safe = {
+    action_time_expected_state_binding: {
+      status: 'REQUIRED',
+      identity_binding: 'ACTION_TIME_ONLY',
+      source_artifact_contains_identity: false
+    },
+    evidence_digest: 'a'.repeat(64)
+  };
+
+  assert.deepEqual(inspectPortableBootstrapIdentity('safe.json', JSON.stringify(safe)), []);
+  for (const fixture of [
+    JSON.stringify({ project_ref: 'UNKNOWN' }),
+    JSON.stringify({ nested: { project_ref: 'UNKNOWN' } }),
+    JSON.stringify({ value: leakedIdentity }),
+    JSON.stringify({ value: shapedIdentity }),
+    JSON.stringify({ value: `case ${leakedIdentity} failed` }),
+    JSON.stringify({ supabase_url: 'UNKNOWN' })
+  ]) {
+    assert.doesNotThrow(() => inspectPortableBootstrapIdentity('fixture.json', fixture));
+    assert.notEqual(inspectPortableBootstrapIdentity('fixture.json', fixture).length, 0);
+  }
+  for (const malformed of ['{', '', null, { value: leakedIdentity }]) {
+    assert.doesNotThrow(() => inspectPortableBootstrapIdentity('fixture.json', malformed));
+    assert.notEqual(inspectPortableBootstrapIdentity('fixture.json', malformed).length, 0);
   }
 });
 
