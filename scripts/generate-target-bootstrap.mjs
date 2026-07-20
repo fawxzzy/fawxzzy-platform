@@ -362,7 +362,9 @@ export function validateImmutableSourceTree(repositoryRoot = root) {
   const repository = validateRepositoryRoot(repositoryRoot);
   const sourceRootPath = path.resolve(repository.lexical, 'bootstrap', 'sources');
   const sourceRootStats = lstatIfPresent(sourceRootPath);
-  if (!sourceRootStats) return Object.freeze({ entries: Object.freeze([]), files: Object.freeze([]) });
+  if (!sourceRootStats) {
+    return Object.freeze({ root_present: false, entries: Object.freeze([]), files: Object.freeze([]) });
+  }
   validatePathChain(repository, sourceRootPath, 'directory', 'immutable source root');
   const sourceRoot = Object.freeze({ lexical: sourceRootPath, physical: realpath(sourceRootPath) });
   const entries = [];
@@ -405,12 +407,17 @@ export function validateImmutableSourceTree(repositoryRoot = root) {
   }
 
   visitDirectory(sourceRoot.lexical);
-  return Object.freeze({ entries: Object.freeze(entries), files: Object.freeze(files) });
+  return Object.freeze({ root_present: true, entries: Object.freeze(entries), files: Object.freeze(files) });
 }
 
 function requireExpectedImmutableSources(manifests, sourceTree) {
-  if (sourceTree.entries.length === 0) return;
   const sourceManifest = manifests.get('source-migrations.v1.json');
+  if (!sourceTree.root_present) {
+    if (Array.isArray(sourceManifest?.migrations) && sourceManifest.migrations.length > 0) {
+      throw new Error('immutable source root is missing for the accepted source migration manifest');
+    }
+    return;
+  }
   if (!sourceManifest || !Array.isArray(sourceManifest.migrations)) {
     throw new Error('immutable source discovery requires a closed source migration manifest');
   }

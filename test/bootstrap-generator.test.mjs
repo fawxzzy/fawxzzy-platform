@@ -269,6 +269,23 @@ test('immutable source byte drift from the generated manifest fails before any p
   });
 });
 
+test('a missing immutable source root with accepted migrations fails before any publication write', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const acceptedMigration = {
+      copied_path: 'bootstrap/sources/fixture/supabase/migrations/001_fixture.sql',
+      byte_count: 10,
+      raw_sha256: '0'.repeat(64)
+    };
+    assert.equal(validateImmutableSourceTree(repositoryRoot).root_present, false);
+    assertImmutableSourceFailureBeforeWrite(
+      repositoryRoot,
+      [acceptedMigration],
+      /immutable source root is missing for the accepted source migration manifest/
+    );
+  });
+});
+
 test('linked inert artifact directories fail before any write', () => {
   withTemporaryDirectory((repositoryRoot) => {
     const linkedTarget = path.join(repositoryRoot, 'linked-output');
