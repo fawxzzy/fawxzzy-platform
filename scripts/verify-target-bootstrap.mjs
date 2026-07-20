@@ -18,6 +18,7 @@ import {
   splitSqlStatements,
   verifyFitnessFunctionSearchPaths
 } from './generate-target-bootstrap.mjs';
+import { createValidator, validateAppDataReceiptSanitization } from './lib/contracts.mjs';
 import { listWorkingTreeFiles } from './lib/repository.mjs';
 
 const expectedGeneratedArtifactDirectory = 'bootstrap/artifacts/inert-sql';
@@ -512,6 +513,13 @@ export function verifySharedAuthImportRehearsal({ contract, gate }) {
 
 export function verifyAppDataTransportContracts({ contract, receipt, journal, gate }) {
   const failures = [];
+  const receiptValidator = createValidator().getSchema('urn:fawxzzy:platform:schemas:v1:app-data-receipt');
+  if (!receiptValidator(receipt)) {
+    failures.push(...(receiptValidator.errors ?? []).map((error) =>
+      `app data receipt schema ${error.instancePath || '$'}: ${error.keyword}`));
+  }
+  failures.push(...validateAppDataReceiptSanitization(receipt).map((failure) =>
+    `app data receipt sanitization: ${failure}`));
   const transportGate = gate?.app_data_transport ?? {};
   const expectedLifecycle = [
     'S0_COMPLETE_SNAPSHOT',

@@ -8,6 +8,7 @@ import {
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
+import { verifyAppDataTransportContracts } from '../scripts/verify-target-bootstrap.mjs';
 
 test('all versioned contract instances satisfy their schemas and semantics', () => {
   const report = validateContracts();
@@ -650,6 +651,35 @@ test('app data public receipt redaction rejects every prohibited field and raw-v
     const leaked = structuredClone(receipt);
     leaked.quarantine_classes = [value];
     assert.notEqual(validateAppDataReceiptSanitization(leaked).length, 0, value);
+  }
+});
+
+test('bootstrap verification applies schema and recursive receipt sanitization without exposing rejected values', () => {
+  const documents = loadDocuments();
+  const contract = documents['contracts/v1/transport/app-data-transport-contract.json'];
+  const receipt = documents['contracts/v1/transport/app-data-receipt.example.json'];
+  const journal = documents['contracts/v1/transport/app-data-mutation-journal-contract.json'];
+  const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+  const verify = (candidate) => verifyAppDataTransportContracts({ contract, receipt: candidate, journal, gate });
+  assert.deepEqual(verify(receipt), []);
+
+  const syntheticMachinePath = ['C:', 'Users', 'operator', 'receipt.json'].join('\\');
+  const cases = [
+    ['email', 'emails', ['person@example.invalid'], 'forbidden emails field'],
+    ['raw row/object payload', 'raw_rows', [{ synthetic: 'opaque' }], 'forbidden raw rows field'],
+    ['SQL text', 'sql', 'select private_value from protected_relation', 'forbidden SQL field'],
+    ['project reference', 'project_ref', 'abcdefghijklmnopqrst', 'forbidden project refs field'],
+    ['machine path', 'machine_path', syntheticMachinePath, 'forbidden machine paths field']
+  ];
+  for (const [name, field, value, expectedFailure] of cases) {
+    const leaked = structuredClone(receipt);
+    leaked[field] = value;
+    let first;
+    assert.doesNotThrow(() => { first = verify(leaked); }, name);
+    assert.deepEqual(first, verify(leaked), `${name} deterministic failure ordering`);
+    assert.ok(first.some((failure) => failure.includes('app data receipt schema $: additionalProperties')), `${name} schema`);
+    assert.ok(first.some((failure) => failure.includes(expectedFailure)), `${name} sanitization`);
+    assert.ok(first.every((failure) => !failure.includes('person@example.invalid') && !failure.includes('private_value') && !failure.includes('abcdefghijklmnopqrst') && !failure.includes(syntheticMachinePath)), `${name} rejected value redaction`);
   }
 });
 
