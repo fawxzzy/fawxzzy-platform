@@ -20,6 +20,7 @@ import {
   root,
   splitSqlStatements,
   validateGeneratedInertArtifactLayout,
+  validateImmutableSourceTree,
   validateLinuxMountLayout,
   verifyFitnessFunctionSearchPaths,
   writeTargetBootstrapArtifacts
@@ -58,12 +59,14 @@ function fixtureGeneratedFiles() {
   return new Map(generatedInertArtifactContractV1.filenames.map((filename) => [filename, `-- ${filename}\n`]));
 }
 
-function fixtureManifestFiles() {
-  return new Map(generatedManifestContractV1.filenames.map((filename) => [filename, { filename, fixture: true }]));
+function fixtureManifestFiles(sourceMigrations = null) {
+  const manifests = new Map(generatedManifestContractV1.filenames.map((filename) => [filename, { filename, fixture: true }]));
+  if (sourceMigrations) manifests.set('source-migrations.v1.json', { migrations: sourceMigrations });
+  return manifests;
 }
 
-function writeFixtureArtifacts(files, repositoryRoot, options = {}) {
-  return writeTargetBootstrapArtifacts(fixtureManifestFiles(), files, repositoryRoot, options);
+function writeFixtureArtifacts(files, repositoryRoot, options = {}, sourceMigrations = null) {
+  return writeTargetBootstrapArtifacts(fixtureManifestFiles(sourceMigrations), files, repositoryRoot, options);
 }
 
 function createDirectoryLink(target, link) {
@@ -83,6 +86,42 @@ function assertOutsideRepository(repositoryRoot) {
   assert.ok(logicalRelative === '..' || logicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(logicalRelative));
   const physicalRelative = path.relative(fs.realpathSync.native(root), fs.realpathSync.native(repositoryRoot));
   assert.ok(physicalRelative === '..' || physicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(physicalRelative));
+}
+
+function createImmutableSourceFixture(repositoryRoot, content = 'select 1;\n') {
+  const relativePath = 'bootstrap/sources/fixture/supabase/migrations/001_fixture.sql';
+  const absolutePath = path.join(repositoryRoot, ...relativePath.split('/'));
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  fs.writeFileSync(absolutePath, content, 'utf8');
+  const bytes = Buffer.from(content, 'utf8');
+  return {
+    absolutePath,
+    migration: {
+      copied_path: relativePath,
+      byte_count: bytes.length,
+      raw_sha256: crypto.createHash('sha256').update(bytes).digest('hex')
+    }
+  };
+}
+
+function assertImmutableSourceFailureBeforeWrite(repositoryRoot, sourceMigrations, pattern) {
+  const originalWrite = fs.writeFileSync;
+  let writeCount = 0;
+  fs.writeFileSync = (...args) => {
+    writeCount += 1;
+    return originalWrite(...args);
+  };
+  try {
+    assert.throws(
+      () => writeFixtureArtifacts(fixtureGeneratedFiles(), repositoryRoot, {}, sourceMigrations),
+      pattern
+    );
+  } finally {
+    fs.writeFileSync = originalWrite;
+  }
+  assert.equal(writeCount, 0);
+  assert.equal(fs.existsSync(path.join(repositoryRoot, 'bootstrap', 'manifests')), false);
+  assert.equal(fs.existsSync(outputPath(repositoryRoot)), false);
 }
 
 test('two generator runs are byte-identical', () => {
@@ -153,6 +192,80 @@ test('non-link inert artifact creation and idempotent regeneration preserve exac
     assert.deepEqual(first, files);
     assert.deepEqual(second, files);
     assert.deepEqual(listSqlFiles(standardMigrations), []);
+  });
+});
+
+test('regular immutable source directories and files remain physically contained and match the source manifest', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const fixture = createImmutableSourceFixture(repositoryRoot);
+    const sourceTree = validateImmutableSourceTree(repositoryRoot);
+    assert.deepEqual(sourceTree.files, [fixture.migration]);
+    assert.doesNotThrow(() => writeFixtureArtifacts(
+      fixtureGeneratedFiles(),
+      repositoryRoot,
+      {},
+      [fixture.migration]
+    ));
+  });
+});
+
+test('immutable source file links and containment escapes fail before any publication write', (context) => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const outsideDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'fawxzzy-platform-source-outside-'));
+    try {
+      const outsideFile = path.join(outsideDirectory, 'outside.sql');
+      fs.writeFileSync(outsideFile, 'select 1;\n', 'utf8');
+      const migrationPath = path.join(repositoryRoot, 'bootstrap', 'sources', 'fixture', 'supabase', 'migrations', '001_fixture.sql');
+      fs.mkdirSync(path.dirname(migrationPath), { recursive: true });
+      try {
+        fs.symlinkSync(outsideFile, migrationPath, 'file');
+      } catch (error) {
+        if (process.platform === 'win32' && ['EPERM', 'EACCES', 'UNKNOWN'].includes(error?.code)) {
+          context.skip('Windows file-link creation is unavailable on this host');
+          return;
+        }
+        throw error;
+      }
+      assertImmutableSourceFailureBeforeWrite(repositoryRoot, [], /link-like|physical containment mismatch/);
+    } finally {
+      fs.rmSync(outsideDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+test('immutable source directory junctions and reparse paths fail before any publication write', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const outsideDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'fawxzzy-platform-source-junction-'));
+    try {
+      const sourceParent = path.join(repositoryRoot, 'bootstrap', 'sources', 'fixture', 'supabase');
+      fs.mkdirSync(sourceParent, { recursive: true });
+      fs.writeFileSync(path.join(outsideDirectory, '001_fixture.sql'), 'select 1;\n', 'utf8');
+      createDirectoryLink(outsideDirectory, path.join(sourceParent, 'migrations'));
+      assertImmutableSourceFailureBeforeWrite(repositoryRoot, [], /link-like|physical containment mismatch/);
+    } finally {
+      fs.rmSync(outsideDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+test('multiply-linked immutable source files fail before any publication write', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const fixture = createImmutableSourceFixture(repositoryRoot);
+    fs.linkSync(fixture.absolutePath, path.join(repositoryRoot, 'source-alias.sql'));
+    assertImmutableSourceFailureBeforeWrite(repositoryRoot, [fixture.migration], /unexpected link count|multiply-linked/);
+  });
+});
+
+test('immutable source byte drift from the generated manifest fails before any publication write', () => {
+  withTemporaryDirectory((repositoryRoot) => {
+    fs.mkdirSync(path.join(repositoryRoot, 'supabase', 'migrations'), { recursive: true });
+    const fixture = createImmutableSourceFixture(repositoryRoot);
+    const staleMigration = { ...fixture.migration, raw_sha256: '0'.repeat(64) };
+    assertImmutableSourceFailureBeforeWrite(repositoryRoot, [staleMigration], /do not match the generated source migration manifest/);
   });
 });
 
