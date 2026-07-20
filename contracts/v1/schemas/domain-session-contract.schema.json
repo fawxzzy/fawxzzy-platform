@@ -7,20 +7,25 @@
   "required": [
     "version",
     "status",
+    "security_session_decision_id",
     "origins",
     "domain_routing",
     "auth_configuration",
     "auth_policy",
+    "provider_application_gate",
     "account_surfaces",
     "session_model",
     "smtp"
   ],
   "properties": {
     "version": {
-      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+      "const": "1.1.0"
     },
     "status": {
       "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+    },
+    "security_session_decision_id": {
+      "const": "FP-MAN-012"
     },
     "origins": {
       "type": "array",
@@ -127,12 +132,13 @@
         "exact_redirect_urls": {
           "const": [
             "https://account.fawxzzy.com/auth/callback",
+            "https://account.fawxzzy.com/reset-password?recovery=1",
             "https://fitness.fawxzzy.com/auth/callback",
             "https://mazer.fawxzzy.com/auth/callback"
           ]
         },
         "exact_recovery_url": {
-          "const": "https://account.fawxzzy.com/auth/recovery"
+          "const": "https://account.fawxzzy.com/reset-password?recovery=1"
         },
         "production_wildcards_allowed": {
           "const": false
@@ -161,11 +167,17 @@
       "required": [
         "decision_id",
         "phase_one_method",
+        "product_visible_sign_in_methods",
         "email_verification",
         "leaked_password_protection",
         "password_length",
         "deferred_methods",
-        "totp"
+        "account_change_security",
+        "captcha",
+        "passwordless_email",
+        "mfa",
+        "identity_linking",
+        "jwt"
       ],
       "properties": {
         "decision_id": {
@@ -173,6 +185,11 @@
         },
         "phase_one_method": {
           "const": "email_password"
+        },
+        "product_visible_sign_in_methods": {
+          "const": [
+            "email_password"
+          ]
         },
         "email_verification": {
           "const": false
@@ -276,21 +293,225 @@
             "enforced_mfa"
           ]
         },
-        "totp": {
+        "account_change_security": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "recent_authentication_for_password_changes",
+            "current_password_for_signed_in_password_changes",
+            "current_password_for_signed_in_email_changes",
+            "secure_email_change",
+            "native_hosted_current_password_for_email_change",
+            "application_server_email_change_enforcement"
+          ],
+          "properties": {
+            "recent_authentication_for_password_changes": {
+              "const": "REQUIRED"
+            },
+            "current_password_for_signed_in_password_changes": {
+              "const": "REQUIRED"
+            },
+            "current_password_for_signed_in_email_changes": {
+              "const": "REQUIRED"
+            },
+            "secure_email_change": {
+              "const": "REQUIRED"
+            },
+            "native_hosted_current_password_for_email_change": {
+              "const": "UNKNOWN"
+            },
+            "application_server_email_change_enforcement": {
+              "const": "REQUIRED"
+            }
+          }
+        },
+        "captcha": {
           "type": "object",
           "additionalProperties": false,
           "required": [
             "status",
-            "disposition"
+            "surfaces",
+            "provider_class",
+            "credential_installation",
+            "live_configuration",
+            "bypass_allowlist"
           ],
           "properties": {
             "status": {
+              "const": "REQUIRED"
+            },
+            "surfaces": {
+              "const": [
+                "public_signup",
+                "password_reset"
+              ]
+            },
+            "provider_class": {
+              "const": "UNKNOWN"
+            },
+            "credential_installation": {
               "const": "BLOCKED"
             },
-            "disposition": {
-              "const": "future_optional"
+            "live_configuration": {
+              "const": "BLOCKED"
+            },
+            "bypass_allowlist": {
+              "const": []
             }
           }
+        },
+        "passwordless_email": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider_toggle",
+            "product_ui_exposure"
+          ],
+          "properties": {
+            "provider_toggle": {
+              "const": "UNKNOWN"
+            },
+            "product_ui_exposure": {
+              "const": "BLOCKED"
+            }
+          }
+        },
+        "mfa": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "totp",
+            "sms",
+            "passkeys",
+            "aal1_maximum_age_seconds"
+          ],
+          "properties": {
+            "totp": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "available",
+                "enrollment",
+                "enforced"
+              ],
+              "properties": {
+                "available": {
+                  "const": true
+                },
+                "enrollment": {
+                  "const": "optional"
+                },
+                "enforced": {
+                  "const": false
+                }
+              }
+            },
+            "sms": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "const": "BLOCKED"
+                }
+              }
+            },
+            "passkeys": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "const": "BLOCKED"
+                }
+              }
+            },
+            "aal1_maximum_age_seconds": {
+              "const": 900
+            }
+          }
+        },
+        "identity_linking": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manual_client_linking",
+            "privileged_reconciliation"
+          ],
+          "properties": {
+            "manual_client_linking": {
+              "const": false
+            },
+            "privileged_reconciliation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "verified_deterministic_identity_evidence",
+                "username_only_matching_forbidden"
+              ],
+              "properties": {
+                "status": {
+                  "const": "REQUIRED"
+                },
+                "verified_deterministic_identity_evidence": {
+                  "const": true
+                },
+                "username_only_matching_forbidden": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "jwt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expiry_seconds",
+            "signing_key_class",
+            "secret_material_allowed"
+          ],
+          "properties": {
+            "expiry_seconds": {
+              "const": "UNKNOWN"
+            },
+            "signing_key_class": {
+              "const": "UNKNOWN"
+            },
+            "secret_material_allowed": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "provider_application_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "apply_admitted",
+        "requirements"
+      ],
+      "properties": {
+        "status": {
+          "const": "BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "requirements": {
+          "const": [
+            "fresh_target_preimage",
+            "expected_state_mutation_authority",
+            "exact_readback",
+            "exact_rollback"
+          ]
         }
       }
     },
@@ -389,6 +610,11 @@
         "shared_auth_identity",
         "shared_database_contracts",
         "browser_sessions",
+        "multiple_devices_allowed",
+        "single_session_enforcement",
+        "absolute_lifetime_seconds",
+        "inactivity_timeout_seconds",
+        "refresh_tokens",
         "cross_origin_sso"
       ],
       "properties": {
@@ -403,6 +629,38 @@
         },
         "browser_sessions": {
           "const": "per_origin"
+        },
+        "multiple_devices_allowed": {
+          "const": true
+        },
+        "single_session_enforcement": {
+          "const": false
+        },
+        "absolute_lifetime_seconds": {
+          "const": 2592000
+        },
+        "inactivity_timeout_seconds": {
+          "const": 604800
+        },
+        "refresh_tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compromise_detection",
+            "rotation",
+            "reuse_interval_seconds"
+          ],
+          "properties": {
+            "compromise_detection": {
+              "const": true
+            },
+            "rotation": {
+              "const": true
+            },
+            "reuse_interval_seconds": {
+              "const": 10
+            }
+          }
         },
         "cross_origin_sso": {
           "type": "object",

@@ -16,6 +16,8 @@ Move DiscordOS, Fitness, and Mazer to the target platform while preserving sourc
 - Never use username alone as identity evidence. Keep the immutable account identifier separate from the global canonical username.
 - Preserve accepted Fitness user numbers exactly. Global `user_number` allocation is monotonic, immutable, never reused, and independent of membership or billing.
 - Preserve the target-owned JWT signing identity. Never copy a source JWT or service-role secret into the target.
+- Keep JWT expiry and signing class `UNKNOWN` until safely read; never store signing material. Keep Auth provider application `BLOCKED` and `apply_admitted=false` until fresh preimage, bounded expected-state authority, exact readback, and rollback are admitted.
+- Expose only email/password in phase-1 product UI. Do not expose passwordless email, enable client identity linking, add a shared-domain refresh cookie, or place Auth tokens in URLs.
 - Treat cleanup as classify, normalize, deduplicate, archive, and quarantine—not deletion authority.
 - Prefer reversible cutover steps. Source pause comes after proven target operation and rollback readiness; deletion is a separate destructive decision.
 - Generate SQL only in the next separately authorized packet and prove it locally before any target write.
@@ -91,7 +93,8 @@ Required evidence:
 - negative lifecycle tests for missing, extra, duplicate, contradictory, and suspended self-activation transitions; negative catalog and registry tests for cross-service relation swaps and role reversal;
 - username collision, advisory-availability race, user-number concurrency, reuse, renumbering, and bot/service exclusion tests;
 - adjudicated Auth migration rehearsal proving password-hash preservation where accepted, target-owned signing identity, source-session invalidation, and controlled per-origin reauthentication;
-- exact redirect, recovery, and custom SMTP configuration plan with no live mutation.
+- exact ordered redirect and verified recovery route plan; recent-auth/current-password/secure-email-change enforcement; CAPTCHA, optional TOTP, blocked SMS/passkeys, session lifetime/inactivity/reuse controls, disabled manual identity linking, and custom SMTP configuration, all with no live mutation;
+- deterministic negative proof for all 24 domain/session drift classes, including unknown capability promotion, secret-bearing JWT fields, provider-gate promotion, and regression of password, verification, SMTP, per-origin, cookie, or URL-token protections;
 - current encrypted independent backup and retention receipts under FP-MAN-013;
 - one quarantined restore-to-new-project rehearsal with the closed external-effects denominator disabled;
 - immutable source authorization of the DiscordOS external-effect authenticator policy before signature verification; action receipts cannot substitute the key identity, public key, verifier, algorithm, signature domain, policy version, or status, and the operational anchor remains `BLOCKED` until a separately authorized source change installs it;
@@ -125,8 +128,8 @@ Entry: target parity, redirect/recovery readiness, SMTP readiness, rollback rehe
 Sequence:
 
 1. Cut over one application lane at a time.
-2. Establish per-origin phase-1 sessions; do not add cross-origin SSO. Preserve the `fawxzzyfitness.com` compatibility redirect.
-3. Verify neutral account sign-in, sign-out, update, centralized recovery, product-branded Auth, sign-up, first-visit activation, existing membership reuse, suspended rejection, password capacity without truncation, and product entitlement enforcement.
+2. Establish per-origin phase-1 sessions with multiple devices allowed, single-session enforcement off, a 30-day absolute lifetime, a 7-day inactivity timeout, refresh compromise detection/rotation, and a 10-second reuse interval. Do not add cross-origin SSO. Preserve the `fawxzzyfitness.com` compatibility redirect.
+3. Verify neutral account sign-in, sign-out, update, the exact account reset route, product-branded Auth, email/password-only UI, recent-auth/current-password account changes, secure email change, managed CAPTCHA, optional unenforced TOTP, disabled client identity linking, sign-up, first-visit activation, existing membership reuse, suspended rejection, password capacity without truncation, and product entitlement enforcement.
 4. Observe target and source readers, writers, errors, and Auth delivery.
 5. Roll back the lane if parity or authorization evidence regresses.
 
