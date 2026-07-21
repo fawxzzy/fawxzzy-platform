@@ -1,0 +1,631 @@
+{
+  "version": "1.0.0",
+  "contract_id": "fitness-app-data-adapter-contract",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED"
+  },
+  "apply_admitted": false,
+  "generic_contract_path": "contracts/v1/transport/app-data-transport-contract.json",
+  "source_evidence": {
+    "accepted_source_commit": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4",
+    "accepted_source_tree": "b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1",
+    "current_git_head": "317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3",
+    "current_git_tree": "bd4b2809a2a613a4bc67a4cc8166bee56d64a30f",
+    "accepted_migration_count": 101,
+    "current_git_migration_count": 101,
+    "accepted_chain_sha256": "f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775",
+    "path_blob_bytes_sha256": "2f00f193811ab07997956a16b05364828120ea2721e8a2826a0364adf8df10b5",
+    "current_git_exact_accepted": true,
+    "relation_count": 27,
+    "relation_manifest_sha256": "3896e695cfecad5b0e7e9eeb873386774a9c1c75c367e768245638b71673c183",
+    "accepted_package_migration_count": 122,
+    "accepted_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+    "held_candidate": {
+      "fitness_pr108_head": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01",
+      "candidate_migration_count": 102,
+      "candidate_migration_path": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql",
+      "candidate_bytes_admitted": false,
+      "hosted_replay_pr2_head": "fce1c595a55a5d25271c799f0ccafecc4389181b",
+      "replay_execution": "BLOCKED"
+    }
+  },
+  "identity_and_activation": {
+    "canonical_human_key": "auth.users.id",
+    "source_identity_ledger": "platform_private.source_identity_ledger",
+    "source_owner_key": "id",
+    "identity_rekey_required": true,
+    "membership_relation": "platform_shared.user_service_memberships",
+    "membership_initial_state": "pending",
+    "activation_subject_source": "auth.uid()",
+    "caller_supplied_user_id_allowed": false,
+    "profile_seed": {
+      "source_relation": "public.profiles",
+      "target_relation": "fitness.profiles",
+      "source_primary_key": "id",
+      "storage": "PRIVATE_COMMITMENT",
+      "lookup": "SERVER_SIDE_IDENTITY_MAPPING",
+      "consumption": "ATOMIC_WITH_ACTIVATION",
+      "direct_pre_activation_insert_allowed": false,
+      "source_profile_present_exact_parity_required": true,
+      "missing_target_action": "CREATE_FROM_SEED",
+      "exact_target_action": "IDEMPOTENT_REUSE",
+      "conflicting_target_action": "QUARANTINE",
+      "source_profile_absent_policy": {
+        "detection": "COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE",
+        "default_seed_allowed": false,
+        "source_rows_transport_outcome": "QUARANTINE_PENDING_MEMBERSHIP",
+        "unproven_absence_outcome": "QUARANTINE_PENDING_MEMBERSHIP",
+        "caller_values_allowed": false,
+        "silent_drop_allowed": false
+      }
+    },
+    "presentation_only_columns": [],
+    "presentation_values_as_identity_evidence": false,
+    "discord_ids_as_identity_evidence": false,
+    "member_numbers_as_identity_evidence": false
+  },
+  "member_number_policy": {
+    "source_column": "public.profiles.user_number",
+    "target_column": "fitness.profiles.user_number",
+    "existing_values_action": "COPY_UNCHANGED",
+    "high_water_action": "PRESERVE",
+    "gaps_action": "PRESERVE",
+    "reuse_allowed": false,
+    "gap_fill_allowed": false,
+    "renumber_allowed": false,
+    "compaction_allowed": false,
+    "caller_supplied_member_number_allowed": false,
+    "post_migration_allocation": "BLOCKED",
+    "accepted_chain_contains_compaction_behavior": true,
+    "held_retirement_migration_path": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql",
+    "held_candidate_review": "BLOCKED",
+    "faithful_replay": "BLOCKED"
+  },
+  "canonicalization": {
+    "transform_version": "fitness-app-data-v1",
+    "complete_accepted_source_column_order": true,
+    "row_digest_includes_all_authoritative_columns": true,
+    "private_key_commitments": true,
+    "jsonb": "POSTGRES_JSONB_TEXT_UTF8",
+    "timestamp_with_time_zone": "UTC_MICROSECOND",
+    "numeric": "NORMALIZED_DECIMAL",
+    "text": "UTF8_EXACT",
+    "raw_values_in_public_receipts": false
+  },
+  "classification_counts": {
+    "authoritative": 11,
+    "derived_rebuildable": 1,
+    "entitlement_held": 1,
+    "billing_unknown": 2,
+    "operational_external_unknown": 1,
+    "discord_external_unknown": 10,
+    "excluded": 1,
+    "total": 27
+  },
+  "relations": [
+    {
+      "source_relation": "public.profiles",
+      "target_relation": "fitness.profiles",
+      "classification": "AUTHORITATIVE_ACTIVATION_SEED",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "id",
+      "transport_mode": "PRIVATE_SEED_THEN_ATOMIC_ACTIVATION",
+      "dependency_parents": [
+        "auth.users"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.exercises",
+      "target_relation": "fitness.exercises",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "GLOBAL_THEN_OWNED_CAS",
+      "dependency_parents": [],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.routines",
+      "target_relation": "fitness.routines",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.profiles"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.routine_days",
+      "target_relation": "fitness.routine_days",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "NULLABLE_CYCLE_STAGE_THEN_CAS_PATCH",
+      "dependency_parents": [
+        "public.routines",
+        "public.workout_plan_templates"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.routine_day_exercises",
+      "target_relation": "fitness.routine_day_exercises",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.routine_days",
+        "public.exercises",
+        "public.workout_plan_template_exercises"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.sessions",
+      "target_relation": "fitness.sessions",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.profiles"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.session_exercises",
+      "target_relation": "fitness.session_exercises",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.sessions",
+        "public.exercises"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.sets",
+      "target_relation": "fitness.sets",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.session_exercises"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.workout_plan_templates",
+      "target_relation": "fitness.workout_plan_templates",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "NULLABLE_CYCLE_STAGE_THEN_CAS_PATCH",
+      "dependency_parents": [
+        "public.routine_days"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.workout_plan_template_exercises",
+      "target_relation": "fitness.workout_plan_template_exercises",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+      "dependency_parents": [
+        "public.workout_plan_templates",
+        "public.exercises"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.progression_events",
+      "target_relation": "fitness.progression_events",
+      "classification": "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "PRESERVE_IDENTITY_APPEND_ONLY",
+      "dependency_parents": [
+        "public.routines",
+        "public.routine_day_exercises",
+        "public.exercises",
+        "public.sessions"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.exercise_stats",
+      "target_relation": "fitness.exercise_stats",
+      "classification": "DERIVED_REBUILDABLE",
+      "primary_key": [
+        "user_id",
+        "exercise_id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "EXCLUDE_AND_REBUILD_AFTER_AUTHORITATIVE_PARITY",
+      "dependency_parents": [
+        "public.sessions",
+        "public.session_exercises",
+        "public.sets",
+        "public.exercises"
+      ],
+      "external_effects": false,
+      "hold_reason": null
+    },
+    {
+      "source_relation": "public.user_entitlements",
+      "target_relation": "fitness.user_entitlements",
+      "classification": "ENTITLEMENT_HELD",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "HOLD_PENDING_VERIFIED_BILLING_EVIDENCE",
+      "dependency_parents": [
+        "public.billing_purchases"
+      ],
+      "external_effects": false,
+      "hold_reason": "BILLING_PROVENANCE_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.billing_customers",
+      "target_relation": "fitness.billing_customers",
+      "classification": "UNKNOWN_BILLING",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "HOLD_PENDING_CLOSED_BILLING_ADAPTER",
+      "dependency_parents": [
+        "public.profiles"
+      ],
+      "external_effects": true,
+      "hold_reason": "BILLING_PROVENANCE_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.billing_purchases",
+      "target_relation": "fitness.billing_purchases",
+      "classification": "UNKNOWN_BILLING",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "HOLD_PENDING_CLOSED_BILLING_ADAPTER",
+      "dependency_parents": [
+        "public.billing_customers"
+      ],
+      "external_effects": true,
+      "hold_reason": "BILLING_PROVENANCE_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.session_follow_up_jobs",
+      "target_relation": "fitness.session_follow_up_jobs",
+      "classification": "UNKNOWN_OPERATIONAL_EXTERNAL_EFFECT",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER",
+      "dependency_parents": [
+        "public.sessions"
+      ],
+      "external_effects": true,
+      "hold_reason": "FOLLOW_UP_JOB_SIDE_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_bug_reports",
+      "target_relation": "fitness.discord_bug_reports",
+      "classification": "EXCLUDED_SUPERSEDED_RELATION",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "EXCLUDE_SUPERSEDED_BY_DISCORD_FEEDBACK_REPORTS",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "HISTORICAL_RELATION_SUPERSEDED"
+    },
+    {
+      "source_relation": "public.discord_feedback_reports",
+      "target_relation": "fitness.discord_feedback_reports",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "REPORTING_AND_DISCORD_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_member_links",
+      "target_relation": "fitness.discord_member_links",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [
+        "auth.users"
+      ],
+      "external_effects": true,
+      "hold_reason": "EXTERNAL_IDENTITY_OWNER_UNPROVEN"
+    },
+    {
+      "source_relation": "public.discord_message_command_claims",
+      "target_relation": "fitness.discord_message_command_claims",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "channel_id",
+        "message_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "DISCORD_COMMAND_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_moderation_cases",
+      "target_relation": "fitness.discord_moderation_cases",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_spotify_connections",
+      "target_relation": "fitness.discord_spotify_connections",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "SECRET_BEARING_PROVIDER_STATE"
+    },
+    {
+      "source_relation": "public.discord_spotify_lobbies",
+      "target_relation": "fitness.discord_spotify_lobbies",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [
+        "public.discord_spotify_connections"
+      ],
+      "external_effects": true,
+      "hold_reason": "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_spotify_queue_items",
+      "target_relation": "fitness.discord_spotify_queue_items",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [
+        "public.discord_spotify_lobbies"
+      ],
+      "external_effects": true,
+      "hold_reason": "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_spotify_room_members",
+      "target_relation": "fitness.discord_spotify_room_members",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [
+        "public.discord_spotify_lobbies"
+      ],
+      "external_effects": true,
+      "hold_reason": "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_update_drafts",
+      "target_relation": "fitness.discord_update_drafts",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER",
+      "dependency_parents": [],
+      "external_effects": true,
+      "hold_reason": "DISCORD_UPDATE_EFFECTS_UNRESOLVED"
+    },
+    {
+      "source_relation": "public.discord_verification_tokens",
+      "target_relation": "fitness.discord_verification_tokens",
+      "classification": "UNKNOWN_DISCORD_EXTERNAL",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": "user_id",
+      "transport_mode": "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+      "dependency_parents": [
+        "auth.users"
+      ],
+      "external_effects": true,
+      "hold_reason": "SECURITY_TOKEN_STATE_UNRESOLVED"
+    }
+  ],
+  "dependency_ordering": {
+    "insert_update_order": [
+      "auth_mapping",
+      "pending_membership",
+      "atomic_profile_seed_activation",
+      "global_exercises",
+      "owned_exercises",
+      "routines",
+      "routine_days_cycle_stage",
+      "workout_plan_templates_cycle_stage",
+      "workout_plan_template_exercises",
+      "routine_day_exercises",
+      "cycle_reference_cas_patch",
+      "sessions",
+      "session_exercises",
+      "sets",
+      "progression_events",
+      "exercise_stats_rebuild_after_parity",
+      "held_relations_no_transport"
+    ],
+    "delete_order": [
+      "held_relations_no_delete",
+      "progression_event_tombstones",
+      "sets_tombstones",
+      "session_exercise_tombstones",
+      "session_tombstones",
+      "routine_day_exercise_tombstones",
+      "workout_plan_template_exercise_tombstones",
+      "cycle_reference_unlink",
+      "routine_day_tombstones",
+      "workout_plan_template_tombstones",
+      "routine_tombstones",
+      "owned_exercise_tombstones",
+      "profile_preserve"
+    ],
+    "foreign_key_cycles": [
+      {
+        "relations": [
+          "public.routine_days",
+          "public.workout_plan_templates"
+        ],
+        "nullable_reference_columns": [
+          "public.routine_days.workout_plan_template_id",
+          "public.workout_plan_templates.source_routine_day_id"
+        ],
+        "staging_plan": "INSERT_NULL_REFERENCES_THEN_CAS_PATCH",
+        "synthetic_proof_required": true
+      }
+    ],
+    "external_effects": "QUARANTINED"
+  },
+  "snapshot_and_cas": {
+    "required_snapshots": [
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "complete_primary_key_set_comparison": true,
+    "complete_canonical_row_digest_comparison": true,
+    "timestamp_revision_or_high_water_only_proof_allowed": false,
+    "accepted_expected_target": [
+      "ABSENT",
+      "EXACT_DIGEST"
+    ],
+    "unexpected_target_digest": "QUARANTINE",
+    "unexpected_target_overwrite_allowed": false,
+    "matching_mutation": "IDEMPOTENT_REUSE"
+  },
+  "deletion_and_rollback": {
+    "explicit_tombstones_required": true,
+    "implicit_cascade_authority": false,
+    "reappearing_key_requires": [
+      "EXPLICIT_RESURRECTION",
+      "NEW_GENERATION"
+    ],
+    "profile_delete_action": "SUSPEND_AND_PRESERVE",
+    "membership_hard_delete": "FORBIDDEN",
+    "rollback_order": "REVERSE_DEPENDENCY_AND_COMMIT_ORDER",
+    "append_only_mutation_journal_required": true,
+    "reverse_catch_up_to_source": "SEPARATE_EXPLICIT_AUTHORITY"
+  },
+  "public_receipt_policy": {
+    "allowed_classes": [
+      "aggregate_counts",
+      "booleans",
+      "non_identifying_high_water_marks",
+      "quarantine_classes",
+      "private_commitments",
+      "digests"
+    ],
+    "forbidden_classes": [
+      "raw_rows",
+      "primary_keys",
+      "names",
+      "emails",
+      "usernames",
+      "user_numbers_or_ranges",
+      "uuids_or_ranges",
+      "secrets",
+      "project_refs",
+      "sql",
+      "payloads",
+      "provider_responses",
+      "machine_paths"
+    ]
+  },
+  "dependency_gates": {
+    "data_api_containment": "BLOCKED",
+    "accepted_recovery_and_quarantined_restore": "BLOCKED",
+    "faithful_contained_replay": "BLOCKED",
+    "target_bootstrap": "BLOCKED",
+    "shared_auth_identity_mapping": "BLOCKED",
+    "service_membership_readiness": "BLOCKED",
+    "mazer_adapter_source_contract": "CURRENT",
+    "fitness_pr108_retirement": "BLOCKED",
+    "discordos_adapter": "BLOCKED",
+    "target_apply": "BLOCKED"
+  }
+}

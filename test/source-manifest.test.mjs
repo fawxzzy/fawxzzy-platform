@@ -8,6 +8,7 @@ import {
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
   verifyAppDataTransportContracts,
+  verifyFitnessAppDataAdapter,
   verifyMazerAppDataAdapter,
   verifyFitnessPr108ReplayGate,
   verifyProviderCanonicalProvenance,
@@ -113,6 +114,23 @@ test('Mazer app data adapter remains package-neutral and execution-blocked', () 
   assert.equal(sourceManifest.migrations.length, 122);
   assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'mazer').length, 4);
   assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(adapter.apply_admitted, false);
+  assert.equal(gate.app_data_adapters.apply_admitted, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+});
+
+test('Fitness app data adapter binds the accepted 101-unit source and leaves the 122-unit package inert', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const adapter = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/fitness-app-data-adapter-contract.json`, 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  assert.deepEqual(verifyFitnessAppDataAdapter({ adapter, gate }), []);
+  assert.equal(sourceManifest.migrations.length, 122);
+  assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'fitness').length, 101);
+  assert.equal(adapter.source_evidence.accepted_migration_count, 101);
+  assert.equal(adapter.source_evidence.current_git_migration_count, 101);
+  assert.equal(adapter.source_evidence.held_candidate.candidate_migration_count, 102);
+  assert.equal(adapter.source_evidence.held_candidate.candidate_bytes_admitted, false);
+  assert.equal(adapter.source_evidence.accepted_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
   assert.equal(adapter.apply_admitted, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
   assert.equal(gate.app_data_adapters.all_adapters_ready, false);
