@@ -1,0 +1,379 @@
+{
+  "version": "1.0.0",
+  "contract_id": "discordos-app-data-adapter-contract",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED"
+  },
+  "apply_admitted": false,
+  "generic_contract_path": "contracts/v1/transport/app-data-transport-contract.json",
+  "source_evidence": {
+    "provider_canonical_commit": "bd12f6713518b3f3af3761618e3d3e5f6979f167",
+    "provider_canonical_tree": "f9b01b18d1ba9ad544c582d0dc88ee2ac285bbe8",
+    "provider_canonical_migration_count": 17,
+    "current_git_head": "aef01f277e006e3cb46550e507ebd8e4a1be9d21",
+    "current_git_tree": "9e6afb159565b1b749ae7f90373aad904fff81da",
+    "current_git_migration_count": 11,
+    "current_git_canonicality": "NOT_PROVIDER_CANONICAL",
+    "current_git_substitution_forbidden": true,
+    "accepted_source_chain_sha256": "6a6e9fa29651331d2addb0259bc61bc7c2f0795bd71b2a04971c96ff146a822e",
+    "accepted_path_sha256": "633ed3101d22dee2c93e1cd5135e5c9cfc1511690b06375c219c3d2d50119613",
+    "provider_catalog_sha256": "d5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7",
+    "provider_effect_mapping_count": 17,
+    "provider_effect_mappings_sha256": "b107c77cd61c7c1d3d1df13ac2051dde5c03dd398a85bb56fa54b3e404bbadd4",
+    "relation_count": 10,
+    "relation_manifest_sha256": "222e9e3f225a29b867d808282f5110ff08b68400af267858ee5c79059d1a0598",
+    "external_effect_manifest_sha256": "90d87487ac322fc69f26cdc98cf8c2652082cb0a1967fb7fefccfed0ea132eeb",
+    "source_statement_count": 186,
+    "final_function_identity_count": 18,
+    "function_definition_count": 20,
+    "trigger_count": 6,
+    "index_count": 26,
+    "constraint_unit_count": 49,
+    "rls_enabled_relation_count": 10,
+    "policy_count": 0,
+    "held_function_unit_count": 19,
+    "held_statement_count": 89,
+    "accepted_package_migration_count": 122,
+    "accepted_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+  },
+  "inert_boundary": {
+    "declared_relation_count": 10,
+    "emitted_relation_count": 9,
+    "held_relation_count": 1,
+    "held_relation": "discordos.discord_update_drafts",
+    "emitted_function_count": 1,
+    "emitted_function": "discordos.set_updated_at",
+    "emitted_trigger_count": 5,
+    "emitted_index_count": 22,
+    "emitted_extension_count": 0,
+    "emitted_data_effect_count": 0,
+    "emitted_cron_effect_count": 0,
+    "emitted_network_effect_count": 0,
+    "generated_artifact_changes_admitted": false
+  },
+  "identity_boundary": {
+    "service_mode": "OPERATIONAL_ONLY",
+    "human_activation": "NOT_APPLICABLE",
+    "human_profile_relation": null,
+    "human_entitlement_relation": null,
+    "canonical_human_key": "auth.users.id",
+    "source_identity_ledger": "platform_private.source_identity_ledger",
+    "rekey_authority": "ACCEPTED_IDENTITY_LEDGER_MAPPING_ONLY",
+    "accepted_mapping_cardinality": "EXACTLY_ONE",
+    "missing_mapping_outcome": "QUARANTINE_PENDING_VERIFIED_EVIDENCE",
+    "contradictory_mapping_outcome": "QUARANTINE_PENDING_VERIFIED_EVIDENCE",
+    "duplicate_mapping_outcome": "QUARANTINE_PENDING_VERIFIED_EVIDENCE",
+    "membership_if_present_without_mapping": "PRESERVE_PENDING",
+    "membership_creation_allowed": false,
+    "caller_supplied_identity_allowed": false,
+    "automatic_identity_merge_allowed": false,
+    "discord_ids_as_identity_evidence": false,
+    "fingerprints_as_identity_evidence": false,
+    "usernames_as_identity_evidence": false,
+    "labels_as_identity_evidence": false,
+    "snapshots_as_identity_evidence": false,
+    "synthetic_rows_action": "EXCLUDE",
+    "fitness_semantic_overlap_action": "QUARANTINE"
+  },
+  "canonicalization": {
+    "transform_version": "discordos-app-data-v1",
+    "complete_provider_catalog_column_order": true,
+    "row_digest_includes_all_authoritative_columns": true,
+    "private_key_commitments": true,
+    "jsonb": "RFC8785_CANONICAL_JSON",
+    "timestamp_with_time_zone": "UTC_MICROSECONDS_RFC3339",
+    "numeric": "POSTGRES_CANONICAL_TEXT",
+    "text": "UTF8_NFC",
+    "raw_values_in_public_receipts": false
+  },
+  "classification_counts": {
+    "authoritative_state": 5,
+    "authoritative_append_only_history": 4,
+    "held_operational_external_effect": 1,
+    "transported": 9,
+    "held": 1,
+    "total": 10
+  },
+  "relations": [
+    {
+      "source_relation": "discordos.discord_feedback_reports",
+      "target_relation": "discordos.discord_feedback_reports",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "report_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "CAS_AFTER_IDENTITY_AND_OVERLAP_QUARANTINE",
+      "dependency_parents": [],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "QUARANTINE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discord_feedback_audit_events",
+      "target_relation": "discordos.discord_feedback_audit_events",
+      "classification": "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "PRESERVE_IDENTITY_APPEND_ONLY",
+      "dependency_parents": [
+        "discordos.discord_feedback_reports"
+      ],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "QUARANTINE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discord_feedback_completion_reviews",
+      "target_relation": "discordos.discord_feedback_completion_reviews",
+      "classification": "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "PRESERVE_IDENTITY_APPEND_ONLY",
+      "dependency_parents": [
+        "discordos.discord_feedback_reports"
+      ],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "QUARANTINE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.runtime_health_cron_runs",
+      "target_relation": "discordos.runtime_health_cron_runs",
+      "classification": "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "PRESERVE_IDENTITY_APPEND_ONLY_WITH_SCHEDULER_HELD",
+      "dependency_parents": [],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discordos_board_cards",
+      "target_relation": "discordos.discordos_board_cards",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "card_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+      "dependency_parents": [],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discordos_moderation_audit_log",
+      "target_relation": "discordos.discordos_moderation_audit_log",
+      "classification": "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+      "primary_key": [
+        "case_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "PRESERVE_IDENTITY_APPEND_ONLY_WITH_EFFECTS_QUARANTINED",
+      "dependency_parents": [],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discordos_music_sesh_sessions",
+      "target_relation": "discordos.discordos_music_sesh_sessions",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "session_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+      "dependency_parents": [],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discordos_music_sesh_queue_items",
+      "target_relation": "discordos.discordos_music_sesh_queue_items",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "queue_item_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+      "dependency_parents": [
+        "discordos.discordos_music_sesh_sessions"
+      ],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discordos_music_sesh_votes",
+      "target_relation": "discordos.discordos_music_sesh_votes",
+      "classification": "AUTHORITATIVE_STATE",
+      "primary_key": [
+        "vote_id"
+      ],
+      "owner_key": null,
+      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+      "dependency_parents": [
+        "discordos.discordos_music_sesh_sessions",
+        "discordos.discordos_music_sesh_queue_items"
+      ],
+      "external_effects": false,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "NOT_APPLICABLE",
+      "hold_reason": null
+    },
+    {
+      "source_relation": "discordos.discord_update_drafts",
+      "target_relation": "discordos.discord_update_drafts",
+      "classification": "HELD_OPERATIONAL_EXTERNAL_EFFECT",
+      "primary_key": [
+        "id"
+      ],
+      "owner_key": null,
+      "transport_mode": "HOLD_NO_TRANSPORT",
+      "dependency_parents": [],
+      "external_effects": true,
+      "synthetic_rows_action": "EXCLUDE",
+      "fitness_semantic_overlap_action": "QUARANTINE",
+      "hold_reason": "DEPLOYMENT_AND_DISCORD_PUBLICATION_EFFECTS_UNRESOLVED"
+    }
+  ],
+  "dependency_ordering": {
+    "insert_update_order": [
+      "discordos.discord_feedback_reports",
+      "discordos.discord_feedback_audit_events",
+      "discordos.discord_feedback_completion_reviews",
+      "discordos.runtime_health_cron_runs",
+      "discordos.discordos_board_cards",
+      "discordos.discordos_moderation_audit_log",
+      "discordos.discordos_music_sesh_sessions",
+      "discordos.discordos_music_sesh_queue_items",
+      "discordos.discordos_music_sesh_votes"
+    ],
+    "delete_order": [
+      "discordos.discordos_music_sesh_votes",
+      "discordos.discordos_music_sesh_queue_items",
+      "discordos.discordos_music_sesh_sessions",
+      "discordos.discord_feedback_completion_reviews",
+      "discordos.discord_feedback_audit_events",
+      "discordos.discord_feedback_reports",
+      "discordos.discordos_moderation_audit_log",
+      "discordos.discordos_board_cards",
+      "discordos.runtime_health_cron_runs"
+    ],
+    "foreign_key_cycles": "NONE",
+    "held_relations_excluded_from_order": [
+      "discordos.discord_update_drafts"
+    ],
+    "external_effects": "QUARANTINED"
+  },
+  "external_effect_quarantine": {
+    "public_rpc_status": "BLOCKED",
+    "scheduler_status": "BLOCKED",
+    "network_status": "BLOCKED",
+    "edge_status": "BLOCKED",
+    "credential_status": "BLOCKED",
+    "alias_status": "BLOCKED",
+    "provider_link_status": "BLOCKED",
+    "webhook_status": "BLOCKED",
+    "moderation_action_status": "BLOCKED",
+    "discord_api_write_status": "BLOCKED",
+    "held_function_unit_count": 19,
+    "held_statement_count": 89,
+    "scheduler_extension_identities": [
+      "pg_cron",
+      "pg_net"
+    ],
+    "scheduler_job_identity": "discordos_message_commands_poll",
+    "network_helper_identity": "discordos_private.trigger_message_command_poll",
+    "target_egress": "DENIED",
+    "source_remains_active": true,
+    "quarantine_release_requires_separate_authority": true
+  },
+  "snapshot_and_cas": {
+    "required_snapshots": [
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "complete_primary_key_set_comparison": true,
+    "complete_canonical_row_digest_comparison": true,
+    "timestamp_or_high_water_only_proof_allowed": false,
+    "accepted_expected_target": [
+      "ABSENT",
+      "EXACT_DIGEST"
+    ],
+    "unexpected_target_digest": "QUARANTINE",
+    "unexpected_target_overwrite_allowed": false,
+    "matching_mutation": "IDEMPOTENT_REUSE"
+  },
+  "deletion_and_rollback": {
+    "explicit_tombstones_required": true,
+    "implicit_cascade_authority": false,
+    "reappearing_key_requires": [
+      "EXPLICIT_RESURRECTION",
+      "NEW_GENERATION"
+    ],
+    "held_relation_delete_action": "PRESERVE_AND_QUARANTINE",
+    "rollback_order": "REVERSE_DEPENDENCY_ORDER",
+    "append_only_mutation_journal_required": true,
+    "reverse_catch_up_to_source": "SEPARATE_EXPLICIT_AUTHORITY"
+  },
+  "public_receipt_policy": {
+    "allowed_classes": [
+      "aggregate_counts",
+      "booleans",
+      "cutoffs",
+      "non_identifying_high_water_marks",
+      "quarantine_classes",
+      "private_commitments",
+      "digests"
+    ],
+    "forbidden_classes": [
+      "raw_rows",
+      "primary_keys",
+      "names",
+      "emails",
+      "usernames",
+      "user_numbers_or_ranges",
+      "uuids_or_ranges",
+      "secrets",
+      "project_refs",
+      "sql",
+      "payloads",
+      "provider_responses",
+      "machine_paths"
+    ]
+  },
+  "dependency_gates": {
+    "data_api_containment": "BLOCKED",
+    "accepted_recovery_and_quarantined_restore": "BLOCKED",
+    "faithful_contained_replay": "BLOCKED",
+    "target_bootstrap": "BLOCKED",
+    "shared_auth_identity_mapping": "BLOCKED",
+    "service_membership_readiness": "NOT_APPLICABLE",
+    "mazer_adapter_source_contract": "CURRENT",
+    "fitness_adapter_source_contract": "CURRENT",
+    "discordos_external_effect_quarantine": "BLOCKED",
+    "target_apply": "BLOCKED"
+  }
+}

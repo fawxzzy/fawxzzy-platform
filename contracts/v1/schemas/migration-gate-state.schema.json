@@ -18,7 +18,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.3.0"
+      "const": "1.4.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -121,6 +121,8 @@
         "mazer_relation_count",
         "fitness_contract_path",
         "fitness_relation_count",
+        "discordos_contract_path",
+        "discordos_relation_count",
         "all_adapters_ready",
         "execution_lifecycle",
         "apply_admitted"
@@ -136,13 +138,12 @@
         "source_ready": {
           "const": [
             "mazer",
-            "fitness"
+            "fitness",
+            "discordos"
           ]
         },
         "blocked": {
-          "const": [
-            "discordos"
-          ]
+          "const": []
         },
         "mazer_contract_path": {
           "const": "contracts/v1/transport/mazer-app-data-adapter-contract.json"
@@ -156,8 +157,14 @@
         "fitness_relation_count": {
           "const": 27
         },
+        "discordos_contract_path": {
+          "const": "contracts/v1/transport/discordos-app-data-adapter-contract.json"
+        },
+        "discordos_relation_count": {
+          "const": 10
+        },
         "all_adapters_ready": {
-          "const": false
+          "const": true
         },
         "execution_lifecycle": {
           "const": "EXECUTION_BLOCKED"

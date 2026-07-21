@@ -9,7 +9,7 @@ import {
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
-import { verifyAppDataTransportContracts, verifyFitnessAppDataAdapter, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
+import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyFitnessAppDataAdapter, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
 
 test('all versioned contract instances satisfy their schemas and semantics', () => {
   const report = validateContracts();
@@ -768,7 +768,7 @@ test('Mazer app data adapter is closed, provider-canonical, and execution-blocke
   assert.equal(adapter.relations[2].rebuild_from_human_progression_allowed, false);
   assert.equal(adapter.identity_and_activation.profile_seed.source_profile_absent_policy.activation, 'ATOMIC_WITH_PENDING_MEMBERSHIP');
   assert.equal(adapter.identity_and_activation.profile_seed.source_profile_absent_policy.silent_drop_allowed, false);
-  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
 });
 
@@ -846,9 +846,9 @@ test('Mazer app data adapter fails closed across every admitted drift class', ()
 test('Mazer app data adapter gate rejects readiness and target-apply promotion', () => {
   const baseline = loadDocuments();
   for (const mutate of [
-    (gate) => { gate.source_ready = ['mazer']; },
-    (gate) => { gate.blocked = ['fitness', 'discordos']; },
-    (gate) => { gate.all_adapters_ready = true; },
+    (gate) => { gate.source_ready = ['mazer', 'fitness']; },
+    (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.all_adapters_ready = false; },
     (gate) => { gate.execution_lifecycle = 'CURRENT'; },
     (gate) => { gate.apply_admitted = true; }
   ]) {
@@ -963,9 +963,9 @@ test('Fitness app data adapter freezes 27 accepted relations without admitting e
     excluded: 1,
     total: 27
   });
-  assert.deepEqual(gate.app_data_adapters.source_ready, ['mazer', 'fitness']);
-  assert.deepEqual(gate.app_data_adapters.blocked, ['discordos']);
-  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+  assert.deepEqual(gate.app_data_adapters.source_ready, ['mazer', 'fitness', 'discordos']);
+  assert.deepEqual(gate.app_data_adapters.blocked, []);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
 });
 
@@ -1205,10 +1205,10 @@ test('Fitness bootstrap verifier proves every dependency gate and closed lifecyc
 test('Fitness adapter gate rejects readiness or package-application promotion', () => {
   const baseline = loadDocuments();
   for (const mutate of [
-    (gate) => { gate.source_ready = ['mazer']; },
-    (gate) => { gate.blocked = ['fitness', 'discordos']; },
+    (gate) => { gate.source_ready = ['mazer', 'fitness']; },
+    (gate) => { gate.blocked = ['discordos']; },
     (gate) => { gate.fitness_relation_count = 26; },
-    (gate) => { gate.all_adapters_ready = true; },
+    (gate) => { gate.all_adapters_ready = false; },
     (gate) => { gate.execution_lifecycle = 'CURRENT'; },
     (gate) => { gate.apply_admitted = true; }
   ]) {
@@ -1235,5 +1235,151 @@ test('Fitness bootstrap verifier fails closed without throwing on malformed inpu
     mutate(adapter);
     assert.doesNotThrow(() => verifyFitnessAppDataAdapter({ adapter, gate }));
     assert.ok(verifyFitnessAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('schema validation')));
+  }
+});
+
+test('DiscordOS app data adapter freezes ten provider-canonical relations without admitting execution', () => {
+  const documents = loadDocuments();
+  const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+  const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+  assert.deepEqual(verifyDiscordosAppDataAdapter({ adapter, gate }), []);
+  assert.equal(adapter.version, '1.0.0');
+  assert.equal(adapter.relations.length, 10);
+  assert.deepEqual(adapter.classification_counts, {
+    authoritative_state: 5,
+    authoritative_append_only_history: 4,
+    held_operational_external_effect: 1,
+    transported: 9,
+    held: 1,
+    total: 10
+  });
+  assert.equal(adapter.inert_boundary.held_relation, 'discordos.discord_update_drafts');
+  assert.deepEqual(gate.app_data_adapters.source_ready, ['mazer', 'fitness', 'discordos']);
+  assert.deepEqual(gate.app_data_adapters.blocked, []);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
+  assert.equal(gate.app_data_adapters.execution_lifecycle, 'EXECUTION_BLOCKED');
+  assert.equal(gate.app_data_adapters.apply_admitted, false);
+});
+
+test('DiscordOS adapter rejects provenance, relation, identity, quarantine, parity, and apply drift', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [(adapter) => { adapter.source_evidence.provider_canonical_commit = adapter.source_evidence.current_git_head; }, 'provider-canonical source identity'],
+    [(adapter) => { adapter.source_evidence.current_git_substitution_forbidden = false; }, 'Git substitution'],
+    [(adapter) => { adapter.source_evidence.accepted_path_sha256 = '0'.repeat(64); }, 'source chain, path, or catalog'],
+    [(adapter) => { adapter.source_evidence.relation_manifest_sha256 = '0'.repeat(64); }, 'relation or external-effect denominator'],
+    [(adapter) => { adapter.source_evidence.source_statement_count = 185; }, 'source object denominator'],
+    [(adapter) => { adapter.inert_boundary.emitted_relation_count = 10; }, 'inert relation denominator'],
+    [(adapter) => { adapter.inert_boundary.emitted_network_effect_count = 1; }, 'inert external-effect'],
+    [(adapter) => { adapter.relations[0].target_relation = 'public.discord_feedback_reports'; }, 'relation denominator'],
+    [(adapter) => { adapter.relations.splice(1, 1); }, 'relation denominator'],
+    [(adapter) => { adapter.relations[9].transport_mode = 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'; }, 'relation denominator'],
+    [(adapter) => { adapter.identity_boundary.missing_mapping_outcome = 'REKEY_TO_CALLER'; }, 'identity mapping outcome'],
+    [(adapter) => { adapter.identity_boundary.caller_supplied_identity_allowed = true; }, 'external identifier authority'],
+    [(adapter) => { adapter.identity_boundary.automatic_identity_merge_allowed = true; }, 'external identifier authority'],
+    [(adapter) => { adapter.identity_boundary.discord_ids_as_identity_evidence = true; }, 'external identifier authority'],
+    [(adapter) => { adapter.identity_boundary.synthetic_rows_action = 'TRANSPORT'; }, 'synthetic or Fitness-overlap'],
+    [(adapter) => { adapter.identity_boundary.fitness_semantic_overlap_action = 'MERGE'; }, 'synthetic or Fitness-overlap'],
+    [(adapter) => { adapter.snapshot_and_cas.required_snapshots = ['S0', 'S1']; }, 'snapshot'],
+    [(adapter) => { adapter.snapshot_and_cas.unexpected_target_overwrite_allowed = true; }, 'CAS'],
+    [(adapter) => { adapter.deletion_and_rollback.implicit_cascade_authority = true; }, 'tombstone'],
+    [(adapter) => { adapter.public_receipt_policy.forbidden_classes = ['raw_rows']; }, 'receipt redaction'],
+    [(adapter) => { adapter.apply_admitted = true; }, 'non-executable'],
+    [(adapter) => { adapter.source_evidence.accepted_package_sha256 = '0'.repeat(64); }, 'package']
+  ];
+  for (const [mutate, expected] of cases) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutate(adapter);
+    const failures = verifyDiscordosAppDataAdapter({ adapter, gate });
+    assert.notEqual(failures.length, 0, expected);
+    assert.ok(failures.some((failure) => failure.toLowerCase().includes(expected.toLowerCase()) || failure.includes('schema validation')), expected);
+  }
+});
+
+test('DiscordOS adapter keeps every external-effect and dependency surface closed', () => {
+  const baseline = loadDocuments();
+  const effectFields = [
+    'public_rpc_status',
+    'scheduler_status',
+    'network_status',
+    'edge_status',
+    'credential_status',
+    'alias_status',
+    'provider_link_status',
+    'webhook_status',
+    'moderation_action_status',
+    'discord_api_write_status'
+  ];
+  for (const field of effectFields) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    adapter.external_effect_quarantine[field] = 'CURRENT';
+    assert.ok(verifyDiscordosAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('schema validation') || failure.includes('external-effect hold')), field);
+  }
+  const expectedGates = {
+    data_api_containment: 'BLOCKED',
+    accepted_recovery_and_quarantined_restore: 'BLOCKED',
+    faithful_contained_replay: 'BLOCKED',
+    target_bootstrap: 'BLOCKED',
+    shared_auth_identity_mapping: 'BLOCKED',
+    service_membership_readiness: 'NOT_APPLICABLE',
+    mazer_adapter_source_contract: 'CURRENT',
+    fitness_adapter_source_contract: 'CURRENT',
+    discordos_external_effect_quarantine: 'BLOCKED',
+    target_apply: 'BLOCKED'
+  };
+  for (const [field, value] of Object.entries(expectedGates)) {
+    for (const mutate of [
+      (gates) => { delete gates[field]; },
+      (gates) => { gates[field] = value === 'BLOCKED' ? 'CURRENT' : 'BLOCKED'; },
+      (gates) => { gates[field] = 'SOURCE_READY_EXECUTION_BLOCKED'; }
+    ]) {
+      const documents = structuredClone(baseline);
+      const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+      const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+      mutate(adapter.dependency_gates);
+      assert.ok(verifyDiscordosAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('schema validation') || failure.includes('dependency gate')), field);
+    }
+  }
+});
+
+test('DiscordOS aggregate adapter gate rejects denominator or execution promotion', () => {
+  const baseline = loadDocuments();
+  for (const mutate of [
+    (gate) => { gate.source_ready = ['mazer', 'fitness']; },
+    (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.discordos_contract_path = 'contracts/v1/transport/fitness-app-data-adapter-contract.json'; },
+    (gate) => { gate.discordos_relation_count = 9; },
+    (gate) => { gate.all_adapters_ready = false; },
+    (gate) => { gate.execution_lifecycle = 'CURRENT'; },
+    (gate) => { gate.apply_admitted = true; }
+  ]) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutate(gate.app_data_adapters);
+    assert.notEqual(validateSchemaInstances(documents, createValidator()).length, 0);
+    assert.ok(verifyDiscordosAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('schema validation') || failure.includes('adapter')));
+  }
+});
+
+test('DiscordOS bootstrap verifier fails closed without throwing on malformed inputs', () => {
+  const baseline = loadDocuments();
+  for (const mutate of [
+    (adapter) => { adapter.dependency_gates = null; },
+    (adapter) => { adapter.relations = {}; },
+    (adapter) => { adapter.identity_boundary = null; },
+    (adapter) => { adapter.external_effect_quarantine = [null]; },
+    (adapter) => { adapter.unadmitted_gate = 'CURRENT'; }
+  ]) {
+    const documents = structuredClone(baseline);
+    const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutate(adapter);
+    assert.doesNotThrow(() => verifyDiscordosAppDataAdapter({ adapter, gate }));
+    assert.ok(verifyDiscordosAppDataAdapter({ adapter, gate }).some((failure) => failure.includes('schema validation')));
   }
 });
