@@ -13,11 +13,12 @@
     "required_evidence",
     "provider_canonical_provenance",
     "shared_auth_import_reauth_rehearsal",
-    "app_data_transport"
+    "app_data_transport",
+    "app_data_adapters"
   ],
   "properties": {
     "version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -106,6 +107,55 @@
         },
         "dependency_status": {
           "const": "BLOCKED"
+        }
+      }
+    },
+    "app_data_adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_order",
+        "source_ready",
+        "blocked",
+        "mazer_contract_path",
+        "mazer_relation_count",
+        "all_adapters_ready",
+        "execution_lifecycle",
+        "apply_admitted"
+      ],
+      "properties": {
+        "required_order": {
+          "const": [
+            "mazer",
+            "fitness",
+            "discordos"
+          ]
+        },
+        "source_ready": {
+          "const": [
+            "mazer"
+          ]
+        },
+        "blocked": {
+          "const": [
+            "fitness",
+            "discordos"
+          ]
+        },
+        "mazer_contract_path": {
+          "const": "contracts/v1/transport/mazer-app-data-adapter-contract.json"
+        },
+        "mazer_relation_count": {
+          "const": 4
+        },
+        "all_adapters_ready": {
+          "const": false
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
         }
       }
     },
