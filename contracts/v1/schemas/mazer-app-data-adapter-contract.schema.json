@@ -531,7 +531,7 @@
           "const": "BLOCKED"
         },
         "service_membership_readiness": {
-          "const": "SOURCE_READY_EXECUTION_BLOCKED"
+          "const": "BLOCKED"
         },
         "fitness_adapter": {
           "const": "BLOCKED"

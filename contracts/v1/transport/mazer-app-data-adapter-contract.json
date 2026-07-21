@@ -236,7 +236,7 @@
     "faithful_contained_replay": "BLOCKED",
     "target_bootstrap": "BLOCKED",
     "shared_auth_identity_mapping": "BLOCKED",
-    "service_membership_readiness": "SOURCE_READY_EXECUTION_BLOCKED",
+    "service_membership_readiness": "BLOCKED",
     "fitness_adapter": "BLOCKED",
     "discordos_adapter": "BLOCKED",
     "target_apply": "BLOCKED"

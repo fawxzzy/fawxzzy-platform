@@ -866,7 +866,7 @@ test('Mazer bootstrap verifier proves every closed dependency gate', () => {
     faithful_contained_replay: 'BLOCKED',
     target_bootstrap: 'BLOCKED',
     shared_auth_identity_mapping: 'BLOCKED',
-    service_membership_readiness: 'SOURCE_READY_EXECUTION_BLOCKED',
+    service_membership_readiness: 'BLOCKED',
     fitness_adapter: 'BLOCKED',
     discordos_adapter: 'BLOCKED',
     target_apply: 'BLOCKED'
@@ -885,6 +885,40 @@ test('Mazer bootstrap verifier proves every closed dependency gate', () => {
       assert.notEqual(failures.length, 0, gateName);
       assert.ok(failures.some((failure) => failure.includes('schema validation') || failure.includes('dependency gate')), gateName);
     }
+  }
+});
+
+test('Mazer membership readiness uses the closed status vocabulary without lifecycle conflation', () => {
+  const baseline = loadDocuments();
+  const acceptedStatusVocabulary = ['CURRENT', 'REQUIRED', 'OWNER_DECISION', 'BLOCKED', 'UNKNOWN', 'NOT_APPLICABLE'];
+  const adapter = baseline['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
+  assert.equal(adapter.dependency_gates.service_membership_readiness, 'BLOCKED');
+  assert.deepEqual(adapter.lifecycle, {
+    source_contract: 'SOURCE_READY',
+    execution: 'EXECUTION_BLOCKED'
+  });
+
+  const rejectedValues = [
+    ...acceptedStatusVocabulary.filter((value) => value !== 'BLOCKED'),
+    'SOURCE_READY',
+    'EXECUTION_BLOCKED',
+    'SOURCE_READY_EXECUTION_BLOCKED',
+    'READY',
+    'blocked'
+  ];
+  for (const value of rejectedValues) {
+    const documents = structuredClone(baseline);
+    const mutatedAdapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
+    const gate = documents['contracts/v1/gates/migration-gate-state.json'];
+    mutatedAdapter.dependency_gates.service_membership_readiness = value;
+    assert.ok(
+      validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('mazer-app-data-adapter-contract.json')),
+      value
+    );
+    assert.ok(
+      verifyMazerAppDataAdapter({ adapter: mutatedAdapter, gate }).some((failure) => failure.includes('schema validation') || failure.includes('dependency gate')),
+      value
+    );
   }
 });
 
