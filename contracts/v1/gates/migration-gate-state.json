@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "status": "BLOCKED",
   "sql_generation": "next_separately_authorized_packet",
   "semantic_cross_product_merges": "forbidden",
@@ -30,14 +30,16 @@
       "discordos"
     ],
     "source_ready": [
-      "mazer"
+      "mazer",
+      "fitness"
     ],
     "blocked": [
-      "fitness",
       "discordos"
     ],
     "mazer_contract_path": "contracts/v1/transport/mazer-app-data-adapter-contract.json",
     "mazer_relation_count": 4,
+    "fitness_contract_path": "contracts/v1/transport/fitness-app-data-adapter-contract.json",
+    "fitness_relation_count": 27,
     "all_adapters_ready": false,
     "execution_lifecycle": "EXECUTION_BLOCKED",
     "apply_admitted": false

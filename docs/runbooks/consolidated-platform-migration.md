@@ -134,7 +134,13 @@ The Mazer adapter is the first closed product adapter. Its accepted denominator 
 
 For any owner present in progression, AI-runner progression, or cycle receipts but absent from the complete source profile key sets at S0, S1, and S2, activation synthesizes only the versioned schema-default profile seed on the server and consumes it atomically with the pending membership. Caller-selected values and non-atomic preinserts are forbidden. If absence is incomplete, contradictory, or cannot be correlated to the immutable identity map, keep membership pending, quarantine the owner, and preserve every source row for a resumable retry.
 
-Mazer insert/update order is canonical Auth mapping, pending membership, atomic source-or-default profile-seed activation, human progression, AI-runner progression, and cycle receipts. Deletes remain child-first and tombstone-driven; profile and membership history is preserved. Conflicts quarantine without overwrite. Fitness and DiscordOS adapters remain `BLOCKED`, so this source-ready Mazer contract does not admit application-data execution.
+Mazer insert/update order is canonical Auth mapping, pending membership, atomic source-or-default profile-seed activation, human progression, AI-runner progression, and cycle receipts. Deletes remain child-first and tombstone-driven; profile and membership history is preserved. Conflicts quarantine without overwrite.
+
+The Fitness adapter binds exactly the accepted 101-migration source and 27 historical relation identities; PR #108's 102nd migration and hosted replay remain held evidence, never accepted bytes. Eleven core relations are authoritative, `progression_events` preserves append-only identities, and `exercise_stats` is rebuilt only after authoritative parity. The nullable `routine_days`/`workout_plan_templates` cycle is staged with null references and completed by exact CAS patches after synthetic proof. S0, S1, and S2 compare complete key sets and row digests; timestamps, revisions, and high-water marks never replace the complete comparison.
+
+Fitness activation consumes the private `profiles.id` seed atomically with an `auth.uid()`-derived pending membership. It accepts no caller user ID or non-atomic profile preinsert. A missing source profile does not authorize an invented default; affected authoritative rows remain preserved and quarantined. Existing member numbers copy unchanged with high-water and gaps preserved. Reuse, filling, renumbering, compaction, and caller allocation are forbidden, but post-migration allocation remains `BLOCKED` because the accepted chain still contains compaction behavior and the retirement migration plus faithful replay remain held.
+
+Billing, entitlements, follow-up jobs, reporting, and Discord-named relations are closed held classes. They may not be silently transported or dropped. Billing waits for verified billing provenance; operational jobs and Discord effects stay quarantined; Discord/provider/security-token identities cannot become shared human identity evidence. The historical `discord_bug_reports` identity is explicitly excluded as superseded. Mazer and Fitness are source-ready, but DiscordOS and all execution dependencies remain blocked, so no application-data execution is admitted.
 
 The mutation journal is append-only and must cover every committed mutation, idempotent reuse, and conflict quarantine. Rollback follows reverse dependency and reverse commit order using digest-bound preimage and postimage evidence. Catch-up back into a source is a separate mutation requiring separate authority. Public receipts remain aggregate-only and cannot contain raw rows, identifiers, user-number or UUID ranges, secrets, project references, SQL, payloads, provider responses, or machine paths.
 
@@ -199,5 +205,6 @@ Rollback is evidence-preserving: keep egress denied, deactivate scheduling first
 - Executable migration SQL: `NOT_APPLICABLE` to this packet
 - Generic application-data contract: `SOURCE_READY`
 - Mazer application-data adapter source contract: `SOURCE_READY`
-- Fitness and DiscordOS application-data adapters: `BLOCKED`
+- Fitness application-data adapter source contract: `SOURCE_READY`
+- DiscordOS application-data adapter: `BLOCKED`
 - Application-data execution: `BLOCKED`

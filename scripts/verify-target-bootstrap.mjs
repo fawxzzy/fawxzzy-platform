@@ -463,7 +463,7 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, determ
     ['discordos', 'nwexsktuuenfdegzrbut', 17, 11, 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7'],
     ['mazer', 'geknvnrmktchljnyddwp', 4, 3, '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436']
   ];
-  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.2.0', 'provider-canonical migration gate must remain BLOCKED at version 1.2.0');
+  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.3.0', 'provider-canonical migration gate must remain BLOCKED at version 1.3.0');
   fail(failures, provenance.status === 'CURRENT' && provenance.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   fail(failures, provenance.combined_provenance_sha256 === '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684', 'provider-canonical combined provenance digest drift');
   fail(failures, accepted.migration_count === 122 && accepted.source_counts?.discordos === 17 && accepted.source_counts?.fitness === 101 && accepted.source_counts?.mazer === 4, 'provider-canonical accepted package denominator drift');
@@ -598,12 +598,106 @@ export function verifyMazerAppDataAdapter({ adapter, gate }) {
   const forbiddenReceiptClasses = ['raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers_or_ranges', 'uuids_or_ranges', 'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'];
   fail(failures, canonicalJson(adapter?.public_receipt_policy?.forbidden_classes) === canonicalJson(forbiddenReceiptClasses) && adapter?.canonicalization?.raw_values_in_public_receipts === false, 'Mazer app data receipt redaction drift');
   fail(failures, adapter?.dependency_gates?.data_api_containment === 'BLOCKED' && adapter?.dependency_gates?.accepted_recovery_and_quarantined_restore === 'BLOCKED' && adapter?.dependency_gates?.faithful_contained_replay === 'BLOCKED' && adapter?.dependency_gates?.target_bootstrap === 'BLOCKED' && adapter?.dependency_gates?.shared_auth_identity_mapping === 'BLOCKED' && adapter?.dependency_gates?.service_membership_readiness === 'BLOCKED' && adapter?.dependency_gates?.fitness_adapter === 'BLOCKED' && adapter?.dependency_gates?.discordos_adapter === 'BLOCKED' && adapter?.dependency_gates?.target_apply === 'BLOCKED', 'Mazer app data dependency gate promotion');
-  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer']) && canonicalJson(adapterGate.blocked) === canonicalJson(['fitness', 'discordos']), 'Mazer app data adapter readiness gate drift');
-  fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
+  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness']) && canonicalJson(adapterGate.blocked) === canonicalJson(['discordos']), 'Mazer app data adapter readiness gate drift');
+  fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
   fail(failures, adapter?.provider_canonical?.provider_ledger_migration_count === mazerSource?.provider_ledger_migration_count && adapter?.provider_canonical?.complete_catalog_sha256 === mazerSource?.complete_catalog_sha256, 'Mazer app data provider catalog binding drift');
   fail(failures, adapter?.provider_canonical?.current_git_head === '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4' && adapter?.provider_canonical?.current_git_migration_count === mazerSource?.current_git_migration_count && adapter?.provider_canonical?.current_git_canonicality === 'not_provider_canonical' && adapter?.provider_canonical?.current_git_substitution_forbidden === true, 'Mazer app data Git substitution boundary drift');
   fail(failures, adapter?.provider_canonical?.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && adapter?.provider_canonical?.effect_mapping_count === 4 && adapter?.provider_canonical?.effect_mappings_sha256 === sha256(canonicalJson(mazerMappings)), 'Mazer app data provider mapping binding drift');
   fail(failures, mazerMappings.length === 4 && mazerMappings.every((mapping) => mapping.source_commit === adapter?.provider_canonical?.accepted_source_commit), 'Mazer app data provider source commit drift');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function verifyFitnessAppDataAdapter({ adapter, gate }) {
+  const failures = [];
+  const documents = loadDocuments();
+  documents['contracts/v1/transport/fitness-app-data-adapter-contract.json'] = adapter;
+  documents['contracts/v1/gates/migration-gate-state.json'] = gate;
+  const schemaFailures = validateSchemaInstances(documents, createValidator());
+  failures.push(...schemaFailures.map((failure) => `Fitness app data schema validation: ${failure}`));
+  if (schemaFailures.length === 0) {
+    try {
+      failures.push(...validateSemantics(documents).map((failure) => `Fitness app data semantic validation: ${failure}`));
+    } catch {
+      failures.push('Fitness app data semantic validation failed closed');
+    }
+  }
+  const source = adapter?.source_evidence ?? {};
+  const candidate = source.held_candidate ?? {};
+  const identity = adapter?.identity_and_activation ?? {};
+  const profileSeed = identity.profile_seed ?? {};
+  const absentProfile = profileSeed.source_profile_absent_policy ?? {};
+  const discordMemberLinkOwnerRekey = identity.discord_member_link_owner_rekeying ?? {};
+  const memberNumbers = adapter?.member_number_policy ?? {};
+  const adapterGate = gate?.app_data_adapters ?? {};
+  const acceptedPackage = gate?.provider_canonical_provenance?.accepted_package ?? {};
+  const expectedRelationCore = [
+    ['public.profiles', 'fitness.profiles', 'AUTHORITATIVE_ACTIVATION_SEED', 'PRIVATE_SEED_THEN_ATOMIC_ACTIVATION'],
+    ['public.exercises', 'fitness.exercises', 'AUTHORITATIVE_STATE', 'GLOBAL_THEN_OWNED_CAS'],
+    ['public.routines', 'fitness.routines', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.routine_days', 'fitness.routine_days', 'AUTHORITATIVE_STATE', 'NULLABLE_CYCLE_STAGE_THEN_CAS_PATCH'],
+    ['public.routine_day_exercises', 'fitness.routine_day_exercises', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.sessions', 'fitness.sessions', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.session_exercises', 'fitness.session_exercises', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.sets', 'fitness.sets', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.workout_plan_templates', 'fitness.workout_plan_templates', 'AUTHORITATIVE_STATE', 'NULLABLE_CYCLE_STAGE_THEN_CAS_PATCH'],
+    ['public.workout_plan_template_exercises', 'fitness.workout_plan_template_exercises', 'AUTHORITATIVE_STATE', 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'],
+    ['public.progression_events', 'fitness.progression_events', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', 'PRESERVE_IDENTITY_APPEND_ONLY'],
+    ['public.exercise_stats', 'fitness.exercise_stats', 'DERIVED_REBUILDABLE', 'EXCLUDE_AND_REBUILD_AFTER_AUTHORITATIVE_PARITY'],
+    ['public.user_entitlements', 'fitness.user_entitlements', 'ENTITLEMENT_HELD', 'HOLD_PENDING_VERIFIED_BILLING_EVIDENCE'],
+    ['public.billing_customers', 'fitness.billing_customers', 'UNKNOWN_BILLING', 'HOLD_PENDING_CLOSED_BILLING_ADAPTER'],
+    ['public.billing_purchases', 'fitness.billing_purchases', 'UNKNOWN_BILLING', 'HOLD_PENDING_CLOSED_BILLING_ADAPTER'],
+    ['public.session_follow_up_jobs', 'fitness.session_follow_up_jobs', 'UNKNOWN_OPERATIONAL_EXTERNAL_EFFECT', 'HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER'],
+    ['public.discord_bug_reports', 'fitness.discord_bug_reports', 'EXCLUDED_SUPERSEDED_RELATION', 'EXCLUDE_SUPERSEDED_BY_DISCORD_FEEDBACK_REPORTS'],
+    ['public.discord_feedback_reports', 'fitness.discord_feedback_reports', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_member_links', 'fitness.discord_member_links', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_message_command_claims', 'fitness.discord_message_command_claims', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER'],
+    ['public.discord_moderation_cases', 'fitness.discord_moderation_cases', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_spotify_connections', 'fitness.discord_spotify_connections', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_spotify_lobbies', 'fitness.discord_spotify_lobbies', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_spotify_queue_items', 'fitness.discord_spotify_queue_items', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_spotify_room_members', 'fitness.discord_spotify_room_members', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION'],
+    ['public.discord_update_drafts', 'fitness.discord_update_drafts', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER'],
+    ['public.discord_verification_tokens', 'fitness.discord_verification_tokens', 'UNKNOWN_DISCORD_EXTERNAL', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION']
+  ];
+  const fitnessRelations = Array.isArray(adapter?.relations) ? adapter.relations : [];
+  const actualRelationCore = fitnessRelations.map((relation) => [relation.source_relation, relation.target_relation, relation.classification, relation.transport_mode]);
+  const discordMemberLinkRelations = fitnessRelations.filter((relation) => relation?.source_relation === 'public.discord_member_links');
+  fail(failures, adapter?.status === 'CURRENT' && adapter?.lifecycle?.source_contract === 'SOURCE_READY' && adapter?.lifecycle?.execution === 'EXECUTION_BLOCKED' && adapter?.apply_admitted === false, 'Fitness app data adapter lifecycle drift');
+  fail(failures, source.accepted_source_commit === 'bab188a51819a6fb2f8aeabe73627d4ed63dcaa4' && source.accepted_source_tree === 'b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1' && source.current_git_head === '317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3' && source.current_git_tree === 'bd4b2809a2a613a4bc67a4cc8166bee56d64a30f' && source.current_git_exact_accepted === true, 'Fitness accepted source identity drift');
+  fail(failures, source.accepted_migration_count === 101 && source.current_git_migration_count === 101 && source.accepted_chain_sha256 === 'f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775' && source.path_blob_bytes_sha256 === '2f00f193811ab07997956a16b05364828120ea2721e8a2826a0364adf8df10b5', 'Fitness accepted migration denominator drift');
+  fail(failures, source.relation_count === 27 && source.relation_manifest_sha256 === '3896e695cfecad5b0e7e9eeb873386774a9c1c75c367e768245638b71673c183' && canonicalJson(actualRelationCore) === canonicalJson(expectedRelationCore), 'Fitness 27-relation denominator drift');
+  fail(failures, candidate.fitness_pr108_head === '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01' && candidate.candidate_migration_count === 102 && candidate.candidate_bytes_admitted === false && candidate.replay_execution === 'BLOCKED', 'Fitness candidate or replay hold drift');
+  fail(failures, identity.canonical_human_key === 'auth.users.id' && identity.activation_subject_source === 'auth.uid()' && identity.caller_supplied_user_id_allowed === false && identity.discord_ids_as_identity_evidence === false && identity.member_numbers_as_identity_evidence === false, 'Fitness identity or activation subject boundary drift');
+  fail(failures, profileSeed.source_relation === 'public.profiles' && profileSeed.target_relation === 'fitness.profiles' && profileSeed.source_primary_key === 'id' && profileSeed.consumption === 'ATOMIC_WITH_ACTIVATION' && profileSeed.direct_pre_activation_insert_allowed === false && profileSeed.source_profile_present_exact_parity_required === true, 'Fitness profile activation-seed drift');
+  fail(failures, absentProfile.detection === 'COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE' && absentProfile.default_seed_allowed === false && absentProfile.source_rows_transport_outcome === 'QUARANTINE_PENDING_MEMBERSHIP' && absentProfile.unproven_absence_outcome === 'QUARANTINE_PENDING_MEMBERSHIP' && absentProfile.caller_values_allowed === false && absentProfile.silent_drop_allowed === false, 'Fitness absent-source-profile policy drift');
+  fail(failures, discordMemberLinkRelations.length === 1 && discordMemberLinkRelations[0]?.owner_key === 'fitness_user_id' && discordMemberLinkRelations[0]?.classification === 'UNKNOWN_DISCORD_EXTERNAL' && discordMemberLinkRelations[0]?.transport_mode === 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION' && canonicalJson(discordMemberLinkRelations[0]?.dependency_parents) === canonicalJson(['auth.users']) && discordMemberLinkRelations[0]?.hold_reason === 'DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED', 'Fitness Discord member-link owner relation drift');
+  fail(failures, discordMemberLinkOwnerRekey.source_relation === 'public.discord_member_links' && discordMemberLinkOwnerRekey.source_owner_key === 'fitness_user_id' && discordMemberLinkOwnerRekey.source_owner_not_null === true && discordMemberLinkOwnerRekey.source_owner_unique === true && discordMemberLinkOwnerRekey.source_owner_foreign_key === 'auth.users.id' && discordMemberLinkOwnerRekey.source_identity_ledger === 'platform_private.source_identity_ledger' && discordMemberLinkOwnerRekey.controlled_auth_mapping_contract === 'contracts/v1/auth/import-rehearsal-contract.json', 'Fitness Discord member-link owner rekey boundary drift');
+  fail(failures, discordMemberLinkOwnerRekey.accepted_mapping_cardinality === 'EXACTLY_ONE' && discordMemberLinkOwnerRekey.accepted_mapping_outcome === 'REKEY_TO_LEDGER_TARGET' && discordMemberLinkOwnerRekey.missing_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordMemberLinkOwnerRekey.contradictory_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordMemberLinkOwnerRekey.duplicate_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordMemberLinkOwnerRekey.caller_supplied_identity_allowed === false && discordMemberLinkOwnerRekey.automatic_identity_merge_allowed === false && discordMemberLinkOwnerRekey.discord_identifiers_as_identity_evidence === false, 'Fitness Discord member-link fail-closed mapping drift');
+  fail(failures, memberNumbers.existing_values_action === 'COPY_UNCHANGED' && memberNumbers.high_water_action === 'PRESERVE' && memberNumbers.gaps_action === 'PRESERVE' && memberNumbers.reuse_allowed === false && memberNumbers.gap_fill_allowed === false && memberNumbers.renumber_allowed === false && memberNumbers.compaction_allowed === false && memberNumbers.caller_supplied_member_number_allowed === false, 'Fitness member-number preservation drift');
+  fail(failures, memberNumbers.post_migration_allocation === 'BLOCKED' && memberNumbers.accepted_chain_contains_compaction_behavior === true && memberNumbers.held_retirement_migration_path === candidate.candidate_migration_path && memberNumbers.held_candidate_review === 'BLOCKED' && memberNumbers.faithful_replay === 'BLOCKED', 'Fitness member-number retirement gate drift');
+  const cycle = adapter?.dependency_ordering?.foreign_key_cycles?.[0] ?? {};
+  fail(failures, adapter?.dependency_ordering?.foreign_key_cycles?.length === 1 && canonicalJson(cycle.relations) === canonicalJson(['public.routine_days', 'public.workout_plan_templates']) && canonicalJson(cycle.nullable_reference_columns) === canonicalJson(['public.routine_days.workout_plan_template_id', 'public.workout_plan_templates.source_routine_day_id', 'public.routine_days.duplicate_source_routine_day_id']) && cycle.staging_plan === 'INSERT_NULL_REFERENCES_THEN_CAS_PATCH' && cycle.synthetic_proof_required === true, 'Fitness foreign-key cycle staging drift');
+  fail(failures, canonicalJson(adapter?.snapshot_and_cas?.required_snapshots) === canonicalJson(['S0', 'S1', 'S2']) && adapter?.snapshot_and_cas?.complete_primary_key_set_comparison === true && adapter?.snapshot_and_cas?.complete_canonical_row_digest_comparison === true && adapter?.snapshot_and_cas?.timestamp_revision_or_high_water_only_proof_allowed === false, 'Fitness S0-S1-S2 completeness drift');
+  fail(failures, canonicalJson(adapter?.snapshot_and_cas?.accepted_expected_target) === canonicalJson(['ABSENT', 'EXACT_DIGEST']) && adapter?.snapshot_and_cas?.unexpected_target_digest === 'QUARANTINE' && adapter?.snapshot_and_cas?.unexpected_target_overwrite_allowed === false, 'Fitness CAS overwrite boundary drift');
+  fail(failures, adapter?.deletion_and_rollback?.explicit_tombstones_required === true && adapter?.deletion_and_rollback?.implicit_cascade_authority === false && canonicalJson(adapter?.deletion_and_rollback?.reappearing_key_requires) === canonicalJson(['EXPLICIT_RESURRECTION', 'NEW_GENERATION']) && adapter?.deletion_and_rollback?.profile_delete_action === 'SUSPEND_AND_PRESERVE', 'Fitness tombstone, resurrection, or rollback boundary drift');
+  const forbiddenReceiptClasses = ['raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers_or_ranges', 'uuids_or_ranges', 'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'];
+  fail(failures, canonicalJson(adapter?.public_receipt_policy?.forbidden_classes) === canonicalJson(forbiddenReceiptClasses) && adapter?.canonicalization?.raw_values_in_public_receipts === false, 'Fitness public receipt redaction drift');
+  const expectedDependencyGates = {
+    data_api_containment: 'BLOCKED',
+    accepted_recovery_and_quarantined_restore: 'BLOCKED',
+    faithful_contained_replay: 'BLOCKED',
+    target_bootstrap: 'BLOCKED',
+    shared_auth_identity_mapping: 'BLOCKED',
+    service_membership_readiness: 'BLOCKED',
+    mazer_adapter_source_contract: 'CURRENT',
+    fitness_pr108_retirement: 'BLOCKED',
+    discordos_adapter: 'BLOCKED',
+    target_apply: 'BLOCKED'
+  };
+  fail(failures, canonicalJson(adapter?.dependency_gates) === canonicalJson(expectedDependencyGates), 'Fitness dependency gate promotion or status-vocabulary drift');
+  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness']) && canonicalJson(adapterGate.blocked) === canonicalJson(['discordos']), 'Fitness app data adapter readiness gate drift');
+  fail(failures, adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Fitness app data adapter execution gate drift');
+  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_package_sha256 === acceptedPackage.deterministic_package_sha256 && acceptedPackage.source_counts?.fitness === 101 && acceptedPackage.apply_admitted === false, 'Fitness accepted package binding drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -1306,6 +1400,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const importRehearsal = readJson('contracts/v1/auth/import-rehearsal-contract.json');
   const appDataTransport = readJson('contracts/v1/transport/app-data-transport-contract.json');
   const mazerAppDataAdapter = readJson('contracts/v1/transport/mazer-app-data-adapter-contract.json');
+  const fitnessAppDataAdapter = readJson('contracts/v1/transport/fitness-app-data-adapter-contract.json');
   const appDataReceipt = readJson('contracts/v1/transport/app-data-receipt.example.json');
   const appDataJournal = readJson('contracts/v1/transport/app-data-mutation-journal-contract.json');
   const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
@@ -1319,6 +1414,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   failures.push(...verifySharedAuthImportRehearsal({ contract: importRehearsal, gate: migrationGate }));
   failures.push(...verifyAppDataTransportContracts({ contract: appDataTransport, receipt: appDataReceipt, journal: appDataJournal, gate: migrationGate }));
   failures.push(...verifyMazerAppDataAdapter({ adapter: mazerAppDataAdapter, gate: migrationGate }));
+  failures.push(...verifyFitnessAppDataAdapter({ adapter: fitnessAppDataAdapter, gate: migrationGate }));
   failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1350,6 +1446,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'shared_auth_import_reauth_rehearsal_gate',
       'app_data_transport_contract_gate',
       'mazer_app_data_adapter_contract_gate',
+      'fitness_app_data_adapter_contract_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',

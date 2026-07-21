@@ -1,0 +1,936 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:fitness-app-data-adapter-contract",
+  "title": "Fitness application-data adapter contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "apply_admitted",
+    "generic_contract_path",
+    "source_evidence",
+    "identity_and_activation",
+    "member_number_policy",
+    "canonicalization",
+    "classification_counts",
+    "relations",
+    "dependency_ordering",
+    "snapshot_and_cas",
+    "deletion_and_rollback",
+    "public_receipt_policy",
+    "dependency_gates"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "fitness-app-data-adapter-contract"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        }
+      }
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "generic_contract_path": {
+      "const": "contracts/v1/transport/app-data-transport-contract.json"
+    },
+    "source_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_source_commit",
+        "accepted_source_tree",
+        "current_git_head",
+        "current_git_tree",
+        "accepted_migration_count",
+        "current_git_migration_count",
+        "accepted_chain_sha256",
+        "path_blob_bytes_sha256",
+        "current_git_exact_accepted",
+        "relation_count",
+        "relation_manifest_sha256",
+        "accepted_package_migration_count",
+        "accepted_package_sha256",
+        "held_candidate"
+      ],
+      "properties": {
+        "accepted_source_commit": {
+          "const": "bab188a51819a6fb2f8aeabe73627d4ed63dcaa4"
+        },
+        "accepted_source_tree": {
+          "const": "b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1"
+        },
+        "current_git_head": {
+          "const": "317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3"
+        },
+        "current_git_tree": {
+          "const": "bd4b2809a2a613a4bc67a4cc8166bee56d64a30f"
+        },
+        "accepted_migration_count": {
+          "const": 101
+        },
+        "current_git_migration_count": {
+          "const": 101
+        },
+        "accepted_chain_sha256": {
+          "const": "f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775"
+        },
+        "path_blob_bytes_sha256": {
+          "const": "2f00f193811ab07997956a16b05364828120ea2721e8a2826a0364adf8df10b5"
+        },
+        "current_git_exact_accepted": {
+          "const": true
+        },
+        "relation_count": {
+          "const": 27
+        },
+        "relation_manifest_sha256": {
+          "const": "3896e695cfecad5b0e7e9eeb873386774a9c1c75c367e768245638b71673c183"
+        },
+        "accepted_package_migration_count": {
+          "const": 122
+        },
+        "accepted_package_sha256": {
+          "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+        },
+        "held_candidate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fitness_pr108_head",
+            "candidate_migration_count",
+            "candidate_migration_path",
+            "candidate_bytes_admitted",
+            "hosted_replay_pr2_head",
+            "replay_execution"
+          ],
+          "properties": {
+            "fitness_pr108_head": {
+              "const": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01"
+            },
+            "candidate_migration_count": {
+              "const": 102
+            },
+            "candidate_migration_path": {
+              "const": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql"
+            },
+            "candidate_bytes_admitted": {
+              "const": false
+            },
+            "hosted_replay_pr2_head": {
+              "const": "fce1c595a55a5d25271c799f0ccafecc4389181b"
+            },
+            "replay_execution": {
+              "const": "BLOCKED"
+            }
+          }
+        }
+      }
+    },
+    "identity_and_activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_human_key",
+        "source_identity_ledger",
+        "source_owner_key",
+        "identity_rekey_required",
+        "membership_relation",
+        "membership_initial_state",
+        "activation_subject_source",
+        "caller_supplied_user_id_allowed",
+        "profile_seed",
+        "discord_member_link_owner_rekeying",
+        "presentation_only_columns",
+        "presentation_values_as_identity_evidence",
+        "discord_ids_as_identity_evidence",
+        "member_numbers_as_identity_evidence"
+      ],
+      "properties": {
+        "canonical_human_key": {
+          "const": "auth.users.id"
+        },
+        "source_identity_ledger": {
+          "const": "platform_private.source_identity_ledger"
+        },
+        "source_owner_key": {
+          "const": "id"
+        },
+        "identity_rekey_required": {
+          "const": true
+        },
+        "membership_relation": {
+          "const": "platform_shared.user_service_memberships"
+        },
+        "membership_initial_state": {
+          "const": "pending"
+        },
+        "activation_subject_source": {
+          "const": "auth.uid()"
+        },
+        "caller_supplied_user_id_allowed": {
+          "const": false
+        },
+        "profile_seed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_relation",
+            "target_relation",
+            "source_primary_key",
+            "storage",
+            "lookup",
+            "consumption",
+            "direct_pre_activation_insert_allowed",
+            "source_profile_present_exact_parity_required",
+            "missing_target_action",
+            "exact_target_action",
+            "conflicting_target_action",
+            "source_profile_absent_policy"
+          ],
+          "properties": {
+            "source_relation": {
+              "const": "public.profiles"
+            },
+            "target_relation": {
+              "const": "fitness.profiles"
+            },
+            "source_primary_key": {
+              "const": "id"
+            },
+            "storage": {
+              "const": "PRIVATE_COMMITMENT"
+            },
+            "lookup": {
+              "const": "SERVER_SIDE_IDENTITY_MAPPING"
+            },
+            "consumption": {
+              "const": "ATOMIC_WITH_ACTIVATION"
+            },
+            "direct_pre_activation_insert_allowed": {
+              "const": false
+            },
+            "source_profile_present_exact_parity_required": {
+              "const": true
+            },
+            "missing_target_action": {
+              "const": "CREATE_FROM_SEED"
+            },
+            "exact_target_action": {
+              "const": "IDEMPOTENT_REUSE"
+            },
+            "conflicting_target_action": {
+              "const": "QUARANTINE"
+            },
+            "source_profile_absent_policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "detection",
+                "default_seed_allowed",
+                "source_rows_transport_outcome",
+                "unproven_absence_outcome",
+                "caller_values_allowed",
+                "silent_drop_allowed"
+              ],
+              "properties": {
+                "detection": {
+                  "const": "COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE"
+                },
+                "default_seed_allowed": {
+                  "const": false
+                },
+                "source_rows_transport_outcome": {
+                  "const": "QUARANTINE_PENDING_MEMBERSHIP"
+                },
+                "unproven_absence_outcome": {
+                  "const": "QUARANTINE_PENDING_MEMBERSHIP"
+                },
+                "caller_values_allowed": {
+                  "const": false
+                },
+                "silent_drop_allowed": {
+                  "const": false
+                }
+              }
+            }
+          }
+        },
+        "discord_member_link_owner_rekeying": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_relation",
+            "source_owner_key",
+            "source_owner_not_null",
+            "source_owner_unique",
+            "source_owner_foreign_key",
+            "source_identity_ledger",
+            "controlled_auth_mapping_contract",
+            "accepted_mapping_cardinality",
+            "accepted_mapping_outcome",
+            "missing_mapping_outcome",
+            "contradictory_mapping_outcome",
+            "duplicate_mapping_outcome",
+            "caller_supplied_identity_allowed",
+            "automatic_identity_merge_allowed",
+            "discord_identifiers_as_identity_evidence"
+          ],
+          "properties": {
+            "source_relation": {
+              "const": "public.discord_member_links"
+            },
+            "source_owner_key": {
+              "const": "fitness_user_id"
+            },
+            "source_owner_not_null": {
+              "const": true
+            },
+            "source_owner_unique": {
+              "const": true
+            },
+            "source_owner_foreign_key": {
+              "const": "auth.users.id"
+            },
+            "source_identity_ledger": {
+              "const": "platform_private.source_identity_ledger"
+            },
+            "controlled_auth_mapping_contract": {
+              "const": "contracts/v1/auth/import-rehearsal-contract.json"
+            },
+            "accepted_mapping_cardinality": {
+              "const": "EXACTLY_ONE"
+            },
+            "accepted_mapping_outcome": {
+              "const": "REKEY_TO_LEDGER_TARGET"
+            },
+            "missing_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "contradictory_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "duplicate_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "caller_supplied_identity_allowed": {
+              "const": false
+            },
+            "automatic_identity_merge_allowed": {
+              "const": false
+            },
+            "discord_identifiers_as_identity_evidence": {
+              "const": false
+            }
+          }
+        },
+        "presentation_only_columns": {
+          "const": []
+        },
+        "presentation_values_as_identity_evidence": {
+          "const": false
+        },
+        "discord_ids_as_identity_evidence": {
+          "const": false
+        },
+        "member_numbers_as_identity_evidence": {
+          "const": false
+        }
+      }
+    },
+    "member_number_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_column",
+        "target_column",
+        "existing_values_action",
+        "high_water_action",
+        "gaps_action",
+        "reuse_allowed",
+        "gap_fill_allowed",
+        "renumber_allowed",
+        "compaction_allowed",
+        "caller_supplied_member_number_allowed",
+        "post_migration_allocation",
+        "accepted_chain_contains_compaction_behavior",
+        "held_retirement_migration_path",
+        "held_candidate_review",
+        "faithful_replay"
+      ],
+      "properties": {
+        "source_column": {
+          "const": "public.profiles.user_number"
+        },
+        "target_column": {
+          "const": "fitness.profiles.user_number"
+        },
+        "existing_values_action": {
+          "const": "COPY_UNCHANGED"
+        },
+        "high_water_action": {
+          "const": "PRESERVE"
+        },
+        "gaps_action": {
+          "const": "PRESERVE"
+        },
+        "reuse_allowed": {
+          "const": false
+        },
+        "gap_fill_allowed": {
+          "const": false
+        },
+        "renumber_allowed": {
+          "const": false
+        },
+        "compaction_allowed": {
+          "const": false
+        },
+        "caller_supplied_member_number_allowed": {
+          "const": false
+        },
+        "post_migration_allocation": {
+          "const": "BLOCKED"
+        },
+        "accepted_chain_contains_compaction_behavior": {
+          "const": true
+        },
+        "held_retirement_migration_path": {
+          "const": "supabase/migrations/20260718015422_retire_human_member_number_compaction.sql"
+        },
+        "held_candidate_review": {
+          "const": "BLOCKED"
+        },
+        "faithful_replay": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "canonicalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transform_version",
+        "complete_accepted_source_column_order",
+        "row_digest_includes_all_authoritative_columns",
+        "private_key_commitments",
+        "jsonb",
+        "timestamp_with_time_zone",
+        "numeric",
+        "text",
+        "raw_values_in_public_receipts"
+      ],
+      "properties": {
+        "transform_version": {
+          "const": "fitness-app-data-v1"
+        },
+        "complete_accepted_source_column_order": {
+          "const": true
+        },
+        "row_digest_includes_all_authoritative_columns": {
+          "const": true
+        },
+        "private_key_commitments": {
+          "const": true
+        },
+        "jsonb": {
+          "const": "POSTGRES_JSONB_TEXT_UTF8"
+        },
+        "timestamp_with_time_zone": {
+          "const": "UTC_MICROSECOND"
+        },
+        "numeric": {
+          "const": "NORMALIZED_DECIMAL"
+        },
+        "text": {
+          "const": "UTF8_EXACT"
+        },
+        "raw_values_in_public_receipts": {
+          "const": false
+        }
+      }
+    },
+    "classification_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative",
+        "derived_rebuildable",
+        "entitlement_held",
+        "billing_unknown",
+        "operational_external_unknown",
+        "discord_external_unknown",
+        "excluded",
+        "total"
+      ],
+      "properties": {
+        "authoritative": {
+          "const": 11
+        },
+        "derived_rebuildable": {
+          "const": 1
+        },
+        "entitlement_held": {
+          "const": 1
+        },
+        "billing_unknown": {
+          "const": 2
+        },
+        "operational_external_unknown": {
+          "const": 1
+        },
+        "discord_external_unknown": {
+          "const": 10
+        },
+        "excluded": {
+          "const": 1
+        },
+        "total": {
+          "const": 27
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 27,
+      "maxItems": 27,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "dependency_ordering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "insert_update_order",
+        "delete_order",
+        "foreign_key_cycles",
+        "external_effects"
+      ],
+      "properties": {
+        "insert_update_order": {
+          "const": [
+            "auth_mapping",
+            "pending_membership",
+            "atomic_profile_seed_activation",
+            "global_exercises",
+            "owned_exercises",
+            "routines",
+            "routine_days_cycle_stage",
+            "workout_plan_templates_cycle_stage",
+            "workout_plan_template_exercises",
+            "routine_day_exercises",
+            "cycle_reference_cas_patch",
+            "sessions",
+            "session_exercises",
+            "sets",
+            "progression_events",
+            "exercise_stats_rebuild_after_parity",
+            "held_relations_no_transport"
+          ]
+        },
+        "delete_order": {
+          "const": [
+            "held_relations_no_delete",
+            "progression_event_tombstones",
+            "sets_tombstones",
+            "session_exercise_tombstones",
+            "session_tombstones",
+            "routine_day_exercise_tombstones",
+            "workout_plan_template_exercise_tombstones",
+            "cycle_reference_unlink",
+            "routine_day_tombstones",
+            "workout_plan_template_tombstones",
+            "routine_tombstones",
+            "owned_exercise_tombstones",
+            "profile_preserve"
+          ]
+        },
+        "foreign_key_cycles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "relations",
+                "nullable_reference_columns",
+                "staging_plan",
+                "synthetic_proof_required"
+              ],
+              "properties": {
+                "relations": {
+                  "const": [
+                    "public.routine_days",
+                    "public.workout_plan_templates"
+                  ]
+                },
+                "nullable_reference_columns": {
+                  "const": [
+                    "public.routine_days.workout_plan_template_id",
+                    "public.workout_plan_templates.source_routine_day_id",
+                    "public.routine_days.duplicate_source_routine_day_id"
+                  ]
+                },
+                "staging_plan": {
+                  "const": "INSERT_NULL_REFERENCES_THEN_CAS_PATCH"
+                },
+                "synthetic_proof_required": {
+                  "const": true
+                }
+              }
+            }
+          ],
+          "items": false
+        },
+        "external_effects": {
+          "const": "QUARANTINED"
+        }
+      }
+    },
+    "snapshot_and_cas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_snapshots",
+        "complete_primary_key_set_comparison",
+        "complete_canonical_row_digest_comparison",
+        "timestamp_revision_or_high_water_only_proof_allowed",
+        "accepted_expected_target",
+        "unexpected_target_digest",
+        "unexpected_target_overwrite_allowed",
+        "matching_mutation"
+      ],
+      "properties": {
+        "required_snapshots": {
+          "const": [
+            "S0",
+            "S1",
+            "S2"
+          ]
+        },
+        "complete_primary_key_set_comparison": {
+          "const": true
+        },
+        "complete_canonical_row_digest_comparison": {
+          "const": true
+        },
+        "timestamp_revision_or_high_water_only_proof_allowed": {
+          "const": false
+        },
+        "accepted_expected_target": {
+          "const": [
+            "ABSENT",
+            "EXACT_DIGEST"
+          ]
+        },
+        "unexpected_target_digest": {
+          "const": "QUARANTINE"
+        },
+        "unexpected_target_overwrite_allowed": {
+          "const": false
+        },
+        "matching_mutation": {
+          "const": "IDEMPOTENT_REUSE"
+        }
+      }
+    },
+    "deletion_and_rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_tombstones_required",
+        "implicit_cascade_authority",
+        "reappearing_key_requires",
+        "profile_delete_action",
+        "membership_hard_delete",
+        "rollback_order",
+        "append_only_mutation_journal_required",
+        "reverse_catch_up_to_source"
+      ],
+      "properties": {
+        "explicit_tombstones_required": {
+          "const": true
+        },
+        "implicit_cascade_authority": {
+          "const": false
+        },
+        "reappearing_key_requires": {
+          "const": [
+            "EXPLICIT_RESURRECTION",
+            "NEW_GENERATION"
+          ]
+        },
+        "profile_delete_action": {
+          "const": "SUSPEND_AND_PRESERVE"
+        },
+        "membership_hard_delete": {
+          "const": "FORBIDDEN"
+        },
+        "rollback_order": {
+          "const": "REVERSE_DEPENDENCY_AND_COMMIT_ORDER"
+        },
+        "append_only_mutation_journal_required": {
+          "const": true
+        },
+        "reverse_catch_up_to_source": {
+          "const": "SEPARATE_EXPLICIT_AUTHORITY"
+        }
+      }
+    },
+    "public_receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_classes",
+        "forbidden_classes"
+      ],
+      "properties": {
+        "allowed_classes": {
+          "const": [
+            "aggregate_counts",
+            "booleans",
+            "non_identifying_high_water_marks",
+            "quarantine_classes",
+            "private_commitments",
+            "digests"
+          ]
+        },
+        "forbidden_classes": {
+          "const": [
+            "raw_rows",
+            "primary_keys",
+            "names",
+            "emails",
+            "usernames",
+            "user_numbers_or_ranges",
+            "uuids_or_ranges",
+            "secrets",
+            "project_refs",
+            "sql",
+            "payloads",
+            "provider_responses",
+            "machine_paths"
+          ]
+        }
+      }
+    },
+    "dependency_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_api_containment",
+        "accepted_recovery_and_quarantined_restore",
+        "faithful_contained_replay",
+        "target_bootstrap",
+        "shared_auth_identity_mapping",
+        "service_membership_readiness",
+        "mazer_adapter_source_contract",
+        "fitness_pr108_retirement",
+        "discordos_adapter",
+        "target_apply"
+      ],
+      "properties": {
+        "data_api_containment": {
+          "const": "BLOCKED"
+        },
+        "accepted_recovery_and_quarantined_restore": {
+          "const": "BLOCKED"
+        },
+        "faithful_contained_replay": {
+          "const": "BLOCKED"
+        },
+        "target_bootstrap": {
+          "const": "BLOCKED"
+        },
+        "shared_auth_identity_mapping": {
+          "const": "BLOCKED"
+        },
+        "service_membership_readiness": {
+          "const": "BLOCKED"
+        },
+        "mazer_adapter_source_contract": {
+          "const": "CURRENT"
+        },
+        "fitness_pr108_retirement": {
+          "const": "BLOCKED"
+        },
+        "discordos_adapter": {
+          "const": "BLOCKED"
+        },
+        "target_apply": {
+          "const": "BLOCKED"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_relation",
+        "target_relation",
+        "classification",
+        "primary_key",
+        "owner_key",
+        "transport_mode",
+        "dependency_parents",
+        "external_effects",
+        "hold_reason"
+      ],
+      "properties": {
+        "source_relation": {
+          "enum": [
+            "public.profiles",
+            "public.exercises",
+            "public.routines",
+            "public.routine_days",
+            "public.routine_day_exercises",
+            "public.sessions",
+            "public.session_exercises",
+            "public.sets",
+            "public.workout_plan_templates",
+            "public.workout_plan_template_exercises",
+            "public.progression_events",
+            "public.exercise_stats",
+            "public.user_entitlements",
+            "public.billing_customers",
+            "public.billing_purchases",
+            "public.session_follow_up_jobs",
+            "public.discord_bug_reports",
+            "public.discord_feedback_reports",
+            "public.discord_member_links",
+            "public.discord_message_command_claims",
+            "public.discord_moderation_cases",
+            "public.discord_spotify_connections",
+            "public.discord_spotify_lobbies",
+            "public.discord_spotify_queue_items",
+            "public.discord_spotify_room_members",
+            "public.discord_update_drafts",
+            "public.discord_verification_tokens"
+          ]
+        },
+        "target_relation": {
+          "type": "string",
+          "pattern": "^fitness\\.[a-z][a-z0-9_]*$"
+        },
+        "classification": {
+          "enum": [
+            "AUTHORITATIVE_ACTIVATION_SEED",
+            "AUTHORITATIVE_STATE",
+            "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+            "DERIVED_REBUILDABLE",
+            "ENTITLEMENT_HELD",
+            "UNKNOWN_BILLING",
+            "UNKNOWN_OPERATIONAL_EXTERNAL_EFFECT",
+            "UNKNOWN_DISCORD_EXTERNAL",
+            "EXCLUDED_SUPERSEDED_RELATION"
+          ]
+        },
+        "primary_key": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "id",
+              "user_id",
+              "exercise_id",
+              "channel_id",
+              "message_id"
+            ]
+          }
+        },
+        "owner_key": {
+          "enum": [
+            "id",
+            "user_id",
+            "fitness_user_id",
+            null
+          ]
+        },
+        "transport_mode": {
+          "enum": [
+            "PRIVATE_SEED_THEN_ATOMIC_ACTIVATION",
+            "GLOBAL_THEN_OWNED_CAS",
+            "CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP",
+            "NULLABLE_CYCLE_STAGE_THEN_CAS_PATCH",
+            "PRESERVE_IDENTITY_APPEND_ONLY",
+            "EXCLUDE_AND_REBUILD_AFTER_AUTHORITATIVE_PARITY",
+            "HOLD_PENDING_VERIFIED_BILLING_EVIDENCE",
+            "HOLD_PENDING_CLOSED_BILLING_ADAPTER",
+            "HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER",
+            "HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION",
+            "EXCLUDE_SUPERSEDED_BY_DISCORD_FEEDBACK_REPORTS"
+          ]
+        },
+        "dependency_parents": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "auth.users",
+              "public.profiles",
+              "public.exercises",
+              "public.routines",
+              "public.routine_days",
+              "public.routine_day_exercises",
+              "public.sessions",
+              "public.session_exercises",
+              "public.sets",
+              "public.workout_plan_templates",
+              "public.workout_plan_template_exercises",
+              "public.billing_customers",
+              "public.billing_purchases",
+              "public.discord_spotify_connections",
+              "public.discord_spotify_lobbies"
+            ]
+          }
+        },
+        "external_effects": {
+          "type": "boolean"
+        },
+        "hold_reason": {
+          "enum": [
+            null,
+            "BILLING_PROVENANCE_UNRESOLVED",
+            "FOLLOW_UP_JOB_SIDE_EFFECTS_UNRESOLVED",
+            "HISTORICAL_RELATION_SUPERSEDED",
+            "REPORTING_AND_DISCORD_EFFECTS_UNRESOLVED",
+            "DISCORD_COMMAND_EFFECTS_UNRESOLVED",
+            "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED",
+            "SECRET_BEARING_PROVIDER_STATE",
+            "DISCORD_UPDATE_EFFECTS_UNRESOLVED",
+            "SECURITY_TOKEN_STATE_UNRESOLVED"
+          ]
+        }
+      }
+    }
+  }
+}
