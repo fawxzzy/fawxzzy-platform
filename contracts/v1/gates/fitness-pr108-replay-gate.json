@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "gate_id": "fitness-pr108-replay-gate",
   "status": "BLOCKED",
   "apply_admitted": false,
@@ -32,13 +32,39 @@
   "hosted_replay_adapter": {
     "repository": "fawxzzy/hosted-replay-harness",
     "pull_request": 2,
-    "base_commit": "6901855ab62ec3d2751491558825d9270666c934",
-    "head_commit": "fce1c595a55a5d25271c799f0ccafecc4389181b",
-    "head_tree": "aad6c522d6a914e6d102813cd863d3a44f6ecf75",
     "changed_path_count": 12,
-    "source_review": "CURRENT",
-    "merge": "BLOCKED",
-    "workflow_run_count": 0,
+    "source_review": {
+      "base_commit": "82cbd3b195dd5a07c3b437946f4404041f749508",
+      "head_commit": "475967d9dcf4a859f53d535e95e3f77a5396bd21",
+      "head_tree": "4a6f258c4f6a600327518bf63458217f11511150",
+      "source_branch": "codex/fitness-pr108-full-chain-replay-source",
+      "source_branch_preserved": true,
+      "request_comment": 5031568065,
+      "terminal_clean_comment": 5031595633,
+      "thread_count": 7,
+      "unresolved_thread_count": 0,
+      "status": "CURRENT"
+    },
+    "merge": {
+      "commit": "e513d2b241d34b8fac838b65c6444e34a4b5ce7a",
+      "tree": "4a6f258c4f6a600327518bf63458217f11511150",
+      "reviewed_head_ancestor": true,
+      "reviewed_tree_byte_identical": true,
+      "status": "CURRENT"
+    },
+    "default_branch_workflow": {
+      "path": ".github/workflows/fitness-full-chain-replay.yml",
+      "blob": "07e784ad91cf2cfb62ea9c6e0b8d407fe5b652c4",
+      "byte_count": 1904,
+      "raw_sha256": "f43ba4498c0d9755b1fd23082b5da21d8f937b2ebf7373aec63d78562a35b062",
+      "trigger": "workflow_dispatch",
+      "source_status": "CURRENT",
+      "dispatch_run_count": 0,
+      "execution": "BLOCKED",
+      "runner_label": "fp-hosted-replay-jit-v1",
+      "runner_availability": "UNKNOWN",
+      "runner_use": "BLOCKED"
+    },
     "replay_execution": "BLOCKED"
   },
   "accepted_bootstrap": {
@@ -47,12 +73,15 @@
     "discordos_migration_count": 17,
     "fitness_migration_count": 101,
     "mazer_migration_count": 4,
+    "deterministic_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
     "candidate_migration_present": false
   },
   "lifecycle": {
     "candidate_source_review": "BLOCKED",
     "adapter_source_review": "CURRENT",
-    "adapter_merge": "BLOCKED",
+    "adapter_merge": "CURRENT",
+    "workflow_dispatch": "BLOCKED",
+    "runner_readiness": "UNKNOWN",
     "replay_execution": "BLOCKED",
     "fitness_merge": "BLOCKED",
     "target_apply": "BLOCKED"
