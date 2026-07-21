@@ -523,7 +523,8 @@
                 "nullable_reference_columns": {
                   "const": [
                     "public.routine_days.workout_plan_template_id",
-                    "public.workout_plan_templates.source_routine_day_id"
+                    "public.workout_plan_templates.source_routine_day_id",
+                    "public.routine_days.duplicate_source_routine_day_id"
                   ]
                 },
                 "staging_plan": {

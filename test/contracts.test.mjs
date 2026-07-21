@@ -1028,6 +1028,7 @@ test('Fitness adapter fails closed on incomplete parity, FK-cycle, CAS, tombston
     [(adapter) => { adapter.snapshot_and_cas.timestamp_revision_or_high_water_only_proof_allowed = true; }, 'snapshot'],
     [(adapter) => { adapter.snapshot_and_cas.unexpected_target_overwrite_allowed = true; }, 'CAS'],
     [(adapter) => { adapter.dependency_ordering.foreign_key_cycles = []; }, 'cycle staging'],
+    [(adapter) => { adapter.dependency_ordering.foreign_key_cycles[0].nullable_reference_columns.pop(); }, 'cycle staging'],
     [(adapter) => { adapter.dependency_ordering.foreign_key_cycles[0].synthetic_proof_required = false; }, 'cycle staging'],
     [(adapter) => { adapter.deletion_and_rollback.implicit_cascade_authority = true; }, 'deletion'],
     [(adapter) => { adapter.deletion_and_rollback.reappearing_key_requires = ['EXPLICIT_RESURRECTION']; }, 'deletion'],
@@ -1043,6 +1044,59 @@ test('Fitness adapter fails closed on incomplete parity, FK-cycle, CAS, tombston
     assert.ok(validateSemantics(documents).some((failure) => failure.toLowerCase().includes(expected.toLowerCase())), expected);
     assert.ok(verifyFitnessAppDataAdapter({ adapter, gate }).some((failure) => failure.toLowerCase().includes(expected.toLowerCase()) || failure.includes('schema validation')), expected);
   }
+});
+
+test('Fitness routine-day mutual self-references require null-first staging and exact CAS patch', () => {
+  const baseline = loadDocuments();
+  const adapter = baseline['contracts/v1/transport/fitness-app-data-adapter-contract.json'];
+  const cycle = adapter.dependency_ordering.foreign_key_cycles[0];
+  const selfReferenceColumn = 'public.routine_days.duplicate_source_routine_day_id';
+  assert.deepEqual(cycle.nullable_reference_columns, [
+    'public.routine_days.workout_plan_template_id',
+    'public.workout_plan_templates.source_routine_day_id',
+    selfReferenceColumn
+  ]);
+
+  const sourceRows = [
+    { id: 'routine-day-a', duplicate_source_routine_day_id: 'routine-day-b' },
+    { id: 'routine-day-b', duplicate_source_routine_day_id: 'routine-day-a' }
+  ];
+  const directInsertions = new Set();
+  const waiting = new Map(sourceRows.map((row) => [row.id, row]));
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    for (const [id, row] of waiting) {
+      if (row.duplicate_source_routine_day_id === null || directInsertions.has(row.duplicate_source_routine_day_id)) {
+        directInsertions.add(id);
+        waiting.delete(id);
+        progressed = true;
+      }
+    }
+  }
+  assert.equal(directInsertions.size, 0, 'rowwise parent-first insertion must stall on the mutual self-reference');
+  assert.equal(waiting.size, 2);
+
+  const stageAndPatch = () => {
+    const staged = new Map(sourceRows.map((row) => [row.id, { ...row, duplicate_source_routine_day_id: null }]));
+    for (const sourceRow of sourceRows) {
+      const targetRow = staged.get(sourceRow.id);
+      assert.equal(targetRow.duplicate_source_routine_day_id, null, 'CAS preimage must be the staged null reference');
+      assert.equal(staged.has(sourceRow.duplicate_source_routine_day_id), true, 'CAS reference target must already be staged');
+      targetRow.duplicate_source_routine_day_id = sourceRow.duplicate_source_routine_day_id;
+    }
+    return sourceRows.map((row) => staged.get(row.id));
+  };
+  assert.deepEqual(stageAndPatch(), sourceRows);
+  assert.deepEqual(stageAndPatch(), sourceRows);
+
+  const missingSelfReference = structuredClone(baseline);
+  const invalidAdapter = missingSelfReference['contracts/v1/transport/fitness-app-data-adapter-contract.json'];
+  const gate = missingSelfReference['contracts/v1/gates/migration-gate-state.json'];
+  invalidAdapter.dependency_ordering.foreign_key_cycles[0].nullable_reference_columns.pop();
+  assert.ok(validateSchemaInstances(missingSelfReference, createValidator()).some((failure) => failure.includes('fitness-app-data-adapter-contract.json')));
+  assert.ok(validateSemantics(missingSelfReference).some((failure) => failure.includes('cycle staging')));
+  assert.ok(verifyFitnessAppDataAdapter({ adapter: invalidAdapter, gate }).some((failure) => failure.includes('schema validation') || failure.includes('cycle staging')));
 });
 
 test('Fitness bootstrap verifier proves every dependency gate and closed lifecycle status', () => {
