@@ -5,6 +5,7 @@ import {
   loadDocuments,
   validateAppDataReceiptSanitization,
   validateContracts,
+  validateFitnessDiscordMemberLinkOwnerRekeyEvidence,
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
@@ -982,7 +983,7 @@ test('Fitness adapter rejects accepted-source, relation, held-candidate, and UNK
     [(adapter) => { adapter.relations[13].transport_mode = 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'; }, 'relation denominator'],
     [(adapter) => { adapter.relations[15].transport_mode = 'CAS_APPLY_AFTER_ACTIVE_MEMBERSHIP'; }, 'relation denominator'],
     [(adapter) => { adapter.relations[17].hold_reason = null; }, 'relation denominator'],
-    [(adapter) => { adapter.relations[19].owner_key = 'user_id'; }, 'relation denominator']
+    [(adapter) => { adapter.relations[18].owner_key = null; }, 'relation denominator']
   ];
   for (const [mutate, expected] of cases) {
     const documents = structuredClone(baseline);
@@ -991,6 +992,79 @@ test('Fitness adapter rejects accepted-source, relation, held-candidate, and UNK
     mutate(adapter);
     assert.ok(validateSemantics(documents).some((failure) => failure.includes(expected)), expected);
     assert.ok(verifyFitnessAppDataAdapter({ adapter, gate }).some((failure) => failure.includes(expected) || failure.includes('schema validation')), expected);
+  }
+});
+
+test('Fitness Discord member-link owners rekey only through one accepted identity-ledger mapping', () => {
+  const baseline = loadDocuments();
+  const adapter = baseline['contracts/v1/transport/fitness-app-data-adapter-contract.json'];
+  const gate = baseline['contracts/v1/gates/migration-gate-state.json'];
+  const policy = adapter.identity_and_activation.discord_member_link_owner_rekeying;
+  const relation = adapter.relations.find((entry) => entry.source_relation === 'public.discord_member_links');
+  assert.equal(relation.owner_key, 'fitness_user_id');
+  assert.equal(relation.classification, 'UNKNOWN_DISCORD_EXTERNAL');
+  assert.equal(relation.transport_mode, 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION');
+  assert.equal(relation.hold_reason, 'DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED');
+  assert.equal(policy.source_identity_ledger, 'platform_private.source_identity_ledger');
+  assert.equal(policy.controlled_auth_mapping_contract, 'contracts/v1/auth/import-rehearsal-contract.json');
+  assert.equal(policy.discord_identifiers_as_identity_evidence, false);
+
+  const sourceOwnerCommitment = 'a'.repeat(64);
+  const acceptedMapping = {
+    source_relation: 'public.discord_member_links',
+    source_owner_key: 'fitness_user_id',
+    source_owner_commitment: sourceOwnerCommitment,
+    target_user_commitment: 'b'.repeat(64),
+    source_identity_ledger: 'platform_private.source_identity_ledger',
+    controlled_auth_mapping_contract: 'contracts/v1/auth/import-rehearsal-contract.json',
+    accepted: true
+  };
+  const validEvidence = {
+    source_owner_commitment: sourceOwnerCommitment,
+    accepted_mappings: [acceptedMapping],
+    caller_supplied_identity: false,
+    discord_identifier_as_identity_evidence: false
+  };
+  assert.deepEqual(validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, validEvidence), []);
+  assert.deepEqual(
+    validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, structuredClone(validEvidence)),
+    validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, structuredClone(validEvidence))
+  );
+
+  const evidenceCases = [
+    [(evidence) => { evidence.accepted_mappings = []; }, 'requires one accepted mapping'],
+    [(evidence) => { evidence.accepted_mappings[0].source_owner_commitment = 'c'.repeat(64); }, 'contradictory mapping'],
+    [(evidence) => { evidence.accepted_mappings.push(structuredClone(evidence.accepted_mappings[0])); }, 'duplicate accepted mappings'],
+    [(evidence) => { evidence.caller_supplied_identity = true; }, 'caller-selected identity'],
+    [(evidence) => { evidence.discord_identifier_as_identity_evidence = true; }, 'Discord identifier authority']
+  ];
+  for (const [mutate, expected] of evidenceCases) {
+    const evidence = structuredClone(validEvidence);
+    mutate(evidence);
+    const first = validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, evidence);
+    const second = validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, structuredClone(evidence));
+    assert.deepEqual(first, second, expected);
+    assert.ok(first.some((failure) => failure.includes(expected)), expected);
+  }
+
+  const contractCases = [
+    [(candidate) => { candidate.relations[18].owner_key = 'user_id'; }, 'relation'],
+    [(candidate) => { candidate.relations[18].hold_reason = 'EXTERNAL_IDENTITY_OWNER_UNPROVEN'; }, 'relation denominator'],
+    [(candidate) => { delete candidate.identity_and_activation.discord_member_link_owner_rekeying; }, 'source owner boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.source_identity_ledger = 'public.identity_map'; }, 'accepted mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.missing_mapping_outcome = 'REKEY_TO_LEDGER_TARGET'; }, 'fail-closed mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.contradictory_mapping_outcome = 'REKEY_TO_LEDGER_TARGET'; }, 'fail-closed mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.duplicate_mapping_outcome = 'REKEY_TO_LEDGER_TARGET'; }, 'fail-closed mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.caller_supplied_identity_allowed = true; }, 'fail-closed mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.automatic_identity_merge_allowed = true; }, 'fail-closed mapping boundary'],
+    [(candidate) => { candidate.identity_and_activation.discord_member_link_owner_rekeying.discord_identifiers_as_identity_evidence = true; }, 'fail-closed mapping boundary']
+  ];
+  for (const [mutate, expected] of contractCases) {
+    const documents = structuredClone(baseline);
+    const candidate = documents['contracts/v1/transport/fitness-app-data-adapter-contract.json'];
+    mutate(candidate);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes(expected)), expected);
+    assert.ok(verifyFitnessAppDataAdapter({ adapter: candidate, gate }).some((failure) => failure.includes(expected) || failure.includes('schema validation')), expected);
   }
 });
 

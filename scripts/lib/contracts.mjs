@@ -365,6 +365,37 @@ export function validateAppDataReceiptSanitization(receipt) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+export function validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, evidence) {
+  const failures = [];
+  const mappings = Array.isArray(evidence?.accepted_mappings) ? evidence.accepted_mappings : [];
+  const isCommitment = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+  if (evidence?.caller_supplied_identity !== false) {
+    failures.push('Fitness Discord owner rekey evidence forbids caller-selected identity');
+  }
+  if (evidence?.discord_identifier_as_identity_evidence !== false) {
+    failures.push('Fitness Discord owner rekey evidence forbids Discord identifier authority');
+  }
+  if (mappings.length === 0) {
+    failures.push('Fitness Discord owner rekey evidence requires one accepted mapping');
+  } else if (mappings.length > 1) {
+    failures.push('Fitness Discord owner rekey evidence rejects duplicate accepted mappings');
+  } else {
+    const mapping = mappings[0] ?? {};
+    const exactMapping = isCommitment(evidence?.source_owner_commitment)
+      && mapping.source_relation === policy?.source_relation
+      && mapping.source_owner_key === policy?.source_owner_key
+      && mapping.source_owner_commitment === evidence.source_owner_commitment
+      && isCommitment(mapping.target_user_commitment)
+      && mapping.source_identity_ledger === policy?.source_identity_ledger
+      && mapping.controlled_auth_mapping_contract === policy?.controlled_auth_mapping_contract
+      && mapping.accepted === true;
+    if (!exactMapping) {
+      failures.push('Fitness Discord owner rekey evidence rejects contradictory mapping');
+    }
+  }
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateSemantics(documents) {
   const failures = [];
   const requireCondition = (condition, message) => {
@@ -490,10 +521,14 @@ export function validateSemantics(documents) {
   const fitnessIdentity = fitnessAppDataAdapter.identity_and_activation ?? {};
   const fitnessProfileSeed = fitnessIdentity.profile_seed ?? {};
   const fitnessAbsentProfile = fitnessProfileSeed.source_profile_absent_policy ?? {};
+  const fitnessDiscordMemberLinkOwnerRekey = fitnessIdentity.discord_member_link_owner_rekeying ?? {};
   requireCondition(fitnessIdentity.canonical_human_key === 'auth.users.id' && fitnessIdentity.source_identity_ledger === 'platform_private.source_identity_ledger' && fitnessIdentity.source_owner_key === 'id' && fitnessIdentity.identity_rekey_required === true, 'Fitness identity rekey boundary drift');
   requireCondition(fitnessIdentity.membership_relation === 'platform_shared.user_service_memberships' && fitnessIdentity.membership_initial_state === 'pending' && fitnessIdentity.activation_subject_source === 'auth.uid()' && fitnessIdentity.caller_supplied_user_id_allowed === false, 'Fitness activation subject boundary drift');
   requireCondition(fitnessProfileSeed.source_relation === 'public.profiles' && fitnessProfileSeed.target_relation === 'fitness.profiles' && fitnessProfileSeed.source_primary_key === 'id' && fitnessProfileSeed.storage === 'PRIVATE_COMMITMENT' && fitnessProfileSeed.lookup === 'SERVER_SIDE_IDENTITY_MAPPING' && fitnessProfileSeed.consumption === 'ATOMIC_WITH_ACTIVATION' && fitnessProfileSeed.direct_pre_activation_insert_allowed === false && fitnessProfileSeed.source_profile_present_exact_parity_required === true, 'Fitness profile activation-seed boundary drift');
   requireCondition(fitnessAbsentProfile.detection === 'COMPLETE_S0_S1_S2_PROFILE_KEY_ABSENCE' && fitnessAbsentProfile.default_seed_allowed === false && fitnessAbsentProfile.source_rows_transport_outcome === 'QUARANTINE_PENDING_MEMBERSHIP' && fitnessAbsentProfile.unproven_absence_outcome === 'QUARANTINE_PENDING_MEMBERSHIP' && fitnessAbsentProfile.caller_values_allowed === false && fitnessAbsentProfile.silent_drop_allowed === false, 'Fitness absent-source-profile boundary drift');
+  requireCondition(fitnessDiscordMemberLinkOwnerRekey.source_relation === 'public.discord_member_links' && fitnessDiscordMemberLinkOwnerRekey.source_owner_key === 'fitness_user_id' && fitnessDiscordMemberLinkOwnerRekey.source_owner_not_null === true && fitnessDiscordMemberLinkOwnerRekey.source_owner_unique === true && fitnessDiscordMemberLinkOwnerRekey.source_owner_foreign_key === 'auth.users.id', 'Fitness Discord member-link source owner boundary drift');
+  requireCondition(fitnessDiscordMemberLinkOwnerRekey.source_identity_ledger === 'platform_private.source_identity_ledger' && fitnessDiscordMemberLinkOwnerRekey.controlled_auth_mapping_contract === 'contracts/v1/auth/import-rehearsal-contract.json' && fitnessDiscordMemberLinkOwnerRekey.accepted_mapping_cardinality === 'EXACTLY_ONE' && fitnessDiscordMemberLinkOwnerRekey.accepted_mapping_outcome === 'REKEY_TO_LEDGER_TARGET', 'Fitness Discord member-link accepted mapping boundary drift');
+  requireCondition(fitnessDiscordMemberLinkOwnerRekey.missing_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && fitnessDiscordMemberLinkOwnerRekey.contradictory_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && fitnessDiscordMemberLinkOwnerRekey.duplicate_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && fitnessDiscordMemberLinkOwnerRekey.caller_supplied_identity_allowed === false && fitnessDiscordMemberLinkOwnerRekey.automatic_identity_merge_allowed === false && fitnessDiscordMemberLinkOwnerRekey.discord_identifiers_as_identity_evidence === false, 'Fitness Discord member-link fail-closed mapping boundary drift');
   requireCondition(fitnessIdentity.presentation_values_as_identity_evidence === false && fitnessIdentity.discord_ids_as_identity_evidence === false && fitnessIdentity.member_numbers_as_identity_evidence === false, 'Fitness presentation or external identifier authority drift');
   const fitnessNumbers = fitnessAppDataAdapter.member_number_policy ?? {};
   requireCondition(fitnessNumbers.source_column === 'public.profiles.user_number' && fitnessNumbers.target_column === 'fitness.profiles.user_number' && fitnessNumbers.existing_values_action === 'COPY_UNCHANGED' && fitnessNumbers.high_water_action === 'PRESERVE' && fitnessNumbers.gaps_action === 'PRESERVE', 'Fitness member-number preservation drift');
@@ -518,7 +553,7 @@ export function validateSemantics(documents) {
     ['public.session_follow_up_jobs', 'fitness.session_follow_up_jobs', 'UNKNOWN_OPERATIONAL_EXTERNAL_EFFECT', ['id'], 'user_id', 'HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER', ['public.sessions'], true, 'FOLLOW_UP_JOB_SIDE_EFFECTS_UNRESOLVED'],
     ['public.discord_bug_reports', 'fitness.discord_bug_reports', 'EXCLUDED_SUPERSEDED_RELATION', ['id'], null, 'EXCLUDE_SUPERSEDED_BY_DISCORD_FEEDBACK_REPORTS', [], true, 'HISTORICAL_RELATION_SUPERSEDED'],
     ['public.discord_feedback_reports', 'fitness.discord_feedback_reports', 'UNKNOWN_DISCORD_EXTERNAL', ['id'], null, 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION', [], true, 'REPORTING_AND_DISCORD_EFFECTS_UNRESOLVED'],
-    ['public.discord_member_links', 'fitness.discord_member_links', 'UNKNOWN_DISCORD_EXTERNAL', ['id'], null, 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION', ['auth.users'], true, 'EXTERNAL_IDENTITY_OWNER_UNPROVEN'],
+    ['public.discord_member_links', 'fitness.discord_member_links', 'UNKNOWN_DISCORD_EXTERNAL', ['id'], 'fitness_user_id', 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION', ['auth.users'], true, 'DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED'],
     ['public.discord_message_command_claims', 'fitness.discord_message_command_claims', 'UNKNOWN_DISCORD_EXTERNAL', ['channel_id', 'message_id'], null, 'HOLD_PENDING_EXTERNAL_EFFECT_ADAPTER', [], true, 'DISCORD_COMMAND_EFFECTS_UNRESOLVED'],
     ['public.discord_moderation_cases', 'fitness.discord_moderation_cases', 'UNKNOWN_DISCORD_EXTERNAL', ['id'], null, 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION', [], true, 'DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED'],
     ['public.discord_spotify_connections', 'fitness.discord_spotify_connections', 'UNKNOWN_DISCORD_EXTERNAL', ['id'], null, 'HOLD_PENDING_DISCORD_IDENTITY_ADJUDICATION', [], true, 'SECRET_BEARING_PROVIDER_STATE'],

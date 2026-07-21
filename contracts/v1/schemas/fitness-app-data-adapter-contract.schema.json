@@ -161,6 +161,7 @@
         "activation_subject_source",
         "caller_supplied_user_id_allowed",
         "profile_seed",
+        "discord_member_link_owner_rekeying",
         "presentation_only_columns",
         "presentation_values_as_identity_evidence",
         "discord_ids_as_identity_evidence",
@@ -273,6 +274,74 @@
                   "const": false
                 }
               }
+            }
+          }
+        },
+        "discord_member_link_owner_rekeying": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_relation",
+            "source_owner_key",
+            "source_owner_not_null",
+            "source_owner_unique",
+            "source_owner_foreign_key",
+            "source_identity_ledger",
+            "controlled_auth_mapping_contract",
+            "accepted_mapping_cardinality",
+            "accepted_mapping_outcome",
+            "missing_mapping_outcome",
+            "contradictory_mapping_outcome",
+            "duplicate_mapping_outcome",
+            "caller_supplied_identity_allowed",
+            "automatic_identity_merge_allowed",
+            "discord_identifiers_as_identity_evidence"
+          ],
+          "properties": {
+            "source_relation": {
+              "const": "public.discord_member_links"
+            },
+            "source_owner_key": {
+              "const": "fitness_user_id"
+            },
+            "source_owner_not_null": {
+              "const": true
+            },
+            "source_owner_unique": {
+              "const": true
+            },
+            "source_owner_foreign_key": {
+              "const": "auth.users.id"
+            },
+            "source_identity_ledger": {
+              "const": "platform_private.source_identity_ledger"
+            },
+            "controlled_auth_mapping_contract": {
+              "const": "contracts/v1/auth/import-rehearsal-contract.json"
+            },
+            "accepted_mapping_cardinality": {
+              "const": "EXACTLY_ONE"
+            },
+            "accepted_mapping_outcome": {
+              "const": "REKEY_TO_LEDGER_TARGET"
+            },
+            "missing_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "contradictory_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "duplicate_mapping_outcome": {
+              "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+            },
+            "caller_supplied_identity_allowed": {
+              "const": false
+            },
+            "automatic_identity_merge_allowed": {
+              "const": false
+            },
+            "discord_identifiers_as_identity_evidence": {
+              "const": false
             }
           }
         },
@@ -802,6 +871,7 @@
           "enum": [
             "id",
             "user_id",
+            "fitness_user_id",
             null
           ]
         },
@@ -853,7 +923,6 @@
             "FOLLOW_UP_JOB_SIDE_EFFECTS_UNRESOLVED",
             "HISTORICAL_RELATION_SUPERSEDED",
             "REPORTING_AND_DISCORD_EFFECTS_UNRESOLVED",
-            "EXTERNAL_IDENTITY_OWNER_UNPROVEN",
             "DISCORD_COMMAND_EFFECTS_UNRESOLVED",
             "DISCORD_IDENTITY_AND_EFFECTS_UNRESOLVED",
             "SECRET_BEARING_PROVIDER_STATE",
