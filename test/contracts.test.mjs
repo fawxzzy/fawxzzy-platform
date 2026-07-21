@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import {
   createValidator,
@@ -9,7 +10,25 @@ import {
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
-import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyFitnessAppDataAdapter, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
+import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyFitnessAppDataAdapter, verifyFitnessPr108ReplayGate, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
+
+const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
+const acceptedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
+
+function readRepositoryJson(relativePath) {
+  return JSON.parse(fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8'));
+}
+
+function loadFitnessReplayVerificationFixture() {
+  const documents = structuredClone(loadDocuments());
+  return {
+    documents,
+    gate: documents[fitnessReplayGatePath],
+    config: readRepositoryJson('bootstrap/generator/config.v1.json'),
+    sourceManifest: readRepositoryJson('bootstrap/manifests/source-migrations.v1.json'),
+    deterministicPackageSha256: acceptedPackageSha256
+  };
+}
 
 test('all versioned contract instances satisfy their schemas and semantics', () => {
   const report = validateContracts();
@@ -248,6 +267,60 @@ test('Fitness PR 108 gate rejects missing immutable candidate evidence', () => {
   const documents = structuredClone(loadDocuments());
   delete documents['contracts/v1/gates/fitness-pr108-replay-gate.json'].fitness_candidate.candidate_migration.blob;
   assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('fitness-pr108-replay-gate.json')));
+});
+
+test('Fitness PR 108 gate accepts only the merged replay source with undispatched execution', () => {
+  const fixture = loadFitnessReplayVerificationFixture();
+  assert.deepEqual(validateSchemaInstances(fixture.documents, createValidator()), []);
+  assert.deepEqual(validateSemantics(fixture.documents), []);
+  assert.deepEqual(verifyFitnessPr108ReplayGate(fixture), []);
+});
+
+test('Fitness PR 108 merged replay gate fails closed on provenance, workflow, lifecycle, config, package, or candidate leakage drift', () => {
+  const cases = [
+    ['reviewed source head', (fixture) => { fixture.gate.hosted_replay_adapter.source_review.head_commit = '0'.repeat(40); }, 'reviewed source identity'],
+    ['merge commit', (fixture) => { fixture.gate.hosted_replay_adapter.merge.commit = '0'.repeat(40); }, 'merged provenance'],
+    ['review evidence', (fixture) => { fixture.gate.hosted_replay_adapter.source_review.unresolved_thread_count = 1; }, 'review evidence'],
+    ['workflow identity', (fixture) => { fixture.gate.hosted_replay_adapter.default_branch_workflow.raw_sha256 = '0'.repeat(64); }, 'workflow identity'],
+    ['workflow trigger', (fixture) => { fixture.gate.hosted_replay_adapter.default_branch_workflow.trigger = 'push'; }, 'workflow identity'],
+    ['workflow dispatch', (fixture) => { fixture.gate.hosted_replay_adapter.default_branch_workflow.dispatch_run_count = 1; }, 'dispatch and replay execution'],
+    ['runner label', (fixture) => { fixture.gate.hosted_replay_adapter.default_branch_workflow.runner_label = 'different-runner'; }, 'JIT runner'],
+    ['runner availability', (fixture) => { fixture.gate.hosted_replay_adapter.default_branch_workflow.runner_availability = 'CURRENT'; }, 'JIT runner'],
+    ['adapter merge lifecycle', (fixture) => { fixture.gate.lifecycle.adapter_merge = 'BLOCKED'; }, 'adapter_merge'],
+    ['workflow lifecycle', (fixture) => { fixture.gate.lifecycle.workflow_dispatch = 'CURRENT'; }, 'workflow_dispatch'],
+    ['replay lifecycle', (fixture) => { fixture.gate.lifecycle.replay_execution = 'CURRENT'; }, 'replay_execution'],
+    ['config version', (fixture) => { fixture.config.blocked_dependencies.find((entry) => entry.id === 'fitness-pr108-replay-provenance').contract_version = '1.0.0'; }, 'contract version'],
+    ['config reason', (fixture) => { fixture.config.blocked_dependencies.find((entry) => entry.id === 'fitness-pr108-replay-provenance').reason = 'stale'; }, 'reason drift'],
+    ['contract package digest', (fixture) => { fixture.gate.accepted_bootstrap.deterministic_package_sha256 = '0'.repeat(64); }, 'accepted package digest'],
+    ['actual package digest', (fixture) => { fixture.deterministicPackageSha256 = '0'.repeat(64); }, 'actual deterministic package digest'],
+    ['candidate path leakage', (fixture) => {
+      fixture.sourceManifest.migrations.find((migration) => migration.app === 'fitness').path = fixture.gate.fitness_candidate.candidate_migration.path;
+    }, 'candidate path leaked']
+  ];
+
+  for (const [label, mutate, expected] of cases) {
+    const fixture = loadFitnessReplayVerificationFixture();
+    mutate(fixture);
+    const schemaFailures = validateSchemaInstances(fixture.documents, createValidator());
+    const semanticFailures = validateSemantics(fixture.documents);
+    const verifierFailures = verifyFitnessPr108ReplayGate(fixture);
+    assert.deepEqual(verifierFailures, verifyFitnessPr108ReplayGate(fixture), `${label} deterministic verifier output`);
+    assert.ok(
+      schemaFailures.some((failure) => failure.includes('fitness-pr108-replay-gate.json'))
+        || semanticFailures.some((failure) => failure.toLowerCase().includes(expected.toLowerCase()))
+        || verifierFailures.some((failure) => failure.toLowerCase().includes(expected.toLowerCase())),
+      label
+    );
+  }
+});
+
+test('Fitness PR 108 merged replay gate schema and verifier reject malformed nested evidence without throwing', () => {
+  const fixture = loadFitnessReplayVerificationFixture();
+  fixture.gate.hosted_replay_adapter.default_branch_workflow.unexpected = true;
+  delete fixture.gate.hosted_replay_adapter.default_branch_workflow.runner_label;
+  assert.ok(validateSchemaInstances(fixture.documents, createValidator()).some((failure) => failure.includes('fitness-pr108-replay-gate.json')));
+  assert.doesNotThrow(() => verifyFitnessPr108ReplayGate(fixture));
+  assert.ok(verifyFitnessPr108ReplayGate(fixture).some((failure) => failure.includes('JIT runner')));
 });
 
 test('semantic checks reject unsafe definer functions', () => {

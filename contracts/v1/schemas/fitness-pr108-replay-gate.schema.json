@@ -17,7 +17,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "gate_id": {
       "const": "fitness-pr108-replay-gate"
@@ -139,13 +139,10 @@
       "required": [
         "repository",
         "pull_request",
-        "base_commit",
-        "head_commit",
-        "head_tree",
         "changed_path_count",
         "source_review",
         "merge",
-        "workflow_run_count",
+        "default_branch_workflow",
         "replay_execution"
       ],
       "properties": {
@@ -155,26 +152,136 @@
         "pull_request": {
           "const": 2
         },
-        "base_commit": {
-          "const": "6901855ab62ec3d2751491558825d9270666c934"
-        },
-        "head_commit": {
-          "const": "fce1c595a55a5d25271c799f0ccafecc4389181b"
-        },
-        "head_tree": {
-          "const": "aad6c522d6a914e6d102813cd863d3a44f6ecf75"
-        },
         "changed_path_count": {
           "const": 12
         },
         "source_review": {
-          "const": "CURRENT"
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_commit",
+            "head_commit",
+            "head_tree",
+            "source_branch",
+            "source_branch_preserved",
+            "request_comment",
+            "terminal_clean_comment",
+            "thread_count",
+            "unresolved_thread_count",
+            "status"
+          ],
+          "properties": {
+            "base_commit": {
+              "const": "82cbd3b195dd5a07c3b437946f4404041f749508"
+            },
+            "head_commit": {
+              "const": "475967d9dcf4a859f53d535e95e3f77a5396bd21"
+            },
+            "head_tree": {
+              "const": "4a6f258c4f6a600327518bf63458217f11511150"
+            },
+            "source_branch": {
+              "const": "codex/fitness-pr108-full-chain-replay-source"
+            },
+            "source_branch_preserved": {
+              "const": true
+            },
+            "request_comment": {
+              "const": 5031568065
+            },
+            "terminal_clean_comment": {
+              "const": 5031595633
+            },
+            "thread_count": {
+              "const": 7
+            },
+            "unresolved_thread_count": {
+              "const": 0
+            },
+            "status": {
+              "const": "CURRENT"
+            }
+          }
         },
         "merge": {
-          "const": "BLOCKED"
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commit",
+            "tree",
+            "reviewed_head_ancestor",
+            "reviewed_tree_byte_identical",
+            "status"
+          ],
+          "properties": {
+            "commit": {
+              "const": "e513d2b241d34b8fac838b65c6444e34a4b5ce7a"
+            },
+            "tree": {
+              "const": "4a6f258c4f6a600327518bf63458217f11511150"
+            },
+            "reviewed_head_ancestor": {
+              "const": true
+            },
+            "reviewed_tree_byte_identical": {
+              "const": true
+            },
+            "status": {
+              "const": "CURRENT"
+            }
+          }
         },
-        "workflow_run_count": {
-          "const": 0
+        "default_branch_workflow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "blob",
+            "byte_count",
+            "raw_sha256",
+            "trigger",
+            "source_status",
+            "dispatch_run_count",
+            "execution",
+            "runner_label",
+            "runner_availability",
+            "runner_use"
+          ],
+          "properties": {
+            "path": {
+              "const": ".github/workflows/fitness-full-chain-replay.yml"
+            },
+            "blob": {
+              "const": "07e784ad91cf2cfb62ea9c6e0b8d407fe5b652c4"
+            },
+            "byte_count": {
+              "const": 1904
+            },
+            "raw_sha256": {
+              "const": "f43ba4498c0d9755b1fd23082b5da21d8f937b2ebf7373aec63d78562a35b062"
+            },
+            "trigger": {
+              "const": "workflow_dispatch"
+            },
+            "source_status": {
+              "const": "CURRENT"
+            },
+            "dispatch_run_count": {
+              "const": 0
+            },
+            "execution": {
+              "const": "BLOCKED"
+            },
+            "runner_label": {
+              "const": "fp-hosted-replay-jit-v1"
+            },
+            "runner_availability": {
+              "const": "UNKNOWN"
+            },
+            "runner_use": {
+              "const": "BLOCKED"
+            }
+          }
         },
         "replay_execution": {
           "const": "BLOCKED"
@@ -190,6 +297,7 @@
         "discordos_migration_count",
         "fitness_migration_count",
         "mazer_migration_count",
+        "deterministic_package_sha256",
         "candidate_migration_present"
       ],
       "properties": {
@@ -208,6 +316,9 @@
         "mazer_migration_count": {
           "const": 4
         },
+        "deterministic_package_sha256": {
+          "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+        },
         "candidate_migration_present": {
           "const": false
         }
@@ -220,6 +331,8 @@
         "candidate_source_review",
         "adapter_source_review",
         "adapter_merge",
+        "workflow_dispatch",
+        "runner_readiness",
         "replay_execution",
         "fitness_merge",
         "target_apply"
@@ -232,7 +345,13 @@
           "const": "CURRENT"
         },
         "adapter_merge": {
+          "const": "CURRENT"
+        },
+        "workflow_dispatch": {
           "const": "BLOCKED"
+        },
+        "runner_readiness": {
+          "const": "UNKNOWN"
         },
         "replay_execution": {
           "const": "BLOCKED"

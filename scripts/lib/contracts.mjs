@@ -435,17 +435,35 @@ export function validateSemantics(documents) {
   }
 
   const fitnessReplayGate = documents['contracts/v1/gates/fitness-pr108-replay-gate.json'];
+  const fitnessReplayCandidate = fitnessReplayGate.fitness_candidate ?? {};
+  const fitnessReplayCandidateMigration = fitnessReplayCandidate.candidate_migration ?? {};
+  const hostedReplayAdapter = fitnessReplayGate.hosted_replay_adapter ?? {};
+  const hostedReplaySourceReview = hostedReplayAdapter.source_review ?? {};
+  const hostedReplayMerge = hostedReplayAdapter.merge ?? {};
+  const hostedReplayWorkflow = hostedReplayAdapter.default_branch_workflow ?? {};
+  const fitnessReplayAcceptedBootstrap = fitnessReplayGate.accepted_bootstrap ?? {};
+  const fitnessReplayLifecycle = fitnessReplayGate.lifecycle ?? {};
+  requireCondition(fitnessReplayGate.version === '1.1.0' && fitnessReplayGate.gate_id === 'fitness-pr108-replay-gate', 'Fitness PR 108 replay gate v1.1.0 identity drift');
   requireCondition(fitnessReplayGate.status === 'BLOCKED' && fitnessReplayGate.apply_admitted === false, 'Fitness PR 108 replay gate must remain non-executable and BLOCKED');
   requireCondition(fitnessReplayGate.provenance_only === true, 'Fitness PR 108 and hosted replay evidence must remain provenance-only');
-  requireCondition(fitnessReplayGate.fitness_candidate.review.exact_head_terminal_review === 'BLOCKED', 'Fitness PR 108 exact-head terminal review must remain BLOCKED');
-  requireCondition(fitnessReplayGate.hosted_replay_adapter.source_review === 'CURRENT', 'hosted replay adapter source review must remain CURRENT');
-  requireCondition(fitnessReplayGate.hosted_replay_adapter.workflow_run_count === 0, 'hosted replay workflow execution denominator must remain zero');
-  requireCondition(fitnessReplayGate.accepted_bootstrap.migration_count === 122 && fitnessReplayGate.accepted_bootstrap.fitness_migration_count === 101, 'accepted bootstrap must remain 122 total and 101 Fitness migrations');
-  requireCondition(fitnessReplayGate.accepted_bootstrap.candidate_migration_present === false, 'Fitness PR 108 candidate must remain absent from accepted bootstrap');
-  requireCondition(fitnessReplayGate.lifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
-  requireCondition(fitnessReplayGate.lifecycle.adapter_source_review === 'CURRENT', 'adapter_source_review must remain CURRENT');
-  for (const lifecycleUnit of ['adapter_merge', 'replay_execution', 'fitness_merge', 'target_apply']) {
-    requireCondition(fitnessReplayGate.lifecycle[lifecycleUnit] === 'BLOCKED', `${lifecycleUnit} must remain BLOCKED`);
+  requireCondition(fitnessReplayCandidate.head_commit === '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01' && fitnessReplayCandidate.head_tree === 'e8314980790dd9c711f63f4b38ad61e59ec6f409', 'Fitness PR 108 candidate head/tree drift');
+  requireCondition(fitnessReplayCandidate.accepted_migration_count === 101 && fitnessReplayCandidate.candidate_migration_count === 102 && fitnessReplayCandidate.accepted_chain_sha256 === '236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a' && fitnessReplayCandidate.candidate_chain_sha256 === '711445d03b3d98466c278c4dfcbaa7cda326f188427b6dbcd55065fae1a2bbb5', 'Fitness PR 108 migration denominator or chain digest drift');
+  requireCondition(fitnessReplayCandidateMigration.path === 'supabase/migrations/20260718015422_retire_human_member_number_compaction.sql' && fitnessReplayCandidateMigration.blob === '007eca9503dfd10a6910a27b02a46def30583d18' && fitnessReplayCandidateMigration.byte_count === 15431 && fitnessReplayCandidateMigration.raw_sha256 === 'ca502e3bcef4532ce4de336d33334c5620efaf3863286db51f6440bb9224662d', 'Fitness PR 108 candidate migration identity drift');
+  requireCondition(fitnessReplayCandidate.review?.exact_head_terminal_review === 'BLOCKED', 'Fitness PR 108 exact-head terminal review must remain BLOCKED');
+  requireCondition(hostedReplayAdapter.repository === 'fawxzzy/hosted-replay-harness' && hostedReplayAdapter.pull_request === 2 && hostedReplayAdapter.changed_path_count === 12, 'hosted replay adapter repository denominator drift');
+  requireCondition(hostedReplaySourceReview.base_commit === '82cbd3b195dd5a07c3b437946f4404041f749508' && hostedReplaySourceReview.head_commit === '475967d9dcf4a859f53d535e95e3f77a5396bd21' && hostedReplaySourceReview.head_tree === '4a6f258c4f6a600327518bf63458217f11511150', 'hosted replay reviewed source identity drift');
+  requireCondition(hostedReplaySourceReview.source_branch === 'codex/fitness-pr108-full-chain-replay-source' && hostedReplaySourceReview.source_branch_preserved === true && hostedReplaySourceReview.request_comment === 5031568065 && hostedReplaySourceReview.terminal_clean_comment === 5031595633 && hostedReplaySourceReview.thread_count === 7 && hostedReplaySourceReview.unresolved_thread_count === 0 && hostedReplaySourceReview.status === 'CURRENT', 'hosted replay source review evidence drift');
+  requireCondition(hostedReplayMerge.commit === 'e513d2b241d34b8fac838b65c6444e34a4b5ce7a' && hostedReplayMerge.tree === '4a6f258c4f6a600327518bf63458217f11511150' && hostedReplayMerge.reviewed_head_ancestor === true && hostedReplayMerge.reviewed_tree_byte_identical === true && hostedReplayMerge.status === 'CURRENT', 'hosted replay merged provenance drift');
+  requireCondition(hostedReplayWorkflow.path === '.github/workflows/fitness-full-chain-replay.yml' && hostedReplayWorkflow.blob === '07e784ad91cf2cfb62ea9c6e0b8d407fe5b652c4' && hostedReplayWorkflow.byte_count === 1904 && hostedReplayWorkflow.raw_sha256 === 'f43ba4498c0d9755b1fd23082b5da21d8f937b2ebf7373aec63d78562a35b062' && hostedReplayWorkflow.trigger === 'workflow_dispatch' && hostedReplayWorkflow.source_status === 'CURRENT', 'hosted replay default-branch workflow identity drift');
+  requireCondition(hostedReplayWorkflow.dispatch_run_count === 0 && hostedReplayWorkflow.execution === 'BLOCKED' && hostedReplayAdapter.replay_execution === 'BLOCKED', 'hosted replay workflow dispatch and replay execution must remain zero and BLOCKED');
+  requireCondition(hostedReplayWorkflow.runner_label === 'fp-hosted-replay-jit-v1' && hostedReplayWorkflow.runner_availability === 'UNKNOWN' && hostedReplayWorkflow.runner_use === 'BLOCKED', 'hosted replay JIT runner must remain exact-label UNKNOWN and held');
+  requireCondition(fitnessReplayAcceptedBootstrap.migration_count === 122 && fitnessReplayAcceptedBootstrap.discordos_migration_count === 17 && fitnessReplayAcceptedBootstrap.fitness_migration_count === 101 && fitnessReplayAcceptedBootstrap.mazer_migration_count === 4, 'accepted bootstrap migration denominator drift');
+  requireCondition(fitnessReplayAcceptedBootstrap.deterministic_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && fitnessReplayAcceptedBootstrap.apply_admitted === false && fitnessReplayAcceptedBootstrap.candidate_migration_present === false, 'accepted bootstrap package must remain byte-identical and exclude the Fitness candidate');
+  requireCondition(fitnessReplayLifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
+  requireCondition(fitnessReplayLifecycle.adapter_source_review === 'CURRENT' && fitnessReplayLifecycle.adapter_merge === 'CURRENT', 'accepted hosted replay source review and merge must remain CURRENT');
+  requireCondition(fitnessReplayLifecycle.workflow_dispatch === 'BLOCKED' && fitnessReplayLifecycle.runner_readiness === 'UNKNOWN', 'workflow dispatch must remain BLOCKED and runner readiness UNKNOWN');
+  for (const lifecycleUnit of ['replay_execution', 'fitness_merge', 'target_apply']) {
+    requireCondition(fitnessReplayLifecycle[lifecycleUnit] === 'BLOCKED', `${lifecycleUnit} must remain BLOCKED`);
   }
 
   const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];

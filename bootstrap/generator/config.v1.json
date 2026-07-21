@@ -305,9 +305,9 @@
     {
       "id": "fitness-pr108-replay-provenance",
       "decision": "BLOCKED",
-      "reason": "Exact-head independent review, adapter merge, replay execution, Fitness merge, and target apply remain blocked.",
+      "reason": "Fitness exact-head terminal review, workflow dispatch, JIT runner proof, replay execution, Fitness merge, and target apply remain blocked; merged replay provenance is source-only.",
       "contract_path": "contracts/v1/gates/fitness-pr108-replay-gate.json",
-      "contract_version": "1.0.0",
+      "contract_version": "1.1.0",
       "source_candidate_head": "4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01"
     }
   ],

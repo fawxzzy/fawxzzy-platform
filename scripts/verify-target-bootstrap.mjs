@@ -290,7 +290,7 @@ const frozenSourceAcceptance = Object.freeze({
 });
 const fitnessPr108ReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const frozenFitnessPr108ReplayGate = Object.freeze({
-  version: '1.0.0',
+  version: '1.1.0',
   fitness_head: '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01',
   fitness_tree: 'e8314980790dd9c711f63f4b38ad61e59ec6f409',
   accepted_chain_sha256: '236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a',
@@ -299,8 +299,21 @@ const frozenFitnessPr108ReplayGate = Object.freeze({
   candidate_blob: '007eca9503dfd10a6910a27b02a46def30583d18',
   candidate_byte_count: 15431,
   candidate_sha256: 'ca502e3bcef4532ce4de336d33334c5620efaf3863286db51f6440bb9224662d',
-  adapter_head: 'fce1c595a55a5d25271c799f0ccafecc4389181b',
-  adapter_tree: 'aad6c522d6a914e6d102813cd863d3a44f6ecf75'
+  adapter_base: '82cbd3b195dd5a07c3b437946f4404041f749508',
+  adapter_head: '475967d9dcf4a859f53d535e95e3f77a5396bd21',
+  adapter_tree: '4a6f258c4f6a600327518bf63458217f11511150',
+  adapter_branch: 'codex/fitness-pr108-full-chain-replay-source',
+  adapter_review_request: 5031568065,
+  adapter_terminal_clean_comment: 5031595633,
+  adapter_review_threads: 7,
+  adapter_merge: 'e513d2b241d34b8fac838b65c6444e34a4b5ce7a',
+  workflow_path: '.github/workflows/fitness-full-chain-replay.yml',
+  workflow_blob: '07e784ad91cf2cfb62ea9c6e0b8d407fe5b652c4',
+  workflow_byte_count: 1904,
+  workflow_sha256: 'f43ba4498c0d9755b1fd23082b5da21d8f937b2ebf7373aec63d78562a35b062',
+  runner_label: 'fp-hosted-replay-jit-v1',
+  deterministic_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
+  blocked_dependency_reason: 'Fitness exact-head terminal review, workflow dispatch, JIT runner proof, replay execution, Fitness merge, and target apply remain blocked; merged replay provenance is source-only.'
 });
 
 function requiredString(value, label, pattern) {
@@ -405,7 +418,7 @@ function fail(failures, condition, message) {
   if (!condition) failures.push(message);
 }
 
-export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
+export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, deterministicPackageSha256 }) {
   const failures = [];
   const dependency = config.blocked_dependencies?.find((candidate) => candidate.id === 'fitness-pr108-replay-provenance');
   fail(failures, Boolean(dependency), 'Fitness PR 108 blocked dependency missing');
@@ -413,6 +426,7 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
   fail(failures, dependency?.contract_path === fitnessPr108ReplayGatePath, 'Fitness PR 108 blocked dependency contract path drift');
   fail(failures, dependency?.contract_version === frozenFitnessPr108ReplayGate.version, 'Fitness PR 108 blocked dependency contract version drift');
   fail(failures, dependency?.source_candidate_head === frozenFitnessPr108ReplayGate.fitness_head, 'Fitness PR 108 blocked dependency head drift');
+  fail(failures, dependency?.reason === frozenFitnessPr108ReplayGate.blocked_dependency_reason, 'Fitness PR 108 blocked dependency reason drift');
 
   fail(failures, gate.version === frozenFitnessPr108ReplayGate.version && gate.gate_id === 'fitness-pr108-replay-gate', 'Fitness PR 108 gate identity drift');
   fail(failures, gate.status === 'BLOCKED' && gate.apply_admitted === false && gate.provenance_only === true, 'Fitness PR 108 gate must remain BLOCKED provenance-only evidence');
@@ -428,14 +442,25 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
   fail(failures, fitness.review?.exact_head_terminal_review === 'BLOCKED', 'Fitness PR 108 exact-head terminal review must remain BLOCKED');
 
   const adapter = gate.hosted_replay_adapter ?? {};
-  fail(failures, adapter.head_commit === frozenFitnessPr108ReplayGate.adapter_head && adapter.head_tree === frozenFitnessPr108ReplayGate.adapter_tree, 'hosted replay adapter immutable head/tree drift');
-  fail(failures, adapter.source_review === 'CURRENT' && adapter.merge === 'BLOCKED', 'hosted replay adapter lifecycle drift');
-  fail(failures, adapter.workflow_run_count === 0 && adapter.replay_execution === 'BLOCKED', 'hosted replay execution must remain zero and BLOCKED');
+  const adapterReview = adapter.source_review ?? {};
+  const adapterMerge = adapter.merge ?? {};
+  const workflow = adapter.default_branch_workflow ?? {};
+  fail(failures, adapter.repository === 'fawxzzy/hosted-replay-harness' && adapter.pull_request === 2 && adapter.changed_path_count === 12, 'hosted replay adapter repository denominator drift');
+  fail(failures, adapterReview.base_commit === frozenFitnessPr108ReplayGate.adapter_base && adapterReview.head_commit === frozenFitnessPr108ReplayGate.adapter_head && adapterReview.head_tree === frozenFitnessPr108ReplayGate.adapter_tree, 'hosted replay reviewed source identity drift');
+  fail(failures, adapterReview.source_branch === frozenFitnessPr108ReplayGate.adapter_branch && adapterReview.source_branch_preserved === true, 'hosted replay source branch preservation drift');
+  fail(failures, adapterReview.request_comment === frozenFitnessPr108ReplayGate.adapter_review_request && adapterReview.terminal_clean_comment === frozenFitnessPr108ReplayGate.adapter_terminal_clean_comment && adapterReview.thread_count === frozenFitnessPr108ReplayGate.adapter_review_threads && adapterReview.unresolved_thread_count === 0 && adapterReview.status === 'CURRENT', 'hosted replay exact-head review evidence drift');
+  fail(failures, adapterMerge.commit === frozenFitnessPr108ReplayGate.adapter_merge && adapterMerge.tree === frozenFitnessPr108ReplayGate.adapter_tree && adapterMerge.reviewed_head_ancestor === true && adapterMerge.reviewed_tree_byte_identical === true && adapterMerge.status === 'CURRENT', 'hosted replay merged provenance drift');
+  fail(failures, workflow.path === frozenFitnessPr108ReplayGate.workflow_path && workflow.blob === frozenFitnessPr108ReplayGate.workflow_blob && workflow.byte_count === frozenFitnessPr108ReplayGate.workflow_byte_count && workflow.raw_sha256 === frozenFitnessPr108ReplayGate.workflow_sha256 && workflow.trigger === 'workflow_dispatch' && workflow.source_status === 'CURRENT', 'hosted replay default-branch workflow identity drift');
+  fail(failures, workflow.dispatch_run_count === 0 && workflow.execution === 'BLOCKED' && adapter.replay_execution === 'BLOCKED', 'hosted replay workflow dispatch and replay execution must remain zero and BLOCKED');
+  fail(failures, workflow.runner_label === frozenFitnessPr108ReplayGate.runner_label && workflow.runner_availability === 'UNKNOWN' && workflow.runner_use === 'BLOCKED', 'hosted replay JIT runner must remain exact-label UNKNOWN and held');
 
   const lifecycle = gate.lifecycle ?? {};
   fail(failures, lifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
   fail(failures, lifecycle.adapter_source_review === 'CURRENT', 'adapter_source_review must remain CURRENT');
-  for (const unit of ['adapter_merge', 'replay_execution', 'fitness_merge', 'target_apply']) {
+  fail(failures, lifecycle.adapter_merge === 'CURRENT', 'adapter_merge must remain CURRENT');
+  fail(failures, lifecycle.workflow_dispatch === 'BLOCKED', 'workflow_dispatch must remain BLOCKED');
+  fail(failures, lifecycle.runner_readiness === 'UNKNOWN', 'runner_readiness must remain UNKNOWN');
+  for (const unit of ['replay_execution', 'fitness_merge', 'target_apply']) {
     fail(failures, lifecycle[unit] === 'BLOCKED', `${unit} must remain BLOCKED`);
   }
 
@@ -443,6 +468,10 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest }) {
   const sourceCounts = Object.fromEntries((config.sources ?? []).map((source) => [source.app, source.migration_count]));
   fail(failures, accepted.apply_admitted === false && accepted.candidate_migration_present === false, 'accepted bootstrap must remain non-executable without the Fitness candidate');
   fail(failures, accepted.migration_count === 122 && accepted.discordos_migration_count === 17 && accepted.fitness_migration_count === 101 && accepted.mazer_migration_count === 4, 'Fitness PR 108 accepted bootstrap denominator drift');
+  fail(failures, accepted.deterministic_package_sha256 === frozenFitnessPr108ReplayGate.deterministic_package_sha256, 'Fitness PR 108 accepted package digest drift');
+  if (deterministicPackageSha256 !== undefined) {
+    fail(failures, deterministicPackageSha256 === frozenFitnessPr108ReplayGate.deterministic_package_sha256, 'actual deterministic package digest drift');
+  }
   fail(failures, sourceCounts.discordos === 17 && sourceCounts.fitness === 101 && sourceCounts.mazer === 4, 'generator source denominator must remain 17/101/4');
   fail(failures, sourceManifest.migrations?.length === 122, 'accepted source manifest must remain 122 migrations');
   const candidate = fitness.candidate_migration ?? {};
@@ -1495,7 +1524,12 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   failures.push(...verifyMazerAppDataAdapter({ adapter: mazerAppDataAdapter, gate: migrationGate }));
   failures.push(...verifyFitnessAppDataAdapter({ adapter: fitnessAppDataAdapter, gate: migrationGate }));
   failures.push(...verifyDiscordosAppDataAdapter({ adapter: discordosAppDataAdapter, gate: migrationGate }));
-  failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
+  failures.push(...verifyFitnessPr108ReplayGate({
+    config,
+    gate: fitnessPr108ReplayGate,
+    sourceManifest,
+    deterministicPackageSha256: digestPackageOutputs().digest
+  }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
   failures.push(...verifyHeldControlPlaneContracts(config, namespacePlan));
