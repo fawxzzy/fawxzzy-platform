@@ -8,6 +8,7 @@ import {
   computeSourceChainSha256,
   verifyFrozenSourceAcceptance,
   verifyAppDataTransportContracts,
+  verifyDiscordosAppDataAdapter,
   verifyFitnessAppDataAdapter,
   verifyMazerAppDataAdapter,
   verifyFitnessPr108ReplayGate,
@@ -116,7 +117,7 @@ test('Mazer app data adapter remains package-neutral and execution-blocked', () 
   assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
   assert.equal(adapter.apply_admitted, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
-  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
 });
 
 test('Fitness app data adapter binds the accepted 101-unit source and leaves the 122-unit package inert', () => {
@@ -133,7 +134,27 @@ test('Fitness app data adapter binds the accepted 101-unit source and leaves the
   assert.equal(adapter.source_evidence.accepted_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
   assert.equal(adapter.apply_admitted, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
-  assert.equal(gate.app_data_adapters.all_adapters_ready, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
+});
+
+test('DiscordOS app data adapter binds the provider-canonical 17-unit source and leaves the 122-unit package inert', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const adapter = JSON.parse(fs.readFileSync(`${root}/contracts/v1/transport/discordos-app-data-adapter-contract.json`, 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  assert.deepEqual(verifyDiscordosAppDataAdapter({ adapter, gate }), []);
+  assert.equal(sourceManifest.migrations.length, 122);
+  assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'discordos').length, 17);
+  assert.equal(adapter.source_evidence.provider_canonical_migration_count, 17);
+  assert.equal(adapter.source_evidence.current_git_migration_count, 11);
+  assert.equal(adapter.source_evidence.current_git_substitution_forbidden, true);
+  assert.equal(adapter.source_evidence.accepted_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(adapter.inert_boundary.declared_relation_count, 10);
+  assert.equal(adapter.inert_boundary.emitted_relation_count, 9);
+  assert.equal(adapter.inert_boundary.held_relation, 'discordos.discord_update_drafts');
+  assert.equal(adapter.apply_admitted, false);
+  assert.equal(gate.app_data_adapters.all_adapters_ready, true);
+  assert.equal(gate.app_data_adapters.execution_lifecycle, 'EXECUTION_BLOCKED');
+  assert.equal(gate.app_data_adapters.apply_admitted, false);
 });
 
 test('every copied source file matches its byte count, raw digest, and Git blob identity', () => {

@@ -1,0 +1,864 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:discordos-app-data-adapter-contract",
+  "title": "DiscordOS application-data adapter contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "apply_admitted",
+    "generic_contract_path",
+    "source_evidence",
+    "inert_boundary",
+    "identity_boundary",
+    "canonicalization",
+    "classification_counts",
+    "relations",
+    "dependency_ordering",
+    "external_effect_quarantine",
+    "snapshot_and_cas",
+    "deletion_and_rollback",
+    "public_receipt_policy",
+    "dependency_gates"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "discordos-app-data-adapter-contract"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        }
+      }
+    },
+    "apply_admitted": {
+      "const": false
+    },
+    "generic_contract_path": {
+      "const": "contracts/v1/transport/app-data-transport-contract.json"
+    },
+    "source_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_canonical_commit",
+        "provider_canonical_tree",
+        "provider_canonical_migration_count",
+        "current_git_head",
+        "current_git_tree",
+        "current_git_migration_count",
+        "current_git_canonicality",
+        "current_git_substitution_forbidden",
+        "accepted_source_chain_sha256",
+        "accepted_path_sha256",
+        "provider_catalog_sha256",
+        "provider_effect_mapping_count",
+        "provider_effect_mappings_sha256",
+        "relation_count",
+        "relation_manifest_sha256",
+        "external_effect_manifest_sha256",
+        "source_statement_count",
+        "final_function_identity_count",
+        "function_definition_count",
+        "trigger_count",
+        "index_count",
+        "constraint_unit_count",
+        "rls_enabled_relation_count",
+        "policy_count",
+        "held_function_unit_count",
+        "held_statement_count",
+        "accepted_package_migration_count",
+        "accepted_package_sha256"
+      ],
+      "properties": {
+        "provider_canonical_commit": {
+          "$ref": "#/$defs/git_sha"
+        },
+        "provider_canonical_tree": {
+          "$ref": "#/$defs/git_sha"
+        },
+        "provider_canonical_migration_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "current_git_head": {
+          "$ref": "#/$defs/git_sha"
+        },
+        "current_git_tree": {
+          "$ref": "#/$defs/git_sha"
+        },
+        "current_git_migration_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "current_git_canonicality": {
+          "enum": [
+            "PROVIDER_CANONICAL",
+            "NOT_PROVIDER_CANONICAL"
+          ]
+        },
+        "current_git_substitution_forbidden": {
+          "type": "boolean"
+        },
+        "accepted_source_chain_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "accepted_path_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "provider_catalog_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "provider_effect_mapping_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "provider_effect_mappings_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "relation_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "relation_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "external_effect_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_statement_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "final_function_identity_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "function_definition_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "trigger_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "index_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "constraint_unit_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "rls_enabled_relation_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "policy_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_function_unit_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_statement_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "accepted_package_migration_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "accepted_package_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "inert_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_relation_count",
+        "emitted_relation_count",
+        "held_relation_count",
+        "held_relation",
+        "emitted_function_count",
+        "emitted_function",
+        "emitted_trigger_count",
+        "emitted_index_count",
+        "emitted_extension_count",
+        "emitted_data_effect_count",
+        "emitted_cron_effect_count",
+        "emitted_network_effect_count",
+        "generated_artifact_changes_admitted"
+      ],
+      "properties": {
+        "declared_relation_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_relation_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_relation_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "emitted_function_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_function": {
+          "type": "string",
+          "minLength": 1
+        },
+        "emitted_trigger_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_index_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_extension_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_data_effect_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_cron_effect_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "emitted_network_effect_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "generated_artifact_changes_admitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "identity_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_mode",
+        "human_activation",
+        "human_profile_relation",
+        "human_entitlement_relation",
+        "canonical_human_key",
+        "source_identity_ledger",
+        "rekey_authority",
+        "accepted_mapping_cardinality",
+        "missing_mapping_outcome",
+        "contradictory_mapping_outcome",
+        "duplicate_mapping_outcome",
+        "membership_if_present_without_mapping",
+        "membership_creation_allowed",
+        "caller_supplied_identity_allowed",
+        "automatic_identity_merge_allowed",
+        "discord_ids_as_identity_evidence",
+        "fingerprints_as_identity_evidence",
+        "usernames_as_identity_evidence",
+        "labels_as_identity_evidence",
+        "snapshots_as_identity_evidence",
+        "synthetic_rows_action",
+        "fitness_semantic_overlap_action"
+      ],
+      "properties": {
+        "service_mode": {
+          "const": "OPERATIONAL_ONLY"
+        },
+        "human_activation": {
+          "const": "NOT_APPLICABLE"
+        },
+        "human_profile_relation": {
+          "type": "null"
+        },
+        "human_entitlement_relation": {
+          "type": "null"
+        },
+        "canonical_human_key": {
+          "const": "auth.users.id"
+        },
+        "source_identity_ledger": {
+          "const": "platform_private.source_identity_ledger"
+        },
+        "rekey_authority": {
+          "const": "ACCEPTED_IDENTITY_LEDGER_MAPPING_ONLY"
+        },
+        "accepted_mapping_cardinality": {
+          "const": "EXACTLY_ONE"
+        },
+        "missing_mapping_outcome": {
+          "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+        },
+        "contradictory_mapping_outcome": {
+          "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+        },
+        "duplicate_mapping_outcome": {
+          "const": "QUARANTINE_PENDING_VERIFIED_EVIDENCE"
+        },
+        "membership_if_present_without_mapping": {
+          "const": "PRESERVE_PENDING"
+        },
+        "membership_creation_allowed": {
+          "const": false
+        },
+        "caller_supplied_identity_allowed": {
+          "const": false
+        },
+        "automatic_identity_merge_allowed": {
+          "const": false
+        },
+        "discord_ids_as_identity_evidence": {
+          "const": false
+        },
+        "fingerprints_as_identity_evidence": {
+          "const": false
+        },
+        "usernames_as_identity_evidence": {
+          "const": false
+        },
+        "labels_as_identity_evidence": {
+          "const": false
+        },
+        "snapshots_as_identity_evidence": {
+          "const": false
+        },
+        "synthetic_rows_action": {
+          "const": "EXCLUDE"
+        },
+        "fitness_semantic_overlap_action": {
+          "const": "QUARANTINE"
+        }
+      }
+    },
+    "canonicalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transform_version",
+        "complete_provider_catalog_column_order",
+        "row_digest_includes_all_authoritative_columns",
+        "private_key_commitments",
+        "jsonb",
+        "timestamp_with_time_zone",
+        "numeric",
+        "text",
+        "raw_values_in_public_receipts"
+      ],
+      "properties": {
+        "transform_version": {
+          "const": "discordos-app-data-v1"
+        },
+        "complete_provider_catalog_column_order": {
+          "const": true
+        },
+        "row_digest_includes_all_authoritative_columns": {
+          "const": true
+        },
+        "private_key_commitments": {
+          "const": true
+        },
+        "jsonb": {
+          "const": "RFC8785_CANONICAL_JSON"
+        },
+        "timestamp_with_time_zone": {
+          "const": "UTC_MICROSECONDS_RFC3339"
+        },
+        "numeric": {
+          "const": "POSTGRES_CANONICAL_TEXT"
+        },
+        "text": {
+          "const": "UTF8_NFC"
+        },
+        "raw_values_in_public_receipts": {
+          "const": false
+        }
+      }
+    },
+    "classification_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_state",
+        "authoritative_append_only_history",
+        "held_operational_external_effect",
+        "transported",
+        "held",
+        "total"
+      ],
+      "properties": {
+        "authoritative_state": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "authoritative_append_only_history": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_operational_external_effect": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "transported": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "total": {
+          "$ref": "#/$defs/nonnegative_integer"
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "$ref": "#/$defs/relation_contract"
+      }
+    },
+    "dependency_ordering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "insert_update_order",
+        "delete_order",
+        "foreign_key_cycles",
+        "held_relations_excluded_from_order",
+        "external_effects"
+      ],
+      "properties": {
+        "insert_update_order": {
+          "$ref": "#/$defs/relation_list"
+        },
+        "delete_order": {
+          "$ref": "#/$defs/relation_list"
+        },
+        "foreign_key_cycles": {
+          "const": "NONE"
+        },
+        "held_relations_excluded_from_order": {
+          "$ref": "#/$defs/relation_list"
+        },
+        "external_effects": {
+          "const": "QUARANTINED"
+        }
+      }
+    },
+    "external_effect_quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_rpc_status",
+        "scheduler_status",
+        "network_status",
+        "edge_status",
+        "credential_status",
+        "alias_status",
+        "provider_link_status",
+        "webhook_status",
+        "moderation_action_status",
+        "discord_api_write_status",
+        "held_function_unit_count",
+        "held_statement_count",
+        "scheduler_extension_identities",
+        "scheduler_job_identity",
+        "network_helper_identity",
+        "target_egress",
+        "source_remains_active",
+        "quarantine_release_requires_separate_authority"
+      ],
+      "properties": {
+        "public_rpc_status": {
+          "const": "BLOCKED"
+        },
+        "scheduler_status": {
+          "const": "BLOCKED"
+        },
+        "network_status": {
+          "const": "BLOCKED"
+        },
+        "edge_status": {
+          "const": "BLOCKED"
+        },
+        "credential_status": {
+          "const": "BLOCKED"
+        },
+        "alias_status": {
+          "const": "BLOCKED"
+        },
+        "provider_link_status": {
+          "const": "BLOCKED"
+        },
+        "webhook_status": {
+          "const": "BLOCKED"
+        },
+        "moderation_action_status": {
+          "const": "BLOCKED"
+        },
+        "discord_api_write_status": {
+          "const": "BLOCKED"
+        },
+        "held_function_unit_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_statement_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "scheduler_extension_identities": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "pg_cron",
+              "pg_net"
+            ]
+          }
+        },
+        "scheduler_job_identity": {
+          "const": "discordos_message_commands_poll"
+        },
+        "network_helper_identity": {
+          "const": "discordos_private.trigger_message_command_poll"
+        },
+        "target_egress": {
+          "const": "DENIED"
+        },
+        "source_remains_active": {
+          "const": true
+        },
+        "quarantine_release_requires_separate_authority": {
+          "const": true
+        }
+      }
+    },
+    "snapshot_and_cas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_snapshots",
+        "complete_primary_key_set_comparison",
+        "complete_canonical_row_digest_comparison",
+        "timestamp_or_high_water_only_proof_allowed",
+        "accepted_expected_target",
+        "unexpected_target_digest",
+        "unexpected_target_overwrite_allowed",
+        "matching_mutation"
+      ],
+      "properties": {
+        "required_snapshots": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "S0"
+            },
+            {
+              "const": "S1"
+            },
+            {
+              "const": "S2"
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "complete_primary_key_set_comparison": {
+          "const": true
+        },
+        "complete_canonical_row_digest_comparison": {
+          "const": true
+        },
+        "timestamp_or_high_water_only_proof_allowed": {
+          "const": false
+        },
+        "accepted_expected_target": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "ABSENT"
+            },
+            {
+              "const": "EXACT_DIGEST"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "unexpected_target_digest": {
+          "const": "QUARANTINE"
+        },
+        "unexpected_target_overwrite_allowed": {
+          "const": false
+        },
+        "matching_mutation": {
+          "const": "IDEMPOTENT_REUSE"
+        }
+      }
+    },
+    "deletion_and_rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_tombstones_required",
+        "implicit_cascade_authority",
+        "reappearing_key_requires",
+        "held_relation_delete_action",
+        "rollback_order",
+        "append_only_mutation_journal_required",
+        "reverse_catch_up_to_source"
+      ],
+      "properties": {
+        "explicit_tombstones_required": {
+          "const": true
+        },
+        "implicit_cascade_authority": {
+          "const": false
+        },
+        "reappearing_key_requires": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "EXPLICIT_RESURRECTION"
+            },
+            {
+              "const": "NEW_GENERATION"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "held_relation_delete_action": {
+          "const": "PRESERVE_AND_QUARANTINE"
+        },
+        "rollback_order": {
+          "const": "REVERSE_DEPENDENCY_ORDER"
+        },
+        "append_only_mutation_journal_required": {
+          "const": true
+        },
+        "reverse_catch_up_to_source": {
+          "const": "SEPARATE_EXPLICIT_AUTHORITY"
+        }
+      }
+    },
+    "public_receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_classes",
+        "forbidden_classes"
+      ],
+      "properties": {
+        "allowed_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "aggregate_counts",
+              "booleans",
+              "cutoffs",
+              "non_identifying_high_water_marks",
+              "quarantine_classes",
+              "private_commitments",
+              "digests"
+            ]
+          }
+        },
+        "forbidden_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "raw_rows",
+              "primary_keys",
+              "names",
+              "emails",
+              "usernames",
+              "user_numbers_or_ranges",
+              "uuids_or_ranges",
+              "secrets",
+              "project_refs",
+              "sql",
+              "payloads",
+              "provider_responses",
+              "machine_paths"
+            ]
+          }
+        }
+      }
+    },
+    "dependency_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_api_containment",
+        "accepted_recovery_and_quarantined_restore",
+        "faithful_contained_replay",
+        "target_bootstrap",
+        "shared_auth_identity_mapping",
+        "service_membership_readiness",
+        "mazer_adapter_source_contract",
+        "fitness_adapter_source_contract",
+        "discordos_external_effect_quarantine",
+        "target_apply"
+      ],
+      "properties": {
+        "data_api_containment": {
+          "$ref": "#/$defs/status"
+        },
+        "accepted_recovery_and_quarantined_restore": {
+          "$ref": "#/$defs/status"
+        },
+        "faithful_contained_replay": {
+          "$ref": "#/$defs/status"
+        },
+        "target_bootstrap": {
+          "$ref": "#/$defs/status"
+        },
+        "shared_auth_identity_mapping": {
+          "$ref": "#/$defs/status"
+        },
+        "service_membership_readiness": {
+          "$ref": "#/$defs/status"
+        },
+        "mazer_adapter_source_contract": {
+          "$ref": "#/$defs/status"
+        },
+        "fitness_adapter_source_contract": {
+          "$ref": "#/$defs/status"
+        },
+        "discordos_external_effect_quarantine": {
+          "$ref": "#/$defs/status"
+        },
+        "target_apply": {
+          "$ref": "#/$defs/status"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonnegative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "CURRENT",
+        "REQUIRED",
+        "OWNER_DECISION",
+        "BLOCKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "relation": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+    },
+    "relation_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "relation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_relation",
+        "target_relation",
+        "classification",
+        "primary_key",
+        "owner_key",
+        "transport_mode",
+        "dependency_parents",
+        "external_effects",
+        "synthetic_rows_action",
+        "fitness_semantic_overlap_action",
+        "hold_reason"
+      ],
+      "properties": {
+        "source_relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "target_relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "classification": {
+          "enum": [
+            "AUTHORITATIVE_STATE",
+            "AUTHORITATIVE_APPEND_ONLY_HISTORY",
+            "HELD_OPERATIONAL_EXTERNAL_EFFECT"
+          ]
+        },
+        "primary_key": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "owner_key": {
+          "type": "null"
+        },
+        "transport_mode": {
+          "enum": [
+            "CAS_AFTER_IDENTITY_AND_OVERLAP_QUARANTINE",
+            "PRESERVE_IDENTITY_APPEND_ONLY",
+            "PRESERVE_IDENTITY_APPEND_ONLY_WITH_SCHEDULER_HELD",
+            "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+            "PRESERVE_IDENTITY_APPEND_ONLY_WITH_EFFECTS_QUARANTINED",
+            "HOLD_NO_TRANSPORT"
+          ]
+        },
+        "dependency_parents": {
+          "$ref": "#/$defs/relation_list"
+        },
+        "external_effects": {
+          "type": "boolean"
+        },
+        "synthetic_rows_action": {
+          "const": "EXCLUDE"
+        },
+        "fitness_semantic_overlap_action": {
+          "enum": [
+            "QUARANTINE",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "hold_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -463,7 +463,7 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, determ
     ['discordos', 'nwexsktuuenfdegzrbut', 17, 11, 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7'],
     ['mazer', 'geknvnrmktchljnyddwp', 4, 3, '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436']
   ];
-  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.3.0', 'provider-canonical migration gate must remain BLOCKED at version 1.3.0');
+  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.4.0', 'provider-canonical migration gate must remain BLOCKED at version 1.4.0');
   fail(failures, provenance.status === 'CURRENT' && provenance.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   fail(failures, provenance.combined_provenance_sha256 === '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684', 'provider-canonical combined provenance digest drift');
   fail(failures, accepted.migration_count === 122 && accepted.source_counts?.discordos === 17 && accepted.source_counts?.fitness === 101 && accepted.source_counts?.mazer === 4, 'provider-canonical accepted package denominator drift');
@@ -598,8 +598,8 @@ export function verifyMazerAppDataAdapter({ adapter, gate }) {
   const forbiddenReceiptClasses = ['raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers_or_ranges', 'uuids_or_ranges', 'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'];
   fail(failures, canonicalJson(adapter?.public_receipt_policy?.forbidden_classes) === canonicalJson(forbiddenReceiptClasses) && adapter?.canonicalization?.raw_values_in_public_receipts === false, 'Mazer app data receipt redaction drift');
   fail(failures, adapter?.dependency_gates?.data_api_containment === 'BLOCKED' && adapter?.dependency_gates?.accepted_recovery_and_quarantined_restore === 'BLOCKED' && adapter?.dependency_gates?.faithful_contained_replay === 'BLOCKED' && adapter?.dependency_gates?.target_bootstrap === 'BLOCKED' && adapter?.dependency_gates?.shared_auth_identity_mapping === 'BLOCKED' && adapter?.dependency_gates?.service_membership_readiness === 'BLOCKED' && adapter?.dependency_gates?.fitness_adapter === 'BLOCKED' && adapter?.dependency_gates?.discordos_adapter === 'BLOCKED' && adapter?.dependency_gates?.target_apply === 'BLOCKED', 'Mazer app data dependency gate promotion');
-  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness']) && canonicalJson(adapterGate.blocked) === canonicalJson(['discordos']), 'Mazer app data adapter readiness gate drift');
-  fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
+  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.blocked) === canonicalJson([]), 'Mazer app data adapter readiness gate drift');
+  fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
   fail(failures, adapter?.provider_canonical?.provider_ledger_migration_count === mazerSource?.provider_ledger_migration_count && adapter?.provider_canonical?.complete_catalog_sha256 === mazerSource?.complete_catalog_sha256, 'Mazer app data provider catalog binding drift');
   fail(failures, adapter?.provider_canonical?.current_git_head === '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4' && adapter?.provider_canonical?.current_git_migration_count === mazerSource?.current_git_migration_count && adapter?.provider_canonical?.current_git_canonicality === 'not_provider_canonical' && adapter?.provider_canonical?.current_git_substitution_forbidden === true, 'Mazer app data Git substitution boundary drift');
   fail(failures, adapter?.provider_canonical?.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && adapter?.provider_canonical?.effect_mapping_count === 4 && adapter?.provider_canonical?.effect_mappings_sha256 === sha256(canonicalJson(mazerMappings)), 'Mazer app data provider mapping binding drift');
@@ -695,9 +695,87 @@ export function verifyFitnessAppDataAdapter({ adapter, gate }) {
     target_apply: 'BLOCKED'
   };
   fail(failures, canonicalJson(adapter?.dependency_gates) === canonicalJson(expectedDependencyGates), 'Fitness dependency gate promotion or status-vocabulary drift');
-  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness']) && canonicalJson(adapterGate.blocked) === canonicalJson(['discordos']), 'Fitness app data adapter readiness gate drift');
-  fail(failures, adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.all_adapters_ready === false && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Fitness app data adapter execution gate drift');
+  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.blocked) === canonicalJson([]), 'Fitness app data adapter readiness gate drift');
+  fail(failures, adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Fitness app data adapter execution gate drift');
   fail(failures, source.accepted_package_migration_count === 122 && source.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_package_sha256 === acceptedPackage.deterministic_package_sha256 && acceptedPackage.source_counts?.fitness === 101 && acceptedPackage.apply_admitted === false, 'Fitness accepted package binding drift');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function verifyDiscordosAppDataAdapter({ adapter, gate }) {
+  const failures = [];
+  const documents = loadDocuments();
+  documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'] = adapter;
+  documents['contracts/v1/gates/migration-gate-state.json'] = gate;
+  const schemaFailures = validateSchemaInstances(documents, createValidator());
+  failures.push(...schemaFailures.map((failure) => `DiscordOS app data schema validation: ${failure}`));
+  if (schemaFailures.length === 0) {
+    try {
+      failures.push(...validateSemantics(documents).map((failure) => `DiscordOS app data semantic validation: ${failure}`));
+    } catch {
+      failures.push('DiscordOS app data semantic validation failed closed');
+    }
+  }
+  const source = adapter?.source_evidence ?? {};
+  const inert = adapter?.inert_boundary ?? {};
+  const identity = adapter?.identity_boundary ?? {};
+  const quarantine = adapter?.external_effect_quarantine ?? {};
+  const adapterGate = gate?.app_data_adapters ?? {};
+  const acceptedPackage = gate?.provider_canonical_provenance?.accepted_package ?? {};
+  const discordosMappings = (gate?.provider_canonical_provenance?.effect_mappings ?? []).filter((mapping) => mapping?.app === 'discordos');
+  const expectedRelationCore = [
+    ['discordos.discord_feedback_reports', 'discordos.discord_feedback_reports', 'AUTHORITATIVE_STATE', ['report_id'], 'CAS_AFTER_IDENTITY_AND_OVERLAP_QUARANTINE'],
+    ['discordos.discord_feedback_audit_events', 'discordos.discord_feedback_audit_events', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', ['id'], 'PRESERVE_IDENTITY_APPEND_ONLY'],
+    ['discordos.discord_feedback_completion_reviews', 'discordos.discord_feedback_completion_reviews', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', ['id'], 'PRESERVE_IDENTITY_APPEND_ONLY'],
+    ['discordos.runtime_health_cron_runs', 'discordos.runtime_health_cron_runs', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', ['id'], 'PRESERVE_IDENTITY_APPEND_ONLY_WITH_SCHEDULER_HELD'],
+    ['discordos.discordos_board_cards', 'discordos.discordos_board_cards', 'AUTHORITATIVE_STATE', ['card_id'], 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'],
+    ['discordos.discordos_moderation_audit_log', 'discordos.discordos_moderation_audit_log', 'AUTHORITATIVE_APPEND_ONLY_HISTORY', ['case_id'], 'PRESERVE_IDENTITY_APPEND_ONLY_WITH_EFFECTS_QUARANTINED'],
+    ['discordos.discordos_music_sesh_sessions', 'discordos.discordos_music_sesh_sessions', 'AUTHORITATIVE_STATE', ['session_id'], 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'],
+    ['discordos.discordos_music_sesh_queue_items', 'discordos.discordos_music_sesh_queue_items', 'AUTHORITATIVE_STATE', ['queue_item_id'], 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'],
+    ['discordos.discordos_music_sesh_votes', 'discordos.discordos_music_sesh_votes', 'AUTHORITATIVE_STATE', ['vote_id'], 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'],
+    ['discordos.discord_update_drafts', 'discordos.discord_update_drafts', 'HELD_OPERATIONAL_EXTERNAL_EFFECT', ['id'], 'HOLD_NO_TRANSPORT']
+  ];
+  const actualRelationCore = (Array.isArray(adapter?.relations) ? adapter.relations : []).map((relation) => [relation.source_relation, relation.target_relation, relation.classification, relation.primary_key, relation.transport_mode]);
+  fail(failures, adapter?.status === 'CURRENT' && adapter?.lifecycle?.source_contract === 'SOURCE_READY' && adapter?.lifecycle?.execution === 'EXECUTION_BLOCKED' && adapter?.apply_admitted === false, 'DiscordOS app data adapter lifecycle drift');
+  fail(failures, canonicalJson(actualRelationCore) === canonicalJson(expectedRelationCore) && adapter?.relations?.every((relation) => relation.owner_key === null), 'DiscordOS app data adapter relation denominator drift');
+  fail(failures, source.provider_canonical_commit === 'bd12f6713518b3f3af3761618e3d3e5f6979f167' && source.provider_canonical_tree === 'f9b01b18d1ba9ad544c582d0dc88ee2ac285bbe8' && source.provider_canonical_migration_count === 17, 'DiscordOS provider-canonical source identity drift');
+  fail(failures, source.current_git_head === 'aef01f277e006e3cb46550e507ebd8e4a1be9d21' && source.current_git_tree === '9e6afb159565b1b749ae7f90373aad904fff81da' && source.current_git_migration_count === 11 && source.current_git_canonicality === 'NOT_PROVIDER_CANONICAL' && source.current_git_substitution_forbidden === true, 'DiscordOS current Git substitution boundary drift');
+  fail(failures, source.accepted_source_chain_sha256 === '6a6e9fa29651331d2addb0259bc61bc7c2f0795bd71b2a04971c96ff146a822e' && source.accepted_path_sha256 === '633ed3101d22dee2c93e1cd5135e5c9cfc1511690b06375c219c3d2d50119613' && source.provider_catalog_sha256 === 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7', 'DiscordOS source chain, path, or catalog digest drift');
+  fail(failures, source.provider_effect_mapping_count === 17 && source.provider_effect_mappings_sha256 === sha256(canonicalJson(discordosMappings)) && source.relation_count === 10 && source.relation_manifest_sha256 === '222e9e3f225a29b867d808282f5110ff08b68400af267858ee5c79059d1a0598' && source.external_effect_manifest_sha256 === '90d87487ac322fc69f26cdc98cf8c2652082cb0a1967fb7fefccfed0ea132eeb', 'DiscordOS mapping, relation, or external-effect digest drift');
+  fail(failures, source.source_statement_count === 186 && source.final_function_identity_count === 18 && source.function_definition_count === 20 && source.trigger_count === 6 && source.index_count === 26 && source.constraint_unit_count === 49 && source.rls_enabled_relation_count === 10 && source.policy_count === 0 && source.held_function_unit_count === 19 && source.held_statement_count === 89, 'DiscordOS source object denominator drift');
+  fail(failures, inert.declared_relation_count === 10 && inert.emitted_relation_count === 9 && inert.held_relation_count === 1 && inert.held_relation === 'discordos.discord_update_drafts' && inert.emitted_function_count === 1 && inert.emitted_function === 'discordos.set_updated_at' && inert.emitted_trigger_count === 5 && inert.emitted_index_count === 22, 'DiscordOS inert object denominator drift');
+  fail(failures, inert.emitted_extension_count === 0 && inert.emitted_data_effect_count === 0 && inert.emitted_cron_effect_count === 0 && inert.emitted_network_effect_count === 0 && inert.generated_artifact_changes_admitted === false, 'DiscordOS inert external-effect or generated-artifact boundary drift');
+  fail(failures, identity.service_mode === 'OPERATIONAL_ONLY' && identity.human_activation === 'NOT_APPLICABLE' && identity.human_profile_relation === null && identity.human_entitlement_relation === null && identity.membership_creation_allowed === false, 'DiscordOS operational-only service boundary drift');
+  fail(failures, identity.canonical_human_key === 'auth.users.id' && identity.source_identity_ledger === 'platform_private.source_identity_ledger' && identity.rekey_authority === 'ACCEPTED_IDENTITY_LEDGER_MAPPING_ONLY' && identity.accepted_mapping_cardinality === 'EXACTLY_ONE', 'DiscordOS identity-ledger mapping boundary drift');
+  fail(failures, identity.missing_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && identity.contradictory_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && identity.duplicate_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && identity.membership_if_present_without_mapping === 'PRESERVE_PENDING', 'DiscordOS fail-closed identity mapping outcome drift');
+  fail(failures, identity.caller_supplied_identity_allowed === false && identity.automatic_identity_merge_allowed === false && identity.discord_ids_as_identity_evidence === false && identity.fingerprints_as_identity_evidence === false && identity.usernames_as_identity_evidence === false && identity.labels_as_identity_evidence === false && identity.snapshots_as_identity_evidence === false, 'DiscordOS external identifier authority drift');
+  fail(failures, identity.synthetic_rows_action === 'EXCLUDE' && identity.fitness_semantic_overlap_action === 'QUARANTINE', 'DiscordOS synthetic or Fitness-overlap quarantine drift');
+  fail(failures, canonicalJson(adapter?.classification_counts) === canonicalJson({ authoritative_state: 5, authoritative_append_only_history: 4, held_operational_external_effect: 1, transported: 9, held: 1, total: 10 }), 'DiscordOS relation classification count drift');
+  fail(failures, canonicalJson(adapter?.dependency_ordering?.insert_update_order) === canonicalJson(['discordos.discord_feedback_reports', 'discordos.discord_feedback_audit_events', 'discordos.discord_feedback_completion_reviews', 'discordos.runtime_health_cron_runs', 'discordos.discordos_board_cards', 'discordos.discordos_moderation_audit_log', 'discordos.discordos_music_sesh_sessions', 'discordos.discordos_music_sesh_queue_items', 'discordos.discordos_music_sesh_votes']), 'DiscordOS insert/update dependency order drift');
+  fail(failures, canonicalJson(adapter?.dependency_ordering?.delete_order) === canonicalJson(['discordos.discordos_music_sesh_votes', 'discordos.discordos_music_sesh_queue_items', 'discordos.discordos_music_sesh_sessions', 'discordos.discord_feedback_completion_reviews', 'discordos.discord_feedback_audit_events', 'discordos.discord_feedback_reports', 'discordos.discordos_moderation_audit_log', 'discordos.discordos_board_cards', 'discordos.runtime_health_cron_runs']) && canonicalJson(adapter?.dependency_ordering?.held_relations_excluded_from_order) === canonicalJson(['discordos.discord_update_drafts']) && adapter?.dependency_ordering?.foreign_key_cycles === 'NONE' && adapter?.dependency_ordering?.external_effects === 'QUARANTINED', 'DiscordOS delete order, held relation, or cycle boundary drift');
+  const blockedEffectStatuses = ['public_rpc_status', 'scheduler_status', 'network_status', 'edge_status', 'credential_status', 'alias_status', 'provider_link_status', 'webhook_status', 'moderation_action_status', 'discord_api_write_status'];
+  fail(failures, blockedEffectStatuses.every((field) => quarantine[field] === 'BLOCKED') && quarantine.held_function_unit_count === 19 && quarantine.held_statement_count === 89, 'DiscordOS external-effect hold denominator drift');
+  fail(failures, canonicalJson(quarantine.scheduler_extension_identities) === canonicalJson(['pg_cron', 'pg_net']) && quarantine.scheduler_job_identity === 'discordos_message_commands_poll' && quarantine.network_helper_identity === 'discordos_private.trigger_message_command_poll' && quarantine.target_egress === 'DENIED' && quarantine.source_remains_active === true && quarantine.quarantine_release_requires_separate_authority === true, 'DiscordOS scheduler, network, egress, or source-lifecycle boundary drift');
+  fail(failures, canonicalJson(adapter?.snapshot_and_cas?.required_snapshots) === canonicalJson(['S0', 'S1', 'S2']) && adapter?.snapshot_and_cas?.complete_primary_key_set_comparison === true && adapter?.snapshot_and_cas?.complete_canonical_row_digest_comparison === true && adapter?.snapshot_and_cas?.timestamp_or_high_water_only_proof_allowed === false, 'DiscordOS complete snapshot proof drift');
+  fail(failures, canonicalJson(adapter?.snapshot_and_cas?.accepted_expected_target) === canonicalJson(['ABSENT', 'EXACT_DIGEST']) && adapter?.snapshot_and_cas?.unexpected_target_digest === 'QUARANTINE' && adapter?.snapshot_and_cas?.unexpected_target_overwrite_allowed === false && adapter?.snapshot_and_cas?.matching_mutation === 'IDEMPOTENT_REUSE', 'DiscordOS CAS overwrite boundary drift');
+  fail(failures, adapter?.deletion_and_rollback?.explicit_tombstones_required === true && adapter?.deletion_and_rollback?.implicit_cascade_authority === false && canonicalJson(adapter?.deletion_and_rollback?.reappearing_key_requires) === canonicalJson(['EXPLICIT_RESURRECTION', 'NEW_GENERATION']) && adapter?.deletion_and_rollback?.held_relation_delete_action === 'PRESERVE_AND_QUARANTINE' && adapter?.deletion_and_rollback?.rollback_order === 'REVERSE_DEPENDENCY_ORDER' && adapter?.deletion_and_rollback?.append_only_mutation_journal_required === true && adapter?.deletion_and_rollback?.reverse_catch_up_to_source === 'SEPARATE_EXPLICIT_AUTHORITY', 'DiscordOS tombstone, resurrection, or rollback boundary drift');
+  const forbiddenReceiptClasses = ['raw_rows', 'primary_keys', 'names', 'emails', 'usernames', 'user_numbers_or_ranges', 'uuids_or_ranges', 'secrets', 'project_refs', 'sql', 'payloads', 'provider_responses', 'machine_paths'];
+  fail(failures, canonicalJson(adapter?.public_receipt_policy?.forbidden_classes) === canonicalJson(forbiddenReceiptClasses) && adapter?.canonicalization?.raw_values_in_public_receipts === false, 'DiscordOS public receipt redaction drift');
+  const expectedDependencyGates = {
+    data_api_containment: 'BLOCKED',
+    accepted_recovery_and_quarantined_restore: 'BLOCKED',
+    faithful_contained_replay: 'BLOCKED',
+    target_bootstrap: 'BLOCKED',
+    shared_auth_identity_mapping: 'BLOCKED',
+    service_membership_readiness: 'NOT_APPLICABLE',
+    mazer_adapter_source_contract: 'CURRENT',
+    fitness_adapter_source_contract: 'CURRENT',
+    discordos_external_effect_quarantine: 'BLOCKED',
+    target_apply: 'BLOCKED'
+  };
+  fail(failures, canonicalJson(adapter?.dependency_gates) === canonicalJson(expectedDependencyGates), 'DiscordOS dependency gate promotion or status-vocabulary drift');
+  fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.blocked) === canonicalJson([]), 'DiscordOS app data adapter readiness gate drift');
+  fail(failures, adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'DiscordOS app data adapter execution gate drift');
+  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_package_sha256 === acceptedPackage.deterministic_package_sha256 && acceptedPackage.source_counts?.discordos === 17 && acceptedPackage.apply_admitted === false, 'DiscordOS accepted package binding drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -1401,6 +1479,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const appDataTransport = readJson('contracts/v1/transport/app-data-transport-contract.json');
   const mazerAppDataAdapter = readJson('contracts/v1/transport/mazer-app-data-adapter-contract.json');
   const fitnessAppDataAdapter = readJson('contracts/v1/transport/fitness-app-data-adapter-contract.json');
+  const discordosAppDataAdapter = readJson('contracts/v1/transport/discordos-app-data-adapter-contract.json');
   const appDataReceipt = readJson('contracts/v1/transport/app-data-receipt.example.json');
   const appDataJournal = readJson('contracts/v1/transport/app-data-mutation-journal-contract.json');
   const fitnessPr108ReplayGate = readJson(fitnessPr108ReplayGatePath);
@@ -1415,6 +1494,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   failures.push(...verifyAppDataTransportContracts({ contract: appDataTransport, receipt: appDataReceipt, journal: appDataJournal, gate: migrationGate }));
   failures.push(...verifyMazerAppDataAdapter({ adapter: mazerAppDataAdapter, gate: migrationGate }));
   failures.push(...verifyFitnessAppDataAdapter({ adapter: fitnessAppDataAdapter, gate: migrationGate }));
+  failures.push(...verifyDiscordosAppDataAdapter({ adapter: discordosAppDataAdapter, gate: migrationGate }));
   failures.push(...verifyFitnessPr108ReplayGate({ config, gate: fitnessPr108ReplayGate, sourceManifest }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1447,6 +1527,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       'app_data_transport_contract_gate',
       'mazer_app_data_adapter_contract_gate',
       'fitness_app_data_adapter_contract_gate',
+      'discordos_app_data_adapter_contract_gate',
       'schema_creation_order', 'creator_default_acl_disposition', 'application_creator_boundary',
       'public_object_boundary', 'data_api_gate',
       'discordos_public_rpc_hold', 'held_function_dependency_closure',
