@@ -19,7 +19,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.5.0"
+      "const": "1.6.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -48,6 +48,15 @@
         "rejected_collision_data_api_authority_granted",
         "guarded_reproduction_attempt_limit",
         "guarded_reproduction_attempts_executed",
+        "attempt_consumption_event_id",
+        "terminal_receipt_event_id",
+        "terminal_outcome_classification",
+        "terminal_result",
+        "retry_permitted",
+        "dashboard_save_attempts",
+        "post_attempt_readbacks",
+        "rollback_save_attempts",
+        "persisted_provider_mutations",
         "provider_execution_status",
         "apply_admitted"
       ],
@@ -56,7 +65,7 @@
           "const": "CURRENT"
         },
         "data_api_gate_version": {
-          "const": "1.3.0"
+          "const": "1.4.0"
         },
         "decision_id": {
           "const": "FP-MAN-047"
@@ -92,6 +101,33 @@
           "const": 1
         },
         "guarded_reproduction_attempts_executed": {
+          "const": 1
+        },
+        "attempt_consumption_event_id": {
+          "const": "onv1_6258aed05023737d6403a35dcf0867e873ab64513578d25713c9584c830e3836"
+        },
+        "terminal_receipt_event_id": {
+          "const": "onv1_6515ddefc604a92dcf4849395a0dfd19a191b1139891a233318636f5a81e683b"
+        },
+        "terminal_outcome_classification": {
+          "const": "PREINTERACTION_LEDGER_VALIDATION_FAILURE"
+        },
+        "terminal_result": {
+          "const": "NO_SAVE_CONFIRMED"
+        },
+        "retry_permitted": {
+          "const": false
+        },
+        "dashboard_save_attempts": {
+          "const": 0
+        },
+        "post_attempt_readbacks": {
+          "const": 0
+        },
+        "rollback_save_attempts": {
+          "const": 0
+        },
+        "persisted_provider_mutations": {
           "const": 0
         },
         "provider_execution_status": {
@@ -367,7 +403,7 @@
               ]
             },
             "governance_manifest_sha256": {
-              "const": "6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d"
+              "const": "9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a"
             },
             "legacy_combined_package_sha256": {
               "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"

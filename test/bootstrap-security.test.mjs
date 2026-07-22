@@ -207,7 +207,7 @@ test('held public and Data API contracts reject public vocabulary and object dri
   }
 });
 
-test('Data API gate v1.3.0 rejects the exact 24 current, desired, execution, support, authority, and admission drift classes in config and manifest', () => {
+test('Data API gate v1.4.0 rejects the exact 24 current, desired, execution, support, terminal-attempt, and admission drift classes in config and manifest', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -295,9 +295,15 @@ test('Data API gate v1.3.0 rejects the exact 24 current, desired, execution, sup
       (gate) => { gate.support_evidence.body_sha256 = '0'.repeat(64); },
       (gate) => { gate.support_evidence.confirmed_at = '2026-07-19T17:39:40.794Z'; }
     ]],
-    ['20 guarded reproduction authority consumed or broadened', [
+    ['20 guarded reproduction terminal ledger changed or broadened', [
       (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempt_limit = 2; },
-      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 0; },
+      (gate) => { gate.retry_authority.manual_decision.retry_permitted = true; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.terminal_receipt_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.dashboard_save_attempts = 1; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.post_attempt_readbacks = 1; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.rollback_save_attempts = 1; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.persisted_provider_mutations = 1; },
       (gate) => { gate.retry_authority.prior_authority_consumed = false; }
     ]],
     ['21 manual decision or separate provider-execution gate weakened', [
@@ -317,7 +323,9 @@ test('Data API gate v1.3.0 rejects the exact 24 current, desired, execution, sup
       (gate) => { gate.retry_authority.rejected_decision_collisions[0].guarded_reproduction_attempts_executed = 1; },
       (gate) => { gate.retry_authority.rejected_decision_collisions[0].reuse_for_data_api_forbidden = false; },
       (gate) => { gate.retry_authority.provider_execution.separate_packet_required = false; },
-      (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; },
+      (gate) => { gate.retry_authority.provider_execution.packet_admitted = false; },
+      (gate) => { gate.retry_authority.provider_execution.packet_terminal = false; },
+      (gate) => { gate.retry_authority.provider_execution.retry_permitted = true; },
       (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; }
     ]],
     ['22 required REST GraphQL or RPC probe removed or falsely complete', [
@@ -359,7 +367,7 @@ test('Data API gate v1.3.0 rejects the exact 24 current, desired, execution, sup
   }
 });
 
-test('Data API gate v1.3.0 rejects the exact 15 Support-response, authority, collision, redaction, admission, and package drift classes', () => {
+test('Data API gate v1.4.0 rejects the exact 15 Support-response, terminal authority, collision, redaction, admission, and package drift classes', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -403,8 +411,12 @@ test('Data API gate v1.3.0 rejects the exact 15 Support-response, authority, col
       (gate) => { gate.support_evidence.response.requested_reproduction_attempts = 2; },
       (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempt_limit = 2; }
     ]],
-    ['10 authority silently consumed or broadened', [
-      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 1; },
+    ['10 terminal authority ledger erased or broadened', [
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 0; },
+      (gate) => { gate.retry_authority.manual_decision.retry_permitted = true; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.attempt_consumption_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.consume_before_interaction_order_proven = true; },
+      (gate) => { gate.retry_authority.guarded_reproduction_terminal_outcome.attempts_remaining = 1; },
       (gate) => { gate.retry_authority.manual_decision.question_event_id = 'onv1_9cce7f3612508739dc826bc5e292de7ec329bbf64d71dfb31ff22619dc80e6f3'; },
       (gate) => { gate.retry_authority.manual_decision.question_payload_sha256 = '0'.repeat(64); },
       (gate) => { gate.retry_authority.manual_decision.answer_event_id = 'onv1_' + '0'.repeat(64); },
@@ -427,14 +439,16 @@ test('Data API gate v1.3.0 rejects the exact 15 Support-response, authority, col
     ['12 Support response treated as provider execution authority', [
       (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; },
       (gate) => { gate.retry_authority.provider_execution.source_contract_grants_execution_authority = true; },
-      (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; }
+      (gate) => { gate.retry_authority.provider_execution.packet_admitted = false; },
+      (gate) => { gate.retry_authority.provider_execution.packet_terminal = false; },
+      (gate) => { gate.retry_authority.provider_execution.retry_permitted = true; }
     ]],
     ['13 bootstrap or target apply promotion', [
       (gate) => { gate.bootstrap_admission.bootstrap_apply_admitted = true; },
       (gate) => { gate.bootstrap_admission.target_apply_admitted = true; }
     ]],
     ['14 config and manifest gate divergence', [
-      (gate) => { gate.version = '1.3.1'; }
+      (gate) => { gate.version = '1.4.1'; }
     ]]
   ];
 

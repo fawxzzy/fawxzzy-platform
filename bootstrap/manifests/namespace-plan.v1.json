@@ -869,7 +869,7 @@
     }
   },
   "data_api_gate": {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "status": "BLOCKED",
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
     "observed_current_preimage": {
@@ -975,7 +975,8 @@
         "policy_only": true,
         "provider_execution_authority_granted": false,
         "guarded_reproduction_attempt_limit": 1,
-        "guarded_reproduction_attempts_executed": 0,
+        "guarded_reproduction_attempts_executed": 1,
+        "retry_permitted": false,
         "sanitized_diagnostic_capture_authorized": true
       },
       "rejected_decision_collisions": [
@@ -990,9 +991,28 @@
       "provider_execution": {
         "status": "BLOCKED",
         "separate_packet_required": true,
-        "packet_admitted": false,
+        "packet_admitted": true,
+        "packet_terminal": true,
+        "retry_permitted": false,
         "support_response_grants_execution_authority": false,
         "source_contract_grants_execution_authority": false
+      },
+      "guarded_reproduction_terminal_outcome": {
+        "status": "CURRENT",
+        "classification": "PREINTERACTION_LEDGER_VALIDATION_FAILURE",
+        "result": "NO_SAVE_CONFIRMED",
+        "attempt_consumption_event_id": "onv1_6258aed05023737d6403a35dcf0867e873ab64513578d25713c9584c830e3836",
+        "terminal_receipt_event_id": "onv1_6515ddefc604a92dcf4849395a0dfd19a191b1139891a233318636f5a81e683b",
+        "consume_before_interaction_order_proven": false,
+        "attempt_limit": 1,
+        "attempts_consumed": 1,
+        "attempts_remaining": 0,
+        "retry_permitted": false,
+        "dashboard_save_attempts": 0,
+        "post_attempt_readbacks": 0,
+        "rollback_save_attempts": 0,
+        "persisted_provider_mutations": 0,
+        "provider_payloads_serialized": false
       },
       "diagnostic_redaction": {
         "status": "REQUIRED",

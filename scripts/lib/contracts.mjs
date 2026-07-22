@@ -170,7 +170,7 @@ const productProfileOwnerPredicates = Object.freeze({
 
 const dataApiDecisionBindingV1 = Object.freeze({
   status: 'CURRENT',
-  data_api_gate_version: '1.3.0',
+  data_api_gate_version: '1.4.0',
   decision_id: 'FP-MAN-047',
   question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
   question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -182,7 +182,16 @@ const dataApiDecisionBindingV1 = Object.freeze({
   rejected_collision_decision_id: 'FP-MAN-037',
   rejected_collision_data_api_authority_granted: false,
   guarded_reproduction_attempt_limit: 1,
-  guarded_reproduction_attempts_executed: 0,
+  guarded_reproduction_attempts_executed: 1,
+  attempt_consumption_event_id: 'onv1_6258aed05023737d6403a35dcf0867e873ab64513578d25713c9584c830e3836',
+  terminal_receipt_event_id: 'onv1_6515ddefc604a92dcf4849395a0dfd19a191b1139891a233318636f5a81e683b',
+  terminal_outcome_classification: 'PREINTERACTION_LEDGER_VALIDATION_FAILURE',
+  terminal_result: 'NO_SAVE_CONFIRMED',
+  retry_permitted: false,
+  dashboard_save_attempts: 0,
+  post_attempt_readbacks: 0,
+  rollback_save_attempts: 0,
+  persisted_provider_mutations: 0,
   provider_execution_status: 'BLOCKED',
   apply_admitted: false
 });
@@ -204,7 +213,7 @@ const providerCanonicalProvenance = Object.freeze({
   ]),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(['bootstrap/manifests/namespace-plan.v1.json']),
-  governance_manifest_sha256: '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d',
+  governance_manifest_sha256: '9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
   effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
   sources: Object.freeze([
@@ -688,7 +697,7 @@ export function validateSemantics(documents) {
   };
   requireCondition(canonicalDigest(discordosAppDataAdapter.dependency_gates) === canonicalDigest(expectedDiscordosDependencyGates), 'DiscordOS dependency gate promotion or status-vocabulary drift');
   const provenance = migrationGate.provider_canonical_provenance;
-  requireCondition(migrationGate.version === '1.5.0', 'migration gate version must remain 1.5.0');
+  requireCondition(migrationGate.version === '1.6.0', 'migration gate version must remain 1.6.0');
   requireCondition(fitnessSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && fitnessSource.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.apply_admitted === false, 'Fitness accepted migration package provenance binding drift');
   requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   requireCondition(provenance?.combined_provenance_sha256 === providerCanonicalProvenance.combined_provenance_sha256, 'provider-canonical combined provenance digest drift');
