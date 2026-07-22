@@ -168,6 +168,25 @@ const productProfileOwnerPredicates = Object.freeze({
   'mazer.mazer_profiles': '(select auth.uid()) = user_id'
 });
 
+const dataApiDecisionBindingV1 = Object.freeze({
+  status: 'CURRENT',
+  data_api_gate_version: '1.3.0',
+  decision_id: 'FP-MAN-047',
+  question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+  question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+  answer_event_id: 'onv1_2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+  answer_payload_sha256: '2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+  answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
+  decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
+  policy_only: true,
+  rejected_collision_decision_id: 'FP-MAN-037',
+  rejected_collision_data_api_authority_granted: false,
+  guarded_reproduction_attempt_limit: 1,
+  guarded_reproduction_attempts_executed: 0,
+  provider_execution_status: 'BLOCKED',
+  apply_admitted: false
+});
+
 const providerCanonicalProvenance = Object.freeze({
   combined_provenance_sha256: '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684',
   digest_model: 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1',
@@ -185,7 +204,7 @@ const providerCanonicalProvenance = Object.freeze({
   ]),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(['bootstrap/manifests/namespace-plan.v1.json']),
-  governance_manifest_sha256: 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473',
+  governance_manifest_sha256: '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
   effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
   sources: Object.freeze([
@@ -483,6 +502,7 @@ export function validateSemantics(documents) {
   }
 
   const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];
+  requireCondition(canonicalDigest(migrationGate.data_api_decision_binding ?? {}) === canonicalDigest(dataApiDecisionBindingV1), 'Data API manual decision binding drift');
   const sharedAuthImportGate = migrationGate.shared_auth_import_reauth_rehearsal ?? {};
   requireCondition(sharedAuthImportGate.status === 'CURRENT' && sharedAuthImportGate.source_contract_lifecycle === 'SOURCE_READY' && sharedAuthImportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && sharedAuthImportGate.apply_admitted === false, 'shared Auth import migration gate must remain source-ready, execution-blocked, and non-executable');
   requireCondition(sharedAuthImportGate.contract_path === 'contracts/v1/auth/import-rehearsal-contract.json' && sharedAuthImportGate.research_denominator_sha256 === 'e102c0c65897642735daf6555aa1111432bfeb74e484fbe16e483b1366581820', 'shared Auth import migration gate binding drift');

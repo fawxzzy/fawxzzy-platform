@@ -207,7 +207,7 @@ test('held public and Data API contracts reject public vocabulary and object dri
   }
 });
 
-test('Data API gate v1.2.0 rejects the exact 24 current, desired, execution, support, authority, and admission drifts in config and manifest', () => {
+test('Data API gate v1.3.0 rejects the exact 24 current, desired, execution, support, authority, and admission drift classes in config and manifest', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -302,6 +302,20 @@ test('Data API gate v1.2.0 rejects the exact 24 current, desired, execution, sup
     ]],
     ['21 manual decision or separate provider-execution gate weakened', [
       (gate) => { gate.retry_authority.manual_decision.decision_id = 'FP-MAN-UNKNOWN'; },
+      (gate) => { gate.retry_authority.manual_decision.question_event_id = 'onv1_9cce7f3612508739dc826bc5e292de7ec329bbf64d71dfb31ff22619dc80e6f3'; },
+      (gate) => { gate.retry_authority.manual_decision.question_payload_sha256 = gate.retry_authority.manual_decision.answer_payload_sha256; },
+      (gate) => { gate.retry_authority.manual_decision.answer_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.answer_payload_sha256 = '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.answer_text_sha256 = '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.unexpected_envelope_field = true; },
+      (gate) => { gate.retry_authority.manual_decision.decision = 'APPROVE_PROVIDER_EXECUTION'; },
+      (gate) => { gate.retry_authority.manual_decision.policy_only = false; },
+      (gate) => { gate.retry_authority.manual_decision.provider_execution_authority_granted = true; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions = []; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].decision_id = 'FP-MAN-047'; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].data_api_authority_granted = true; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].reuse_for_data_api_forbidden = false; },
       (gate) => { gate.retry_authority.provider_execution.separate_packet_required = false; },
       (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; },
       (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; }
@@ -345,7 +359,7 @@ test('Data API gate v1.2.0 rejects the exact 24 current, desired, execution, sup
   }
 });
 
-test('Data API gate v1.2.0 rejects the exact 14 Support-response, authority, redaction, admission, and package drift classes', () => {
+test('Data API gate v1.3.0 rejects the exact 15 Support-response, authority, collision, redaction, admission, and package drift classes', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -391,24 +405,40 @@ test('Data API gate v1.2.0 rejects the exact 14 Support-response, authority, red
     ]],
     ['10 authority silently consumed or broadened', [
       (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.manual_decision.question_event_id = 'onv1_9cce7f3612508739dc826bc5e292de7ec329bbf64d71dfb31ff22619dc80e6f3'; },
+      (gate) => { gate.retry_authority.manual_decision.question_payload_sha256 = '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.answer_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.answer_payload_sha256 = '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.answer_text_sha256 = '0'.repeat(64); },
+      (gate) => { gate.retry_authority.manual_decision.unexpected_envelope_field = true; },
+      (gate) => { gate.retry_authority.manual_decision.policy_only = false; },
+      (gate) => { gate.retry_authority.manual_decision.provider_execution_authority_granted = true; },
       (gate) => { gate.retry_authority.prior_authority_consumed = false; },
       (gate) => { gate.retry_authority.status = 'CURRENT'; }
     ]],
-    ['11 Support response treated as provider execution authority', [
+    ['11 rejected decision collision removed or granted Data API authority', [
+      (gate) => { gate.retry_authority.rejected_decision_collisions = []; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].decision_id = 'FP-MAN-047'; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].classification = 'CURRENT'; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].data_api_authority_granted = true; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.rejected_decision_collisions[0].reuse_for_data_api_forbidden = false; }
+    ]],
+    ['12 Support response treated as provider execution authority', [
       (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; },
       (gate) => { gate.retry_authority.provider_execution.source_contract_grants_execution_authority = true; },
       (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; }
     ]],
-    ['12 bootstrap or target apply promotion', [
+    ['13 bootstrap or target apply promotion', [
       (gate) => { gate.bootstrap_admission.bootstrap_apply_admitted = true; },
       (gate) => { gate.bootstrap_admission.target_apply_admitted = true; }
     ]],
-    ['13 config and manifest gate divergence', [
-      (gate) => { gate.version = '1.2.1'; }
+    ['14 config and manifest gate divergence', [
+      (gate) => { gate.version = '1.3.1'; }
     ]]
   ];
 
-  assert.equal(gateCases.length, 13);
+  assert.equal(gateCases.length, 14);
   for (const [name, variants] of gateCases) {
     for (const [variantIndex, mutate] of variants.entries()) {
       const configDrift = structuredClone(config);
@@ -435,15 +465,15 @@ test('Data API gate v1.2.0 rejects the exact 14 Support-response, authority, red
   assert.deepEqual(verifyFitnessPr108ReplayGate({ config: generatorConfig, gate: replayGate, sourceManifest }), []);
   const packageDrift = structuredClone(sourceManifest);
   packageDrift.migrations.pop();
-  assert.notEqual(verifyFitnessPr108ReplayGate({ config: generatorConfig, gate: replayGate, sourceManifest: packageDrift }).length, 0, '14 accepted package drift');
+  assert.notEqual(verifyFitnessPr108ReplayGate({ config: generatorConfig, gate: replayGate, sourceManifest: packageDrift }).length, 0, '15 accepted package drift');
 
   const generatedSqlPaths = fs.readdirSync(new URL('../bootstrap/artifacts/inert-sql/', import.meta.url))
     .filter((name) => name.endsWith('.sql'))
     .sort()
     .map((name) => `bootstrap/artifacts/inert-sql/${name}`);
   assert.deepEqual(verifyGeneratedArtifactPathBoundary(generatedSqlPaths), []);
-  assert.notEqual(verifyGeneratedArtifactPathBoundary([...generatedSqlPaths, 'bootstrap/artifacts/inert-sql/unexpected.sql']).length, 0, '14 generated SQL drift');
-  assert.equal(gateCases.length + 1, 14);
+  assert.notEqual(verifyGeneratedArtifactPathBoundary([...generatedSqlPaths, 'bootstrap/artifacts/inert-sql/unexpected.sql']).length, 0, '15 generated SQL drift');
+  assert.equal(gateCases.length + 1, 15);
 });
 
 test('portable bootstrap identity inspection rejects quoted and nested keys, project-ref-shaped values, and malformed inputs without throwing', () => {
