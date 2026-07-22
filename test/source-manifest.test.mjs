@@ -38,7 +38,7 @@ test('immutable source manifest and accepted denominators verify', () => {
   const report = verifyTargetBootstrap({ checkDeterminism: false });
   assert.equal(report.ok, true, report.failures.join('\n'));
   assert.equal(report.migration_package_digest, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(report.governance_manifest_digest, 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473');
+  assert.equal(report.governance_manifest_digest, '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d');
   assert.deepEqual(report.counts, {
     migrations: 122, tables: 41, functions: 30, policies: 74, triggers: 10,
     index_identities: 134, constraint_units: 281, extension_dependencies: 3,
@@ -75,6 +75,49 @@ test('migration package and governance manifest identities are separate and fail
     });
     assert.deepEqual(failures, [...failures].sort((left, right) => left.localeCompare(right)), `${label} ordering`);
     assert.ok(failures.some((failure) => failure.includes(label)), label);
+  }
+});
+
+test('governance manifest binds the corrected Data API decision and rejected collision', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  const report = verifyTargetBootstrap({ checkDeterminism: false });
+  const binding = gate.data_api_decision_binding;
+  assert.equal(binding.data_api_gate_version, '1.3.0');
+  assert.equal(binding.decision_id, 'FP-MAN-047');
+  assert.equal(binding.question_event_id, 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df');
+  assert.equal(binding.question_payload_sha256, 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df');
+  assert.equal(binding.answer_event_id, 'onv1_2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570');
+  assert.equal(binding.answer_payload_sha256, '2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570');
+  assert.equal(binding.answer_text_sha256, '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7');
+  assert.equal(binding.rejected_collision_decision_id, 'FP-MAN-037');
+  assert.equal(binding.rejected_collision_data_api_authority_granted, false);
+  assert.equal(binding.guarded_reproduction_attempt_limit, 1);
+  assert.equal(binding.guarded_reproduction_attempts_executed, 0);
+  assert.equal(binding.provider_execution_status, 'BLOCKED');
+  assert.equal(binding.apply_admitted, false);
+
+  for (const mutate of [
+    (value) => { value.decision_id = 'FP-MAN-037'; },
+    (value) => { value.question_event_id = 'onv1_9cce7f3612508739dc826bc5e292de7ec329bbf64d71dfb31ff22619dc80e6f3'; },
+    (value) => { value.question_payload_sha256 = value.answer_payload_sha256; },
+    (value) => { value.answer_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.answer_payload_sha256 = '0'.repeat(64); },
+    (value) => { value.answer_text_sha256 = '0'.repeat(64); },
+    (value) => { value.unexpected_envelope_field = true; },
+    (value) => { value.rejected_collision_data_api_authority_granted = true; },
+    (value) => { value.guarded_reproduction_attempts_executed = 1; },
+    (value) => { value.provider_execution_status = 'CURRENT'; },
+    (value) => { value.apply_admitted = true; }
+  ]) {
+    const drifted = structuredClone(gate);
+    mutate(drifted.data_api_decision_binding);
+    assert.ok(verifyProviderCanonicalProvenance({
+      gate: drifted,
+      sourceManifest: manifest,
+      migrationPackageSha256: report.migration_package_digest,
+      governanceManifestSha256: report.governance_manifest_digest
+    }).some((failure) => failure.includes('Data API manual decision binding drift')));
   }
 });
 
@@ -130,7 +173,7 @@ test('app data transport remains source-ready, execution-blocked, and package-ne
   const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   assert.equal(sourceManifest.migrations.length, 122);
   assert.equal(gate.provider_canonical_provenance.accepted_package.migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d');
   assert.equal(gate.app_data_transport.apply_admitted, false);
 });
 

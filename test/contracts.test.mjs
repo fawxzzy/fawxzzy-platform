@@ -14,7 +14,7 @@ import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyF
 
 const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const acceptedMigrationPackageSha256 = 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db';
-const acceptedGovernanceManifestSha256 = 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473';
+const acceptedGovernanceManifestSha256 = '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d';
 const legacyCombinedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
 
 function readRepositoryJson(relativePath) {
@@ -644,6 +644,51 @@ test('provider-canonical package schema separates migration and governance ident
     mutate(documents['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package);
     assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('migration-gate-state.json')));
     assert.notEqual(validateSemantics(documents).length, 0);
+  }
+});
+
+test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-037 collision', () => {
+  const baseline = loadDocuments();
+  const binding = baseline['contracts/v1/gates/migration-gate-state.json'].data_api_decision_binding;
+  assert.deepEqual(binding, {
+    status: 'CURRENT',
+    data_api_gate_version: '1.3.0',
+    decision_id: 'FP-MAN-047',
+    question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+    question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+    answer_event_id: 'onv1_2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+    answer_payload_sha256: '2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+    answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
+    decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
+    policy_only: true,
+    rejected_collision_decision_id: 'FP-MAN-037',
+    rejected_collision_data_api_authority_granted: false,
+    guarded_reproduction_attempt_limit: 1,
+    guarded_reproduction_attempts_executed: 0,
+    provider_execution_status: 'BLOCKED',
+    apply_admitted: false
+  });
+
+  for (const [label, mutate] of [
+    ['colliding decision identity', (value) => { value.decision_id = 'FP-MAN-037'; }],
+    ['identical answer text on superseded question', (value) => { value.question_event_id = 'onv1_9cce7f3612508739dc826bc5e292de7ec329bbf64d71dfb31ff22619dc80e6f3'; }],
+    ['question digest', (value) => { value.question_payload_sha256 = '0'.repeat(64); }],
+    ['question correlation mismatch', (value) => { value.question_payload_sha256 = value.answer_payload_sha256; }],
+    ['canonical answer event', (value) => { value.answer_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['canonical answer payload digest', (value) => { value.answer_payload_sha256 = '0'.repeat(64); }],
+    ['answer-text digest', (value) => { value.answer_text_sha256 = '0'.repeat(64); }],
+    ['unexpected answer envelope field', (value) => { value.answer_payload = { decision: value.decision }; }],
+    ['policy-only boundary', (value) => { value.policy_only = false; }],
+    ['rejected collision authority', (value) => { value.rejected_collision_data_api_authority_granted = true; }],
+    ['attempt limit', (value) => { value.guarded_reproduction_attempt_limit = 2; }],
+    ['attempt ledger', (value) => { value.guarded_reproduction_attempts_executed = 1; }],
+    ['provider execution', (value) => { value.provider_execution_status = 'CURRENT'; }],
+    ['apply promotion', (value) => { value.apply_admitted = true; }]
+  ]) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/gates/migration-gate-state.json'].data_api_decision_binding);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('migration-gate-state.json')), label);
+    assert.ok(validateSemantics(documents).some((failure) => failure.includes('Data API manual decision binding drift')), label);
   }
 });
 

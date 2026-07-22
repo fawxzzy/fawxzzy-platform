@@ -57,7 +57,7 @@ const packageDigestContractV1 = Object.freeze({
   migration_package_paths: Object.freeze(expectedMigrationPackagePaths),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(expectedGovernanceManifestPaths),
-  governance_manifest_sha256: 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473',
+  governance_manifest_sha256: '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83'
 });
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
@@ -128,8 +128,26 @@ export const publicObjectBoundaryV1 = Object.freeze({
     admission: 'exact_manifest_required_before_readiness'
   })
 });
+const dataApiDecisionBindingV1 = Object.freeze({
+  status: 'CURRENT',
+  data_api_gate_version: '1.3.0',
+  decision_id: 'FP-MAN-047',
+  question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+  question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+  answer_event_id: 'onv1_2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+  answer_payload_sha256: '2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+  answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
+  decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
+  policy_only: true,
+  rejected_collision_decision_id: 'FP-MAN-037',
+  rejected_collision_data_api_authority_granted: false,
+  guarded_reproduction_attempt_limit: 1,
+  guarded_reproduction_attempts_executed: 0,
+  provider_execution_status: 'BLOCKED',
+  apply_admitted: false
+});
 export const dataApiGateV1 = Object.freeze({
-  version: '1.2.0',
+  version: '1.3.0',
   status: 'BLOCKED',
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
   observed_current_preimage: Object.freeze({
@@ -208,11 +226,28 @@ export const dataApiGateV1 = Object.freeze({
     prior_authority_consumed: true,
     manual_decision: Object.freeze({
       status: 'CURRENT',
-      decision_id: 'FP-MAN-037',
+      decision_id: 'FP-MAN-047',
+      question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+      question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
+      answer_event_id: 'onv1_2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+      answer_payload_sha256: '2a47e6b7bfb21d11ffe4cf87a7091f8aafb2d75ffebf25b3914dd6c03d8bb570',
+      answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
+      decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
+      policy_only: true,
+      provider_execution_authority_granted: false,
       guarded_reproduction_attempt_limit: 1,
       guarded_reproduction_attempts_executed: 0,
       sanitized_diagnostic_capture_authorized: true
     }),
+    rejected_decision_collisions: Object.freeze([
+      Object.freeze({
+        decision_id: 'FP-MAN-037',
+        classification: 'REJECTED_CROSS_PROJECT_DECISION_ID_COLLISION',
+        data_api_authority_granted: false,
+        guarded_reproduction_attempts_executed: 0,
+        reuse_for_data_api_forbidden: true
+      })
+    ]),
     provider_execution: Object.freeze({
       status: 'BLOCKED',
       separate_packet_required: true,
@@ -554,6 +589,7 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, migrat
     ['mazer', 'geknvnrmktchljnyddwp', 4, 3, '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436']
   ];
   fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.5.0', 'provider-canonical migration gate must remain BLOCKED at version 1.5.0');
+  fail(failures, canonicalJson(gate?.data_api_decision_binding) === canonicalJson(dataApiDecisionBindingV1), 'Data API manual decision binding drift');
   fail(failures, provenance.status === 'CURRENT' && provenance.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   fail(failures, provenance.combined_provenance_sha256 === '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684', 'provider-canonical combined provenance digest drift');
   fail(failures, accepted.migration_count === 122 && accepted.source_counts?.discordos === 17 && accepted.source_counts?.fitness === 101 && accepted.source_counts?.mazer === 4, 'provider-canonical accepted package denominator drift');
@@ -1392,12 +1428,13 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const supportResponse = supportEvidence.response ?? {};
   const retryAuthority = dataApiGate.retry_authority ?? {};
   const manualDecision = retryAuthority.manual_decision ?? {};
+  const rejectedDecisionCollisions = retryAuthority.rejected_decision_collisions ?? [];
   const providerExecution = retryAuthority.provider_execution ?? {};
   const diagnosticRedaction = retryAuthority.diagnostic_redaction ?? {};
   const bootstrapAdmission = dataApiGate.bootstrap_admission ?? {};
   const activationGates = dataApiGate.future_activation_gates ?? {};
   const negativeProbes = activationGates.negative_probes ?? {};
-  fail(failures, dataApiGate.version === '1.2.0', 'Data API evidence gate version drift');
+  fail(failures, dataApiGate.version === '1.3.0', 'Data API evidence gate version drift');
   fail(failures, actionTimeBinding.status === 'REQUIRED', 'action-time target binding must remain REQUIRED');
   fail(failures, actionTimeBinding.identity_binding === 'ACTION_TIME_ONLY', 'target identity must remain action-time only');
   fail(failures, actionTimeBinding.source_artifact_contains_identity === false, 'portable source must not contain a target identity');
@@ -1423,9 +1460,20 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, supportEvidence.provider_defect_classification === 'UNKNOWN' && supportEvidence.root_cause_classification === 'UNKNOWN', 'Support evidence must not promote provider defect or root cause');
   fail(failures, supportEvidence.role_change_classification === 'UNKNOWN' && supportEvidence.alternate_endpoint_classification === 'UNKNOWN' && supportEvidence.paid_action_classification === 'UNKNOWN', 'Support evidence must not invent a role change, alternate endpoint, or paid action');
   fail(failures, retryAuthority.status === 'BLOCKED' && retryAuthority.prior_authority_consumed === true, 'prior retry authority must remain consumed and provider execution blocked');
-  fail(failures, manualDecision.status === 'CURRENT' && manualDecision.decision_id === 'FP-MAN-037', 'guarded reproduction decision identity drift');
+  fail(failures, manualDecision.status === 'CURRENT' && manualDecision.decision_id === dataApiDecisionBindingV1.decision_id, 'guarded reproduction decision identity drift');
+  fail(failures, manualDecision.question_event_id === dataApiDecisionBindingV1.question_event_id && manualDecision.question_payload_sha256 === dataApiDecisionBindingV1.question_payload_sha256, 'guarded reproduction corrected question event or digest drift');
+  fail(failures, manualDecision.answer_event_id === dataApiDecisionBindingV1.answer_event_id && manualDecision.answer_payload_sha256 === dataApiDecisionBindingV1.answer_payload_sha256, 'guarded reproduction canonical answer event or digest drift');
+  fail(failures, manualDecision.answer_text_sha256 === dataApiDecisionBindingV1.answer_text_sha256, 'guarded reproduction answer-text digest drift');
+  fail(failures, manualDecision.decision === dataApiDecisionBindingV1.decision && manualDecision.policy_only === true && manualDecision.provider_execution_authority_granted === false, 'guarded reproduction policy-only boundary drift');
   fail(failures, manualDecision.guarded_reproduction_attempt_limit === 1 && manualDecision.guarded_reproduction_attempts_executed === 0, 'guarded reproduction authority must remain one unexecuted attempt');
   fail(failures, manualDecision.sanitized_diagnostic_capture_authorized === true, 'sanitized diagnostic capture decision drift');
+  fail(failures, canonicalJson(rejectedDecisionCollisions) === canonicalJson([{
+    decision_id: 'FP-MAN-037',
+    classification: 'REJECTED_CROSS_PROJECT_DECISION_ID_COLLISION',
+    data_api_authority_granted: false,
+    guarded_reproduction_attempts_executed: 0,
+    reuse_for_data_api_forbidden: true
+  }]), 'rejected Data API decision collision record drift');
   fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.packet_admitted === false, 'separate provider-execution packet gate drift');
   fail(failures, providerExecution.support_response_grants_execution_authority === false && providerExecution.source_contract_grants_execution_authority === false, 'Support response or source contract must not grant provider execution authority');
   fail(failures, diagnosticRedaction.status === 'REQUIRED' && diagnosticRedaction.artifacts_serialized === false, 'diagnostic artifact redaction gate drift');
