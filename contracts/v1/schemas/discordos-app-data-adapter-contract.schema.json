@@ -26,7 +26,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "contract_id": {
       "const": "discordos-app-data-adapter-contract"
@@ -87,7 +87,7 @@
         "held_function_unit_count",
         "held_statement_count",
         "accepted_package_migration_count",
-        "accepted_package_sha256"
+        "accepted_migration_package_sha256"
       ],
       "properties": {
         "provider_canonical_commit": {
@@ -174,7 +174,7 @@
         "accepted_package_migration_count": {
           "$ref": "#/$defs/nonnegative_integer"
         },
-        "accepted_package_sha256": {
+        "accepted_migration_package_sha256": {
           "$ref": "#/$defs/sha256"
         }
       }

@@ -23,7 +23,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "contract_id": {
       "const": "mazer-app-data-adapter-contract"
@@ -63,7 +63,7 @@
         "accepted_source_commit",
         "current_git_head",
         "current_git_migration_count",
-        "accepted_package_sha256",
+        "accepted_migration_package_sha256",
         "complete_catalog_sha256",
         "effect_mapping_count",
         "effect_mappings_sha256",
@@ -89,8 +89,8 @@
         "current_git_migration_count": {
           "const": 3
         },
-        "accepted_package_sha256": {
-          "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+        "accepted_migration_package_sha256": {
+          "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
         },
         "complete_catalog_sha256": {
           "const": "7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436"

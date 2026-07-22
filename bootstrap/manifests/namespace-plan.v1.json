@@ -869,7 +869,7 @@
     }
   },
   "data_api_gate": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "status": "BLOCKED",
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
     "observed_current_preimage": {
@@ -939,22 +939,62 @@
       "body_sha256": "bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd",
       "confirmation": "Support request sent",
       "confirmed_at": "2026-07-19T17:39:40.793Z",
-      "case_id": "UNKNOWN",
+      "case_id": "SU-425819",
       "case_status": "UNKNOWN",
-      "response": "UNKNOWN",
+      "response": {
+        "status": "CURRENT",
+        "timestamp": "UNKNOWN",
+        "classification": "REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED",
+        "support_observed_data_api_state": "ENABLED",
+        "requested_reproduction_attempts": 1,
+        "requested_diagnostic_classes": [
+          "SANITIZED_ERROR_VISUAL",
+          "SANITIZED_NETWORK_ACTIVITY_VISUAL"
+        ],
+        "serialized_artifacts": false
+      },
       "provider_defect_classification": "UNKNOWN",
+      "root_cause_classification": "UNKNOWN",
+      "role_change_classification": "UNKNOWN",
+      "alternate_endpoint_classification": "UNKNOWN",
+      "paid_action_classification": "UNKNOWN",
       "dashboard_case_inbox_available": false
     },
     "retry_authority": {
       "status": "BLOCKED",
       "prior_authority_consumed": true,
-      "third_save_authorized": false,
-      "decision_ready_prerequisites": [
-        "changed_documented_support_evidence",
-        "fresh_target_preimage",
-        "new_bounded_owner_authority"
-      ],
-      "support_advice_grants_execution_authority": false
+      "manual_decision": {
+        "status": "CURRENT",
+        "decision_id": "FP-MAN-037",
+        "guarded_reproduction_attempt_limit": 1,
+        "guarded_reproduction_attempts_executed": 0,
+        "sanitized_diagnostic_capture_authorized": true
+      },
+      "provider_execution": {
+        "status": "BLOCKED",
+        "separate_packet_required": true,
+        "packet_admitted": false,
+        "support_response_grants_execution_authority": false,
+        "source_contract_grants_execution_authority": false
+      },
+      "diagnostic_redaction": {
+        "status": "REQUIRED",
+        "artifacts_serialized": false,
+        "forbidden_serialized_classes": [
+          "SCREENSHOTS",
+          "NETWORK_BODIES",
+          "HEADERS",
+          "COOKIES",
+          "TOKENS",
+          "KEYS",
+          "REQUEST_PAYLOADS",
+          "RESPONSE_PAYLOADS",
+          "USER_DATA",
+          "PII",
+          "PROJECT_SECRETS",
+          "MACHINE_PATHS"
+        ]
+      }
     },
     "bootstrap_admission": {
       "status": "BLOCKED",

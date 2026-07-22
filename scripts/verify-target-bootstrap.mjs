@@ -43,6 +43,23 @@ const expectedManifestFiles = [
   'source-migrations.v1.json',
   'source-objects.v1.json'
 ];
+const expectedMigrationPackagePaths = [
+  ...expectedManifestFiles
+    .filter((name) => name !== 'namespace-plan.v1.json')
+    .map((name) => `bootstrap/manifests/${name}`),
+  ...expectedGeneratedFiles.map((name) => `${expectedGeneratedArtifactDirectory}/${name}`)
+];
+const expectedGovernanceManifestPaths = [
+  'bootstrap/manifests/namespace-plan.v1.json'
+];
+const packageDigestContractV1 = Object.freeze({
+  model: 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1',
+  migration_package_paths: Object.freeze(expectedMigrationPackagePaths),
+  migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
+  governance_manifest_paths: Object.freeze(expectedGovernanceManifestPaths),
+  governance_manifest_sha256: 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473',
+  legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83'
+});
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
 const exactCreatorDefaultAclRoles = Object.freeze(['postgres', 'supabase_admin']);
 const exactCreatorDefaultAclSchemas = Object.freeze([
@@ -112,7 +129,7 @@ export const publicObjectBoundaryV1 = Object.freeze({
   })
 });
 export const dataApiGateV1 = Object.freeze({
-  version: '1.1.0',
+  version: '1.2.0',
   status: 'BLOCKED',
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
   observed_current_preimage: Object.freeze({
@@ -165,22 +182,62 @@ export const dataApiGateV1 = Object.freeze({
     body_sha256: 'bff2253b6d7f789897fc79b4fe7d51c27ea290917bd8b8590fd8c09e17b247fd',
     confirmation: 'Support request sent',
     confirmed_at: '2026-07-19T17:39:40.793Z',
-    case_id: 'UNKNOWN',
+    case_id: 'SU-425819',
     case_status: 'UNKNOWN',
-    response: 'UNKNOWN',
+    response: Object.freeze({
+      status: 'CURRENT',
+      timestamp: 'UNKNOWN',
+      classification: 'REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED',
+      support_observed_data_api_state: 'ENABLED',
+      requested_reproduction_attempts: 1,
+      requested_diagnostic_classes: Object.freeze([
+        'SANITIZED_ERROR_VISUAL',
+        'SANITIZED_NETWORK_ACTIVITY_VISUAL'
+      ]),
+      serialized_artifacts: false
+    }),
     provider_defect_classification: 'UNKNOWN',
+    root_cause_classification: 'UNKNOWN',
+    role_change_classification: 'UNKNOWN',
+    alternate_endpoint_classification: 'UNKNOWN',
+    paid_action_classification: 'UNKNOWN',
     dashboard_case_inbox_available: false
   }),
   retry_authority: Object.freeze({
     status: 'BLOCKED',
     prior_authority_consumed: true,
-    third_save_authorized: false,
-    decision_ready_prerequisites: Object.freeze([
-      'changed_documented_support_evidence',
-      'fresh_target_preimage',
-      'new_bounded_owner_authority'
-    ]),
-    support_advice_grants_execution_authority: false
+    manual_decision: Object.freeze({
+      status: 'CURRENT',
+      decision_id: 'FP-MAN-037',
+      guarded_reproduction_attempt_limit: 1,
+      guarded_reproduction_attempts_executed: 0,
+      sanitized_diagnostic_capture_authorized: true
+    }),
+    provider_execution: Object.freeze({
+      status: 'BLOCKED',
+      separate_packet_required: true,
+      packet_admitted: false,
+      support_response_grants_execution_authority: false,
+      source_contract_grants_execution_authority: false
+    }),
+    diagnostic_redaction: Object.freeze({
+      status: 'REQUIRED',
+      artifacts_serialized: false,
+      forbidden_serialized_classes: Object.freeze([
+        'SCREENSHOTS',
+        'NETWORK_BODIES',
+        'HEADERS',
+        'COOKIES',
+        'TOKENS',
+        'KEYS',
+        'REQUEST_PAYLOADS',
+        'RESPONSE_PAYLOADS',
+        'USER_DATA',
+        'PII',
+        'PROJECT_SECRETS',
+        'MACHINE_PATHS'
+      ])
+    })
   }),
   bootstrap_admission: Object.freeze({
     status: 'BLOCKED',
@@ -290,7 +347,7 @@ const frozenSourceAcceptance = Object.freeze({
 });
 const fitnessPr108ReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const frozenFitnessPr108ReplayGate = Object.freeze({
-  version: '1.1.0',
+  version: '1.2.0',
   fitness_head: '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01',
   fitness_tree: 'e8314980790dd9c711f63f4b38ad61e59ec6f409',
   accepted_chain_sha256: '236ded2d260b2787838219f6e54fa63cbed80a8581930f165ca6025bca91db3a',
@@ -312,7 +369,7 @@ const frozenFitnessPr108ReplayGate = Object.freeze({
   workflow_byte_count: 1904,
   workflow_sha256: 'f43ba4498c0d9755b1fd23082b5da21d8f937b2ebf7373aec63d78562a35b062',
   runner_label: 'fp-hosted-replay-jit-v1',
-  deterministic_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
+  migration_package_sha256: packageDigestContractV1.migration_package_sha256,
   blocked_dependency_reason: 'Fitness exact-head terminal review, workflow dispatch, JIT runner proof, replay execution, Fitness merge, and target apply remain blocked; merged replay provenance is source-only.'
 });
 
@@ -402,11 +459,7 @@ function readJson(relativePath) {
   return value;
 }
 
-function digestPackageOutputs() {
-  const paths = [
-    ...expectedManifestFiles.map((name) => `bootstrap/manifests/${name}`),
-    ...expectedGeneratedFiles.map((name) => `${expectedGeneratedArtifactDirectory}/${name}`)
-  ];
+function digestOutputPaths(paths) {
   const records = paths.map((relativePath) => ({
     path: relativePath,
     sha256: sha256(fs.readFileSync(path.join(root, ...relativePath.split('/'))))
@@ -414,11 +467,19 @@ function digestPackageOutputs() {
   return { records, digest: sha256(canonicalJson(records)) };
 }
 
+function digestMigrationPackageOutputs() {
+  return digestOutputPaths(expectedMigrationPackagePaths);
+}
+
+function digestGovernanceManifestOutputs() {
+  return digestOutputPaths(expectedGovernanceManifestPaths);
+}
+
 function fail(failures, condition, message) {
   if (!condition) failures.push(message);
 }
 
-export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, deterministicPackageSha256 }) {
+export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, migrationPackageSha256 }) {
   const failures = [];
   const dependency = config.blocked_dependencies?.find((candidate) => candidate.id === 'fitness-pr108-replay-provenance');
   fail(failures, Boolean(dependency), 'Fitness PR 108 blocked dependency missing');
@@ -468,9 +529,9 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, det
   const sourceCounts = Object.fromEntries((config.sources ?? []).map((source) => [source.app, source.migration_count]));
   fail(failures, accepted.apply_admitted === false && accepted.candidate_migration_present === false, 'accepted bootstrap must remain non-executable without the Fitness candidate');
   fail(failures, accepted.migration_count === 122 && accepted.discordos_migration_count === 17 && accepted.fitness_migration_count === 101 && accepted.mazer_migration_count === 4, 'Fitness PR 108 accepted bootstrap denominator drift');
-  fail(failures, accepted.deterministic_package_sha256 === frozenFitnessPr108ReplayGate.deterministic_package_sha256, 'Fitness PR 108 accepted package digest drift');
-  if (deterministicPackageSha256 !== undefined) {
-    fail(failures, deterministicPackageSha256 === frozenFitnessPr108ReplayGate.deterministic_package_sha256, 'actual deterministic package digest drift');
+  fail(failures, accepted.migration_package_sha256 === frozenFitnessPr108ReplayGate.migration_package_sha256, 'Fitness PR 108 accepted migration package digest drift');
+  if (migrationPackageSha256 !== undefined) {
+    fail(failures, migrationPackageSha256 === frozenFitnessPr108ReplayGate.migration_package_sha256, 'actual migration package digest drift');
   }
   fail(failures, sourceCounts.discordos === 17 && sourceCounts.fitness === 101 && sourceCounts.mazer === 4, 'generator source denominator must remain 17/101/4');
   fail(failures, sourceManifest.migrations?.length === 122, 'accepted source manifest must remain 122 migrations');
@@ -483,7 +544,7 @@ export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, det
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
-export function verifyProviderCanonicalProvenance({ gate, sourceManifest, deterministicPackageSha256 }) {
+export function verifyProviderCanonicalProvenance({ gate, sourceManifest, migrationPackageSha256, governanceManifestSha256 }) {
   const failures = [];
   const provenance = gate?.provider_canonical_provenance ?? {};
   const accepted = provenance.accepted_package ?? {};
@@ -492,12 +553,17 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, determ
     ['discordos', 'nwexsktuuenfdegzrbut', 17, 11, 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7'],
     ['mazer', 'geknvnrmktchljnyddwp', 4, 3, '7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436']
   ];
-  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.4.0', 'provider-canonical migration gate must remain BLOCKED at version 1.4.0');
+  fail(failures, gate?.status === 'BLOCKED' && gate?.version === '1.5.0', 'provider-canonical migration gate must remain BLOCKED at version 1.5.0');
   fail(failures, provenance.status === 'CURRENT' && provenance.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   fail(failures, provenance.combined_provenance_sha256 === '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684', 'provider-canonical combined provenance digest drift');
   fail(failures, accepted.migration_count === 122 && accepted.source_counts?.discordos === 17 && accepted.source_counts?.fitness === 101 && accepted.source_counts?.mazer === 4, 'provider-canonical accepted package denominator drift');
   fail(failures, accepted.apply_admitted === false && accepted.historical_path_rewrite_forbidden === true && accepted.current_source_substitution_forbidden === true, 'provider-canonical package protections drift');
-  fail(failures, accepted.deterministic_package_sha256 === deterministicPackageSha256, 'provider-canonical deterministic package digest drift');
+  fail(failures, accepted.digest_model === packageDigestContractV1.model, 'provider-canonical digest model drift');
+  fail(failures, canonicalJson(accepted.migration_package_paths) === canonicalJson(packageDigestContractV1.migration_package_paths), 'provider-canonical migration package path denominator drift');
+  fail(failures, canonicalJson(accepted.governance_manifest_paths) === canonicalJson(packageDigestContractV1.governance_manifest_paths), 'provider-canonical governance manifest path denominator drift');
+  fail(failures, accepted.migration_package_sha256 === packageDigestContractV1.migration_package_sha256 && accepted.migration_package_sha256 === migrationPackageSha256, 'provider-canonical migration package digest drift');
+  fail(failures, accepted.governance_manifest_sha256 === packageDigestContractV1.governance_manifest_sha256 && accepted.governance_manifest_sha256 === governanceManifestSha256, 'provider-canonical governance manifest digest drift');
+  fail(failures, accepted.legacy_combined_package_sha256 === packageDigestContractV1.legacy_combined_package_sha256 && accepted.legacy_combined_package_recomputation_admitted === false, 'provider-canonical legacy combined digest boundary drift');
   fail(failures, Array.isArray(provenance.sources) && provenance.sources.length === 2, 'provider-canonical source evidence denominator drift');
   for (const [app, projectRef, acceptedCount, currentCount, catalogSha256] of expectedSources) {
     const source = provenance.sources?.find((candidate) => candidate?.app === app);
@@ -631,7 +697,7 @@ export function verifyMazerAppDataAdapter({ adapter, gate }) {
   fail(failures, adapterGate.mazer_contract_path === 'contracts/v1/transport/mazer-app-data-adapter-contract.json' && adapterGate.mazer_relation_count === 4 && adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Mazer app data adapter execution gate drift');
   fail(failures, adapter?.provider_canonical?.provider_ledger_migration_count === mazerSource?.provider_ledger_migration_count && adapter?.provider_canonical?.complete_catalog_sha256 === mazerSource?.complete_catalog_sha256, 'Mazer app data provider catalog binding drift');
   fail(failures, adapter?.provider_canonical?.current_git_head === '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4' && adapter?.provider_canonical?.current_git_migration_count === mazerSource?.current_git_migration_count && adapter?.provider_canonical?.current_git_canonicality === 'not_provider_canonical' && adapter?.provider_canonical?.current_git_substitution_forbidden === true, 'Mazer app data Git substitution boundary drift');
-  fail(failures, adapter?.provider_canonical?.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && adapter?.provider_canonical?.effect_mapping_count === 4 && adapter?.provider_canonical?.effect_mappings_sha256 === sha256(canonicalJson(mazerMappings)), 'Mazer app data provider mapping binding drift');
+  fail(failures, adapter?.provider_canonical?.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && adapter?.provider_canonical?.effect_mapping_count === 4 && adapter?.provider_canonical?.effect_mappings_sha256 === sha256(canonicalJson(mazerMappings)), 'Mazer app data provider mapping binding drift');
   fail(failures, mazerMappings.length === 4 && mazerMappings.every((mapping) => mapping.source_commit === adapter?.provider_canonical?.accepted_source_commit), 'Mazer app data provider source commit drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
@@ -726,7 +792,7 @@ export function verifyFitnessAppDataAdapter({ adapter, gate }) {
   fail(failures, canonicalJson(adapter?.dependency_gates) === canonicalJson(expectedDependencyGates), 'Fitness dependency gate promotion or status-vocabulary drift');
   fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.blocked) === canonicalJson([]), 'Fitness app data adapter readiness gate drift');
   fail(failures, adapterGate.fitness_contract_path === 'contracts/v1/transport/fitness-app-data-adapter-contract.json' && adapterGate.fitness_relation_count === 27 && adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'Fitness app data adapter execution gate drift');
-  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_package_sha256 === acceptedPackage.deterministic_package_sha256 && acceptedPackage.source_counts?.fitness === 101 && acceptedPackage.apply_admitted === false, 'Fitness accepted package binding drift');
+  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_migration_package_sha256 === packageDigestContractV1.migration_package_sha256 && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_migration_package_sha256 === acceptedPackage.migration_package_sha256 && acceptedPackage.source_counts?.fitness === 101 && acceptedPackage.apply_admitted === false, 'Fitness accepted migration package binding drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -804,7 +870,7 @@ export function verifyDiscordosAppDataAdapter({ adapter, gate }) {
   fail(failures, canonicalJson(adapter?.dependency_gates) === canonicalJson(expectedDependencyGates), 'DiscordOS dependency gate promotion or status-vocabulary drift');
   fail(failures, canonicalJson(adapterGate.required_order) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.source_ready) === canonicalJson(['mazer', 'fitness', 'discordos']) && canonicalJson(adapterGate.blocked) === canonicalJson([]), 'DiscordOS app data adapter readiness gate drift');
   fail(failures, adapterGate.discordos_contract_path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json' && adapterGate.discordos_relation_count === 10 && adapterGate.all_adapters_ready === true && adapterGate.execution_lifecycle === 'EXECUTION_BLOCKED' && adapterGate.apply_admitted === false, 'DiscordOS app data adapter execution gate drift');
-  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_package_sha256 === acceptedPackage.deterministic_package_sha256 && acceptedPackage.source_counts?.discordos === 17 && acceptedPackage.apply_admitted === false, 'DiscordOS accepted package binding drift');
+  fail(failures, source.accepted_package_migration_count === 122 && source.accepted_migration_package_sha256 === packageDigestContractV1.migration_package_sha256 && source.accepted_package_migration_count === acceptedPackage.migration_count && source.accepted_migration_package_sha256 === acceptedPackage.migration_package_sha256 && acceptedPackage.source_counts?.discordos === 17 && acceptedPackage.apply_admitted === false, 'DiscordOS accepted migration package binding drift');
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
@@ -1322,11 +1388,16 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const actionTimeBinding = observedPreimage.action_time_expected_state_binding ?? {};
   const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
   const attemptedExecution = dataApiGate.attempted_execution ?? {};
+  const supportEvidence = dataApiGate.support_evidence ?? {};
+  const supportResponse = supportEvidence.response ?? {};
   const retryAuthority = dataApiGate.retry_authority ?? {};
+  const manualDecision = retryAuthority.manual_decision ?? {};
+  const providerExecution = retryAuthority.provider_execution ?? {};
+  const diagnosticRedaction = retryAuthority.diagnostic_redaction ?? {};
   const bootstrapAdmission = dataApiGate.bootstrap_admission ?? {};
   const activationGates = dataApiGate.future_activation_gates ?? {};
   const negativeProbes = activationGates.negative_probes ?? {};
-  fail(failures, dataApiGate.version === '1.1.0', 'Data API evidence gate version drift');
+  fail(failures, dataApiGate.version === '1.2.0', 'Data API evidence gate version drift');
   fail(failures, actionTimeBinding.status === 'REQUIRED', 'action-time target binding must remain REQUIRED');
   fail(failures, actionTimeBinding.identity_binding === 'ACTION_TIME_ONLY', 'target identity must remain action-time only');
   fail(failures, actionTimeBinding.source_artifact_contains_identity === false, 'portable source must not contain a target identity');
@@ -1341,7 +1412,37 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, desiredPostimage.data_api_state === 'DISABLED', 'desired Data API containment must remain DISABLED');
   fail(failures, Array.isArray(desiredPostimage.exposed_schemas) && desiredPostimage.exposed_schemas.length === 0, 'desired exposed-schema set must remain empty');
   fail(failures, attemptedExecution.persisted_provider_mutations === 0, 'persisted provider mutation count must remain zero');
-  fail(failures, retryAuthority.third_save_authorized === false, 'third Data API Save must remain unauthorized');
+  fail(failures, supportEvidence.case_id === 'SU-425819', 'Support case identity drift');
+  fail(failures, supportEvidence.case_status === 'UNKNOWN', 'Support case status must remain UNKNOWN');
+  fail(failures, supportResponse.status === 'CURRENT' && supportResponse.timestamp === 'UNKNOWN', 'Support response state or timestamp drift');
+  fail(failures, supportResponse.classification === 'REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED', 'Support response classification drift');
+  fail(failures, supportResponse.support_observed_data_api_state === 'ENABLED', 'Support-observed Data API state must remain ENABLED');
+  fail(failures, supportResponse.requested_reproduction_attempts === 1, 'Support-requested reproduction attempt denominator must remain one');
+  fail(failures, canonicalJson(supportResponse.requested_diagnostic_classes) === canonicalJson(['SANITIZED_ERROR_VISUAL', 'SANITIZED_NETWORK_ACTIVITY_VISUAL']), 'Support-requested sanitized diagnostic denominator drift');
+  fail(failures, supportResponse.serialized_artifacts === false, 'Support response must not serialize diagnostic artifacts');
+  fail(failures, supportEvidence.provider_defect_classification === 'UNKNOWN' && supportEvidence.root_cause_classification === 'UNKNOWN', 'Support evidence must not promote provider defect or root cause');
+  fail(failures, supportEvidence.role_change_classification === 'UNKNOWN' && supportEvidence.alternate_endpoint_classification === 'UNKNOWN' && supportEvidence.paid_action_classification === 'UNKNOWN', 'Support evidence must not invent a role change, alternate endpoint, or paid action');
+  fail(failures, retryAuthority.status === 'BLOCKED' && retryAuthority.prior_authority_consumed === true, 'prior retry authority must remain consumed and provider execution blocked');
+  fail(failures, manualDecision.status === 'CURRENT' && manualDecision.decision_id === 'FP-MAN-037', 'guarded reproduction decision identity drift');
+  fail(failures, manualDecision.guarded_reproduction_attempt_limit === 1 && manualDecision.guarded_reproduction_attempts_executed === 0, 'guarded reproduction authority must remain one unexecuted attempt');
+  fail(failures, manualDecision.sanitized_diagnostic_capture_authorized === true, 'sanitized diagnostic capture decision drift');
+  fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.packet_admitted === false, 'separate provider-execution packet gate drift');
+  fail(failures, providerExecution.support_response_grants_execution_authority === false && providerExecution.source_contract_grants_execution_authority === false, 'Support response or source contract must not grant provider execution authority');
+  fail(failures, diagnosticRedaction.status === 'REQUIRED' && diagnosticRedaction.artifacts_serialized === false, 'diagnostic artifact redaction gate drift');
+  fail(failures, canonicalJson(diagnosticRedaction.forbidden_serialized_classes) === canonicalJson([
+    'SCREENSHOTS',
+    'NETWORK_BODIES',
+    'HEADERS',
+    'COOKIES',
+    'TOKENS',
+    'KEYS',
+    'REQUEST_PAYLOADS',
+    'RESPONSE_PAYLOADS',
+    'USER_DATA',
+    'PII',
+    'PROJECT_SECRETS',
+    'MACHINE_PATHS'
+  ]), 'diagnostic redaction class denominator drift');
   fail(failures, bootstrapAdmission.setting_mutation_admitted === false, 'Data API setting mutation must remain blocked');
   fail(failures, bootstrapAdmission.bootstrap_apply_admitted === false, 'bootstrap apply must remain blocked');
   fail(failures, bootstrapAdmission.target_apply_admitted === false, 'target apply must remain blocked');
@@ -1518,7 +1619,14 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   const dispositions = readJson('bootstrap/manifests/dispositions.v1.json');
   const namespacePlan = readJson('bootstrap/manifests/namespace-plan.v1.json');
   verifySourceManifest(config, sourceManifest, failures);
-  failures.push(...verifyProviderCanonicalProvenance({ gate: migrationGate, sourceManifest, deterministicPackageSha256: digestPackageOutputs().digest }));
+  const migrationPackage = digestMigrationPackageOutputs();
+  const governanceManifest = digestGovernanceManifestOutputs();
+  failures.push(...verifyProviderCanonicalProvenance({
+    gate: migrationGate,
+    sourceManifest,
+    migrationPackageSha256: migrationPackage.digest,
+    governanceManifestSha256: governanceManifest.digest
+  }));
   failures.push(...verifySharedAuthImportRehearsal({ contract: importRehearsal, gate: migrationGate }));
   failures.push(...verifyAppDataTransportContracts({ contract: appDataTransport, receipt: appDataReceipt, journal: appDataJournal, gate: migrationGate }));
   failures.push(...verifyMazerAppDataAdapter({ adapter: mazerAppDataAdapter, gate: migrationGate }));
@@ -1528,7 +1636,7 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
     config,
     gate: fitnessPr108ReplayGate,
     sourceManifest,
-    deterministicPackageSha256: digestPackageOutputs().digest
+    migrationPackageSha256: migrationPackage.digest
   }));
   verifyObjects(objects, config, failures);
   verifyHeldUnits(config, dynamic, dataEffects, dispositions, sourceManifest, failures);
@@ -1536,16 +1644,23 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
   verifyGeneratedSql(config, namespacePlan, dispositions, failures);
   verifyNoForbiddenIdentities(config, failures);
 
-  let deterministicDigest = digestPackageOutputs().digest;
+  let migrationPackageDigest = migrationPackage.digest;
+  let governanceManifestDigest = governanceManifest.digest;
   if (checkDeterminism) {
-    const before = digestPackageOutputs();
+    const migrationBefore = digestMigrationPackageOutputs();
+    const governanceBefore = digestGovernanceManifestOutputs();
     generateTargetBootstrap();
-    const first = digestPackageOutputs();
+    const migrationFirst = digestMigrationPackageOutputs();
+    const governanceFirst = digestGovernanceManifestOutputs();
     generateTargetBootstrap();
-    const second = digestPackageOutputs();
-    fail(failures, canonicalJson(before.records) === canonicalJson(first.records), 'first clean generator run changed committed package bytes');
-    fail(failures, canonicalJson(first.records) === canonicalJson(second.records), 'two generator runs were not byte-identical');
-    deterministicDigest = second.digest;
+    const migrationSecond = digestMigrationPackageOutputs();
+    const governanceSecond = digestGovernanceManifestOutputs();
+    fail(failures, canonicalJson(migrationBefore.records) === canonicalJson(migrationFirst.records), 'first clean generator run changed immutable migration package bytes');
+    fail(failures, canonicalJson(migrationFirst.records) === canonicalJson(migrationSecond.records), 'two generator runs changed immutable migration package bytes');
+    fail(failures, canonicalJson(governanceBefore.records) === canonicalJson(governanceFirst.records), 'first clean generator run changed committed governance manifest bytes');
+    fail(failures, canonicalJson(governanceFirst.records) === canonicalJson(governanceSecond.records), 'two generator runs changed governance manifest bytes');
+    migrationPackageDigest = migrationSecond.digest;
+    governanceManifestDigest = governanceSecond.digest;
   }
 
   return {
@@ -1588,7 +1703,8 @@ export function verifyTargetBootstrap({ checkDeterminism = true } = {}) {
       blocked: namespacePlan.creator_default_acl.units.filter((unit) => unit.execution_disposition === 'NOT_EXECUTABLE').length
     },
     derived_counts: dispositions.derived_counts,
-    deterministic_digest: deterministicDigest,
+    migration_package_digest: migrationPackageDigest,
+    governance_manifest_digest: governanceManifestDigest,
     failures: failures.sort()
   };
 }

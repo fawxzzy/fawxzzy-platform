@@ -37,6 +37,8 @@ function actualRows(manifest) {
 test('immutable source manifest and accepted denominators verify', () => {
   const report = verifyTargetBootstrap({ checkDeterminism: false });
   assert.equal(report.ok, true, report.failures.join('\n'));
+  assert.equal(report.migration_package_digest, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
+  assert.equal(report.governance_manifest_digest, 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473');
   assert.deepEqual(report.counts, {
     migrations: 122, tables: 41, functions: 30, policies: 74, triggers: 10,
     index_identities: 134, constraint_units: 281, extension_dependencies: 3,
@@ -44,19 +46,66 @@ test('immutable source manifest and accepted denominators verify', () => {
   });
 });
 
+test('migration package and governance manifest identities are separate and fail closed', () => {
+  const baseline = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
+  const report = verifyTargetBootstrap({ checkDeterminism: false });
+  const accepted = baseline.provider_canonical_provenance.accepted_package;
+  assert.equal(accepted.digest_model, 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1');
+  assert.ok(!accepted.migration_package_paths.includes('bootstrap/manifests/namespace-plan.v1.json'));
+  assert.deepEqual(accepted.governance_manifest_paths, ['bootstrap/manifests/namespace-plan.v1.json']);
+  assert.equal(accepted.legacy_combined_package_recomputation_admitted, false);
+
+  const cases = [
+    ['digest model', (gate) => { gate.provider_canonical_provenance.accepted_package.digest_model = 'COMBINED'; }],
+    ['migration package path denominator', (gate) => { gate.provider_canonical_provenance.accepted_package.migration_package_paths.push('bootstrap/manifests/namespace-plan.v1.json'); }],
+    ['governance manifest path denominator', (gate) => { gate.provider_canonical_provenance.accepted_package.governance_manifest_paths = ['bootstrap/manifests/source-migrations.v1.json']; }],
+    ['migration package digest', (gate) => { gate.provider_canonical_provenance.accepted_package.migration_package_sha256 = report.governance_manifest_digest; }],
+    ['governance manifest digest', (gate) => { gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256 = report.migration_package_digest; }],
+    ['legacy combined digest boundary', (gate) => { gate.provider_canonical_provenance.accepted_package.legacy_combined_package_recomputation_admitted = true; }]
+  ];
+  for (const [label, mutate] of cases) {
+    const gate = structuredClone(baseline);
+    mutate(gate);
+    const failures = verifyProviderCanonicalProvenance({
+      gate,
+      sourceManifest: manifest,
+      migrationPackageSha256: report.migration_package_digest,
+      governanceManifestSha256: report.governance_manifest_digest
+    });
+    assert.deepEqual(failures, [...failures].sort((left, right) => left.localeCompare(right)), `${label} ordering`);
+    assert.ok(failures.some((failure) => failure.includes(label)), label);
+  }
+});
+
 test('provider-canonical historical provenance binds the accepted DiscordOS and Mazer package', () => {
   const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   const report = verifyTargetBootstrap({ checkDeterminism: false });
-  assert.deepEqual(verifyProviderCanonicalProvenance({ gate, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }), []);
+  assert.deepEqual(verifyProviderCanonicalProvenance({
+    gate,
+    sourceManifest: manifest,
+    migrationPackageSha256: report.migration_package_digest,
+    governanceManifestSha256: report.governance_manifest_digest
+  }), []);
 
   const substituted = structuredClone(gate);
   substituted.provider_canonical_provenance.effect_mappings[0].accepted_path = substituted.provider_canonical_provenance.effect_mappings[1].accepted_path;
-  assert.ok(verifyProviderCanonicalProvenance({ gate: substituted, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }).some((failure) => failure.includes('effect mapping digest drift')));
+  assert.ok(verifyProviderCanonicalProvenance({
+    gate: substituted,
+    sourceManifest: manifest,
+    migrationPackageSha256: report.migration_package_digest,
+    governanceManifestSha256: report.governance_manifest_digest
+  }).some((failure) => failure.includes('effect mapping digest drift')));
 
   const promoted = structuredClone(gate);
   promoted.provider_canonical_provenance.apply_admitted = true;
-  assert.ok(verifyProviderCanonicalProvenance({ gate: promoted, sourceManifest: manifest, deterministicPackageSha256: report.deterministic_digest }).some((failure) => failure.includes('non-executable')));
+  assert.ok(verifyProviderCanonicalProvenance({
+    gate: promoted,
+    sourceManifest: manifest,
+    migrationPackageSha256: report.migration_package_digest,
+    governanceManifestSha256: report.governance_manifest_digest
+  }).some((failure) => failure.includes('non-executable')));
 });
 
 test('shared Auth import rehearsal remains source-ready and execution-blocked', () => {
@@ -80,7 +129,8 @@ test('app data transport remains source-ready, execution-blocked, and package-ne
 
   const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   assert.equal(sourceManifest.migrations.length, 122);
-  assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473');
   assert.equal(gate.app_data_transport.apply_admitted, false);
 });
 
@@ -114,7 +164,7 @@ test('Mazer app data adapter remains package-neutral and execution-blocked', () 
   assert.deepEqual(verifyMazerAppDataAdapter({ adapter, gate }), []);
   assert.equal(sourceManifest.migrations.length, 122);
   assert.equal(sourceManifest.migrations.filter((migration) => migration.app === 'mazer').length, 4);
-  assert.equal(gate.provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
   assert.equal(adapter.apply_admitted, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
   assert.equal(gate.app_data_adapters.all_adapters_ready, true);
@@ -131,7 +181,7 @@ test('Fitness app data adapter binds the accepted 101-unit source and leaves the
   assert.equal(adapter.source_evidence.current_git_migration_count, 101);
   assert.equal(adapter.source_evidence.held_candidate.candidate_migration_count, 102);
   assert.equal(adapter.source_evidence.held_candidate.candidate_bytes_admitted, false);
-  assert.equal(adapter.source_evidence.accepted_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(adapter.source_evidence.accepted_migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
   assert.equal(adapter.apply_admitted, false);
   assert.equal(gate.app_data_adapters.apply_admitted, false);
   assert.equal(gate.app_data_adapters.all_adapters_ready, true);
@@ -147,7 +197,7 @@ test('DiscordOS app data adapter binds the provider-canonical 17-unit source and
   assert.equal(adapter.source_evidence.provider_canonical_migration_count, 17);
   assert.equal(adapter.source_evidence.current_git_migration_count, 11);
   assert.equal(adapter.source_evidence.current_git_substitution_forbidden, true);
-  assert.equal(adapter.source_evidence.accepted_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(adapter.source_evidence.accepted_migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
   assert.equal(adapter.inert_boundary.declared_relation_count, 10);
   assert.equal(adapter.inert_boundary.emitted_relation_count, 9);
   assert.equal(adapter.inert_boundary.held_relation, 'discordos.discord_update_drafts');
