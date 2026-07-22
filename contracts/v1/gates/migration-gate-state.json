@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "status": "BLOCKED",
   "sql_generation": "next_separately_authorized_packet",
   "semantic_cross_product_merges": "forbidden",
@@ -50,13 +50,32 @@
     "apply_admitted": false,
     "combined_provenance_sha256": "25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684",
     "accepted_package": {
+      "digest_model": "SEPARATE_MIGRATION_AND_GOVERNANCE_V1",
       "migration_count": 122,
       "source_counts": {
         "discordos": 17,
         "fitness": 101,
         "mazer": 4
       },
-      "deterministic_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+      "migration_package_paths": [
+        "bootstrap/manifests/collisions.v1.json",
+        "bootstrap/manifests/data-effects.v1.json",
+        "bootstrap/manifests/dispositions.v1.json",
+        "bootstrap/manifests/dynamic-units.v1.json",
+        "bootstrap/manifests/source-migrations.v1.json",
+        "bootstrap/manifests/source-objects.v1.json",
+        "bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql",
+        "bootstrap/artifacts/inert-sql/00000000000002_fitness_schema_inert.sql",
+        "bootstrap/artifacts/inert-sql/00000000000003_discordos_schema_inert.sql",
+        "bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql"
+      ],
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_paths": [
+        "bootstrap/manifests/namespace-plan.v1.json"
+      ],
+      "governance_manifest_sha256": "e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473",
+      "legacy_combined_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+      "legacy_combined_package_recomputation_admitted": false,
       "apply_admitted": false,
       "historical_path_rewrite_forbidden": true,
       "current_source_substitution_forbidden": true

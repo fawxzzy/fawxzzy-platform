@@ -12,6 +12,8 @@ import {
   targetPostgresqlContractV1,
   verifyApplicationCreatorBoundary,
   verifyCreatorDefaultAcls,
+  verifyFitnessPr108ReplayGate,
+  verifyGeneratedArtifactPathBoundary,
   verifyHeldControlPlaneContracts,
   verifyEffectiveFunctionAcls,
   verifyGeneratedFitnessFunctionSearchPaths
@@ -205,7 +207,7 @@ test('held public and Data API contracts reject public vocabulary and object dri
   }
 });
 
-test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, support, authority, and admission drifts in config and manifest', () => {
+test('Data API gate v1.2.0 rejects the exact 24 current, desired, execution, support, authority, and admission drifts in config and manifest', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -280,10 +282,11 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
       (gate) => { gate.attempted_execution.persisted_provider_mutations = 1; },
       (gate) => { gate.attempted_execution.rollback_saves = 1; }
     ]],
-    ['18 Support case identity, state, response, or defect invented', [
-      (gate) => { gate.support_evidence.case_id = 'case-1'; },
-      (gate) => { gate.support_evidence.case_status = 'OPEN'; },
-      (gate) => { gate.support_evidence.response = 'RECEIVED'; },
+    ['18 Support case identity, state, response, or defect changed', [
+      (gate) => { delete gate.support_evidence.case_id; },
+      (gate) => { gate.support_evidence.case_id = 'SU-000000'; },
+      (gate) => { gate.support_evidence.case_status = 'CURRENT'; },
+      (gate) => { gate.support_evidence.response.timestamp = 'CURRENT'; },
       (gate) => { gate.support_evidence.provider_defect_classification = 'CONFIRMED'; }
     ]],
     ['19 accepted Support evidence changed', [
@@ -292,13 +295,16 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
       (gate) => { gate.support_evidence.body_sha256 = '0'.repeat(64); },
       (gate) => { gate.support_evidence.confirmed_at = '2026-07-19T17:39:40.794Z'; }
     ]],
-    ['20 third Save authorized', [
-      (gate) => { gate.retry_authority.third_save_authorized = true; }
+    ['20 guarded reproduction authority consumed or broadened', [
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempt_limit = 2; },
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.prior_authority_consumed = false; }
     ]],
-    ['21 retry promoted without all changed-evidence prerequisites', [
-      ...dataApiGateV1.retry_authority.decision_ready_prerequisites.map((prerequisite) =>
-        (gate) => { gate.retry_authority.decision_ready_prerequisites = gate.retry_authority.decision_ready_prerequisites.filter((value) => value !== prerequisite); }),
-      (gate) => { gate.retry_authority.status = 'CURRENT'; }
+    ['21 manual decision or separate provider-execution gate weakened', [
+      (gate) => { gate.retry_authority.manual_decision.decision_id = 'FP-MAN-UNKNOWN'; },
+      (gate) => { gate.retry_authority.provider_execution.separate_packet_required = false; },
+      (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; },
+      (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; }
     ]],
     ['22 required REST GraphQL or RPC probe removed or falsely complete', [
       ...['REST', 'GRAPHQL', 'RPC'].flatMap((probe) => [
@@ -337,6 +343,107 @@ test('Data API gate v1.1.0 rejects the exact 24 current, desired, execution, sup
       );
     }
   }
+});
+
+test('Data API gate v1.2.0 rejects the exact 14 Support-response, authority, redaction, admission, and package drift classes', () => {
+  const config = {
+    schemas: { application: [...creatorDefaultAclContractV1.schemas] },
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  const manifest = {
+    public_object_boundary: publicObjectBoundaryV1,
+    data_api_gate: dataApiGateV1
+  };
+  const gateCases = [
+    ['01 missing or changed case identity', [
+      (gate) => { delete gate.support_evidence.case_id; },
+      (gate) => { gate.support_evidence.case_id = 'SU-000000'; }
+    ]],
+    ['02 invented case status', [
+      (gate) => { gate.support_evidence.case_status = 'OPEN'; }
+    ]],
+    ['03 invented response timestamp', [
+      (gate) => { gate.support_evidence.response.timestamp = 'CURRENT'; }
+    ]],
+    ['04 provider defect promotion', [
+      (gate) => { gate.support_evidence.provider_defect_classification = 'CONFIRMED'; },
+      (gate) => { gate.support_evidence.root_cause_classification = 'CONFIRMED'; }
+    ]],
+    ['05 role change or undocumented endpoint invention', [
+      (gate) => { gate.support_evidence.role_change_classification = 'CONFIRMED'; },
+      (gate) => { gate.support_evidence.alternate_endpoint_classification = 'CONFIRMED'; }
+    ]],
+    ['06 paid action invention', [
+      (gate) => { gate.support_evidence.paid_action_classification = 'CONFIRMED'; }
+    ]],
+    ['07 raw Support body or diagnostic artifact serialization', [
+      (gate) => { gate.support_evidence.response.serialized_artifacts = true; },
+      (gate) => { gate.support_evidence.response.raw_support_body = 'REDACTED_FIXTURE'; }
+    ]],
+    ['08 secret, token, cookie, header, or network payload serialization', [
+      ...['NETWORK_BODIES', 'HEADERS', 'COOKIES', 'TOKENS', 'KEYS', 'REQUEST_PAYLOADS', 'RESPONSE_PAYLOADS'].map((forbiddenClass) =>
+        (gate) => { gate.retry_authority.diagnostic_redaction.forbidden_serialized_classes = gate.retry_authority.diagnostic_redaction.forbidden_serialized_classes.filter((value) => value !== forbiddenClass); })
+    ]],
+    ['09 reproduction attempt count above one', [
+      (gate) => { gate.support_evidence.response.requested_reproduction_attempts = 2; },
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempt_limit = 2; }
+    ]],
+    ['10 authority silently consumed or broadened', [
+      (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 1; },
+      (gate) => { gate.retry_authority.prior_authority_consumed = false; },
+      (gate) => { gate.retry_authority.status = 'CURRENT'; }
+    ]],
+    ['11 Support response treated as provider execution authority', [
+      (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; },
+      (gate) => { gate.retry_authority.provider_execution.source_contract_grants_execution_authority = true; },
+      (gate) => { gate.retry_authority.provider_execution.packet_admitted = true; }
+    ]],
+    ['12 bootstrap or target apply promotion', [
+      (gate) => { gate.bootstrap_admission.bootstrap_apply_admitted = true; },
+      (gate) => { gate.bootstrap_admission.target_apply_admitted = true; }
+    ]],
+    ['13 config and manifest gate divergence', [
+      (gate) => { gate.version = '1.2.1'; }
+    ]]
+  ];
+
+  assert.equal(gateCases.length, 13);
+  for (const [name, variants] of gateCases) {
+    for (const [variantIndex, mutate] of variants.entries()) {
+      const configDrift = structuredClone(config);
+      mutate(configDrift.data_api_gate);
+      assert.notEqual(
+        verifyHeldControlPlaneContracts(configDrift, manifest).length,
+        0,
+        `${name}, config variant ${variantIndex + 1}`
+      );
+
+      const manifestDrift = structuredClone(manifest);
+      mutate(manifestDrift.data_api_gate);
+      assert.notEqual(
+        verifyHeldControlPlaneContracts(config, manifestDrift).length,
+        0,
+        `${name}, manifest variant ${variantIndex + 1}`
+      );
+    }
+  }
+
+  const generatorConfig = JSON.parse(fs.readFileSync(new URL('../bootstrap/generator/config.v1.json', import.meta.url), 'utf8'));
+  const replayGate = JSON.parse(fs.readFileSync(new URL('../contracts/v1/gates/fitness-pr108-replay-gate.json', import.meta.url), 'utf8'));
+  const sourceManifest = JSON.parse(fs.readFileSync(new URL('../bootstrap/manifests/source-migrations.v1.json', import.meta.url), 'utf8'));
+  assert.deepEqual(verifyFitnessPr108ReplayGate({ config: generatorConfig, gate: replayGate, sourceManifest }), []);
+  const packageDrift = structuredClone(sourceManifest);
+  packageDrift.migrations.pop();
+  assert.notEqual(verifyFitnessPr108ReplayGate({ config: generatorConfig, gate: replayGate, sourceManifest: packageDrift }).length, 0, '14 accepted package drift');
+
+  const generatedSqlPaths = fs.readdirSync(new URL('../bootstrap/artifacts/inert-sql/', import.meta.url))
+    .filter((name) => name.endsWith('.sql'))
+    .sort()
+    .map((name) => `bootstrap/artifacts/inert-sql/${name}`);
+  assert.deepEqual(verifyGeneratedArtifactPathBoundary(generatedSqlPaths), []);
+  assert.notEqual(verifyGeneratedArtifactPathBoundary([...generatedSqlPaths, 'bootstrap/artifacts/inert-sql/unexpected.sql']).length, 0, '14 generated SQL drift');
+  assert.equal(gateCases.length + 1, 14);
 });
 
 test('portable bootstrap identity inspection rejects quoted and nested keys, project-ref-shaped values, and malformed inputs without throwing', () => {

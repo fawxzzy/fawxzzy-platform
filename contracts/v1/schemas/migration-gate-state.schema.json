@@ -18,7 +18,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.4.0"
+      "const": "1.5.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -231,14 +231,23 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "digest_model",
             "migration_count",
             "source_counts",
-            "deterministic_package_sha256",
+            "migration_package_paths",
+            "migration_package_sha256",
+            "governance_manifest_paths",
+            "governance_manifest_sha256",
+            "legacy_combined_package_sha256",
+            "legacy_combined_package_recomputation_admitted",
             "apply_admitted",
             "historical_path_rewrite_forbidden",
             "current_source_substitution_forbidden"
           ],
           "properties": {
+            "digest_model": {
+              "const": "SEPARATE_MIGRATION_AND_GOVERNANCE_V1"
+            },
             "migration_count": {
               "const": 122
             },
@@ -262,9 +271,36 @@
                 }
               }
             },
-            "deterministic_package_sha256": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{64}$"
+            "migration_package_paths": {
+              "const": [
+                "bootstrap/manifests/collisions.v1.json",
+                "bootstrap/manifests/data-effects.v1.json",
+                "bootstrap/manifests/dispositions.v1.json",
+                "bootstrap/manifests/dynamic-units.v1.json",
+                "bootstrap/manifests/source-migrations.v1.json",
+                "bootstrap/manifests/source-objects.v1.json",
+                "bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql",
+                "bootstrap/artifacts/inert-sql/00000000000002_fitness_schema_inert.sql",
+                "bootstrap/artifacts/inert-sql/00000000000003_discordos_schema_inert.sql",
+                "bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql"
+              ]
+            },
+            "migration_package_sha256": {
+              "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
+            },
+            "governance_manifest_paths": {
+              "const": [
+                "bootstrap/manifests/namespace-plan.v1.json"
+              ]
+            },
+            "governance_manifest_sha256": {
+              "const": "e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473"
+            },
+            "legacy_combined_package_sha256": {
+              "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+            },
+            "legacy_combined_package_recomputation_admitted": {
+              "const": false
             },
             "apply_admitted": {
               "const": false

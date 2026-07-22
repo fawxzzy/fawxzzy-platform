@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "contract_id": "mazer-app-data-adapter-contract",
   "status": "CURRENT",
   "lifecycle": {
@@ -15,7 +15,7 @@
     "accepted_source_commit": "3e96125da699aab21eb47c6635558b337ce0cf41",
     "current_git_head": "3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4",
     "current_git_migration_count": 3,
-    "accepted_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+    "accepted_migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
     "complete_catalog_sha256": "7eae1b6d58f2eee065b9ba2030684e7171ae02eb2aaa520d191c9d78cee79436",
     "effect_mapping_count": 4,
     "effect_mappings_sha256": "9a34f6518af88109a53a709b00fe942557b1d9c935f0505cf867ef152b477467",

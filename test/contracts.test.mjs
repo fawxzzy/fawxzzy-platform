@@ -13,7 +13,9 @@ import {
 import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyFitnessAppDataAdapter, verifyFitnessPr108ReplayGate, verifyMazerAppDataAdapter } from '../scripts/verify-target-bootstrap.mjs';
 
 const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
-const acceptedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
+const acceptedMigrationPackageSha256 = 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db';
+const acceptedGovernanceManifestSha256 = 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473';
+const legacyCombinedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
 
 function readRepositoryJson(relativePath) {
   return JSON.parse(fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8'));
@@ -26,7 +28,7 @@ function loadFitnessReplayVerificationFixture() {
     gate: documents[fitnessReplayGatePath],
     config: readRepositoryJson('bootstrap/generator/config.v1.json'),
     sourceManifest: readRepositoryJson('bootstrap/manifests/source-migrations.v1.json'),
-    deterministicPackageSha256: acceptedPackageSha256
+    migrationPackageSha256: acceptedMigrationPackageSha256
   };
 }
 
@@ -291,8 +293,8 @@ test('Fitness PR 108 merged replay gate fails closed on provenance, workflow, li
     ['replay lifecycle', (fixture) => { fixture.gate.lifecycle.replay_execution = 'CURRENT'; }, 'replay_execution'],
     ['config version', (fixture) => { fixture.config.blocked_dependencies.find((entry) => entry.id === 'fitness-pr108-replay-provenance').contract_version = '1.0.0'; }, 'contract version'],
     ['config reason', (fixture) => { fixture.config.blocked_dependencies.find((entry) => entry.id === 'fitness-pr108-replay-provenance').reason = 'stale'; }, 'reason drift'],
-    ['contract package digest', (fixture) => { fixture.gate.accepted_bootstrap.deterministic_package_sha256 = '0'.repeat(64); }, 'accepted package digest'],
-    ['actual package digest', (fixture) => { fixture.deterministicPackageSha256 = '0'.repeat(64); }, 'actual deterministic package digest'],
+    ['contract migration package digest', (fixture) => { fixture.gate.accepted_bootstrap.migration_package_sha256 = '0'.repeat(64); }, 'accepted migration package digest'],
+    ['actual migration package digest', (fixture) => { fixture.migrationPackageSha256 = '0'.repeat(64); }, 'actual migration package digest'],
     ['candidate path leakage', (fixture) => {
       fixture.sourceManifest.migrations.find((migration) => migration.app === 'fitness').path = fixture.gate.fitness_candidate.candidate_migration.path;
     }, 'candidate path leaked']
@@ -619,6 +621,32 @@ test('provider-canonical provenance rejects digest drift, path substitution, and
   assert.ok(validateSemantics(promoted).some((failure) => failure.includes('non-executable')));
 });
 
+test('provider-canonical package schema separates migration and governance identities', () => {
+  const baseline = loadDocuments();
+  const accepted = baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package;
+  assert.equal(accepted.digest_model, 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1');
+  assert.equal(accepted.migration_package_sha256, acceptedMigrationPackageSha256);
+  assert.equal(accepted.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(accepted.legacy_combined_package_sha256, legacyCombinedPackageSha256);
+  assert.equal(accepted.legacy_combined_package_recomputation_admitted, false);
+  assert.ok(!accepted.migration_package_paths.includes('bootstrap/manifests/namespace-plan.v1.json'));
+  assert.deepEqual(accepted.governance_manifest_paths, ['bootstrap/manifests/namespace-plan.v1.json']);
+
+  for (const mutate of [
+    (value) => { value.digest_model = 'COMBINED'; },
+    (value) => { value.migration_package_paths.push('bootstrap/manifests/namespace-plan.v1.json'); },
+    (value) => { value.governance_manifest_paths = ['bootstrap/manifests/source-migrations.v1.json']; },
+    (value) => { value.migration_package_sha256 = acceptedGovernanceManifestSha256; },
+    (value) => { value.governance_manifest_sha256 = acceptedMigrationPackageSha256; },
+    (value) => { value.legacy_combined_package_recomputation_admitted = true; }
+  ]) {
+    const documents = structuredClone(baseline);
+    mutate(documents['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package);
+    assert.ok(validateSchemaInstances(documents, createValidator()).some((failure) => failure.includes('migration-gate-state.json')));
+    assert.notEqual(validateSemantics(documents).length, 0);
+  }
+});
+
 test('global user_number invariants reject reuse or renumbering', () => {
   const documents = structuredClone(loadDocuments());
   const numbering = documents['contracts/v1/identity/identity-map.json'].user_number_contract;
@@ -820,7 +848,8 @@ test('app data migration gate cannot promote execution or package application', 
     assert.ok(validateSemantics(documents).some((failure) => failure.includes('app data migration gate')));
   }
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_count, 122);
-  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.deterministic_package_sha256, '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83');
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_package_sha256, acceptedMigrationPackageSha256);
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.governance_manifest_sha256, acceptedGovernanceManifestSha256);
 });
 
 test('Mazer app data adapter is closed, provider-canonical, and execution-blocked', () => {
@@ -828,7 +857,7 @@ test('Mazer app data adapter is closed, provider-canonical, and execution-blocke
   const adapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyMazerAppDataAdapter({ adapter, gate }), []);
-  assert.equal(adapter.version, '1.1.0');
+  assert.equal(adapter.version, '1.2.0');
   assert.equal(adapter.relations.length, 4);
   assert.deepEqual(adapter.relations.map((relation) => relation.classification), [
     'AUTHORITATIVE_ACTIVATION_SEED',
@@ -906,7 +935,7 @@ test('Mazer app data adapter fails closed across every admitted drift class', ()
     [(adapter) => { adapter.snapshot_and_cas.unexpected_target_overwrite_allowed = true; }, 'CAS overwrite'],
     [(adapter) => { adapter.public_receipt_policy.forbidden_classes = ['raw_rows']; }, 'receipt redaction'],
     [(adapter) => { adapter.apply_admitted = true; }, 'non-executable'],
-    [(adapter) => { adapter.provider_canonical.accepted_package_sha256 = '0'.repeat(64); }, 'effect mapping binding']
+    [(adapter) => { adapter.provider_canonical.accepted_migration_package_sha256 = '0'.repeat(64); }, 'effect mapping binding']
   ];
   for (const [mutate, expected] of cases) {
     const documents = structuredClone(baseline);
@@ -1024,7 +1053,7 @@ test('Fitness app data adapter freezes 27 accepted relations without admitting e
   const adapter = documents['contracts/v1/transport/fitness-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyFitnessAppDataAdapter({ adapter, gate }), []);
-  assert.equal(adapter.version, '1.0.0');
+  assert.equal(adapter.version, '1.1.0');
   assert.equal(adapter.relations.length, 27);
   assert.deepEqual(adapter.classification_counts, {
     authoritative: 11,
@@ -1181,7 +1210,7 @@ test('Fitness adapter fails closed on incomplete parity, FK-cycle, CAS, tombston
     [(adapter) => { adapter.deletion_and_rollback.reappearing_key_requires = ['EXPLICIT_RESURRECTION']; }, 'deletion'],
     [(adapter) => { adapter.public_receipt_policy.forbidden_classes = ['raw_rows']; }, 'receipt redaction'],
     [(adapter) => { adapter.apply_admitted = true; }, 'non-executable'],
-    [(adapter) => { adapter.source_evidence.accepted_package_sha256 = '0'.repeat(64); }, 'package binding']
+    [(adapter) => { adapter.source_evidence.accepted_migration_package_sha256 = '0'.repeat(64); }, 'migration package binding']
   ];
   for (const [mutate, expected] of cases) {
     const documents = structuredClone(baseline);
@@ -1316,7 +1345,7 @@ test('DiscordOS app data adapter freezes ten provider-canonical relations withou
   const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyDiscordosAppDataAdapter({ adapter, gate }), []);
-  assert.equal(adapter.version, '1.0.0');
+  assert.equal(adapter.version, '1.1.0');
   assert.equal(adapter.relations.length, 10);
   assert.deepEqual(adapter.classification_counts, {
     authoritative_state: 5,
@@ -1358,7 +1387,7 @@ test('DiscordOS adapter rejects provenance, relation, identity, quarantine, pari
     [(adapter) => { adapter.deletion_and_rollback.implicit_cascade_authority = true; }, 'tombstone'],
     [(adapter) => { adapter.public_receipt_policy.forbidden_classes = ['raw_rows']; }, 'receipt redaction'],
     [(adapter) => { adapter.apply_admitted = true; }, 'non-executable'],
-    [(adapter) => { adapter.source_evidence.accepted_package_sha256 = '0'.repeat(64); }, 'package']
+    [(adapter) => { adapter.source_evidence.accepted_migration_package_sha256 = '0'.repeat(64); }, 'migration package']
   ];
   for (const [mutate, expected] of cases) {
     const documents = structuredClone(baseline);

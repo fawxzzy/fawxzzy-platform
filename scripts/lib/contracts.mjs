@@ -170,7 +170,23 @@ const productProfileOwnerPredicates = Object.freeze({
 
 const providerCanonicalProvenance = Object.freeze({
   combined_provenance_sha256: '25a79bc6674f022159d08bf592566a141d869542195003932d6c220ef25c8684',
-  deterministic_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
+  digest_model: 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1',
+  migration_package_paths: Object.freeze([
+    'bootstrap/manifests/collisions.v1.json',
+    'bootstrap/manifests/data-effects.v1.json',
+    'bootstrap/manifests/dispositions.v1.json',
+    'bootstrap/manifests/dynamic-units.v1.json',
+    'bootstrap/manifests/source-migrations.v1.json',
+    'bootstrap/manifests/source-objects.v1.json',
+    'bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql',
+    'bootstrap/artifacts/inert-sql/00000000000002_fitness_schema_inert.sql',
+    'bootstrap/artifacts/inert-sql/00000000000003_discordos_schema_inert.sql',
+    'bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql'
+  ]),
+  migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
+  governance_manifest_paths: Object.freeze(['bootstrap/manifests/namespace-plan.v1.json']),
+  governance_manifest_sha256: 'e5eb1fc30042dcfcaf1e7bd3ba5ca1f48fc3910642ca4090a22f8ed090d3e473',
+  legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
   effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
   sources: Object.freeze([
     Object.freeze({ app: 'discordos', project_ref: 'nwexsktuuenfdegzrbut', provider_ledger_migration_count: 17, current_git_migration_count: 11, complete_catalog_sha256: 'd5c5cea4195d6c3f7ec4445bb389534f9b97df3fccfcbf28aab64d90d0372cf7' }),
@@ -443,7 +459,7 @@ export function validateSemantics(documents) {
   const hostedReplayWorkflow = hostedReplayAdapter.default_branch_workflow ?? {};
   const fitnessReplayAcceptedBootstrap = fitnessReplayGate.accepted_bootstrap ?? {};
   const fitnessReplayLifecycle = fitnessReplayGate.lifecycle ?? {};
-  requireCondition(fitnessReplayGate.version === '1.1.0' && fitnessReplayGate.gate_id === 'fitness-pr108-replay-gate', 'Fitness PR 108 replay gate v1.1.0 identity drift');
+  requireCondition(fitnessReplayGate.version === '1.2.0' && fitnessReplayGate.gate_id === 'fitness-pr108-replay-gate', 'Fitness PR 108 replay gate v1.2.0 identity drift');
   requireCondition(fitnessReplayGate.status === 'BLOCKED' && fitnessReplayGate.apply_admitted === false, 'Fitness PR 108 replay gate must remain non-executable and BLOCKED');
   requireCondition(fitnessReplayGate.provenance_only === true, 'Fitness PR 108 and hosted replay evidence must remain provenance-only');
   requireCondition(fitnessReplayCandidate.head_commit === '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01' && fitnessReplayCandidate.head_tree === 'e8314980790dd9c711f63f4b38ad61e59ec6f409', 'Fitness PR 108 candidate head/tree drift');
@@ -458,7 +474,7 @@ export function validateSemantics(documents) {
   requireCondition(hostedReplayWorkflow.dispatch_run_count === 0 && hostedReplayWorkflow.execution === 'BLOCKED' && hostedReplayAdapter.replay_execution === 'BLOCKED', 'hosted replay workflow dispatch and replay execution must remain zero and BLOCKED');
   requireCondition(hostedReplayWorkflow.runner_label === 'fp-hosted-replay-jit-v1' && hostedReplayWorkflow.runner_availability === 'UNKNOWN' && hostedReplayWorkflow.runner_use === 'BLOCKED', 'hosted replay JIT runner must remain exact-label UNKNOWN and held');
   requireCondition(fitnessReplayAcceptedBootstrap.migration_count === 122 && fitnessReplayAcceptedBootstrap.discordos_migration_count === 17 && fitnessReplayAcceptedBootstrap.fitness_migration_count === 101 && fitnessReplayAcceptedBootstrap.mazer_migration_count === 4, 'accepted bootstrap migration denominator drift');
-  requireCondition(fitnessReplayAcceptedBootstrap.deterministic_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83' && fitnessReplayAcceptedBootstrap.apply_admitted === false && fitnessReplayAcceptedBootstrap.candidate_migration_present === false, 'accepted bootstrap package must remain byte-identical and exclude the Fitness candidate');
+  requireCondition(fitnessReplayAcceptedBootstrap.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && fitnessReplayAcceptedBootstrap.apply_admitted === false && fitnessReplayAcceptedBootstrap.candidate_migration_present === false, 'accepted bootstrap migration package must remain byte-identical and exclude the Fitness candidate');
   requireCondition(fitnessReplayLifecycle.candidate_source_review === 'BLOCKED', 'candidate_source_review must remain BLOCKED');
   requireCondition(fitnessReplayLifecycle.adapter_source_review === 'CURRENT' && fitnessReplayLifecycle.adapter_merge === 'CURRENT', 'accepted hosted replay source review and merge must remain CURRENT');
   requireCondition(fitnessReplayLifecycle.workflow_dispatch === 'BLOCKED' && fitnessReplayLifecycle.runner_readiness === 'UNKNOWN', 'workflow dispatch must remain BLOCKED and runner readiness UNKNOWN');
@@ -536,7 +552,7 @@ export function validateSemantics(documents) {
   requireCondition(fitnessSource.accepted_source_commit === 'bab188a51819a6fb2f8aeabe73627d4ed63dcaa4' && fitnessSource.accepted_source_tree === 'b2ed1cdee0f67d751c3f6cd030a1f7d7622aaba1' && fitnessSource.current_git_head === '317568f9dcbc7d6c9dcf2ad30ef1cd80022ce8b3' && fitnessSource.current_git_tree === 'bd4b2809a2a613a4bc67a4cc8166bee56d64a30f' && fitnessSource.current_git_exact_accepted === true, 'Fitness accepted/current source identity drift');
   requireCondition(fitnessSource.accepted_migration_count === 101 && fitnessSource.current_git_migration_count === 101 && fitnessSource.accepted_chain_sha256 === 'f4e62d004d8c0cd243ca2fa1798c13549844cf538e8f8c8fa15866870af92775' && fitnessSource.path_blob_bytes_sha256 === '2f00f193811ab07997956a16b05364828120ea2721e8a2826a0364adf8df10b5', 'Fitness accepted migration denominator drift');
   requireCondition(fitnessSource.relation_count === 27 && fitnessSource.relation_manifest_sha256 === '3896e695cfecad5b0e7e9eeb873386774a9c1c75c367e768245638b71673c183', 'Fitness relation manifest denominator drift');
-  requireCondition(fitnessSource.accepted_package_migration_count === 122 && fitnessSource.accepted_package_sha256 === '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83', 'Fitness accepted package binding drift');
+  requireCondition(fitnessSource.accepted_package_migration_count === 122 && fitnessSource.accepted_migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256, 'Fitness accepted migration package binding drift');
   requireCondition(fitnessCandidate.fitness_pr108_head === '4ff406c92c1d9b9e7ab23a4ebdaa01820b9b5c01' && fitnessCandidate.candidate_migration_count === 102 && fitnessCandidate.candidate_migration_path === 'supabase/migrations/20260718015422_retire_human_member_number_compaction.sql' && fitnessCandidate.candidate_bytes_admitted === false && fitnessCandidate.hosted_replay_pr2_head === 'fce1c595a55a5d25271c799f0ccafecc4389181b' && fitnessCandidate.replay_execution === 'BLOCKED', 'Fitness PR 108 or replay hold drift');
   const fitnessIdentity = fitnessAppDataAdapter.identity_and_activation ?? {};
   const fitnessProfileSeed = fitnessIdentity.profile_seed ?? {};
@@ -652,13 +668,18 @@ export function validateSemantics(documents) {
   };
   requireCondition(canonicalDigest(discordosAppDataAdapter.dependency_gates) === canonicalDigest(expectedDiscordosDependencyGates), 'DiscordOS dependency gate promotion or status-vocabulary drift');
   const provenance = migrationGate.provider_canonical_provenance;
-  requireCondition(migrationGate.version === '1.4.0', 'migration gate version must remain 1.4.0');
-  requireCondition(fitnessSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && fitnessSource.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.apply_admitted === false, 'Fitness accepted package provenance binding drift');
+  requireCondition(migrationGate.version === '1.5.0', 'migration gate version must remain 1.5.0');
+  requireCondition(fitnessSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && fitnessSource.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.apply_admitted === false, 'Fitness accepted migration package provenance binding drift');
   requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   requireCondition(provenance?.combined_provenance_sha256 === providerCanonicalProvenance.combined_provenance_sha256, 'provider-canonical combined provenance digest drift');
   requireCondition(provenance?.accepted_package?.migration_count === 122, 'provider-canonical accepted migration count must remain 122');
   requireCondition(provenance?.accepted_package?.source_counts?.discordos === 17 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.source_counts?.mazer === 4, 'provider-canonical source migration counts drift');
-  requireCondition(provenance?.accepted_package?.deterministic_package_sha256 === providerCanonicalProvenance.deterministic_package_sha256, 'provider-canonical deterministic package digest drift');
+  requireCondition(provenance?.accepted_package?.digest_model === providerCanonicalProvenance.digest_model, 'provider-canonical digest model drift');
+  requireCondition(exactOrderedValues(provenance?.accepted_package?.migration_package_paths, providerCanonicalProvenance.migration_package_paths), 'provider-canonical migration package path denominator drift');
+  requireCondition(provenance?.accepted_package?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256, 'provider-canonical migration package digest drift');
+  requireCondition(exactOrderedValues(provenance?.accepted_package?.governance_manifest_paths, providerCanonicalProvenance.governance_manifest_paths), 'provider-canonical governance manifest path denominator drift');
+  requireCondition(provenance?.accepted_package?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'provider-canonical governance manifest digest drift');
+  requireCondition(provenance?.accepted_package?.legacy_combined_package_sha256 === providerCanonicalProvenance.legacy_combined_package_sha256 && provenance?.accepted_package?.legacy_combined_package_recomputation_admitted === false, 'provider-canonical legacy combined digest boundary drift');
   requireCondition(provenance?.accepted_package?.apply_admitted === false && provenance?.accepted_package?.historical_path_rewrite_forbidden === true && provenance?.accepted_package?.current_source_substitution_forbidden === true, 'provider-canonical package protections must remain fail-closed');
   requireCondition(exactOrderedValues(provenance?.sources?.map((source) => source.app), ['discordos', 'mazer']), 'provider-canonical source denominator order drift');
   for (const expected of providerCanonicalProvenance.sources) {
@@ -673,13 +694,13 @@ export function validateSemantics(documents) {
   const mazerEffectMappings = (provenance?.effect_mappings ?? []).filter((mapping) => mapping.app === 'mazer');
   requireCondition(mazerAppDataAdapter.provider_canonical?.provider_ledger_migration_count === mazerSourceEvidence?.provider_ledger_migration_count && mazerAppDataAdapter.provider_canonical?.complete_catalog_sha256 === mazerSourceEvidence?.complete_catalog_sha256, 'Mazer adapter provider catalog binding drift');
   requireCondition(mazerAppDataAdapter.provider_canonical?.current_git_head === '3bd13233dc33fc721f8ccf105d2cc51f1a8dd8d4' && mazerAppDataAdapter.provider_canonical?.current_git_migration_count === mazerSourceEvidence?.current_git_migration_count && mazerAppDataAdapter.provider_canonical?.current_git_canonicality === 'not_provider_canonical' && mazerAppDataAdapter.provider_canonical?.current_git_substitution_forbidden === true, 'Mazer adapter Git substitution boundary drift');
-  requireCondition(mazerAppDataAdapter.provider_canonical?.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && mazerAppDataAdapter.provider_canonical?.effect_mapping_count === mazerEffectMappings.length && mazerAppDataAdapter.provider_canonical?.effect_mappings_sha256 === canonicalDigest(mazerEffectMappings), 'Mazer adapter provider effect mapping binding drift');
+  requireCondition(mazerAppDataAdapter.provider_canonical?.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && mazerAppDataAdapter.provider_canonical?.effect_mapping_count === mazerEffectMappings.length && mazerAppDataAdapter.provider_canonical?.effect_mappings_sha256 === canonicalDigest(mazerEffectMappings), 'Mazer adapter provider effect mapping binding drift');
   requireCondition(mazerEffectMappings.every((mapping) => mapping.source_commit === mazerAppDataAdapter.provider_canonical?.accepted_source_commit), 'Mazer adapter accepted source commit binding drift');
   const discordosSourceEvidence = provenance?.sources?.find((source) => source.app === 'discordos');
   const discordosEffectMappings = (provenance?.effect_mappings ?? []).filter((mapping) => mapping.app === 'discordos');
   requireCondition(discordosSource.provider_canonical_migration_count === discordosSourceEvidence?.provider_ledger_migration_count && discordosSource.provider_catalog_sha256 === discordosSourceEvidence?.complete_catalog_sha256, 'DiscordOS adapter provider catalog binding drift');
   requireCondition(discordosSource.provider_effect_mapping_count === discordosEffectMappings.length && discordosSource.provider_effect_mappings_sha256 === canonicalDigest(discordosEffectMappings) && discordosEffectMappings.every((mapping) => mapping.source_commit === discordosSource.provider_canonical_commit), 'DiscordOS adapter provider effect mapping binding drift');
-  requireCondition(discordosSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && discordosSource.accepted_package_sha256 === provenance?.accepted_package?.deterministic_package_sha256 && provenance?.accepted_package?.source_counts?.discordos === 17 && provenance?.accepted_package?.apply_admitted === false, 'DiscordOS accepted package provenance binding drift');
+  requireCondition(discordosSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && discordosSource.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && provenance?.accepted_package?.source_counts?.discordos === 17 && provenance?.accepted_package?.apply_admitted === false, 'DiscordOS accepted migration package provenance binding drift');
   requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'provider-ledger canonical historical package' && evidence.status === 'CURRENT') === true, 'provider-ledger canonical historical package evidence must remain CURRENT');
 
   const catalog = documents['contracts/v1/catalog/service-catalog.json'];

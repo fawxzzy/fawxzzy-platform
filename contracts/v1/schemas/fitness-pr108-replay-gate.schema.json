@@ -17,7 +17,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "gate_id": {
       "const": "fitness-pr108-replay-gate"
@@ -297,7 +297,7 @@
         "discordos_migration_count",
         "fitness_migration_count",
         "mazer_migration_count",
-        "deterministic_package_sha256",
+        "migration_package_sha256",
         "candidate_migration_present"
       ],
       "properties": {
@@ -316,8 +316,8 @@
         "mazer_migration_count": {
           "const": 4
         },
-        "deterministic_package_sha256": {
-          "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+        "migration_package_sha256": {
+          "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
         },
         "candidate_migration_present": {
           "const": false

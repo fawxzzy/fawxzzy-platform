@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "gate_id": "fitness-pr108-replay-gate",
   "status": "BLOCKED",
   "apply_admitted": false,
@@ -73,7 +73,7 @@
     "discordos_migration_count": 17,
     "fitness_migration_count": 101,
     "mazer_migration_count": 4,
-    "deterministic_package_sha256": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83",
+    "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
     "candidate_migration_present": false
   },
   "lifecycle": {

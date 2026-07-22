@@ -25,7 +25,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "contract_id": {
       "const": "fitness-app-data-adapter-contract"
@@ -71,7 +71,7 @@
         "relation_count",
         "relation_manifest_sha256",
         "accepted_package_migration_count",
-        "accepted_package_sha256",
+        "accepted_migration_package_sha256",
         "held_candidate"
       ],
       "properties": {
@@ -111,8 +111,8 @@
         "accepted_package_migration_count": {
           "const": 122
         },
-        "accepted_package_sha256": {
-          "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
+        "accepted_migration_package_sha256": {
+          "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
         },
         "held_candidate": {
           "type": "object",
