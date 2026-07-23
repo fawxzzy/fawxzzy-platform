@@ -44,6 +44,23 @@
         "answer_text_sha256",
         "decision",
         "policy_only",
+        "successor_decision_id",
+        "successor_question_event_id",
+        "successor_question_payload_sha256",
+        "successor_answer_event_id",
+        "successor_answer_payload_sha256",
+        "successor_decision",
+        "successor_attempt_id",
+        "successor_attempt_limit",
+        "successor_attempts_executed",
+        "successor_consumed",
+        "successor_phase_1_read_only_preflight_authorized",
+        "successor_provider_execution_authorized",
+        "successor_action_time_confirmation_required",
+        "support_evidence_event_id",
+        "support_evidence_payload_sha256",
+        "management_api_contract_status",
+        "management_api_requests_authorized",
         "rejected_collision_decision_id",
         "rejected_collision_data_api_authority_granted",
         "guarded_reproduction_attempt_limit",
@@ -65,7 +82,7 @@
           "const": "CURRENT"
         },
         "data_api_gate_version": {
-          "const": "1.4.0"
+          "const": "1.5.0"
         },
         "decision_id": {
           "const": "FP-MAN-047"
@@ -90,6 +107,57 @@
         },
         "policy_only": {
           "const": true
+        },
+        "successor_decision_id": {
+          "const": "FP-MAN-048"
+        },
+        "successor_question_event_id": {
+          "const": "onv1_2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49"
+        },
+        "successor_question_payload_sha256": {
+          "const": "2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49"
+        },
+        "successor_answer_event_id": {
+          "const": "onv1_049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8"
+        },
+        "successor_answer_payload_sha256": {
+          "const": "049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8"
+        },
+        "successor_decision": {
+          "const": "APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1"
+        },
+        "successor_attempt_id": {
+          "const": "FP-DATA-API-CONTAINMENT-RETRY-20260722-001"
+        },
+        "successor_attempt_limit": {
+          "const": 1
+        },
+        "successor_attempts_executed": {
+          "const": 0
+        },
+        "successor_consumed": {
+          "const": false
+        },
+        "successor_phase_1_read_only_preflight_authorized": {
+          "const": true
+        },
+        "successor_provider_execution_authorized": {
+          "const": false
+        },
+        "successor_action_time_confirmation_required": {
+          "const": true
+        },
+        "support_evidence_event_id": {
+          "const": "onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa"
+        },
+        "support_evidence_payload_sha256": {
+          "const": "55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa"
+        },
+        "management_api_contract_status": {
+          "const": "BLOCKED"
+        },
+        "management_api_requests_authorized": {
+          "const": false
         },
         "rejected_collision_decision_id": {
           "const": "FP-MAN-037"
@@ -403,7 +471,7 @@
               ]
             },
             "governance_manifest_sha256": {
-              "const": "9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a"
+              "const": "221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9"
             },
             "legacy_combined_package_sha256": {
               "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"
