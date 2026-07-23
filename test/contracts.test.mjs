@@ -14,7 +14,7 @@ import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyF
 
 const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const acceptedMigrationPackageSha256 = 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db';
-const acceptedGovernanceManifestSha256 = '6a957a64ac510b05bab4f7b82e8ab032eea7c8120f23f08f574308515074669d';
+const acceptedGovernanceManifestSha256 = '9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a';
 const legacyCombinedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
 
 function readRepositoryJson(relativePath) {
@@ -652,7 +652,7 @@ test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-0
   const binding = baseline['contracts/v1/gates/migration-gate-state.json'].data_api_decision_binding;
   assert.deepEqual(binding, {
     status: 'CURRENT',
-    data_api_gate_version: '1.3.0',
+    data_api_gate_version: '1.4.0',
     decision_id: 'FP-MAN-047',
     question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
     question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -664,7 +664,16 @@ test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-0
     rejected_collision_decision_id: 'FP-MAN-037',
     rejected_collision_data_api_authority_granted: false,
     guarded_reproduction_attempt_limit: 1,
-    guarded_reproduction_attempts_executed: 0,
+    guarded_reproduction_attempts_executed: 1,
+    attempt_consumption_event_id: 'onv1_6258aed05023737d6403a35dcf0867e873ab64513578d25713c9584c830e3836',
+    terminal_receipt_event_id: 'onv1_6515ddefc604a92dcf4849395a0dfd19a191b1139891a233318636f5a81e683b',
+    terminal_outcome_classification: 'PREINTERACTION_LEDGER_VALIDATION_FAILURE',
+    terminal_result: 'NO_SAVE_CONFIRMED',
+    retry_permitted: false,
+    dashboard_save_attempts: 0,
+    post_attempt_readbacks: 0,
+    rollback_save_attempts: 0,
+    persisted_provider_mutations: 0,
     provider_execution_status: 'BLOCKED',
     apply_admitted: false
   });
@@ -681,7 +690,16 @@ test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-0
     ['policy-only boundary', (value) => { value.policy_only = false; }],
     ['rejected collision authority', (value) => { value.rejected_collision_data_api_authority_granted = true; }],
     ['attempt limit', (value) => { value.guarded_reproduction_attempt_limit = 2; }],
-    ['attempt ledger', (value) => { value.guarded_reproduction_attempts_executed = 1; }],
+    ['attempt ledger', (value) => { value.guarded_reproduction_attempts_executed = 0; }],
+    ['consumption receipt', (value) => { value.attempt_consumption_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['terminal receipt', (value) => { value.terminal_receipt_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['terminal classification', (value) => { value.terminal_outcome_classification = 'SAVE_ATTEMPTED'; }],
+    ['terminal result', (value) => { value.terminal_result = 'PERSISTED'; }],
+    ['retry authority', (value) => { value.retry_permitted = true; }],
+    ['Dashboard Save accounting', (value) => { value.dashboard_save_attempts = 1; }],
+    ['readback accounting', (value) => { value.post_attempt_readbacks = 1; }],
+    ['rollback Save accounting', (value) => { value.rollback_save_attempts = 1; }],
+    ['provider mutation accounting', (value) => { value.persisted_provider_mutations = 1; }],
     ['provider execution', (value) => { value.provider_execution_status = 'CURRENT'; }],
     ['apply promotion', (value) => { value.apply_admitted = true; }]
   ]) {
