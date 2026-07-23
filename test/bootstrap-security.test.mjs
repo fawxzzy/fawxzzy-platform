@@ -285,7 +285,14 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
     ['18 Support case identity, state, response, or defect changed', [
       (gate) => { delete gate.support_evidence.case_id; },
       (gate) => { gate.support_evidence.case_id = 'SU-000000'; },
-      (gate) => { gate.support_evidence.case_status = 'CLOSED'; },
+      (gate) => { gate.support_evidence.case_status = 'OPEN_AWAITING_CUSTOMER_ACTION_INFERRED_FROM_LATEST_SUPPORT_REQUEST'; },
+      (gate) => { gate.support_evidence.case_status = 'OUTSIDE_CLOSED_VOCABULARY'; },
+      (gate) => { gate.support_evidence.case_status = 'CURRENT'; },
+      (gate) => { delete gate.support_evidence.case_status_evidence; },
+      (gate) => { gate.support_evidence.case_status_evidence.basis = 'RAW_SUPPORT_BODY'; },
+      (gate) => { gate.support_evidence.case_status_evidence.inference = 'CASE_STATE_CONFIRMED'; },
+      (gate) => { gate.support_evidence.case_status_evidence.authoritative_case_status = true; },
+      (gate) => { gate.support_evidence.case_status_evidence.extra = 'UNCONSTRAINED'; },
       (gate) => { gate.support_evidence.response.timestamp = 'CURRENT'; },
       (gate) => { gate.support_evidence.provider_defect_classification = 'CONFIRMED'; }
     ]],
@@ -414,7 +421,14 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
       (gate) => { gate.support_evidence.case_id = 'SU-000000'; }
     ]],
     ['02 invented case status', [
-      (gate) => { gate.support_evidence.case_status = 'CLOSED'; }
+      (gate) => { gate.support_evidence.case_status = 'OPEN_AWAITING_CUSTOMER_ACTION_INFERRED_FROM_LATEST_SUPPORT_REQUEST'; },
+      (gate) => { gate.support_evidence.case_status = 'OUTSIDE_CLOSED_VOCABULARY'; },
+      (gate) => { gate.support_evidence.case_status = 'CURRENT'; },
+      (gate) => { delete gate.support_evidence.case_status_evidence; },
+      (gate) => { gate.support_evidence.case_status_evidence.basis = 'RAW_SUPPORT_BODY'; },
+      (gate) => { gate.support_evidence.case_status_evidence.inference = 'CASE_STATE_CONFIRMED'; },
+      (gate) => { gate.support_evidence.case_status_evidence.authoritative_case_status = true; },
+      (gate) => { gate.support_evidence.case_status_evidence.extra = 'UNCONSTRAINED'; }
     ]],
     ['03 invented response timestamp', [
       (gate) => { gate.support_evidence.response.timestamp = 'CURRENT'; }

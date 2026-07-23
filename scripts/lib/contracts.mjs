@@ -230,7 +230,7 @@ const providerCanonicalProvenance = Object.freeze({
   ]),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(['bootstrap/manifests/namespace-plan.v1.json']),
-  governance_manifest_sha256: '221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9',
+  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
   effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
   sources: Object.freeze([

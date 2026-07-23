@@ -200,7 +200,12 @@
       "confirmation": "Support request sent",
       "confirmed_at": "2026-07-19T17:39:40.793Z",
       "case_id": "SU-425819",
-      "case_status": "OPEN_AWAITING_CUSTOMER_ACTION_INFERRED_FROM_LATEST_SUPPORT_REQUEST",
+      "case_status": "UNKNOWN",
+      "case_status_evidence": {
+        "basis": "LATEST_SANITIZED_SUPPORT_REQUEST",
+        "inference": "CUSTOMER_ACTION_REQUESTED",
+        "authoritative_case_status": false
+      },
       "evidence_event_id": "onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa",
       "evidence_payload_sha256": "55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa",
       "response": {

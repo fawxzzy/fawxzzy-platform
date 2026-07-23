@@ -57,7 +57,7 @@ const packageDigestContractV1 = Object.freeze({
   migration_package_paths: Object.freeze(expectedMigrationPackagePaths),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(expectedGovernanceManifestPaths),
-  governance_manifest_sha256: '221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9',
+  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83'
 });
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
@@ -227,7 +227,12 @@ export const dataApiGateV1 = Object.freeze({
     confirmation: 'Support request sent',
     confirmed_at: '2026-07-19T17:39:40.793Z',
     case_id: 'SU-425819',
-    case_status: 'OPEN_AWAITING_CUSTOMER_ACTION_INFERRED_FROM_LATEST_SUPPORT_REQUEST',
+    case_status: 'UNKNOWN',
+    case_status_evidence: Object.freeze({
+      basis: 'LATEST_SANITIZED_SUPPORT_REQUEST',
+      inference: 'CUSTOMER_ACTION_REQUESTED',
+      authoritative_case_status: false
+    }),
     evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
     evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
     response: Object.freeze({
@@ -1536,6 +1541,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
   const attemptedExecution = dataApiGate.attempted_execution ?? {};
   const supportEvidence = dataApiGate.support_evidence ?? {};
+  const caseStatusEvidence = supportEvidence.case_status_evidence ?? {};
   const supportResponse = supportEvidence.response ?? {};
   const managementApiWorkaround = dataApiGate.management_api_workaround ?? {};
   const managementApiRead = managementApiWorkaround.read_contract ?? {};
@@ -1569,7 +1575,12 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, Array.isArray(desiredPostimage.exposed_schemas) && desiredPostimage.exposed_schemas.length === 0, 'desired exposed-schema set must remain empty');
   fail(failures, attemptedExecution.persisted_provider_mutations === 0, 'persisted provider mutation count must remain zero');
   fail(failures, supportEvidence.case_id === 'SU-425819', 'Support case identity drift');
-  fail(failures, supportEvidence.case_status === 'OPEN_AWAITING_CUSTOMER_ACTION_INFERRED_FROM_LATEST_SUPPORT_REQUEST', 'Support case state inference drift');
+  fail(failures, supportEvidence.case_status === 'UNKNOWN', 'Support case status must remain UNKNOWN without authoritative lifecycle evidence');
+  fail(failures, canonicalJson(caseStatusEvidence) === canonicalJson({
+    basis: 'LATEST_SANITIZED_SUPPORT_REQUEST',
+    inference: 'CUSTOMER_ACTION_REQUESTED',
+    authoritative_case_status: false
+  }), 'Support case status inference contract drift');
   fail(failures, supportEvidence.evidence_event_id === 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa' && supportEvidence.evidence_payload_sha256 === '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa', 'sanitized Support evidence identity drift');
   fail(failures, supportResponse.status === 'CURRENT' && supportResponse.timestamp === '2026-07-22 08:51 America/New_York', 'Support response state or displayed timestamp drift');
   fail(failures, supportResponse.classification === 'PROVIDER_COULD_NOT_REPRODUCE_AND_PROPOSED_MANAGEMENT_API_WORKAROUND', 'Support response classification drift');

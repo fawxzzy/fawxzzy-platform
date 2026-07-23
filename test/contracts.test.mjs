@@ -14,7 +14,7 @@ import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyF
 
 const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const acceptedMigrationPackageSha256 = 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db';
-const acceptedGovernanceManifestSha256 = '221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9';
+const acceptedGovernanceManifestSha256 = '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec';
 const legacyCombinedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
 
 function readRepositoryJson(relativePath) {

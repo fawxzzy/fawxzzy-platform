@@ -38,7 +38,7 @@ test('immutable source manifest and accepted denominators verify', () => {
   const report = verifyTargetBootstrap({ checkDeterminism: false });
   assert.equal(report.ok, true, report.failures.join('\n'));
   assert.equal(report.migration_package_digest, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(report.governance_manifest_digest, '221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9');
+  assert.equal(report.governance_manifest_digest, '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec');
   assert.deepEqual(report.counts, {
     migrations: 122, tables: 41, functions: 30, policies: 74, triggers: 10,
     index_identities: 134, constraint_units: 281, extension_dependencies: 3,
@@ -213,7 +213,7 @@ test('app data transport remains source-ready, execution-blocked, and package-ne
   const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   assert.equal(sourceManifest.migrations.length, 122);
   assert.equal(gate.provider_canonical_provenance.accepted_package.migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, '221f6844ba1eece2e11acb4f4ba9c694d53344bec50e10f6815e92fa55930eb9');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec');
   assert.equal(gate.app_data_transport.apply_admitted, false);
 });
 
