@@ -129,7 +129,7 @@
     }
   },
   "data_api_gate": {
-    "version": "1.4.0",
+    "version": "1.5.0",
     "status": "BLOCKED",
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
     "observed_current_preimage": {
@@ -201,24 +201,73 @@
       "confirmed_at": "2026-07-19T17:39:40.793Z",
       "case_id": "SU-425819",
       "case_status": "UNKNOWN",
+      "case_status_evidence": {
+        "basis": "LATEST_SANITIZED_SUPPORT_REQUEST",
+        "inference": "CUSTOMER_ACTION_REQUESTED",
+        "authoritative_case_status": false
+      },
+      "evidence_event_id": "onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa",
+      "evidence_payload_sha256": "55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa",
       "response": {
         "status": "CURRENT",
-        "timestamp": "UNKNOWN",
-        "classification": "REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED",
-        "support_observed_data_api_state": "ENABLED",
-        "requested_reproduction_attempts": 1,
-        "requested_diagnostic_classes": [
-          "SANITIZED_ERROR_VISUAL",
-          "SANITIZED_NETWORK_ACTIVITY_VISUAL"
-        ],
+        "timestamp": "2026-07-22 08:51 America/New_York",
+        "classification": "PROVIDER_COULD_NOT_REPRODUCE_AND_PROPOSED_MANAGEMENT_API_WORKAROUND",
+        "requested_operator_action": "MANAGEMENT_API_PATCH_THEN_CONFIGURATION_READBACK_OR_DASHBOARD_REFRESH",
+        "endpoint_template": "/v1/projects/{ref}/postgrest",
+        "request_field": "db_schema",
+        "request_value_classification": "EMPTY_STRING",
+        "fallback_observation": "INCOGNITO_OR_EXTENSION_FREE_BROWSER_IF_PERSISTENCE_FAILS",
         "serialized_artifacts": false
       },
       "provider_defect_classification": "UNKNOWN",
       "root_cause_classification": "UNKNOWN",
       "role_change_classification": "UNKNOWN",
-      "alternate_endpoint_classification": "UNKNOWN",
+      "alternate_endpoint_classification": "DOCUMENTED_MANAGEMENT_API_POSTGREST_CONFIG",
       "paid_action_classification": "UNKNOWN",
       "dashboard_case_inbox_available": false
+    },
+    "management_api_workaround": {
+      "status": "BLOCKED",
+      "documentation_observed_at": "2026-07-23T03:07:23Z",
+      "read_contract": {
+        "status": "CURRENT",
+        "method": "GET",
+        "path_template": "/v1/projects/{ref}/postgrest",
+        "oauth_scope": "rest:read",
+        "permission": "data_api_config_read",
+        "provider_request_authorized": false
+      },
+      "write_contract": {
+        "status": "CURRENT",
+        "method": "PATCH",
+        "path_template": "/v1/projects/{ref}/postgrest",
+        "oauth_scope": "rest:write",
+        "permission": "data_api_config_write",
+        "db_schema_type": "OPTIONAL_STRING",
+        "provider_request_authorized": false
+      },
+      "support_recommended_disable_projection": {
+        "status": "CURRENT",
+        "db_schema_value_classification": "EMPTY_STRING",
+        "support_recommendation_only": true,
+        "public_documentation_guarantees_disable_semantics": false,
+        "action_time_verification": "REQUIRED"
+      },
+      "disabled_state_evidence": {
+        "status": "REQUIRED",
+        "sentinel_schema": "pg_pgrst_no_exposed_schemas",
+        "sentinel_classification": "DOCUMENTED_IMPLEMENTATION_MARKER_NOT_SUCCESS_PROOF",
+        "sentinel_alone_proves_success": false,
+        "exact_configuration_readback": "REQUIRED"
+      },
+      "execution_boundary": {
+        "status": "BLOCKED",
+        "provider_execution_packet_required": true,
+        "attempt_consumption_required_before_write": true,
+        "action_time_confirmation_required": true,
+        "management_api_requests_authorized": false,
+        "dashboard_saves_authorized": false
+      }
     },
     "retry_authority": {
       "status": "BLOCKED",
@@ -239,6 +288,24 @@
         "retry_permitted": false,
         "sanitized_diagnostic_capture_authorized": true
       },
+      "successor_manual_decision": {
+        "status": "CURRENT",
+        "decision_id": "FP-MAN-048",
+        "question_event_id": "onv1_2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49",
+        "question_payload_sha256": "2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49",
+        "answer_event_id": "onv1_049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8",
+        "answer_payload_sha256": "049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8",
+        "decision": "APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1",
+        "policy_only": true,
+        "successor_attempt_id": "FP-DATA-API-CONTAINMENT-RETRY-20260722-001",
+        "attempt_limit": 1,
+        "attempts_executed": 0,
+        "consumed": false,
+        "phase_1_read_only_preflight_authorized": true,
+        "management_api_write_authorized": false,
+        "provider_execution_authority_granted": false,
+        "action_time_confirmation_required": true
+      },
       "rejected_decision_collisions": [
         {
           "decision_id": "FP-MAN-037",
@@ -251,9 +318,12 @@
       "provider_execution": {
         "status": "BLOCKED",
         "separate_packet_required": true,
-        "packet_admitted": true,
-        "packet_terminal": true,
+        "prior_packet_terminal": true,
+        "successor_packet_admitted": false,
+        "successor_attempt_consumed": false,
         "retry_permitted": false,
+        "management_api_request_authorized": false,
+        "dashboard_save_authorized": false,
         "support_response_grants_execution_authority": false,
         "source_contract_grants_execution_authority": false
       },

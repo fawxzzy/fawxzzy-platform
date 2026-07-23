@@ -14,7 +14,7 @@ import { verifyAppDataTransportContracts, verifyDiscordosAppDataAdapter, verifyF
 
 const fitnessReplayGatePath = 'contracts/v1/gates/fitness-pr108-replay-gate.json';
 const acceptedMigrationPackageSha256 = 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db';
-const acceptedGovernanceManifestSha256 = '9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a';
+const acceptedGovernanceManifestSha256 = '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec';
 const legacyCombinedPackageSha256 = '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83';
 
 function readRepositoryJson(relativePath) {
@@ -647,12 +647,12 @@ test('provider-canonical package schema separates migration and governance ident
   }
 });
 
-test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-037 collision', () => {
+test('Data API decision binding preserves terminal FP-MAN-047, accepts unconsumed FP-MAN-048, and rejects the FP-MAN-037 collision', () => {
   const baseline = loadDocuments();
   const binding = baseline['contracts/v1/gates/migration-gate-state.json'].data_api_decision_binding;
   assert.deepEqual(binding, {
     status: 'CURRENT',
-    data_api_gate_version: '1.4.0',
+    data_api_gate_version: '1.5.0',
     decision_id: 'FP-MAN-047',
     question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
     question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -661,6 +661,23 @@ test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-0
     answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
     decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
     policy_only: true,
+    successor_decision_id: 'FP-MAN-048',
+    successor_question_event_id: 'onv1_2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+    successor_question_payload_sha256: '2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+    successor_answer_event_id: 'onv1_049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+    successor_answer_payload_sha256: '049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+    successor_decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
+    successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
+    successor_attempt_limit: 1,
+    successor_attempts_executed: 0,
+    successor_consumed: false,
+    successor_phase_1_read_only_preflight_authorized: true,
+    successor_provider_execution_authorized: false,
+    successor_action_time_confirmation_required: true,
+    support_evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
+    support_evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
+    management_api_contract_status: 'BLOCKED',
+    management_api_requests_authorized: false,
     rejected_collision_decision_id: 'FP-MAN-037',
     rejected_collision_data_api_authority_granted: false,
     guarded_reproduction_attempt_limit: 1,
@@ -688,6 +705,19 @@ test('Data API decision binding accepts only FP-MAN-047 and rejects the FP-MAN-0
     ['answer-text digest', (value) => { value.answer_text_sha256 = '0'.repeat(64); }],
     ['unexpected answer envelope field', (value) => { value.answer_payload = { decision: value.decision }; }],
     ['policy-only boundary', (value) => { value.policy_only = false; }],
+    ['successor decision identity', (value) => { value.successor_decision_id = 'FP-MAN-047'; }],
+    ['successor question identity', (value) => { value.successor_question_event_id = value.question_event_id; }],
+    ['successor question digest', (value) => { value.successor_question_payload_sha256 = value.question_payload_sha256; }],
+    ['successor answer identity', (value) => { value.successor_answer_event_id = value.answer_event_id; }],
+    ['successor answer digest', (value) => { value.successor_answer_payload_sha256 = value.answer_payload_sha256; }],
+    ['successor attempt identity', (value) => { value.successor_attempt_id = 'FP-MAN-047'; }],
+    ['successor attempt limit', (value) => { value.successor_attempt_limit = 2; }],
+    ['successor attempt ledger', (value) => { value.successor_attempts_executed = 1; }],
+    ['successor attempt consumed', (value) => { value.successor_consumed = true; }],
+    ['successor provider execution', (value) => { value.successor_provider_execution_authorized = true; }],
+    ['successor action-time gate', (value) => { value.successor_action_time_confirmation_required = false; }],
+    ['sanitized Support evidence identity', (value) => { value.support_evidence_payload_sha256 = '0'.repeat(64); }],
+    ['Management API request authority', (value) => { value.management_api_requests_authorized = true; }],
     ['rejected collision authority', (value) => { value.rejected_collision_data_api_authority_granted = true; }],
     ['attempt limit', (value) => { value.guarded_reproduction_attempt_limit = 2; }],
     ['attempt ledger', (value) => { value.guarded_reproduction_attempts_executed = 0; }],

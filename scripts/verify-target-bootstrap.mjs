@@ -57,7 +57,7 @@ const packageDigestContractV1 = Object.freeze({
   migration_package_paths: Object.freeze(expectedMigrationPackagePaths),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
   governance_manifest_paths: Object.freeze(expectedGovernanceManifestPaths),
-  governance_manifest_sha256: '9b2b0474aa462ec63e9ba364d29d6508afd04e0069ba759de87d46ce1ba5e11a',
+  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec',
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83'
 });
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
@@ -130,7 +130,7 @@ export const publicObjectBoundaryV1 = Object.freeze({
 });
 const dataApiDecisionBindingV1 = Object.freeze({
   status: 'CURRENT',
-  data_api_gate_version: '1.4.0',
+  data_api_gate_version: '1.5.0',
   decision_id: 'FP-MAN-047',
   question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
   question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -139,6 +139,23 @@ const dataApiDecisionBindingV1 = Object.freeze({
   answer_text_sha256: '3cf34735fbf4b2f83c811377d0a43903875e583a3409d4a4e75ca986d942e7b7',
   decision: 'APPROVE_ONE_GUARDED_REPRODUCTION_AFTER_SOURCE_ID_CORRECTION',
   policy_only: true,
+  successor_decision_id: 'FP-MAN-048',
+  successor_question_event_id: 'onv1_2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+  successor_question_payload_sha256: '2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+  successor_answer_event_id: 'onv1_049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+  successor_answer_payload_sha256: '049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+  successor_decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
+  successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
+  successor_attempt_limit: 1,
+  successor_attempts_executed: 0,
+  successor_consumed: false,
+  successor_phase_1_read_only_preflight_authorized: true,
+  successor_provider_execution_authorized: false,
+  successor_action_time_confirmation_required: true,
+  support_evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
+  support_evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
+  management_api_contract_status: 'BLOCKED',
+  management_api_requests_authorized: false,
   rejected_collision_decision_id: 'FP-MAN-037',
   rejected_collision_data_api_authority_granted: false,
   guarded_reproduction_attempt_limit: 1,
@@ -156,7 +173,7 @@ const dataApiDecisionBindingV1 = Object.freeze({
   apply_admitted: false
 });
 export const dataApiGateV1 = Object.freeze({
-  version: '1.4.0',
+  version: '1.5.0',
   status: 'BLOCKED',
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
   observed_current_preimage: Object.freeze({
@@ -211,24 +228,73 @@ export const dataApiGateV1 = Object.freeze({
     confirmed_at: '2026-07-19T17:39:40.793Z',
     case_id: 'SU-425819',
     case_status: 'UNKNOWN',
+    case_status_evidence: Object.freeze({
+      basis: 'LATEST_SANITIZED_SUPPORT_REQUEST',
+      inference: 'CUSTOMER_ACTION_REQUESTED',
+      authoritative_case_status: false
+    }),
+    evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
+    evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
     response: Object.freeze({
       status: 'CURRENT',
-      timestamp: 'UNKNOWN',
-      classification: 'REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED',
-      support_observed_data_api_state: 'ENABLED',
-      requested_reproduction_attempts: 1,
-      requested_diagnostic_classes: Object.freeze([
-        'SANITIZED_ERROR_VISUAL',
-        'SANITIZED_NETWORK_ACTIVITY_VISUAL'
-      ]),
+      timestamp: '2026-07-22 08:51 America/New_York',
+      classification: 'PROVIDER_COULD_NOT_REPRODUCE_AND_PROPOSED_MANAGEMENT_API_WORKAROUND',
+      requested_operator_action: 'MANAGEMENT_API_PATCH_THEN_CONFIGURATION_READBACK_OR_DASHBOARD_REFRESH',
+      endpoint_template: '/v1/projects/{ref}/postgrest',
+      request_field: 'db_schema',
+      request_value_classification: 'EMPTY_STRING',
+      fallback_observation: 'INCOGNITO_OR_EXTENSION_FREE_BROWSER_IF_PERSISTENCE_FAILS',
       serialized_artifacts: false
     }),
     provider_defect_classification: 'UNKNOWN',
     root_cause_classification: 'UNKNOWN',
     role_change_classification: 'UNKNOWN',
-    alternate_endpoint_classification: 'UNKNOWN',
+    alternate_endpoint_classification: 'DOCUMENTED_MANAGEMENT_API_POSTGREST_CONFIG',
     paid_action_classification: 'UNKNOWN',
     dashboard_case_inbox_available: false
+  }),
+  management_api_workaround: Object.freeze({
+    status: 'BLOCKED',
+    documentation_observed_at: '2026-07-23T03:07:23Z',
+    read_contract: Object.freeze({
+      status: 'CURRENT',
+      method: 'GET',
+      path_template: '/v1/projects/{ref}/postgrest',
+      oauth_scope: 'rest:read',
+      permission: 'data_api_config_read',
+      provider_request_authorized: false
+    }),
+    write_contract: Object.freeze({
+      status: 'CURRENT',
+      method: 'PATCH',
+      path_template: '/v1/projects/{ref}/postgrest',
+      oauth_scope: 'rest:write',
+      permission: 'data_api_config_write',
+      db_schema_type: 'OPTIONAL_STRING',
+      provider_request_authorized: false
+    }),
+    support_recommended_disable_projection: Object.freeze({
+      status: 'CURRENT',
+      db_schema_value_classification: 'EMPTY_STRING',
+      support_recommendation_only: true,
+      public_documentation_guarantees_disable_semantics: false,
+      action_time_verification: 'REQUIRED'
+    }),
+    disabled_state_evidence: Object.freeze({
+      status: 'REQUIRED',
+      sentinel_schema: 'pg_pgrst_no_exposed_schemas',
+      sentinel_classification: 'DOCUMENTED_IMPLEMENTATION_MARKER_NOT_SUCCESS_PROOF',
+      sentinel_alone_proves_success: false,
+      exact_configuration_readback: 'REQUIRED'
+    }),
+    execution_boundary: Object.freeze({
+      status: 'BLOCKED',
+      provider_execution_packet_required: true,
+      attempt_consumption_required_before_write: true,
+      action_time_confirmation_required: true,
+      management_api_requests_authorized: false,
+      dashboard_saves_authorized: false
+    })
   }),
   retry_authority: Object.freeze({
     status: 'BLOCKED',
@@ -249,6 +315,24 @@ export const dataApiGateV1 = Object.freeze({
       retry_permitted: false,
       sanitized_diagnostic_capture_authorized: true
     }),
+    successor_manual_decision: Object.freeze({
+      status: 'CURRENT',
+      decision_id: 'FP-MAN-048',
+      question_event_id: 'onv1_2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+      question_payload_sha256: '2580303e3f1ebdd0a580df1821b57dc0263c46bfabdd4b1dcf328d9c0c53ca49',
+      answer_event_id: 'onv1_049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+      answer_payload_sha256: '049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8',
+      decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
+      policy_only: true,
+      successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
+      attempt_limit: 1,
+      attempts_executed: 0,
+      consumed: false,
+      phase_1_read_only_preflight_authorized: true,
+      management_api_write_authorized: false,
+      provider_execution_authority_granted: false,
+      action_time_confirmation_required: true
+    }),
     rejected_decision_collisions: Object.freeze([
       Object.freeze({
         decision_id: 'FP-MAN-037',
@@ -261,9 +345,12 @@ export const dataApiGateV1 = Object.freeze({
     provider_execution: Object.freeze({
       status: 'BLOCKED',
       separate_packet_required: true,
-      packet_admitted: true,
-      packet_terminal: true,
+      prior_packet_terminal: true,
+      successor_packet_admitted: false,
+      successor_attempt_consumed: false,
       retry_permitted: false,
+      management_api_request_authorized: false,
+      dashboard_save_authorized: false,
       support_response_grants_execution_authority: false,
       source_contract_grants_execution_authority: false
     }),
@@ -1454,9 +1541,17 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
   const attemptedExecution = dataApiGate.attempted_execution ?? {};
   const supportEvidence = dataApiGate.support_evidence ?? {};
+  const caseStatusEvidence = supportEvidence.case_status_evidence ?? {};
   const supportResponse = supportEvidence.response ?? {};
+  const managementApiWorkaround = dataApiGate.management_api_workaround ?? {};
+  const managementApiRead = managementApiWorkaround.read_contract ?? {};
+  const managementApiWrite = managementApiWorkaround.write_contract ?? {};
+  const supportDisableProjection = managementApiWorkaround.support_recommended_disable_projection ?? {};
+  const disabledStateEvidence = managementApiWorkaround.disabled_state_evidence ?? {};
+  const managementApiExecution = managementApiWorkaround.execution_boundary ?? {};
   const retryAuthority = dataApiGate.retry_authority ?? {};
   const manualDecision = retryAuthority.manual_decision ?? {};
+  const successorDecision = retryAuthority.successor_manual_decision ?? {};
   const rejectedDecisionCollisions = retryAuthority.rejected_decision_collisions ?? [];
   const providerExecution = retryAuthority.provider_execution ?? {};
   const terminalAttemptOutcome = retryAuthority.guarded_reproduction_terminal_outcome ?? {};
@@ -1464,7 +1559,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const bootstrapAdmission = dataApiGate.bootstrap_admission ?? {};
   const activationGates = dataApiGate.future_activation_gates ?? {};
   const negativeProbes = activationGates.negative_probes ?? {};
-  fail(failures, dataApiGate.version === '1.4.0', 'Data API evidence gate version drift');
+  fail(failures, dataApiGate.version === '1.5.0', 'Data API evidence gate version drift');
   fail(failures, actionTimeBinding.status === 'REQUIRED', 'action-time target binding must remain REQUIRED');
   fail(failures, actionTimeBinding.identity_binding === 'ACTION_TIME_ONLY', 'target identity must remain action-time only');
   fail(failures, actionTimeBinding.source_artifact_contains_identity === false, 'portable source must not contain a target identity');
@@ -1480,15 +1575,27 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, Array.isArray(desiredPostimage.exposed_schemas) && desiredPostimage.exposed_schemas.length === 0, 'desired exposed-schema set must remain empty');
   fail(failures, attemptedExecution.persisted_provider_mutations === 0, 'persisted provider mutation count must remain zero');
   fail(failures, supportEvidence.case_id === 'SU-425819', 'Support case identity drift');
-  fail(failures, supportEvidence.case_status === 'UNKNOWN', 'Support case status must remain UNKNOWN');
-  fail(failures, supportResponse.status === 'CURRENT' && supportResponse.timestamp === 'UNKNOWN', 'Support response state or timestamp drift');
-  fail(failures, supportResponse.classification === 'REPRODUCTION_AND_SANITIZED_DIAGNOSTICS_REQUESTED', 'Support response classification drift');
-  fail(failures, supportResponse.support_observed_data_api_state === 'ENABLED', 'Support-observed Data API state must remain ENABLED');
-  fail(failures, supportResponse.requested_reproduction_attempts === 1, 'Support-requested reproduction attempt denominator must remain one');
-  fail(failures, canonicalJson(supportResponse.requested_diagnostic_classes) === canonicalJson(['SANITIZED_ERROR_VISUAL', 'SANITIZED_NETWORK_ACTIVITY_VISUAL']), 'Support-requested sanitized diagnostic denominator drift');
+  fail(failures, supportEvidence.case_status === 'UNKNOWN', 'Support case status must remain UNKNOWN without authoritative lifecycle evidence');
+  fail(failures, canonicalJson(caseStatusEvidence) === canonicalJson({
+    basis: 'LATEST_SANITIZED_SUPPORT_REQUEST',
+    inference: 'CUSTOMER_ACTION_REQUESTED',
+    authoritative_case_status: false
+  }), 'Support case status inference contract drift');
+  fail(failures, supportEvidence.evidence_event_id === 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa' && supportEvidence.evidence_payload_sha256 === '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa', 'sanitized Support evidence identity drift');
+  fail(failures, supportResponse.status === 'CURRENT' && supportResponse.timestamp === '2026-07-22 08:51 America/New_York', 'Support response state or displayed timestamp drift');
+  fail(failures, supportResponse.classification === 'PROVIDER_COULD_NOT_REPRODUCE_AND_PROPOSED_MANAGEMENT_API_WORKAROUND', 'Support response classification drift');
+  fail(failures, supportResponse.requested_operator_action === 'MANAGEMENT_API_PATCH_THEN_CONFIGURATION_READBACK_OR_DASHBOARD_REFRESH', 'Support-requested operator action drift');
+  fail(failures, supportResponse.endpoint_template === '/v1/projects/{ref}/postgrest' && supportResponse.request_field === 'db_schema' && supportResponse.request_value_classification === 'EMPTY_STRING', 'Support-recommended Management API projection drift');
+  fail(failures, supportResponse.fallback_observation === 'INCOGNITO_OR_EXTENSION_FREE_BROWSER_IF_PERSISTENCE_FAILS', 'Support fallback observation drift');
   fail(failures, supportResponse.serialized_artifacts === false, 'Support response must not serialize diagnostic artifacts');
   fail(failures, supportEvidence.provider_defect_classification === 'UNKNOWN' && supportEvidence.root_cause_classification === 'UNKNOWN', 'Support evidence must not promote provider defect or root cause');
-  fail(failures, supportEvidence.role_change_classification === 'UNKNOWN' && supportEvidence.alternate_endpoint_classification === 'UNKNOWN' && supportEvidence.paid_action_classification === 'UNKNOWN', 'Support evidence must not invent a role change, alternate endpoint, or paid action');
+  fail(failures, supportEvidence.role_change_classification === 'UNKNOWN' && supportEvidence.alternate_endpoint_classification === 'DOCUMENTED_MANAGEMENT_API_POSTGREST_CONFIG' && supportEvidence.paid_action_classification === 'UNKNOWN', 'Support evidence must preserve role, endpoint, and paid-action classifications');
+  fail(failures, managementApiWorkaround.status === 'BLOCKED' && managementApiWorkaround.documentation_observed_at === '2026-07-23T03:07:23Z', 'Management API workaround documentation or lifecycle drift');
+  fail(failures, managementApiRead.status === 'CURRENT' && managementApiRead.method === 'GET' && managementApiRead.path_template === '/v1/projects/{ref}/postgrest' && managementApiRead.oauth_scope === 'rest:read' && managementApiRead.permission === 'data_api_config_read' && managementApiRead.provider_request_authorized === false, 'documented Management API read contract drift');
+  fail(failures, managementApiWrite.status === 'CURRENT' && managementApiWrite.method === 'PATCH' && managementApiWrite.path_template === '/v1/projects/{ref}/postgrest' && managementApiWrite.oauth_scope === 'rest:write' && managementApiWrite.permission === 'data_api_config_write' && managementApiWrite.db_schema_type === 'OPTIONAL_STRING' && managementApiWrite.provider_request_authorized === false, 'documented Management API write contract drift');
+  fail(failures, supportDisableProjection.status === 'CURRENT' && supportDisableProjection.db_schema_value_classification === 'EMPTY_STRING' && supportDisableProjection.support_recommendation_only === true && supportDisableProjection.public_documentation_guarantees_disable_semantics === false && supportDisableProjection.action_time_verification === 'REQUIRED', 'Support-recommended empty-string disable semantics must remain unverified at action time');
+  fail(failures, disabledStateEvidence.status === 'REQUIRED' && disabledStateEvidence.sentinel_schema === 'pg_pgrst_no_exposed_schemas' && disabledStateEvidence.sentinel_classification === 'DOCUMENTED_IMPLEMENTATION_MARKER_NOT_SUCCESS_PROOF' && disabledStateEvidence.sentinel_alone_proves_success === false && disabledStateEvidence.exact_configuration_readback === 'REQUIRED', 'disabled-state sentinel must remain insufficient without exact configuration readback');
+  fail(failures, managementApiExecution.status === 'BLOCKED' && managementApiExecution.provider_execution_packet_required === true && managementApiExecution.attempt_consumption_required_before_write === true && managementApiExecution.action_time_confirmation_required === true && managementApiExecution.management_api_requests_authorized === false && managementApiExecution.dashboard_saves_authorized === false, 'Management API execution boundary drift');
   fail(failures, retryAuthority.status === 'BLOCKED' && retryAuthority.prior_authority_consumed === true, 'prior retry authority must remain consumed and provider execution blocked');
   fail(failures, manualDecision.status === 'CURRENT' && manualDecision.decision_id === dataApiDecisionBindingV1.decision_id, 'guarded reproduction decision identity drift');
   fail(failures, manualDecision.question_event_id === dataApiDecisionBindingV1.question_event_id && manualDecision.question_payload_sha256 === dataApiDecisionBindingV1.question_payload_sha256, 'guarded reproduction corrected question event or digest drift');
@@ -1497,6 +1604,12 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, manualDecision.decision === dataApiDecisionBindingV1.decision && manualDecision.policy_only === true && manualDecision.provider_execution_authority_granted === false, 'guarded reproduction policy-only boundary drift');
   fail(failures, manualDecision.guarded_reproduction_attempt_limit === 1 && manualDecision.guarded_reproduction_attempts_executed === 1 && manualDecision.retry_permitted === false, 'guarded reproduction attempt must remain consumed 1/1 with retry forbidden');
   fail(failures, manualDecision.sanitized_diagnostic_capture_authorized === true, 'sanitized diagnostic capture decision drift');
+  fail(failures, successorDecision.status === 'CURRENT' && successorDecision.decision_id === dataApiDecisionBindingV1.successor_decision_id, 'successor Data API decision identity drift');
+  fail(failures, successorDecision.question_event_id === dataApiDecisionBindingV1.successor_question_event_id && successorDecision.question_payload_sha256 === dataApiDecisionBindingV1.successor_question_payload_sha256, 'successor Data API question event or digest drift');
+  fail(failures, successorDecision.answer_event_id === dataApiDecisionBindingV1.successor_answer_event_id && successorDecision.answer_payload_sha256 === dataApiDecisionBindingV1.successor_answer_payload_sha256, 'successor Data API answer event or digest drift');
+  fail(failures, successorDecision.decision === dataApiDecisionBindingV1.successor_decision && successorDecision.policy_only === true, 'successor Data API policy decision drift');
+  fail(failures, successorDecision.successor_attempt_id === dataApiDecisionBindingV1.successor_attempt_id && successorDecision.attempt_limit === 1 && successorDecision.attempts_executed === 0 && successorDecision.consumed === false, 'successor attempt must remain unconsumed 0/1');
+  fail(failures, successorDecision.phase_1_read_only_preflight_authorized === true && successorDecision.management_api_write_authorized === false && successorDecision.provider_execution_authority_granted === false && successorDecision.action_time_confirmation_required === true, 'successor decision must remain read-only and action-time gated');
   fail(failures, canonicalJson(rejectedDecisionCollisions) === canonicalJson([{
     decision_id: 'FP-MAN-037',
     classification: 'REJECTED_CROSS_PROJECT_DECISION_ID_COLLISION',
@@ -1504,8 +1617,8 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
     guarded_reproduction_attempts_executed: 0,
     reuse_for_data_api_forbidden: true
   }]), 'rejected Data API decision collision record drift');
-  fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.packet_admitted === true && providerExecution.packet_terminal === true && providerExecution.retry_permitted === false, 'terminal provider-execution packet gate drift');
-  fail(failures, providerExecution.support_response_grants_execution_authority === false && providerExecution.source_contract_grants_execution_authority === false, 'Support response or source contract must not grant provider execution authority');
+  fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.prior_packet_terminal === true && providerExecution.successor_packet_admitted === false && providerExecution.successor_attempt_consumed === false && providerExecution.retry_permitted === false, 'provider-execution packet lifecycle gate drift');
+  fail(failures, providerExecution.management_api_request_authorized === false && providerExecution.dashboard_save_authorized === false && providerExecution.support_response_grants_execution_authority === false && providerExecution.source_contract_grants_execution_authority === false, 'Support response or source contract must not grant provider execution authority');
   fail(failures, canonicalJson(terminalAttemptOutcome) === canonicalJson({
     status: 'CURRENT',
     classification: 'PREINTERACTION_LEDGER_VALIDATION_FAILURE',
