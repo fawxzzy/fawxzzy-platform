@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:fawxzzy:platform:schemas:v1:independent-backup-contract",
-  "title": "Independent backup source contract",
+  "title": "Independent backup GitHub recovery-vault governance contract",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "version",
     "status",
     "decision_id",
+    "governance",
     "lifecycle",
     "project",
     "policy",
@@ -15,17 +16,171 @@
     "storage_body_boundary",
     "receipt_contract",
     "restore_quarantine",
-    "execution_gates"
+    "execution_gates",
+    "apply_admitted"
   ],
   "properties": {
     "version": {
-      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+      "const": "2.0.0"
     },
     "status": {
       "const": "BLOCKED"
     },
     "decision_id": {
       "const": "FP-MAN-015"
+    },
+    "governance": {
+      "$ref": "#/$defs/governance"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/lifecycle"
+    },
+    "project": {
+      "$ref": "#/$defs/project"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "coverage_units": {
+      "const": [
+        "application_schemas_and_catalog",
+        "roles_memberships_grants_and_default_acls",
+        "migration_ledger",
+        "application_data",
+        "auth_identity_data_and_password_hashes",
+        "auth_control_plane_metadata",
+        "storage_metadata",
+        "storage_object_bodies"
+      ]
+    },
+    "storage_body_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "separate_recovery_contract_required_when_nonempty",
+        "empty_denominator_status",
+        "nonempty_without_current_receipt_status"
+      ],
+      "properties": {
+        "separate_recovery_contract_required_when_nonempty": {
+          "const": true
+        },
+        "empty_denominator_status": {
+          "const": "NOT_APPLICABLE"
+        },
+        "nonempty_without_current_receipt_status": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "receipt_contract": {
+      "$ref": "#/$defs/receipt_contract"
+    },
+    "restore_quarantine": {
+      "$ref": "#/$defs/restore_quarantine"
+    },
+    "execution_gates": {
+      "$ref": "#/$defs/execution_gates"
+    },
+    "apply_admitted": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "safe_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator_direction_event_id",
+        "operator_direction_payload_sha256",
+        "decision_history",
+        "source_contract_version"
+      ],
+      "properties": {
+        "operator_direction_event_id": {
+          "$ref": "#/$defs/event_id"
+        },
+        "operator_direction_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_contract_version": {
+          "const": "2.0.0"
+        },
+        "decision_history": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/fp_man_015_history"
+            },
+            {
+              "$ref": "#/$defs/fp_man_051_history"
+            }
+          ],
+          "items": false
+        }
+      }
+    },
+    "fp_man_015_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "authority"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-015"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "authority": {
+          "const": "SOURCE_GOVERNANCE_ONLY"
+        }
+      }
+    },
+    "fp_man_051_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "disposition",
+        "superseded_reason",
+        "provider_authority"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-051"
+        },
+        "status": {
+          "const": "BLOCKED"
+        },
+        "disposition": {
+          "const": "SUPERSEDED"
+        },
+        "superseded_reason": {
+          "const": "ZERO_BACKBLAZE_OR_CLOUDFLARE_AUTHORITY"
+        },
+        "provider_authority": {
+          "const": "NONE"
+        }
+      }
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^onv1_[0-9a-f]{64}$"
     },
     "lifecycle": {
       "type": "object",
@@ -45,7 +200,14 @@
           "maxItems": 6,
           "uniqueItems": true,
           "items": {
-            "$ref": "#/$defs/lifecycle_state"
+            "enum": [
+              "PLANNED",
+              "SOURCE_READY",
+              "EXECUTION_BLOCKED",
+              "BACKUP_CURRENT",
+              "RESTORE_REHEARSED",
+              "DRIFTED"
+            ]
           }
         },
         "execution_status": {
@@ -84,11 +246,12 @@
         "destination",
         "automation",
         "encryption",
+        "export",
+        "release",
         "schedule",
         "retention",
         "objectives",
-        "cost",
-        "provider_physical_backup_complement"
+        "cost"
       ],
       "properties": {
         "destination": {
@@ -99,6 +262,12 @@
         },
         "encryption": {
           "$ref": "#/$defs/encryption"
+        },
+        "export": {
+          "$ref": "#/$defs/export"
+        },
+        "release": {
+          "$ref": "#/$defs/release"
         },
         "schedule": {
           "$ref": "#/$defs/schedule"
@@ -111,571 +280,56 @@
         },
         "cost": {
           "$ref": "#/$defs/cost"
-        },
-        "provider_physical_backup_complement": {
-          "$ref": "#/$defs/physical_backup"
         }
       }
-    },
-    "coverage_units": {
-      "type": "array",
-      "minItems": 8,
-      "maxItems": 8,
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/$defs/coverage_unit"
-      }
-    },
-    "storage_body_boundary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "separate_recovery_contract_required_when_nonempty",
-        "empty_denominator_status",
-        "nonempty_without_current_receipt_status"
-      ],
-      "properties": {
-        "separate_recovery_contract_required_when_nonempty": {
-          "const": true
-        },
-        "empty_denominator_status": {
-          "const": "NOT_APPLICABLE"
-        },
-        "nonempty_without_current_receipt_status": {
-          "const": "BLOCKED"
-        }
-      }
-    },
-    "receipt_contract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "canonical_serialization",
-        "digest_algorithm",
-        "aggregate_only",
-        "accepted_exports_authentication",
-        "execution_gate_authentication",
-        "restore_outcome_authentication",
-        "storage_inventory_authentication",
-        "object_lock_authentication",
-        "required_fields",
-        "forbidden_classes"
-      ],
-      "properties": {
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "digest_algorithm": {
-          "const": "SHA-256"
-        },
-        "aggregate_only": {
-          "const": true
-        },
-        "accepted_exports_authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "required",
-            "verification_boundary",
-            "subject_digest",
-            "required_result_status",
-            "signature_domain",
-            "trust_anchor"
-          ],
-          "properties": {
-            "required": {
-              "const": true
-            },
-            "verification_boundary": {
-              "const": "pinned_ed25519_signature"
-            },
-            "subject_digest": {
-              "const": "accepted_exports_evidence_without_verification_result"
-            },
-            "required_result_status": {
-              "const": "VERIFIED"
-            },
-            "signature_domain": {
-              "const": "fawxzzy-platform:accepted-exports-authentication:v1"
-            },
-            "trust_anchor": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "status",
-                "algorithm",
-                "key_id",
-                "verifier_reference",
-                "public_key_spki_base64",
-                "public_key_spki_sha256"
-              ],
-              "properties": {
-                "status": {
-                  "enum": [
-                    "BLOCKED",
-                    "CURRENT"
-                  ]
-                },
-                "algorithm": {
-                  "const": "Ed25519"
-                },
-                "key_id": {
-                  "anyOf": [
-                    {
-                      "const": "UNKNOWN"
-                    },
-                    {
-                      "$ref": "#/$defs/safe_reference"
-                    }
-                  ]
-                },
-                "verifier_reference": {
-                  "anyOf": [
-                    {
-                      "const": "UNKNOWN"
-                    },
-                    {
-                      "$ref": "#/$defs/safe_reference"
-                    }
-                  ]
-                },
-                "public_key_spki_base64": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "pattern": "^[A-Za-z0-9+/]+={0,2}$"
-                },
-                "public_key_spki_sha256": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/$defs/sha256"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "execution_gate_authentication": {
-          "$ref": "#/$defs/execution_gate_authentication_policy"
-        },
-        "restore_outcome_authentication": {
-          "$ref": "#/$defs/restore_outcome_authentication_policy"
-        },
-        "storage_inventory_authentication": {
-          "$ref": "#/$defs/storage_inventory_authentication_policy"
-        },
-        "object_lock_authentication": {
-          "$ref": "#/$defs/object_lock_authentication_policy"
-        },
-        "required_fields": {
-          "type": "array",
-          "minItems": 25,
-          "maxItems": 25,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "forbidden_classes": {
-          "type": "array",
-          "minItems": 8,
-          "maxItems": 8,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
-    },
-    "restore_quarantine": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "external_effect_units",
-        "all_disabled_before_readback",
-        "application_traffic_allowed",
-        "synthetic_canaries_only",
-        "parity_units",
-        "failed_clone_deletion_requires_separate_authority"
-      ],
-      "properties": {
-        "external_effect_units": {
-          "type": "array",
-          "minItems": 12,
-          "maxItems": 12,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/external_effect_unit"
-          }
-        },
-        "all_disabled_before_readback": {
-          "const": true
-        },
-        "application_traffic_allowed": {
-          "const": false
-        },
-        "synthetic_canaries_only": {
-          "const": true
-        },
-        "parity_units": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "auth",
-              "catalog",
-              "data",
-              "security"
-            ]
-          }
-        },
-        "failed_clone_deletion_requires_separate_authority": {
-          "const": true
-        }
-      }
-    },
-    "execution_gates": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "provider_setup",
-        "credential_or_key_installation",
-        "workflow_publication",
-        "backup_generation_or_upload",
-        "restore_rehearsal",
-        "target_schema_auth_or_data_bootstrap",
-        "cutover",
-        "source_pause_or_deletion",
-        "production"
-      ],
-      "properties": {
-        "provider_setup": {
-          "const": "BLOCKED"
-        },
-        "credential_or_key_installation": {
-          "const": "BLOCKED"
-        },
-        "workflow_publication": {
-          "const": "BLOCKED"
-        },
-        "backup_generation_or_upload": {
-          "const": "BLOCKED"
-        },
-        "restore_rehearsal": {
-          "const": "BLOCKED"
-        },
-        "target_schema_auth_or_data_bootstrap": {
-          "const": "BLOCKED"
-        },
-        "cutover": {
-          "const": "BLOCKED"
-        },
-        "source_pause_or_deletion": {
-          "const": "BLOCKED"
-        },
-        "production": {
-          "const": "BLOCKED"
-        }
-      }
-    }
-  },
-  "$defs": {
-    "project_ref": {
-      "type": "string",
-      "pattern": "^[a-z0-9]{20}$"
-    },
-    "receipt_project": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "ref"
-      ],
-      "properties": {
-        "name": {
-          "const": "Fawxzzy shared Supabase project"
-        },
-        "ref": {
-          "const": "bxtcuhkotumitoqtrcej"
-        }
-      }
-    },
-    "execution_gate_authentication_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "required",
-        "verification_boundary",
-        "trust_anchor_source",
-        "required_result_status",
-        "signature_domain",
-        "maximum_age_seconds",
-        "binding_class",
-        "strictly_before_execution_boundary",
-        "admission_policy"
-      ],
-      "properties": {
-        "required": {
-          "const": true
-        },
-        "verification_boundary": {
-          "const": "pinned_ed25519_signature"
-        },
-        "trust_anchor_source": {
-          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
-        },
-        "required_result_status": {
-          "const": "VERIFIED"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:execution-gate-admission:v1"
-        },
-        "maximum_age_seconds": {
-          "const": 28800
-        },
-        "binding_class": {
-          "const": "predeclared_receipt_export_source_state"
-        },
-        "strictly_before_execution_boundary": {
-          "const": true
-        },
-        "admission_policy": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "version",
-            "backup_current",
-            "restore_rehearsed"
-          ],
-          "properties": {
-            "version": {
-              "const": "1.0.0"
-            },
-            "backup_current": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 1,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/backup_execution_gate_policy_entry"
-                }
-              ],
-              "items": false
-            },
-            "restore_rehearsed": {
-              "type": "array",
-              "minItems": 2,
-              "maxItems": 2,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/backup_execution_gate_policy_entry"
-                },
-                {
-                  "$ref": "#/$defs/restore_execution_gate_policy_entry"
-                }
-              ],
-              "items": false
-            }
-          }
-        }
-      }
-    },
-    "restore_outcome_authentication_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "required",
-        "verification_boundary",
-        "trust_anchor_source",
-        "required_result_status",
-        "signature_domain",
-        "maximum_age_seconds",
-        "binding_class"
-      ],
-      "properties": {
-        "required": {
-          "const": true
-        },
-        "verification_boundary": {
-          "const": "pinned_ed25519_signature"
-        },
-        "trust_anchor_source": {
-          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
-        },
-        "required_result_status": {
-          "const": "VERIFIED"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:restore-outcome-attestation:v1"
-        },
-        "maximum_age_seconds": {
-          "const": 28800
-        },
-        "binding_class": {
-          "const": "admitted_pre_restore_plan_and_final_outcome"
-        }
-      }
-    },
-    "backup_execution_gate_policy_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "gate_id",
-        "gate_version",
-        "scope"
-      ],
-      "properties": {
-        "gate_id": {
-          "const": "backup_generation_or_upload"
-        },
-        "gate_version": {
-          "const": "1.0.0"
-        },
-        "scope": {
-          "const": "backup_receipt"
-        }
-      }
-    },
-    "restore_execution_gate_policy_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "gate_id",
-        "gate_version",
-        "scope"
-      ],
-      "properties": {
-        "gate_id": {
-          "const": "restore_rehearsal"
-        },
-        "gate_version": {
-          "const": "1.0.0"
-        },
-        "scope": {
-          "const": "restore_receipt"
-        }
-      }
-    },
-    "storage_inventory_authentication_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "required",
-        "verification_boundary",
-        "trust_anchor_source",
-        "required_result_status",
-        "signature_domain",
-        "maximum_age_seconds",
-        "provider_class"
-      ],
-      "properties": {
-        "required": {
-          "const": true
-        },
-        "verification_boundary": {
-          "const": "pinned_ed25519_signature"
-        },
-        "trust_anchor_source": {
-          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
-        },
-        "required_result_status": {
-          "const": "VERIFIED"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:storage-inventory-attestation:v1"
-        },
-        "maximum_age_seconds": {
-          "const": 28800
-        },
-        "provider_class": {
-          "const": "Supabase Storage metadata"
-        }
-      }
-    },
-    "object_lock_authentication_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "required",
-        "verification_boundary",
-        "trust_anchor_source",
-        "required_result_status",
-        "signature_domain",
-        "maximum_age_seconds",
-        "provider_class",
-        "retention_mode"
-      ],
-      "properties": {
-        "required": {
-          "const": true
-        },
-        "verification_boundary": {
-          "const": "pinned_ed25519_signature"
-        },
-        "trust_anchor_source": {
-          "const": "receipt_contract.accepted_exports_authentication.trust_anchor"
-        },
-        "required_result_status": {
-          "const": "VERIFIED"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:object-lock-provider-attestation:v1"
-        },
-        "maximum_age_seconds": {
-          "const": 28800
-        },
-        "provider_class": {
-          "const": "Backblaze B2"
-        },
-        "retention_mode": {
-          "const": "COMPLIANCE"
-        }
-      }
-    },
-    "lifecycle_state": {
-      "enum": [
-        "PLANNED",
-        "SOURCE_READY",
-        "EXECUTION_BLOCKED",
-        "BACKUP_CURRENT",
-        "RESTORE_REHEARSED",
-        "DRIFTED"
-      ]
     },
     "destination": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "provider",
-        "region",
-        "bucket_visibility",
-        "object_lock_required",
-        "retention_mode"
+        "repository_class",
+        "repository_reference",
+        "capability_status",
+        "provisioning_status",
+        "immutable_releases_required_before_first_publication",
+        "legal_or_compliance_worm",
+        "google_drive_mirroring"
       ],
       "properties": {
         "provider": {
-          "const": "Backblaze B2"
+          "const": "GitHub"
         },
-        "region": {
-          "const": "Canada East"
+        "repository_class": {
+          "const": "DEDICATED_PRIVATE_RECOVERY_VAULT"
         },
-        "bucket_visibility": {
-          "const": "private"
+        "repository_reference": {
+          "anyOf": [
+            {
+              "const": "UNKNOWN"
+            },
+            {
+              "$ref": "#/$defs/safe_reference"
+            }
+          ]
         },
-        "object_lock_required": {
+        "capability_status": {
+          "enum": [
+            "UNKNOWN",
+            "CURRENT"
+          ]
+        },
+        "provisioning_status": {
+          "const": "BLOCKED"
+        },
+        "immutable_releases_required_before_first_publication": {
           "const": true
         },
-        "retention_mode": {
-          "const": "COMPLIANCE"
+        "legal_or_compliance_worm": {
+          "const": "NOT_CLAIMED"
+        },
+        "google_drive_mirroring": {
+          "const": "DEFERRED_OPTIONAL_PROVIDER_PACKET"
         }
       }
     },
@@ -706,10 +360,9 @@
         "tool_class",
         "streaming_before_upload",
         "persistent_plaintext_allowed",
-        "automation_material",
-        "offline_private_identity_count",
-        "distinct_encrypted_media_required",
-        "offsite_identity_count"
+        "public_recipients_only",
+        "minimum_age_recipient_count",
+        "private_key_access"
       ],
       "properties": {
         "tool_class": {
@@ -721,17 +374,66 @@
         "persistent_plaintext_allowed": {
           "const": false
         },
-        "automation_material": {
-          "const": "public_recipients_only"
-        },
-        "offline_private_identity_count": {
-          "const": 2
-        },
-        "distinct_encrypted_media_required": {
+        "public_recipients_only": {
           "const": true
         },
-        "offsite_identity_count": {
-          "const": 1
+        "minimum_age_recipient_count": {
+          "const": 2
+        },
+        "private_key_access": {
+          "const": "BLOCKED"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_supabase_db_dump_only"
+      ],
+      "properties": {
+        "default_supabase_db_dump_only": {
+          "const": "REJECT_AS_INCOMPLETE"
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_max_bytes",
+        "asset_max_count",
+        "lifecycle",
+        "tag_reuse",
+        "manifest",
+        "github_release_attestation",
+        "persistent_plaintext",
+        "whole_release_deletion"
+      ],
+      "properties": {
+        "chunk_max_bytes": {
+          "const": 1900000000
+        },
+        "asset_max_count": {
+          "const": 1000
+        },
+        "lifecycle": {
+          "const": "DRAFT_UPLOAD PUBLISH_ONCE IMMUTABLE_VERIFY NO_TAG_REUSE"
+        },
+        "tag_reuse": {
+          "const": "FORBIDDEN"
+        },
+        "manifest": {
+          "const": "SIGNED_SANITIZED"
+        },
+        "github_release_attestation": {
+          "const": "REQUIRED"
+        },
+        "persistent_plaintext": {
+          "const": false
+        },
+        "whole_release_deletion": {
+          "const": "SEPARATE_DESTRUCTIVE_AUTHORITY"
         }
       }
     },
@@ -756,7 +458,9 @@
       "additionalProperties": false,
       "required": [
         "standard_days",
-        "first_accepted_monthly_days"
+        "first_accepted_monthly_days",
+        "model",
+        "deletion"
       ],
       "properties": {
         "standard_days": {
@@ -764,6 +468,12 @@
         },
         "first_accepted_monthly_days": {
           "const": 400
+        },
+        "model": {
+          "const": "OPERATIONAL_RETENTION_NOT_WORM"
+        },
+        "deletion": {
+          "const": "WHOLE_RELEASE_ONLY_UNDER_SEPARATE_DESTRUCTIVE_AUTHORITY"
         }
       }
     },
@@ -795,222 +505,370 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "maximum_usd",
         "expected_increment_usd_monthly",
-        "warning_usd_monthly",
-        "manual_approval_ceiling_usd_monthly",
         "budget_stop_control_required",
-        "monthly_reporting_units"
+        "paid_capability",
+        "unknown_cost"
       ],
       "properties": {
-        "expected_increment_usd_monthly": {
+        "maximum_usd": {
           "const": 0
         },
-        "warning_usd_monthly": {
-          "const": 5
-        },
-        "manual_approval_ceiling_usd_monthly": {
-          "const": 15
+        "expected_increment_usd_monthly": {
+          "const": 0
         },
         "budget_stop_control_required": {
           "const": true
         },
-        "monthly_reporting_units": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "backup_freshness",
-              "projected_cost",
-              "runner_usage",
-              "storage_growth"
-            ]
-          }
+        "paid_capability": {
+          "const": "BLOCKED"
+        },
+        "unknown_cost": {
+          "const": "BLOCKED"
         }
       }
     },
-    "physical_backup": {
+    "receipt_contract": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "required",
-        "frequency",
-        "retention_days",
-        "storage_object_bodies_included"
+        "schema_version",
+        "canonical_serialization",
+        "digest_algorithm",
+        "aggregate_only",
+        "source_identity_required",
+        "receipt_identity_preimage",
+        "public_binding",
+        "release_identity",
+        "manifest",
+        "github_release_attestation",
+        "required_fields",
+        "forbidden_classes"
       ],
       "properties": {
-        "required": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "canonical_serialization": {
+          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
+        },
+        "digest_algorithm": {
+          "const": "SHA-256"
+        },
+        "aggregate_only": {
           "const": true
         },
-        "frequency": {
-          "const": "daily"
+        "source_identity_required": {
+          "const": true
         },
-        "retention_days": {
-          "const": 7
+        "receipt_identity_preimage": {
+          "const": "all_required_receipt_fields_except_receipt_id_and_github_release_attestation"
         },
-        "storage_object_bodies_included": {
-          "const": false
+        "public_binding": {
+          "const": "event_id_equals_onv1_plus_exact_payload_sha256"
+        },
+        "release_identity": {
+          "$ref": "#/$defs/release_identity"
+        },
+        "manifest": {
+          "$ref": "#/$defs/manifest"
+        },
+        "github_release_attestation": {
+          "$ref": "#/$defs/github_release_attestation_policy"
+        },
+        "required_fields": {
+          "const": [
+            "aggregate_counts",
+            "ciphertext_bytes",
+            "ciphertext_sha256",
+            "completed_at",
+            "cost",
+            "coverage",
+            "destination_version",
+            "export_id",
+            "freshness",
+            "github_release_attestation",
+            "key_recipient_ids",
+            "manifest_sha256",
+            "migration_ledger_sha256",
+            "monthly_selection",
+            "postgres_version",
+            "project",
+            "receipt_id",
+            "release_assets",
+            "release_tag",
+            "restore_quarantine",
+            "retention_until",
+            "snapshot_at",
+            "source_commit",
+            "source_state_sha256",
+            "storage_body_state",
+            "tool_versions",
+            "watchdog"
+          ]
+        },
+        "forbidden_classes": {
+          "const": [
+            "connection_values",
+            "credentials",
+            "private_keys",
+            "provider_payloads",
+            "raw_rows",
+            "raw_sql",
+            "row_identifiers",
+            "user_identifiers"
+          ]
         }
       }
     },
-    "coverage_unit": {
-      "enum": [
-        "application_schemas_and_catalog",
-        "roles_memberships_grants_and_default_acls",
-        "migration_ledger",
-        "application_data",
-        "auth_identity_data_and_password_hashes",
-        "auth_control_plane_metadata",
-        "storage_metadata",
-        "storage_object_bodies"
-      ]
-    },
-    "external_effect_unit": {
-      "enum": [
-        "app_environment",
-        "auth_delivery_and_hooks",
-        "database_webhooks",
-        "dns_and_aliases",
-        "edge_schedules",
-        "pg_cron",
-        "pg_net",
-        "queues",
-        "realtime",
-        "storage_events",
-        "subscriptions",
-        "wrappers"
-      ]
-    },
-    "sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
-    "utc_timestamp": {
-      "type": "string",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
-    },
-    "safe_reference": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
-    },
-    "receipt": {
+    "release_identity": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "receipt_id",
-        "export_id",
-        "lifecycle_state",
-        "project",
-        "source_commit",
-        "source_state_sha256",
-        "postgres_version",
-        "tool_versions",
-        "snapshot_at",
-        "completed_at",
-        "retention_until",
-        "monthly_selection",
-        "plaintext_sha256",
-        "ciphertext_sha256",
-        "migration_ledger_sha256",
-        "manifest_sha256",
-        "ciphertext_bytes",
-        "destination_version",
-        "encryption",
-        "key_recipient_ids",
-        "object_lock",
-        "freshness",
-        "coverage",
-        "aggregate_counts",
-        "owner_decision",
-        "watchdog",
-        "provider_physical_backup",
-        "cost",
-        "production_service_rto",
-        "restore"
+        "repository_reference",
+        "release_tag_reuse",
+        "attestation_required",
+        "immutable_readback_required"
       ],
       "properties": {
-        "receipt_id": {
+        "repository_reference": {
+          "anyOf": [
+            {
+              "const": "UNKNOWN"
+            },
+            {
+              "$ref": "#/$defs/safe_reference"
+            }
+          ]
+        },
+        "release_tag_reuse": {
+          "const": "FORBIDDEN"
+        },
+        "attestation_required": {
+          "const": true
+        },
+        "immutable_readback_required": {
+          "const": true
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "signed_sanitized",
+        "github_release_attestation",
+        "public_recipient_fingerprints_required"
+      ],
+      "properties": {
+        "status": {
+          "const": "REQUIRED"
+        },
+        "signed_sanitized": {
+          "const": true
+        },
+        "github_release_attestation": {
+          "const": "REQUIRED"
+        },
+        "public_recipient_fingerprints_required": {
+          "const": 2
+        }
+      }
+    },
+    "github_release_attestation_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "verification_boundary",
+        "signature_domain",
+        "maximum_age_seconds",
+        "independent_readback_required",
+        "independent_readback",
+        "trust_anchor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "verification_boundary": {
+          "const": "pinned_ed25519_signature"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:github-release-attestation:v1"
+        },
+        "maximum_age_seconds": {
+          "const": 28800
+        },
+        "independent_readback_required": {
+          "const": true
+        },
+        "independent_readback": {
+          "$ref": "#/$defs/independent_readback_policy"
+        },
+        "trust_anchor": {
+          "$ref": "#/$defs/trust_anchor"
+        }
+      }
+    },
+    "independent_readback_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_boundary",
+        "signature_domain",
+        "actor_separation_required",
+        "trust_anchor"
+      ],
+      "properties": {
+        "verification_boundary": {
+          "const": "distinct_pinned_ed25519_reader_signature"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:github-release-independent-readback:v1"
+        },
+        "actor_separation_required": {
+          "const": true
+        },
+        "trust_anchor": {
+          "$ref": "#/$defs/trust_anchor"
+        }
+      }
+    },
+    "trust_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "algorithm",
+        "key_id",
+        "public_key_spki_base64",
+        "public_key_spki_sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "CURRENT"
+          ]
+        },
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "anyOf": [
+            {
+              "const": "UNKNOWN"
+            },
+            {
+              "$ref": "#/$defs/safe_reference"
+            }
+          ]
+        },
+        "public_key_spki_base64": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+        },
+        "public_key_spki_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "independent_backup_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "aggregate_counts",
+        "ciphertext_bytes",
+        "ciphertext_sha256",
+        "completed_at",
+        "cost",
+        "coverage",
+        "destination_version",
+        "export_id",
+        "freshness",
+        "github_release_attestation",
+        "key_recipient_ids",
+        "manifest_sha256",
+        "migration_ledger_sha256",
+        "monthly_selection",
+        "postgres_version",
+        "project",
+        "receipt_id",
+        "release_assets",
+        "release_tag",
+        "restore_quarantine",
+        "retention_until",
+        "snapshot_at",
+        "source_commit",
+        "source_state_sha256",
+        "storage_body_state",
+        "tool_versions",
+        "watchdog"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "CURRENT"
+          ]
+        },
+        "aggregate_counts": {
+          "$ref": "#/$defs/aggregate_counts"
+        },
+        "ciphertext_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ciphertext_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "cost": {
+          "$ref": "#/$defs/receipt_cost"
+        },
+        "coverage": {
+          "const": [
+            "application_schemas_and_catalog",
+            "roles_memberships_grants_and_default_acls",
+            "migration_ledger",
+            "application_data",
+            "auth_identity_data_and_password_hashes",
+            "auth_control_plane_metadata",
+            "storage_metadata",
+            "storage_object_bodies"
+          ]
+        },
+        "destination_version": {
           "$ref": "#/$defs/safe_reference"
         },
         "export_id": {
           "$ref": "#/$defs/safe_reference"
         },
-        "lifecycle_state": {
-          "enum": [
-            "BACKUP_CURRENT",
-            "RESTORE_REHEARSED"
-          ]
+        "freshness": {
+          "$ref": "#/$defs/freshness_evidence"
         },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "source_commit": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
-        },
-        "source_state_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "postgres_version": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "tool_versions": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": false,
-          "patternProperties": {
-            "^[a-z][a-z0-9_]{0,31}$": {
-              "$ref": "#/$defs/safe_reference"
-            }
-          }
-        },
-        "snapshot_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "completed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "retention_until": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "monthly_selection": {
-          "$ref": "#/$defs/monthly_selection"
-        },
-        "plaintext_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "ciphertext_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "migration_ledger_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "ciphertext_bytes": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "destination_version": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "encryption": {
-          "$ref": "#/$defs/receipt_encryption"
+        "github_release_attestation": {
+          "$ref": "#/$defs/github_release_attestation"
         },
         "key_recipient_ids": {
           "type": "array",
@@ -1020,55 +878,252 @@
             "$ref": "#/$defs/safe_reference"
           }
         },
-        "object_lock": {
-          "$ref": "#/$defs/receipt_object_lock"
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
         },
-        "freshness": {
-          "$ref": "#/$defs/receipt_freshness"
+        "migration_ledger_sha256": {
+          "$ref": "#/$defs/sha256"
         },
-        "coverage": {
-          "type": "array",
-          "minItems": 8,
-          "maxItems": 8,
-          "items": {
-            "$ref": "#/$defs/receipt_coverage"
-          }
+        "monthly_selection": {
+          "$ref": "#/$defs/monthly_selection"
         },
-        "aggregate_counts": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": false,
-          "patternProperties": {
-            "^[a-z][a-z0-9_]{0,63}$": {
-              "type": "integer",
-              "minimum": 0
-            }
-          }
+        "postgres_version": {
+          "$ref": "#/$defs/safe_reference"
         },
-        "owner_decision": {
-          "$ref": "#/$defs/receipt_owner_decision"
+        "project": {
+          "$ref": "#/$defs/receipt_project"
+        },
+        "receipt_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "release_assets": {
+          "$ref": "#/$defs/release_assets"
+        },
+        "release_tag": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "restore_quarantine": {
+          "$ref": "#/$defs/restore_quarantine"
+        },
+        "retention_until": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "snapshot_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "source_state_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "storage_body_state": {
+          "$ref": "#/$defs/storage_body_state"
+        },
+        "tool_versions": {
+          "$ref": "#/$defs/tool_versions"
         },
         "watchdog": {
-          "$ref": "#/$defs/receipt_watchdog"
-        },
-        "provider_physical_backup": {
-          "$ref": "#/$defs/receipt_physical_backup"
-        },
-        "cost": {
-          "$ref": "#/$defs/receipt_cost"
-        },
-        "production_service_rto": {
-          "$ref": "#/$defs/receipt_production_rto"
-        },
-        "restore": {
-          "anyOf": [
-            {
-              "type": "null"
+          "$ref": "#/$defs/watchdog_evidence"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "BLOCKED"
+              }
             },
-            {
-              "$ref": "#/$defs/receipt_restore"
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "BLOCKED"
+                  }
+                }
+              },
+              "storage_body_state": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "BLOCKED"
+                  }
+                }
+              },
+              "watchdog": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "BLOCKED"
+                  }
+                }
+              },
+              "github_release_attestation": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "BLOCKED"
+                  },
+                  "repository_reference": {
+                    "const": "UNKNOWN"
+                  },
+                  "immutable_release": {
+                    "const": false
+                  },
+                  "tag_reused": {
+                    "const": false
+                  },
+                  "signer": {
+                    "type": "object",
+                    "properties": {
+                      "key_id": {
+                        "const": "UNKNOWN"
+                      },
+                      "signature_base64": {
+                        "const": "AA=="
+                      }
+                    }
+                  },
+                  "independent_readback": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "const": "BLOCKED"
+                      },
+                      "reader_class": {
+                        "const": "BLOCKED"
+                      },
+                      "reader_identity": {
+                        "const": "UNKNOWN"
+                      },
+                      "observation_method": {
+                        "const": "BLOCKED"
+                      },
+                      "repository_reference": {
+                        "const": "UNKNOWN"
+                      },
+                      "immutable_release": {
+                        "const": false
+                      },
+                      "tag_reused": {
+                        "const": false
+                      },
+                      "signer": {
+                        "type": "object",
+                        "properties": {
+                          "key_id": {
+                            "const": "UNKNOWN"
+                          },
+                          "signature_base64": {
+                            "const": "AA=="
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
+          }
+        }
+      ]
+    },
+    "aggregate_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application_schemas_and_catalog",
+        "roles_memberships_grants_and_default_acls",
+        "migration_ledger",
+        "application_data",
+        "auth_identity_data_and_password_hashes",
+        "auth_control_plane_metadata",
+        "storage_metadata",
+        "storage_object_bodies"
+      ],
+      "properties": {
+        "application_schemas_and_catalog": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "roles_memberships_grants_and_default_acls": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "migration_ledger": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "application_data": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "auth_identity_data_and_password_hashes": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "auth_control_plane_metadata": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "storage_metadata": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "storage_object_bodies": {
+          "$ref": "#/$defs/nonnegative_integer"
+        }
+      }
+    },
+    "nonnegative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "utc_timestamp": {
+      "type": "string",
+      "pattern": "Z$"
+    },
+    "receipt_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_usd",
+        "observed_usd"
+      ],
+      "properties": {
+        "maximum_usd": {
+          "const": 0
+        },
+        "observed_usd": {
+          "const": 0
+        }
+      }
+    },
+    "freshness_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "age_seconds",
+        "maximum_age_seconds",
+        "observed_at"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "CURRENT"
           ]
+        },
+        "age_seconds": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "maximum_age_seconds": {
+          "const": 28800
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
         }
       }
     },
@@ -1076,1894 +1131,430 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "status",
-        "month_utc",
-        "accepted_exports_manifest_sha256"
+        "utc_month",
+        "is_first_accepted_utc_month",
+        "retention_class"
       ],
       "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "month_utc": {
+        "utc_month": {
           "type": "string",
           "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
         },
-        "accepted_exports_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "accepted_exports_manifest": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "month_utc",
-        "observed_at",
-        "source_evidence_sha256",
-        "entries"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
+        "is_first_accepted_utc_month": {
+          "type": "boolean"
         },
-        "status": {
-          "const": "CURRENT"
-        },
-        "month_utc": {
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "source_evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "entries": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/accepted_export_manifest_entry"
-          }
-        }
-      }
-    },
-    "accepted_export_manifest_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "completed_at",
-        "destination_version",
-        "ciphertext_sha256"
-      ],
-      "properties": {
-        "completed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "destination_version": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "ciphertext_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "accepted_exports_evidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "evidence_class",
-        "evidence_id",
-        "observed_at",
-        "project",
-        "month_utc",
-        "policy",
-        "history",
-        "authentication",
-        "entries"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "evidence_class": {
-          "const": "authenticated_accepted_exports_readback"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "month_utc": {
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
-        },
-        "policy": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "full_export_interval_hours",
-            "standard_retention_days",
-            "first_accepted_monthly_days"
-          ],
-          "properties": {
-            "full_export_interval_hours": {
-              "const": 6
-            },
-            "standard_retention_days": {
-              "const": 35
-            },
-            "first_accepted_monthly_days": {
-              "const": 400
-            }
-          }
-        },
-        "history": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "complete",
-            "window_started_at",
-            "window_ended_at",
-            "entry_count",
-            "entries_manifest_sha256",
-            "latest_entry_sha256"
-          ],
-          "properties": {
-            "complete": {
-              "const": true
-            },
-            "window_started_at": {
-              "$ref": "#/$defs/utc_timestamp"
-            },
-            "window_ended_at": {
-              "$ref": "#/$defs/utc_timestamp"
-            },
-            "entry_count": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "entries_manifest_sha256": {
-              "$ref": "#/$defs/sha256"
-            },
-            "latest_entry_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "status",
-            "method",
-            "verification_result_sha256"
-          ],
-          "properties": {
-            "status": {
-              "const": "CURRENT"
-            },
-            "method": {
-              "const": "pinned_ed25519_signature_result"
-            },
-            "verification_result_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "entries": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/$defs/authenticated_accepted_export_entry"
-          }
-        }
-      }
-    },
-    "accepted_exports_authentication_result": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "result_class",
-        "result_id",
-        "verified_at",
-        "verifier_reference",
-        "verification_method",
-        "key_id",
-        "signature_algorithm",
-        "signature_domain",
-        "project",
-        "month_utc",
-        "evidence_id",
-        "subject_sha256",
-        "external_receipt_sha256",
-        "signed_payload_sha256",
-        "signature_base64",
-        "result_sha256"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "VERIFIED"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "result_class": {
-          "const": "trusted_external_authentication_verification"
-        },
-        "result_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "verifier_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verification_method": {
-          "const": "external_signature_verification"
-        },
-        "key_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "signature_algorithm": {
-          "const": "Ed25519"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:accepted-exports-authentication:v1"
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "month_utc": {
-          "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "subject_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "external_receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signed_payload_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signature_base64": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
-        },
-        "result_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "authenticated_accepted_export_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "sequence",
-        "completed_at",
-        "accepted_at",
-        "retention_until",
-        "destination_version",
-        "ciphertext_sha256",
-        "immutable_readback_sha256",
-        "previous_entry_sha256",
-        "entry_sha256"
-      ],
-      "properties": {
-        "sequence": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "completed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "accepted_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "retention_until": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "destination_version": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "ciphertext_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "immutable_readback_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "previous_entry_sha256": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/sha256"
-            }
-          ]
-        },
-        "entry_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "execution_gate_admission": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "evidence_class",
-        "evidence_id",
-        "issued_at",
-        "expires_at",
-        "project",
-        "gate_id",
-        "gate_version",
-        "scope",
-        "contract_artifact_sha256",
-        "policy_artifact_sha256",
-        "source_state_sha256",
-        "receipt_identity",
-        "export_identity",
-        "restore_identity",
-        "authentication"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "evidence_class": {
-          "const": "authenticated_execution_gate_admission"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "issued_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "expires_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "gate_id": {
+        "retention_class": {
           "enum": [
-            "backup_generation_or_upload",
-            "restore_rehearsal"
-          ]
-        },
-        "gate_version": {
-          "const": "1.0.0"
-        },
-        "scope": {
-          "enum": [
-            "backup_receipt",
-            "restore_receipt"
-          ]
-        },
-        "contract_artifact_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "policy_artifact_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "source_state_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "receipt_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "receipt_id",
-            "receipt_identity_sha256"
-          ],
-          "properties": {
-            "receipt_id": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "receipt_identity_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "export_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "export_id"
-          ],
-          "properties": {
-            "export_id": {
-              "$ref": "#/$defs/safe_reference"
-            }
-          }
-        },
-        "restore_identity": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "plan_id",
-                "plan_sha256"
-              ],
-              "properties": {
-                "plan_id": {
-                  "$ref": "#/$defs/safe_reference"
-                },
-                "plan_sha256": {
-                  "$ref": "#/$defs/sha256"
-                }
-              }
-            }
-          ]
-        },
-        "authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "status",
-            "method",
-            "verification_result_sha256"
-          ],
-          "properties": {
-            "status": {
-              "const": "CURRENT"
-            },
-            "method": {
-              "const": "pinned_ed25519_signature_result"
-            },
-            "verification_result_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        }
-      }
-    },
-    "execution_gate_authentication_result": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "result_class",
-        "result_id",
-        "verified_at",
-        "verifier_reference",
-        "verification_method",
-        "key_id",
-        "signature_algorithm",
-        "signature_domain",
-        "project",
-        "evidence_id",
-        "subject_sha256",
-        "external_receipt_sha256",
-        "signed_payload_sha256",
-        "signature_base64",
-        "result_sha256"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "VERIFIED"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "result_class": {
-          "const": "trusted_execution_gate_admission_verification"
-        },
-        "result_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "verifier_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verification_method": {
-          "const": "external_signature_verification"
-        },
-        "key_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "signature_algorithm": {
-          "const": "Ed25519"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:execution-gate-admission:v1"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "subject_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "external_receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signed_payload_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signature_base64": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
-        },
-        "result_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "restore_outcome_authentication_result": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "result_class",
-        "result_id",
-        "verified_at",
-        "verifier_reference",
-        "verification_method",
-        "key_id",
-        "signature_algorithm",
-        "signature_domain",
-        "project",
-        "evidence_id",
-        "subject_sha256",
-        "external_receipt_sha256",
-        "signed_payload_sha256",
-        "signature_base64",
-        "result_sha256"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "VERIFIED"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "result_class": {
-          "const": "trusted_restore_outcome_verification"
-        },
-        "result_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "verifier_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verification_method": {
-          "const": "external_signature_verification"
-        },
-        "key_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "signature_algorithm": {
-          "const": "Ed25519"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:restore-outcome-attestation:v1"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "subject_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "external_receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signed_payload_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signature_base64": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
-        },
-        "result_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "object_lock_provider_attestation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "evidence_class",
-        "evidence_id",
-        "observed_at",
-        "project",
-        "provider_class",
-        "bucket_identity_sha256",
-        "object_identity_sha256",
-        "receipt_manifest_sha256",
-        "readback_manifest_sha256",
-        "object",
-        "authentication"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "evidence_class": {
-          "const": "provider_bound_object_lock_attestation"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "provider_class": {
-          "const": "Backblaze B2"
-        },
-        "bucket_identity_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "object_identity_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "receipt_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "readback_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "object": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "destination_version",
-            "plaintext_sha256",
-            "ciphertext_sha256",
-            "lock_mode",
-            "retention_until"
-          ],
-          "properties": {
-            "destination_version": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "plaintext_sha256": {
-              "$ref": "#/$defs/sha256"
-            },
-            "ciphertext_sha256": {
-              "$ref": "#/$defs/sha256"
-            },
-            "lock_mode": {
-              "const": "COMPLIANCE"
-            },
-            "retention_until": {
-              "$ref": "#/$defs/utc_timestamp"
-            }
-          }
-        },
-        "authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "status",
-            "method",
-            "verification_result_sha256"
-          ],
-          "properties": {
-            "status": {
-              "const": "CURRENT"
-            },
-            "method": {
-              "const": "pinned_ed25519_signature_result"
-            },
-            "verification_result_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        }
-      }
-    },
-    "object_lock_authentication_result": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "result_class",
-        "result_id",
-        "verified_at",
-        "verifier_reference",
-        "verification_method",
-        "key_id",
-        "signature_algorithm",
-        "signature_domain",
-        "project",
-        "evidence_id",
-        "subject_sha256",
-        "external_receipt_sha256",
-        "signed_payload_sha256",
-        "signature_base64",
-        "result_sha256"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "VERIFIED"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "result_class": {
-          "const": "trusted_object_lock_provider_verification"
-        },
-        "result_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "verifier_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verification_method": {
-          "const": "external_signature_verification"
-        },
-        "key_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "signature_algorithm": {
-          "const": "Ed25519"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:object-lock-provider-attestation:v1"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "subject_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "external_receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signed_payload_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signature_base64": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
-        },
-        "result_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "object_lock_readback": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "observed_at",
-        "source_evidence_sha256",
-        "destination",
-        "object"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "source_evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "destination": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "provider",
-            "region",
-            "reference"
-          ],
-          "properties": {
-            "provider": {
-              "const": "Backblaze B2"
-            },
-            "region": {
-              "const": "Canada East"
-            },
-            "reference": {
-              "$ref": "#/$defs/safe_reference"
-            }
-          }
-        },
-        "object": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "destination_version",
-            "ciphertext_sha256",
-            "locked",
-            "mutable",
-            "retention_mode",
-            "retention_until"
-          ],
-          "properties": {
-            "destination_version": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "ciphertext_sha256": {
-              "$ref": "#/$defs/sha256"
-            },
-            "locked": {
-              "const": true
-            },
-            "mutable": {
-              "const": false
-            },
-            "retention_mode": {
-              "const": "COMPLIANCE"
-            },
-            "retention_until": {
-              "$ref": "#/$defs/utc_timestamp"
-            }
-          }
-        }
-      }
-    },
-    "storage_inventory_evidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "evidence_class",
-        "evidence_id",
-        "observed_at",
-        "source_evidence_sha256",
-        "project",
-        "provider_snapshot_identity",
-        "snapshot_at",
-        "export_identity",
-        "denominator",
-        "authentication"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "evidence_class": {
-          "const": "authenticated_storage_inventory_readback"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "source_evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "provider_snapshot_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "provider_class",
-            "storage_snapshot_id",
-            "source_snapshot_sha256"
-          ],
-          "properties": {
-            "provider_class": {
-              "const": "Supabase Storage metadata"
-            },
-            "storage_snapshot_id": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "source_snapshot_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "snapshot_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "export_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "export_id",
-            "destination_version",
-            "ciphertext_sha256"
-          ],
-          "properties": {
-            "export_id": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "destination_version": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "ciphertext_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "denominator": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "bucket_count",
-            "object_count",
-            "total_bytes",
-            "inventory_manifest_sha256"
-          ],
-          "properties": {
-            "bucket_count": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "object_count": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "total_bytes": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "inventory_manifest_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "status",
-            "method",
-            "verification_result_sha256"
-          ],
-          "properties": {
-            "status": {
-              "const": "CURRENT"
-            },
-            "method": {
-              "const": "pinned_ed25519_signature_result"
-            },
-            "verification_result_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        }
-      }
-    },
-    "storage_inventory_authentication_result": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "result_class",
-        "result_id",
-        "verified_at",
-        "verifier_reference",
-        "verification_method",
-        "key_id",
-        "signature_algorithm",
-        "signature_domain",
-        "project",
-        "evidence_id",
-        "subject_sha256",
-        "external_receipt_sha256",
-        "signed_payload_sha256",
-        "signature_base64",
-        "result_sha256"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "VERIFIED"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "result_class": {
-          "const": "trusted_storage_inventory_verification"
-        },
-        "result_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "verifier_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "verification_method": {
-          "const": "external_signature_verification"
-        },
-        "key_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "signature_algorithm": {
-          "const": "Ed25519"
-        },
-        "signature_domain": {
-          "const": "fawxzzy-platform:storage-inventory-attestation:v1"
-        },
-        "project": {
-          "$ref": "#/$defs/receipt_project"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "subject_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "external_receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signed_payload_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "signature_base64": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
-        },
-        "result_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "storage_body_recovery_receipt": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "observed_at",
-        "source_evidence_sha256",
-        "project",
-        "snapshot_at",
-        "retention_until",
-        "denominator",
-        "restore_proof"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "source_evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "snapshot_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "retention_until": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "denominator": {
-          "$ref": "#/$defs/storage_body_denominator"
-        },
-        "restore_proof": {
-          "$ref": "#/$defs/storage_body_restore_proof"
-        }
-      }
-    },
-    "storage_body_recovery_evidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "version",
-        "status",
-        "canonical_serialization",
-        "evidence_class",
-        "evidence_id",
-        "observed_at",
-        "project",
-        "snapshot_at",
-        "export_identity",
-        "restore_identity",
-        "denominator"
-      ],
-      "properties": {
-        "version": {
-          "const": "1.0.0"
-        },
-        "status": {
-          "const": "CURRENT"
-        },
-        "canonical_serialization": {
-          "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
-        },
-        "evidence_class": {
-          "const": "independent_storage_body_recovery_readback"
-        },
-        "evidence_id": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "snapshot_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "export_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "destination_version",
-            "ciphertext_sha256"
-          ],
-          "properties": {
-            "destination_version": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "ciphertext_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "restore_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "receipt_sha256",
-            "verified_at"
-          ],
-          "properties": {
-            "receipt_sha256": {
-              "$ref": "#/$defs/sha256"
-            },
-            "verified_at": {
-              "$ref": "#/$defs/utc_timestamp"
-            }
-          }
-        },
-        "denominator": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "bucket_count",
-            "object_count",
-            "body_count",
-            "total_bytes",
-            "buckets_manifest_sha256"
-          ],
-          "properties": {
-            "bucket_count": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "object_count": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "body_count": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "total_bytes": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "buckets_manifest_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        }
-      }
-    },
-    "storage_body_denominator": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "bucket_count",
-        "object_count",
-        "body_count",
-        "total_bytes",
-        "buckets_manifest_sha256",
-        "buckets"
-      ],
-      "properties": {
-        "bucket_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "object_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "body_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "total_bytes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "buckets_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "buckets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/storage_body_bucket"
-          }
-        }
-      }
-    },
-    "storage_body_bucket": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "bucket_reference",
-        "object_count",
-        "body_count",
-        "total_bytes",
-        "object_manifest_sha256",
-        "body_content_sha256"
-      ],
-      "properties": {
-        "bucket_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "object_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "body_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "total_bytes": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "object_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "body_content_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "storage_body_restore_proof": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "verified_at",
-        "receipt_sha256"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "verified_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "receipt_encryption": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "tool_class",
-        "streaming_before_upload",
-        "persistent_plaintext",
-        "automation_material"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "tool_class": {
-          "const": "age"
-        },
-        "streaming_before_upload": {
-          "const": true
-        },
-        "persistent_plaintext": {
-          "const": false
-        },
-        "automation_material": {
-          "const": "public_recipients_only"
-        }
-      }
-    },
-    "receipt_object_lock": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "mode",
-        "destination_reference",
-        "readback_manifest_sha256"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "mode": {
-          "const": "COMPLIANCE"
-        },
-        "destination_reference": {
-          "$ref": "#/$defs/safe_reference"
-        },
-        "readback_manifest_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "receipt_freshness": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "maximum_age_seconds"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "maximum_age_seconds": {
-          "const": 28800
-        }
-      }
-    },
-    "receipt_coverage": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "unit",
-        "status",
-        "aggregate_count",
-        "private_digest",
-        "body_recovery_receipt_status",
-        "body_recovery_receipt_sha256"
-      ],
-      "properties": {
-        "unit": {
-          "$ref": "#/$defs/coverage_unit"
-        },
-        "status": {
-          "enum": [
-            "CURRENT",
-            "NOT_APPLICABLE"
-          ]
-        },
-        "aggregate_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "private_digest": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/sha256"
-            }
-          ]
-        },
-        "body_recovery_receipt_status": {
-          "enum": [
-            "CURRENT",
-            "NOT_APPLICABLE",
-            "BLOCKED",
-            null
-          ]
-        },
-        "body_recovery_receipt_sha256": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/sha256"
-            }
+            "STANDARD_35_DAY",
+            "FIRST_MONTHLY_400_DAY"
           ]
         }
       }
     },
-    "receipt_owner_decision": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "decision_id",
-        "receipt_sha256",
-        "accepted_at"
-      ],
-      "properties": {
-        "decision_id": {
-          "const": "FP-MAN-015"
-        },
-        "receipt_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "accepted_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        }
-      }
-    },
-    "receipt_watchdog": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "independent_from_scheduler",
-        "project",
-        "observed_at",
-        "evidence_sha256"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "independent_from_scheduler": {
-          "const": true
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "receipt_physical_backup": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "retention_days",
-        "project",
-        "observed_at",
-        "evidence_sha256"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "retention_days": {
-          "const": 7
-        },
-        "project": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name",
-            "ref"
-          ],
-          "properties": {
-            "name": {
-              "const": "Fawxzzy shared Supabase project"
-            },
-            "ref": {
-              "const": "bxtcuhkotumitoqtrcej"
-            }
-          }
-        },
-        "observed_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "evidence_sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "receipt_cost": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "budget_stop_control_status",
-        "projected_usd_monthly",
-        "monthly_report_status",
-        "reported_units"
-      ],
-      "properties": {
-        "budget_stop_control_status": {
-          "const": "CURRENT"
-        },
-        "projected_usd_monthly": {
-          "type": "number",
-          "minimum": 0
-        },
-        "monthly_report_status": {
-          "const": "CURRENT"
-        },
-        "reported_units": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "backup_freshness",
-              "projected_cost",
-              "runner_usage",
-              "storage_growth"
-            ]
-          }
-        }
-      }
-    },
-    "receipt_production_rto": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "seconds"
-      ],
-      "properties": {
-        "status": {
-          "const": "UNKNOWN"
-        },
-        "seconds": {
-          "type": "null"
-        }
-      }
-    },
-    "receipt_restore": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "plan_identity",
-        "target_project",
-        "traffic_released",
-        "synthetic_canary_status",
-        "external_effects",
-        "parity",
-        "failure_declared_at",
-        "restore_started_at",
-        "data_plane_ready_at",
-        "measured_rpo_seconds",
-        "measured_data_plane_rto_seconds",
-        "outcome_authentication",
-        "failed_clone_deletion_authority_status"
-      ],
-      "properties": {
-        "status": {
-          "const": "CURRENT"
-        },
-        "plan_identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "plan_id",
-            "plan_sha256"
-          ],
-          "properties": {
-            "plan_id": {
-              "$ref": "#/$defs/safe_reference"
-            },
-            "plan_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "target_project": {
-          "$ref": "#/$defs/restore_target_project"
-        },
-        "traffic_released": {
-          "const": false
-        },
-        "synthetic_canary_status": {
-          "const": "CURRENT"
-        },
-        "external_effects": {
-          "type": "array",
-          "minItems": 12,
-          "maxItems": 12,
-          "items": {
-            "$ref": "#/$defs/receipt_external_effect"
-          }
-        },
-        "parity": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "items": {
-            "$ref": "#/$defs/receipt_parity"
-          }
-        },
-        "failure_declared_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "restore_started_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "data_plane_ready_at": {
-          "$ref": "#/$defs/utc_timestamp"
-        },
-        "measured_rpo_seconds": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "measured_data_plane_rto_seconds": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "outcome_authentication": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "status",
-            "method",
-            "verification_result_sha256"
-          ],
-          "properties": {
-            "status": {
-              "const": "CURRENT"
-            },
-            "method": {
-              "const": "pinned_ed25519_signature_result"
-            },
-            "verification_result_sha256": {
-              "$ref": "#/$defs/sha256"
-            }
-          }
-        },
-        "failed_clone_deletion_authority_status": {
-          "const": "BLOCKED"
-        }
-      }
-    },
-    "restore_target_project": {
+    "receipt_project": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "name",
-        "ref",
-        "source_project_sha256"
+        "ref"
       ],
       "properties": {
         "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,127}$"
+          "const": "Fawxzzy shared Supabase project"
         },
         "ref": {
-          "type": "string",
-          "pattern": "^[a-z0-9]{20}$"
+          "const": "bxtcuhkotumitoqtrcej"
+        }
+      }
+    },
+    "release_assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_count",
+        "assets_manifest_sha256",
+        "chunks"
+      ],
+      "properties": {
+        "asset_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
         },
-        "source_project_sha256": {
+        "assets_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "chunks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/release_chunk"
+          }
+        }
+      }
+    },
+    "release_chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1900000000
+        },
+        "sha256": {
           "$ref": "#/$defs/sha256"
         }
       }
     },
-    "receipt_external_effect": {
+    "storage_body_state": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "unit",
         "status",
-        "disabled",
+        "object_count",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "CURRENT",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "object_count": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "tool_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pg_dump",
+        "age",
+        "github_cli"
+      ],
+      "properties": {
+        "pg_dump": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "age": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "github_cli": {
+          "$ref": "#/$defs/safe_reference"
+        }
+      }
+    },
+    "watchdog_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "observed_at",
         "evidence_sha256"
       ],
       "properties": {
-        "unit": {
-          "$ref": "#/$defs/external_effect_unit"
-        },
         "status": {
-          "const": "CURRENT"
+          "enum": [
+            "BLOCKED",
+            "CURRENT"
+          ]
         },
-        "disabled": {
-          "const": true
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
         },
         "evidence_sha256": {
           "$ref": "#/$defs/sha256"
         }
       }
     },
-    "receipt_parity": {
+    "github_release_attestation": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "unit",
+        "schema_version",
         "status",
-        "aggregate_count",
-        "private_digest"
+        "repository_reference",
+        "release_tag",
+        "immutable_release",
+        "tag_reused",
+        "release_assets_manifest_sha256",
+        "manifest_sha256",
+        "ciphertext_sha256",
+        "observed_at",
+        "signer",
+        "independent_readback"
       ],
       "properties": {
-        "unit": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
           "enum": [
+            "BLOCKED",
+            "VERIFIED"
+          ]
+        },
+        "repository_reference": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "release_tag": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "immutable_release": {
+          "type": "boolean"
+        },
+        "tag_reused": {
+          "type": "boolean"
+        },
+        "release_assets_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ciphertext_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "signer": {
+          "$ref": "#/$defs/attestation_signer"
+        },
+        "independent_readback": {
+          "$ref": "#/$defs/independent_readback"
+        }
+      }
+    },
+    "attestation_signer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "public_key_spki_sha256",
+        "signed_payload_sha256",
+        "signature_base64"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "public_key_spki_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+        }
+      }
+    },
+    "independent_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "reader_class",
+        "reader_identity",
+        "observation_method",
+        "observed_at",
+        "repository_reference",
+        "release_tag",
+        "immutable_release",
+        "tag_reused",
+        "assets_manifest_sha256",
+        "observed_receipt_id",
+        "native_receipt_sha256",
+        "signer",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "VERIFIED"
+          ]
+        },
+        "reader_class": {
+          "enum": [
+            "BLOCKED",
+            "INDEPENDENT_READ_ONLY"
+          ]
+        },
+        "reader_identity": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "observation_method": {
+          "enum": [
+            "BLOCKED",
+            "SIGNED_NATIVE_GITHUB_READBACK"
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "repository_reference": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "release_tag": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "immutable_release": {
+          "type": "boolean"
+        },
+        "tag_reused": {
+          "type": "boolean"
+        },
+        "assets_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observed_receipt_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "native_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signer": {
+          "$ref": "#/$defs/attestation_signer"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "restore_quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "external_effect_units",
+        "all_disabled_before_readback",
+        "application_traffic_allowed",
+        "synthetic_canaries_only",
+        "parity_units",
+        "failed_clone_deletion_requires_separate_authority"
+      ],
+      "properties": {
+        "external_effect_units": {
+          "const": [
+            "app_environment",
+            "auth_delivery_and_hooks",
+            "database_webhooks",
+            "dns_and_aliases",
+            "edge_schedules",
+            "pg_cron",
+            "pg_net",
+            "queues",
+            "realtime",
+            "storage_events",
+            "subscriptions",
+            "wrappers"
+          ]
+        },
+        "all_disabled_before_readback": {
+          "const": true
+        },
+        "application_traffic_allowed": {
+          "const": false
+        },
+        "synthetic_canaries_only": {
+          "const": true
+        },
+        "parity_units": {
+          "const": [
             "auth",
             "catalog",
             "data",
             "security"
           ]
         },
-        "status": {
-          "const": "CURRENT"
+        "failed_clone_deletion_requires_separate_authority": {
+          "const": true
+        }
+      }
+    },
+    "execution_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_setup",
+        "github_recovery_vault_provisioning",
+        "immutable_release_enablement",
+        "credential_or_key_installation",
+        "workflow_publication",
+        "backup_generation_or_upload",
+        "backup_export",
+        "restore_rehearsal",
+        "target_schema_auth_or_data_bootstrap",
+        "cutover",
+        "source_pause_or_deletion",
+        "production",
+        "billing_or_paid_capability"
+      ],
+      "properties": {
+        "provider_setup": {
+          "const": "BLOCKED"
         },
-        "aggregate_count": {
-          "type": "integer",
-          "minimum": 0
+        "github_recovery_vault_provisioning": {
+          "const": "BLOCKED"
         },
-        "private_digest": {
-          "$ref": "#/$defs/sha256"
+        "immutable_release_enablement": {
+          "const": "BLOCKED"
+        },
+        "credential_or_key_installation": {
+          "const": "BLOCKED"
+        },
+        "workflow_publication": {
+          "const": "BLOCKED"
+        },
+        "backup_generation_or_upload": {
+          "const": "BLOCKED"
+        },
+        "backup_export": {
+          "const": "BLOCKED"
+        },
+        "restore_rehearsal": {
+          "const": "BLOCKED"
+        },
+        "target_schema_auth_or_data_bootstrap": {
+          "const": "BLOCKED"
+        },
+        "cutover": {
+          "const": "BLOCKED"
+        },
+        "source_pause_or_deletion": {
+          "const": "BLOCKED"
+        },
+        "production": {
+          "const": "BLOCKED"
+        },
+        "billing_or_paid_capability": {
+          "const": "BLOCKED"
         }
       }
     }

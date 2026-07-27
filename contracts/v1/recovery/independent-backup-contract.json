@@ -1,7 +1,26 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "BLOCKED",
   "decision_id": "FP-MAN-015",
+  "governance": {
+    "operator_direction_event_id": "onv1_706060909f09a341088af11beac48acd10e8d6d7c4ef02b6985df5170df76fa6",
+    "operator_direction_payload_sha256": "706060909f09a341088af11beac48acd10e8d6d7c4ef02b6985df5170df76fa6",
+    "decision_history": [
+      {
+        "decision_id": "FP-MAN-015",
+        "status": "CURRENT",
+        "authority": "SOURCE_GOVERNANCE_ONLY"
+      },
+      {
+        "decision_id": "FP-MAN-051",
+        "status": "BLOCKED",
+        "disposition": "SUPERSEDED",
+        "superseded_reason": "ZERO_BACKBLAZE_OR_CLOUDFLARE_AUTHORITY",
+        "provider_authority": "NONE"
+      }
+    ],
+    "source_contract_version": "2.0.0"
+  },
   "lifecycle": {
     "current_state": "SOURCE_READY",
     "allowed_states": [
@@ -22,11 +41,14 @@
   },
   "policy": {
     "destination": {
-      "provider": "Backblaze B2",
-      "region": "Canada East",
-      "bucket_visibility": "private",
-      "object_lock_required": true,
-      "retention_mode": "COMPLIANCE"
+      "provider": "GitHub",
+      "repository_class": "DEDICATED_PRIVATE_RECOVERY_VAULT",
+      "repository_reference": "UNKNOWN",
+      "capability_status": "UNKNOWN",
+      "provisioning_status": "BLOCKED",
+      "immutable_releases_required_before_first_publication": true,
+      "legal_or_compliance_worm": "NOT_CLAIMED",
+      "google_drive_mirroring": "DEFERRED_OPTIONAL_PROVIDER_PACKET"
     },
     "automation": {
       "scheduler": "private_github_actions",
@@ -37,10 +59,22 @@
       "tool_class": "age",
       "streaming_before_upload": true,
       "persistent_plaintext_allowed": false,
-      "automation_material": "public_recipients_only",
-      "offline_private_identity_count": 2,
-      "distinct_encrypted_media_required": true,
-      "offsite_identity_count": 1
+      "public_recipients_only": true,
+      "minimum_age_recipient_count": 2,
+      "private_key_access": "BLOCKED"
+    },
+    "export": {
+      "default_supabase_db_dump_only": "REJECT_AS_INCOMPLETE"
+    },
+    "release": {
+      "chunk_max_bytes": 1900000000,
+      "asset_max_count": 1000,
+      "lifecycle": "DRAFT_UPLOAD PUBLISH_ONCE IMMUTABLE_VERIFY NO_TAG_REUSE",
+      "tag_reuse": "FORBIDDEN",
+      "manifest": "SIGNED_SANITIZED",
+      "github_release_attestation": "REQUIRED",
+      "persistent_plaintext": false,
+      "whole_release_deletion": "SEPARATE_DESTRUCTIVE_AUTHORITY"
     },
     "schedule": {
       "full_export_interval_hours": 6,
@@ -48,7 +82,9 @@
     },
     "retention": {
       "standard_days": 35,
-      "first_accepted_monthly_days": 400
+      "first_accepted_monthly_days": 400,
+      "model": "OPERATIONAL_RETENTION_NOT_WORM",
+      "deletion": "WHOLE_RELEASE_ONLY_UNDER_SEPARATE_DESTRUCTIVE_AUTHORITY"
     },
     "objectives": {
       "rpo_seconds": 28800,
@@ -57,22 +93,11 @@
       "production_service_rto_seconds": null
     },
     "cost": {
+      "maximum_usd": 0,
       "expected_increment_usd_monthly": 0,
-      "warning_usd_monthly": 5,
-      "manual_approval_ceiling_usd_monthly": 15,
       "budget_stop_control_required": true,
-      "monthly_reporting_units": [
-        "backup_freshness",
-        "projected_cost",
-        "runner_usage",
-        "storage_growth"
-      ]
-    },
-    "provider_physical_backup_complement": {
-      "required": true,
-      "frequency": "daily",
-      "retention_days": 7,
-      "storage_object_bodies_included": false
+      "paid_capability": "BLOCKED",
+      "unknown_cost": "BLOCKED"
     }
   },
   "coverage_units": [
@@ -91,83 +116,50 @@
     "nonempty_without_current_receipt_status": "BLOCKED"
   },
   "receipt_contract": {
+    "schema_version": "2.0.0",
     "canonical_serialization": "lexicographic_object_keys_array_order_preserved_two_space_json_lf",
     "digest_algorithm": "SHA-256",
     "aggregate_only": true,
-    "accepted_exports_authentication": {
-      "required": true,
+    "source_identity_required": true,
+    "receipt_identity_preimage": "all_required_receipt_fields_except_receipt_id_and_github_release_attestation",
+    "public_binding": "event_id_equals_onv1_plus_exact_payload_sha256",
+    "release_identity": {
+      "repository_reference": "UNKNOWN",
+      "release_tag_reuse": "FORBIDDEN",
+      "attestation_required": true,
+      "immutable_readback_required": true
+    },
+    "manifest": {
+      "status": "REQUIRED",
+      "signed_sanitized": true,
+      "github_release_attestation": "REQUIRED",
+      "public_recipient_fingerprints_required": 2
+    },
+    "github_release_attestation": {
+      "schema_version": "1.0.0",
       "verification_boundary": "pinned_ed25519_signature",
-      "subject_digest": "accepted_exports_evidence_without_verification_result",
-      "required_result_status": "VERIFIED",
-      "signature_domain": "fawxzzy-platform:accepted-exports-authentication:v1",
+      "signature_domain": "fawxzzy-platform:github-release-attestation:v1",
+      "maximum_age_seconds": 28800,
+      "independent_readback_required": true,
+      "independent_readback": {
+        "verification_boundary": "distinct_pinned_ed25519_reader_signature",
+        "signature_domain": "fawxzzy-platform:github-release-independent-readback:v1",
+        "actor_separation_required": true,
+        "trust_anchor": {
+          "status": "BLOCKED",
+          "algorithm": "Ed25519",
+          "key_id": "UNKNOWN",
+          "public_key_spki_base64": null,
+          "public_key_spki_sha256": null
+        }
+      },
       "trust_anchor": {
         "status": "BLOCKED",
         "algorithm": "Ed25519",
         "key_id": "UNKNOWN",
-        "verifier_reference": "UNKNOWN",
         "public_key_spki_base64": null,
         "public_key_spki_sha256": null
       }
-    },
-    "execution_gate_authentication": {
-      "required": true,
-      "verification_boundary": "pinned_ed25519_signature",
-      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
-      "required_result_status": "VERIFIED",
-      "signature_domain": "fawxzzy-platform:execution-gate-admission:v1",
-      "maximum_age_seconds": 28800,
-      "binding_class": "predeclared_receipt_export_source_state",
-      "strictly_before_execution_boundary": true,
-      "admission_policy": {
-        "version": "1.0.0",
-        "backup_current": [
-          {
-            "gate_id": "backup_generation_or_upload",
-            "gate_version": "1.0.0",
-            "scope": "backup_receipt"
-          }
-        ],
-        "restore_rehearsed": [
-          {
-            "gate_id": "backup_generation_or_upload",
-            "gate_version": "1.0.0",
-            "scope": "backup_receipt"
-          },
-          {
-            "gate_id": "restore_rehearsal",
-            "gate_version": "1.0.0",
-            "scope": "restore_receipt"
-          }
-        ]
-      }
-    },
-    "restore_outcome_authentication": {
-      "required": true,
-      "verification_boundary": "pinned_ed25519_signature",
-      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
-      "required_result_status": "VERIFIED",
-      "signature_domain": "fawxzzy-platform:restore-outcome-attestation:v1",
-      "maximum_age_seconds": 28800,
-      "binding_class": "admitted_pre_restore_plan_and_final_outcome"
-    },
-    "storage_inventory_authentication": {
-      "required": true,
-      "verification_boundary": "pinned_ed25519_signature",
-      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
-      "required_result_status": "VERIFIED",
-      "signature_domain": "fawxzzy-platform:storage-inventory-attestation:v1",
-      "maximum_age_seconds": 28800,
-      "provider_class": "Supabase Storage metadata"
-    },
-    "object_lock_authentication": {
-      "required": true,
-      "verification_boundary": "pinned_ed25519_signature",
-      "trust_anchor_source": "receipt_contract.accepted_exports_authentication.trust_anchor",
-      "required_result_status": "VERIFIED",
-      "signature_domain": "fawxzzy-platform:object-lock-provider-attestation:v1",
-      "maximum_age_seconds": 28800,
-      "provider_class": "Backblaze B2",
-      "retention_mode": "COMPLIANCE"
     },
     "required_fields": [
       "aggregate_counts",
@@ -179,20 +171,22 @@
       "destination_version",
       "export_id",
       "freshness",
+      "github_release_attestation",
       "key_recipient_ids",
       "manifest_sha256",
       "migration_ledger_sha256",
       "monthly_selection",
-      "object_lock",
-      "owner_decision",
-      "plaintext_sha256",
       "postgres_version",
       "project",
       "receipt_id",
+      "release_assets",
+      "release_tag",
+      "restore_quarantine",
       "retention_until",
       "snapshot_at",
       "source_commit",
       "source_state_sha256",
+      "storage_body_state",
       "tool_versions",
       "watchdog"
     ],
@@ -235,13 +229,18 @@
   },
   "execution_gates": {
     "provider_setup": "BLOCKED",
+    "github_recovery_vault_provisioning": "BLOCKED",
+    "immutable_release_enablement": "BLOCKED",
     "credential_or_key_installation": "BLOCKED",
     "workflow_publication": "BLOCKED",
     "backup_generation_or_upload": "BLOCKED",
+    "backup_export": "BLOCKED",
     "restore_rehearsal": "BLOCKED",
     "target_schema_auth_or_data_bootstrap": "BLOCKED",
     "cutover": "BLOCKED",
     "source_pause_or_deletion": "BLOCKED",
-    "production": "BLOCKED"
-  }
+    "production": "BLOCKED",
+    "billing_or_paid_capability": "BLOCKED"
+  },
+  "apply_admitted": false
 }
