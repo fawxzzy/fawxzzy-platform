@@ -24,6 +24,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/activation/activation-request.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-request'],
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
   ['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', 'urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-contract'],
+  ['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json', 'urn:fawxzzy:platform:schemas:v1:auth-app-data-rehearsal-contract'],
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
   ['contracts/v1/gates/fitness-pr108-replay-gate.json', 'urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate'],
@@ -124,6 +125,179 @@ const targetBootstrapZeroEffectFields = Object.freeze([
   'realtime_publications_enabled',
   'storage_objects_written',
   'auth_messages_sent'
+]);
+
+const authAppDataBindingDocuments = Object.freeze([
+  Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
+  Object.freeze({ path: 'contracts/v1/auth/domain-session-contract.json', version: '1.1.0', sha256: '516337d43048199875b3f3b283a3f48b0cba64a720fa5796ca0064a41ac24f16' }),
+  Object.freeze({ path: 'contracts/v1/transport/app-data-transport-contract.json', version: '1.0.0', sha256: 'db12ccd31fd627f7b184692f88d2078d162b2f43f06f02826255cbcd3df76c63' }),
+  Object.freeze({ path: 'contracts/v1/transport/app-data-mutation-journal-contract.json', version: '1.0.0', sha256: '4e4208dc28fb5f7b2614cbd27f446d1ccab1996a15734cd666e86d1fae63b0ea' }),
+  Object.freeze({ path: 'contracts/v1/transport/app-data-receipt.example.json', version: '1.0.0', sha256: '14526455a7cbb11600a9922acba2702004586b543b001d6f937ccc9dfa97da23' }),
+  Object.freeze({ path: 'contracts/v1/transport/mazer-app-data-adapter-contract.json', version: '1.2.0', sha256: 'ac451c8fefdd6d33543c013476e3b1bcd6c850143fb4614125db7c928b3a64a7' }),
+  Object.freeze({ path: 'contracts/v1/transport/fitness-app-data-adapter-contract.json', version: '1.1.0', sha256: 'ffc44ec109b243a9e9a1c28236ef55b0ae00e13fdaadf155f28c1561709e3ee6' }),
+  Object.freeze({ path: 'contracts/v1/transport/discordos-app-data-adapter-contract.json', version: '1.1.0', sha256: '4d9a3e7409f39b126e2e631855d8016cca9585dbf9a505786808aa6007120068' }),
+  Object.freeze({ path: 'contracts/v1/identity/identity-map.json', version: '1.0.0', sha256: '1212e3457552e85d65f262ecb63a3a2a452b3c133e42da15c32ce221d20f3fb9' }),
+  Object.freeze({ path: 'contracts/v1/membership/membership-lifecycle.json', version: '1.1.0', sha256: '8dbeb551521ba94fb4d1a807e4c92cbc3d31dd8df1a9a0e18b9486044d434e78' }),
+  Object.freeze({ path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', version: '1.0.0', sha256: '1d314175d6b031952aa5824d1b662a3de5a1ca12298605bfad0551c1511d1123' }),
+  Object.freeze({ path: 'contracts/v1/recovery/independent-backup-contract.json', version: '2.1.0', sha256: 'ed5c8f927061a82fcc8871a28fe862e1cc8d6d5963bfdad27072a3fe7486c99d' }),
+  Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
+]);
+
+const authAppDataBindingSetSha256 = 'e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6';
+
+const authAppDataAuthSurfaces = Object.freeze([
+  'users',
+  'identities',
+  'password_hashes',
+  'verification_states',
+  'anonymous_users',
+  'mfa_factors_challenges_aal',
+  'sso_connections_and_configuration',
+  'invites',
+  'recovery_tokens',
+  'email_change_tokens',
+  'phone_change_tokens',
+  'source_sessions_access_refresh_tokens_cookies',
+  'auth_audit_log_database',
+  'auth_audit_log_external_storage',
+  'signing_keys_and_jwt_configuration',
+  'provider_auth_settings_and_credentials',
+  'oauth_server_enablement_and_authorization_path',
+  'oauth_registered_clients_redirect_uris_and_secret_rotation',
+  'oauth_authorizations_consents_and_codes',
+  'oauth_oidc_issued_access_refresh_and_id_tokens'
+]);
+
+const authAppDataAuthDispositions = Object.freeze([
+  'TRANSPORT_AGGREGATE_PROOF_REQUIRED',
+  'TRANSPORT_AGGREGATE_PROOF_REQUIRED',
+  'OPAQUE_PROVIDER_COMPATIBLE_NEVER_SERIALIZED',
+  'TRANSPORT_AGGREGATE_PROOF_REQUIRED',
+  'AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED',
+  'REENROLL_AND_AAL1_UNTIL_ACCEPTED_FACTOR_PROOF',
+  'AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED',
+  'AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED',
+  'SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW',
+  'SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW',
+  'SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW',
+  'REJECT_AND_ISSUE_NEW_TARGET_SESSIONS',
+  'AGGREGATE_INVENTORY_AND_RETENTION_PROOF_REQUIRED',
+  'AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED',
+  'SEPARATELY_CONFIGURED_NO_SECRET_TRANSPORT',
+  'SEPARATELY_CONFIGURED_NO_SECRET_TRANSPORT',
+  'AGGREGATE_ENABLEMENT_AND_ENDPOINT_PROOF_REQUIRED',
+  'AGGREGATE_INVENTORY_NO_SECRET_SERIALIZATION',
+  'AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED',
+  'SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW'
+]);
+
+const authAppDataNonrowSurfaces = Object.freeze([
+  'sequences_and_ownership',
+  'large_objects',
+  'storage_bucket_metadata',
+  'storage_object_metadata',
+  'storage_object_bodies',
+  'realtime_publications',
+  'replica_identity',
+  'grants',
+  'rls_and_policies',
+  'functions_and_acls',
+  'triggers',
+  'extensions'
+]);
+
+const authAppDataNonrowDispositions = Object.freeze([
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'SEPARATE_TRANSFER_EGRESS_AND_BODY_PARITY_AUTHORITY_BLOCKED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED',
+  'SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED',
+  'SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED',
+  'AGGREGATE_PARITY_PROOF_REQUIRED',
+  'OBSERVED_DEFAULT_INSTALLED_AND_COMPATIBILITY_PROOF_REQUIRED'
+]);
+
+const authAppDataAdapterCounts = Object.freeze([
+  Object.freeze({ app: 'mazer', relation_count: 4, contract_path: 'contracts/v1/transport/mazer-app-data-adapter-contract.json' }),
+  Object.freeze({ app: 'fitness', relation_count: 27, contract_path: 'contracts/v1/transport/fitness-app-data-adapter-contract.json' }),
+  Object.freeze({ app: 'discordos', relation_count: 10, contract_path: 'contracts/v1/transport/discordos-app-data-adapter-contract.json' })
+]);
+
+const authAppDataActionOrder = Object.freeze([
+  'BIND_ACTION_TIME_SUBJECT_AND_RUN',
+  'VERIFY_DISPOSABLE_TARGET_BOOTSTRAP_CURRENT',
+  'VERIFY_BACKUP_AND_RESTORE_PREREQUISITES',
+  'CAPTURE_AUTH_AND_DATA_S0',
+  'DENY_EXTERNAL_EGRESS',
+  'WITHHOLD_APPLICATION_CREDENTIALS',
+  'CREATE_AUTH_SHELLS',
+  'LOAD_MAZER_DATA',
+  'LOAD_FITNESS_DATA',
+  'LOAD_DISCORDOS_DATA',
+  'CAPTURE_AUTH_AND_DATA_S1',
+  'AUTHORIZE_AND_ENTER_WRITE_BARRIER',
+  'APPLY_S1_DIFF_AND_TOMBSTONES',
+  'CAPTURE_FINAL_S2',
+  'POSTIMPORT_READ_A',
+  'WAIT_OBSERVATION_WINDOW',
+  'POSTIMPORT_READ_B',
+  'RUN_SECURITY_AUTH_AND_EGRESS_NEGATIVE_PROBES',
+  'ACTIVATE_PENDING_MEMBERSHIPS',
+  'FREEZE_QUARANTINED_TARGET'
+]);
+
+const authAppDataExpectedStateModel = Object.freeze({
+  version: 'AUTH_APP_DATA_EXPECTED_STATE_V1',
+  digest_model: 'CANONICAL_JSON_BYTES_SHA256_V1',
+  components: Object.freeze([
+    'subject_sha256',
+    'run_correlation_sha256',
+    'contract_binding_set_sha256',
+    'package',
+    'auth_surfaces',
+    'application_data',
+    'identity_ledger',
+    'final_s2'
+  ])
+});
+
+const authAppDataExpectedStateQueryModelSha256 = 'c4edb31be26650b35ad2bd9d4572077d92269aeda649a6ff1577411da342405f';
+
+const authAppDataNegativeProbes = Object.freeze([
+  'SOURCE_ACCESS_TOKEN_REJECTED',
+  'SOURCE_REFRESH_TOKEN_REJECTED',
+  'SOURCE_COOKIE_REJECTED',
+  'QUARANTINED_IDENTITY_INACTIVE',
+  'SUSPENDED_USER_DENIED',
+  'AAL2_WITHOUT_ACCEPTED_FACTOR_PROOF_DENIED',
+  'RECOVERY_TOKEN_REPLAY_DENIED',
+  'INVITE_TOKEN_REPLAY_DENIED',
+  'NORMALIZED_IDENTITY_COLLISION_QUARANTINED',
+  'WRONG_OWNER_ROW_DENIED',
+  'DIRECT_ID_ACCESS_DENIED',
+  'CAS_CONFLICT_QUARANTINED',
+  'UNAUTHORIZED_STORAGE_ACCESS_DENIED',
+  'EXTERNAL_EGRESS_DENIED'
+]);
+
+const authAppDataPrerequisites = Object.freeze([
+  'DISPOSABLE_TARGET_BOOTSTRAP',
+  'INDEPENDENT_BACKUP',
+  'MICRO_RECOVERY_CAPABILITY'
+]);
+
+const authAppDataZeroEffectFields = Object.freeze([
+  'outbound_network_requests',
+  'auth_messages_sent',
+  'storage_object_writes',
+  'realtime_broadcasts',
+  'edge_function_invocations',
+  'cron_jobs_enabled',
+  'webhooks_enabled'
 ]);
 
 const expectedServiceBindings = Object.freeze({
@@ -426,6 +600,97 @@ function digest(value) {
 
 function canonicalDigest(value) {
   return crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
+}
+
+function authAppDataPrerequisiteSetSha256(receipt) {
+  return canonicalDigest(receipt?.prerequisites ?? []);
+}
+
+function authAppDataAuthorityReceiptSubject(receipt, authority) {
+  return {
+    model: 'AUTH_APP_DATA_EXECUTION_AUTHORITY_V1',
+    status: authority?.status,
+    authorized_operation: authority?.authorized_operation,
+    subject_sha256: authority?.subject_sha256,
+    run_correlation_sha256: authority?.run_correlation_sha256,
+    contract_binding_set_sha256: authority?.contract_binding_set_sha256,
+    migration_package_sha256: authority?.migration_package_sha256,
+    governance_manifest_sha256: authority?.governance_manifest_sha256,
+    prerequisite_set_sha256: authority?.prerequisite_set_sha256,
+    authority_identity_sha256: authority?.authority_identity_sha256,
+    executor_identity_sha256: authority?.executor_identity_sha256,
+    executor_capability_sha256: authority?.executor_capability_sha256
+  };
+}
+
+function authAppDataExecutorReceiptSubject(receipt, authority) {
+  return {
+    model: 'AUTH_APP_DATA_EXECUTOR_BINDING_V1',
+    authorized_operation: authority?.authorized_operation,
+    subject_sha256: receipt?.subject_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    contract_binding_set_sha256: receipt?.contract_binding_set_sha256,
+    package: receipt?.package,
+    prerequisite_set_sha256: authAppDataPrerequisiteSetSha256(receipt),
+    authority_identity_sha256: authority?.authority_identity_sha256,
+    executor_identity_sha256: authority?.executor_identity_sha256,
+    executor_capability_sha256: authority?.executor_capability_sha256
+  };
+}
+
+function authAppDataExpectedStateSubject(receipt) {
+  const finalS2 = (receipt?.snapshots ?? []).find((snapshot) => snapshot?.name === 'S2') ?? null;
+  return {
+    version: authAppDataExpectedStateModel.version,
+    subject_sha256: receipt?.subject_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    contract_binding_set_sha256: receipt?.contract_binding_set_sha256,
+    package: receipt?.package,
+    auth_surfaces: receipt?.auth_surfaces,
+    application_data: receipt?.application_data,
+    identity_ledger: receipt?.identity_ledger,
+    final_s2: finalS2
+  };
+}
+
+function authAppDataSignedBytes(signatureDomain, subject) {
+  return Buffer.from(`${signatureDomain}\n${JSON.stringify(subject, null, 2)}\n`, 'utf8');
+}
+
+function authAppDataNonzeroCommitment(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value) && value !== '0'.repeat(64);
+}
+
+function authAppDataVerifyAuthentication(subject, authentication, policy) {
+  const trustAnchor = policy?.trust_anchor ?? {};
+  if (trustAnchor.status !== 'CURRENT'
+    || trustAnchor.algorithm !== 'Ed25519'
+    || typeof trustAnchor.key_id !== 'string'
+    || trustAnchor.key_id === 'UNKNOWN'
+    || typeof trustAnchor.public_key_spki_base64 !== 'string'
+    || !authAppDataNonzeroCommitment(trustAnchor.public_key_spki_sha256)
+    || authentication?.algorithm !== 'Ed25519'
+    || authentication?.key_id !== trustAnchor.key_id
+    || authentication?.public_key_spki_sha256 !== trustAnchor.public_key_spki_sha256
+    || authentication?.signed_payload_sha256 !== canonicalDigest(subject)
+    || typeof authentication?.signature_base64 !== 'string') {
+    return false;
+  }
+  try {
+    const publicKeyBytes = Buffer.from(trustAnchor.public_key_spki_base64, 'base64');
+    const signatureBytes = Buffer.from(authentication.signature_base64, 'base64');
+    if (publicKeyBytes.toString('base64') !== trustAnchor.public_key_spki_base64
+      || signatureBytes.toString('base64') !== authentication.signature_base64
+      || signatureBytes.length !== 64
+      || crypto.createHash('sha256').update(publicKeyBytes).digest('hex') !== trustAnchor.public_key_spki_sha256) {
+      return false;
+    }
+    const publicKey = crypto.createPublicKey({ key: publicKeyBytes, format: 'der', type: 'spki' });
+    return publicKey.asymmetricKeyType === 'ed25519'
+      && crypto.verify(null, authAppDataSignedBytes(policy.signature_domain, subject), publicKey, signatureBytes);
+  } catch {
+    return false;
+  }
 }
 
 function collectStatusValues(value, pointer = '$', output = []) {
@@ -943,6 +1208,273 @@ export function validateDisposableTargetBootstrapContract(contract) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+export function validateAuthAppDataRehearsalReceipt(contract, receipt) {
+  const failures = [];
+  const requireReceipt = (condition, message) => {
+    if (!condition) failures.push(`auth/app-data rehearsal receipt: ${message}`);
+  };
+  const zero = '0'.repeat(64);
+  const isCommitment = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+  const isNonzeroCommitment = (value) => isCommitment(value) && value !== zero;
+  const parseTime = (value) => typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  const forbiddenReceiptKeys = /^(?:raw_?rows?|primary_?keys?|uuids?|emails?|credentials?|tokens?|cookies?|password_?hashes?|provider_?responses?|project_?refs?|sql|machine_?paths?|storage_?object_?bodies)$/i;
+  const scanReceipt = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(scanReceipt);
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    for (const [key, entry] of Object.entries(value)) {
+      if (forbiddenReceiptKeys.test(key)) failures.push(`auth/app-data rehearsal receipt sanitization failure: FORBIDDEN_FIELD_${key.toUpperCase()}`);
+      scanReceipt(entry);
+    }
+  };
+  scanReceipt(receipt);
+  requireReceipt(receipt?.version === '1.0.0', 'version drift');
+  requireReceipt(receipt?.execution_lifecycle === 'EXECUTION_BLOCKED', 'execution lifecycle must remain blocked');
+  requireReceipt(receipt?.apply_admitted === false, 'apply must remain false');
+  requireReceipt(receipt?.source_contract_grants_provider_execution === false, 'source contract must not grant provider execution');
+  requireReceipt(receipt?.contract_binding_set_sha256 === contract?.contract_bindings?.binding_set_sha256, 'contract binding-set digest mismatch');
+  requireReceipt(receipt?.package?.migration_count === 122 && receipt?.package?.standard_migration_sql_count === 0 && receipt?.package?.migration_package_sha256 === 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db' && receipt?.package?.governance_manifest_sha256 === '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec', 'immutable migration package or governance binding mismatch');
+  requireReceipt(receipt?.rollback?.source_projects_active === true && receipt?.rollback?.source_mutation_count === 0, 'source systems must remain active and unmodified');
+  requireReceipt(receipt?.rollback?.target_disposal_authorized === false && receipt?.rollback?.credential_revocation_authorized === false, 'disposal and credential revocation require separate authority');
+  requireReceipt(receipt?.rollback?.terminal_disposition === 'QUARANTINED_RETAINED', 'terminal target disposition drift');
+  for (const field of authAppDataZeroEffectFields) {
+    requireReceipt(receipt?.external_effects?.[field] === 0, `${field} must be zero`);
+  }
+
+  if (receipt?.status === 'BLOCKED') {
+    requireReceipt(receipt?.evidence_complete === false, 'checked-in BLOCKED receipt cannot claim complete evidence');
+    requireReceipt(receipt?.validated_at === null, 'checked-in BLOCKED receipt cannot claim validation time');
+    requireReceipt(receipt?.execution_authority?.status === 'BLOCKED', 'checked-in BLOCKED receipt cannot claim execution authority');
+    requireReceipt(receipt?.execution_authority?.authority_authentication?.key_id === 'UNKNOWN'
+      && receipt?.execution_authority?.authority_authentication?.public_key_spki_sha256 === null
+      && receipt?.execution_authority?.authority_authentication?.signature_base64 === 'AA=='
+      && receipt?.execution_authority?.executor_authentication?.key_id === 'UNKNOWN'
+      && receipt?.execution_authority?.executor_authentication?.public_key_spki_sha256 === null
+      && receipt?.execution_authority?.executor_authentication?.signature_base64 === 'AA==', 'checked-in BLOCKED receipt cannot claim authenticated authority or executor');
+    requireReceipt(exactOrderedValues((receipt?.prerequisites ?? []).map((prerequisite) => prerequisite.name), authAppDataPrerequisites) && receipt.prerequisites.every((prerequisite) => prerequisite.status === 'BLOCKED'), 'checked-in prerequisites must remain complete and BLOCKED');
+    requireReceipt(exactOrderedValues(receipt?.completed_actions, []), 'checked-in BLOCKED receipt cannot claim completed actions');
+    requireReceipt(exactOrderedValues(receipt?.auth_surfaces, []), 'checked-in BLOCKED receipt cannot claim Auth evidence');
+    requireReceipt(exactOrderedValues(receipt?.application_data?.nonrow_surfaces, []), 'checked-in BLOCKED receipt cannot claim non-row evidence');
+    requireReceipt(exactOrderedValues(receipt?.snapshots, []), 'checked-in BLOCKED receipt cannot claim snapshots');
+    requireReceipt(receipt?.postimport_reads?.read_a === null && receipt?.postimport_reads?.read_b === null, 'checked-in BLOCKED receipt cannot claim parity reads');
+    requireReceipt(receipt?.postimport_reads?.observation_window_seconds === 0 && receipt?.postimport_reads?.identical === false, 'checked-in BLOCKED receipt cannot claim read agreement');
+    requireReceipt(receipt?.postimport_reads?.query_model_sha256 === authAppDataExpectedStateQueryModelSha256, 'checked-in query model binding drift');
+    requireReceipt(receipt?.negative_probes?.completed_at === null && exactOrderedValues(receipt?.negative_probes?.results, []), 'checked-in BLOCKED receipt cannot claim negative probes');
+    requireReceipt(receipt?.membership_activation?.status === 'BLOCKED' && receipt?.membership_activation?.activated_at === null && receipt?.membership_activation?.activated_mapping_count === 0 && receipt?.membership_activation?.remaining_pending_count === 0, 'checked-in BLOCKED receipt cannot claim membership activation');
+    return failures.sort((left, right) => left.localeCompare(right));
+  }
+
+  requireReceipt(receipt?.status === 'CURRENT', 'terminal receipt must be CURRENT or BLOCKED');
+  requireReceipt(receipt?.evidence_complete === true, 'CURRENT receipt requires complete evidence');
+  requireReceipt(Number.isFinite(parseTime(receipt?.validated_at)), 'CURRENT receipt requires a valid validation time');
+  requireReceipt(isNonzeroCommitment(receipt?.subject_sha256) && isNonzeroCommitment(receipt?.run_correlation_sha256), 'subject and run commitments must be nonzero');
+  requireReceipt(receipt?.subject_sha256 !== receipt?.run_correlation_sha256, 'subject and run commitments must be distinct');
+  const authority = receipt?.execution_authority ?? {};
+  requireReceipt(authority.status === 'CURRENT' && authority.authorized_operation === 'AUTH_APP_DATA_REHEARSAL', 'CURRENT receipt requires separately admitted execution authority');
+  requireReceipt(authority.subject_sha256 === receipt?.subject_sha256 && authority.run_correlation_sha256 === receipt?.run_correlation_sha256, 'execution authority subject/run binding mismatch');
+  const prerequisites = receipt?.prerequisites ?? [];
+  requireReceipt(exactOrderedValues(prerequisites.map((prerequisite) => prerequisite.name), authAppDataPrerequisites), 'prerequisite denominator or order drift');
+  requireReceipt(new Set(prerequisites.map((prerequisite) => prerequisite.evidence_receipt_sha256)).size === authAppDataPrerequisites.length, 'prerequisite evidence receipts must be distinct');
+  for (const prerequisite of prerequisites) {
+    requireReceipt(prerequisite?.status === 'CURRENT', `${String(prerequisite?.name)} prerequisite must be CURRENT`);
+    requireReceipt(prerequisite?.subject_sha256 === receipt?.subject_sha256 && prerequisite?.run_correlation_sha256 === receipt?.run_correlation_sha256, `${String(prerequisite?.name)} prerequisite subject/run binding mismatch`);
+    requireReceipt(isNonzeroCommitment(prerequisite?.evidence_receipt_sha256), `${String(prerequisite?.name)} prerequisite evidence must be nonzero`);
+  }
+  const prerequisiteSetSha256 = authAppDataPrerequisiteSetSha256(receipt);
+  requireReceipt(authority.contract_binding_set_sha256 === receipt?.contract_binding_set_sha256, 'execution authority contract binding-set mismatch');
+  requireReceipt(authority.migration_package_sha256 === receipt?.package?.migration_package_sha256 && authority.governance_manifest_sha256 === receipt?.package?.governance_manifest_sha256, 'execution authority package binding mismatch');
+  requireReceipt(authority.prerequisite_set_sha256 === prerequisiteSetSha256, 'execution authority prerequisite-set binding mismatch');
+  requireReceipt(isNonzeroCommitment(authority.authority_identity_sha256) && isNonzeroCommitment(authority.executor_identity_sha256) && isNonzeroCommitment(authority.executor_capability_sha256), 'authority and executor identities/capability must be nonzero');
+  requireReceipt(new Set([authority.authority_identity_sha256, authority.executor_identity_sha256, authority.executor_capability_sha256]).size === 3, 'authority and executor identities/capability must be distinct');
+  const expectedAuthorityReceiptSha256 = canonicalDigest(authAppDataAuthorityReceiptSubject(receipt, authority));
+  const expectedExecutorReceiptSha256 = canonicalDigest(authAppDataExecutorReceiptSubject(receipt, authority));
+  requireReceipt(authority.authority_receipt_sha256 === expectedAuthorityReceiptSha256, 'execution authority receipt does not bind the exact package, contracts, prerequisites, authority, and executor');
+  requireReceipt(authority.executor_receipt_sha256 === expectedExecutorReceiptSha256, 'executor receipt does not bind the exact package, contracts, prerequisites, and executor');
+  requireReceipt(authority.authority_receipt_sha256 !== authority.executor_receipt_sha256, 'authority and executor receipts must be distinct');
+  const authorityAuthenticationPolicy = contract?.execution_authentication?.authority;
+  const executorAuthenticationPolicy = contract?.execution_authentication?.executor;
+  requireReceipt(authorityAuthenticationPolicy?.trust_anchor?.key_id !== executorAuthenticationPolicy?.trust_anchor?.key_id
+    && authorityAuthenticationPolicy?.trust_anchor?.public_key_spki_sha256 !== executorAuthenticationPolicy?.trust_anchor?.public_key_spki_sha256, 'authority and executor trust anchors must be distinct');
+  requireReceipt(authAppDataVerifyAuthentication(authAppDataAuthorityReceiptSubject(receipt, authority), authority.authority_authentication, authorityAuthenticationPolicy), 'execution authority authentication does not verify against the pinned source-authorized trust anchor');
+  requireReceipt(authAppDataVerifyAuthentication(authAppDataExecutorReceiptSubject(receipt, authority), authority.executor_authentication, executorAuthenticationPolicy), 'executor capability authentication does not verify against the distinct pinned source-authorized trust anchor');
+  requireReceipt(exactOrderedValues(receipt?.completed_actions, authAppDataActionOrder), 'fixed action order is incomplete or reordered');
+
+  const expectedAuthDispositions = contract?.auth_surface_dispositions ?? [];
+  const actualAuthSurfaces = receipt?.auth_surfaces ?? [];
+  requireReceipt(exactOrderedValues(actualAuthSurfaces.map((surface) => surface.surface), authAppDataAuthSurfaces), 'Auth surface denominator or order drift');
+  requireReceipt(new Set(actualAuthSurfaces.map((surface) => surface.surface)).size === authAppDataAuthSurfaces.length, 'Auth surfaces must be unique');
+  for (const [index, surface] of actualAuthSurfaces.entries()) {
+    requireReceipt(surface?.disposition === expectedAuthDispositions[index]?.disposition, `${String(surface?.surface)} disposition mismatch`);
+    requireReceipt(surface?.status === 'CURRENT', `${String(surface?.surface)} must be CURRENT`);
+    requireReceipt(Number.isInteger(surface?.count) && surface.count >= 0, `${String(surface?.surface)} count is invalid`);
+    requireReceipt(isNonzeroCommitment(surface?.aggregate_sha256), `${String(surface?.surface)} aggregate commitment must be nonzero`);
+  }
+
+  requireReceipt(receipt?.application_data?.relation_total === 41, 'application relation denominator must remain 41');
+  requireReceipt(canonicalDigest((receipt?.application_data?.adapter_counts ?? []).map(({ app, relation_count }) => ({ app, relation_count }))) === canonicalDigest(authAppDataAdapterCounts.map(({ app, relation_count }) => ({ app, relation_count }))), 'adapter relation counts or order drift');
+  for (const adapter of receipt?.application_data?.adapter_counts ?? []) {
+    requireReceipt(isNonzeroCommitment(adapter?.aggregate_sha256), `${String(adapter?.app)} aggregate commitment must be nonzero`);
+  }
+  const expectedNonrowDispositions = contract?.application_data_denominator?.nonrow_surfaces ?? [];
+  const actualNonrowSurfaces = receipt?.application_data?.nonrow_surfaces ?? [];
+  requireReceipt(exactOrderedValues(actualNonrowSurfaces.map((surface) => surface.surface), authAppDataNonrowSurfaces), 'non-row surface denominator or order drift');
+  requireReceipt(new Set(actualNonrowSurfaces.map((surface) => surface.surface)).size === authAppDataNonrowSurfaces.length, 'non-row surfaces must be unique');
+  for (const [index, surface] of actualNonrowSurfaces.entries()) {
+    requireReceipt(surface?.disposition === expectedNonrowDispositions[index]?.disposition, `${String(surface?.surface)} disposition mismatch`);
+    requireReceipt(surface?.status === 'CURRENT', `${String(surface?.surface)} must be CURRENT`);
+    requireReceipt(Number.isInteger(surface?.count) && surface.count >= 0, `${String(surface?.surface)} count is invalid`);
+    requireReceipt(isNonzeroCommitment(surface?.aggregate_sha256), `${String(surface?.surface)} aggregate commitment must be nonzero`);
+  }
+
+  requireReceipt(receipt?.identity_ledger?.status === 'CURRENT' && receipt?.identity_ledger?.complete_owner_fk_coverage === true, 'identity ledger must close every owner FK');
+  requireReceipt(isNonzeroCommitment(receipt?.identity_ledger?.aggregate_sha256), 'identity ledger aggregate commitment must be nonzero');
+  requireReceipt(Number.isInteger(receipt?.identity_ledger?.accepted_mapping_count) && Number.isInteger(receipt?.identity_ledger?.quarantined_mapping_count), 'identity mapping counts must be integers');
+  requireReceipt(Number.isInteger(receipt?.identity_ledger?.pending_membership_count) && Number.isInteger(receipt?.identity_ledger?.suspended_membership_count), 'membership counts must be integers');
+
+  const snapshots = receipt?.snapshots ?? [];
+  requireReceipt(exactOrderedValues(snapshots.map((snapshot) => snapshot.name), ['S0', 'S1', 'S2']), 'snapshot denominator or order drift');
+  requireReceipt(new Set(snapshots.map((snapshot) => snapshot.evidence_receipt_sha256)).size === 3, 'snapshot evidence receipts must be distinct');
+  for (const snapshot of snapshots) {
+    requireReceipt(snapshot?.status === 'CURRENT' && snapshot?.complete_denominator === true, `${String(snapshot?.name)} must have a complete CURRENT denominator`);
+    requireReceipt(snapshot?.subject_sha256 === receipt?.subject_sha256 && snapshot?.run_correlation_sha256 === receipt?.run_correlation_sha256, `${String(snapshot?.name)} subject/run binding mismatch`);
+    requireReceipt(isNonzeroCommitment(snapshot?.aggregate_sha256) && isNonzeroCommitment(snapshot?.evidence_receipt_sha256), `${String(snapshot?.name)} commitments must be nonzero`);
+    requireReceipt(Number.isFinite(parseTime(snapshot?.observed_at)), `${String(snapshot?.name)} observation time is invalid`);
+  }
+  const [s0, s1, s2] = snapshots.map((snapshot) => parseTime(snapshot?.observed_at));
+  const enteredAt = parseTime(receipt?.write_barrier?.entered_at);
+  const releasedAt = parseTime(receipt?.write_barrier?.released_at);
+  requireReceipt(s0 < s1 && s1 <= enteredAt && enteredAt < s2 && s2 <= releasedAt, 'S0/S1/barrier/S2 chronology is invalid');
+  requireReceipt(receipt?.write_barrier?.status === 'CURRENT' && isNonzeroCommitment(receipt?.write_barrier?.authority_receipt_sha256), 'write barrier requires separate nonzero authority evidence');
+
+  const reads = receipt?.postimport_reads ?? {};
+  const readA = reads.read_a ?? {};
+  const readB = reads.read_b ?? {};
+  const readATime = parseTime(readA.observed_at);
+  const readBTime = parseTime(readB.observed_at);
+  requireReceipt(reads.status === 'CURRENT' && reads.identical === true, 'post-import reads must be CURRENT and identical');
+  requireReceipt(readA.subject_sha256 === receipt?.subject_sha256 && readB.subject_sha256 === receipt?.subject_sha256 && readA.run_correlation_sha256 === receipt?.run_correlation_sha256 && readB.run_correlation_sha256 === receipt?.run_correlation_sha256, 'post-import read subject/run binding mismatch');
+  requireReceipt(readA.complete_denominator === true && readB.complete_denominator === true, 'both post-import reads require complete denominators');
+  const expectedStateSha256 = canonicalDigest(authAppDataExpectedStateSubject(receipt));
+  requireReceipt(reads.query_model_sha256 === authAppDataExpectedStateQueryModelSha256 && readA.query_model_sha256 === reads.query_model_sha256 && readB.query_model_sha256 === reads.query_model_sha256, 'post-import query model is not the canonical expected-state model');
+  requireReceipt(reads.expected_aggregate_sha256 === expectedStateSha256 && readA.aggregate_sha256 === expectedStateSha256 && readB.aggregate_sha256 === expectedStateSha256, 'post-import aggregate commitments do not bind complete S2 and per-surface expected state');
+  requireReceipt(isNonzeroCommitment(readA.evidence_receipt_sha256) && isNonzeroCommitment(readB.evidence_receipt_sha256) && readA.evidence_receipt_sha256 !== readB.evidence_receipt_sha256, 'post-import evidence receipts must be nonzero and distinct');
+  requireReceipt(isNonzeroCommitment(readA.reader_identity_sha256) && isNonzeroCommitment(readB.reader_identity_sha256) && readA.reader_identity_sha256 !== readB.reader_identity_sha256, 'post-import reader identities must be nonzero and distinct');
+  requireReceipt(isNonzeroCommitment(readA.execution_identity_sha256) && isNonzeroCommitment(readB.execution_identity_sha256) && readA.execution_identity_sha256 !== readB.execution_identity_sha256, 'post-import execution identities must be nonzero and distinct');
+  const observationWindowSeconds = (readBTime - readATime) / 1000;
+  requireReceipt(readATime >= releasedAt && readATime < readBTime, 'post-import read chronology is invalid');
+  requireReceipt(observationWindowSeconds === reads.observation_window_seconds, 'declared observation window does not match read timestamps');
+  requireReceipt(observationWindowSeconds >= contract?.postimport_parity?.minimum_observation_window_seconds && observationWindowSeconds <= contract?.postimport_parity?.maximum_observation_window_seconds, 'observation window is outside the admitted range');
+
+  const probes = receipt?.negative_probes?.results ?? [];
+  const probesCompletedAt = parseTime(receipt?.negative_probes?.completed_at);
+  requireReceipt(receipt?.negative_probes?.status === 'CURRENT', 'negative probes must be CURRENT');
+  requireReceipt(exactOrderedValues(probes.map((probe) => probe.name), authAppDataNegativeProbes), 'negative-probe denominator or order drift');
+  requireReceipt(probes.every((probe) => probe.passed === true && isNonzeroCommitment(probe.evidence_sha256)), 'every negative probe must pass with nonzero evidence');
+  requireReceipt(Number.isFinite(probesCompletedAt) && probesCompletedAt >= readBTime, 'negative probes must complete after read B');
+  const membershipActivation = receipt?.membership_activation ?? {};
+  const membershipActivatedAt = parseTime(membershipActivation.activated_at);
+  requireReceipt(membershipActivation.status === 'CURRENT' && isNonzeroCommitment(membershipActivation.evidence_sha256), 'membership activation requires CURRENT nonzero evidence');
+  requireReceipt(membershipActivation.activated_mapping_count === receipt?.identity_ledger?.pending_membership_count && membershipActivation.remaining_pending_count === 0, 'membership activation count must close the accepted pending denominator');
+  requireReceipt(receipt?.identity_ledger?.accepted_mapping_count >= membershipActivation.activated_mapping_count, 'membership activation cannot exceed accepted identity mappings');
+  requireReceipt(Number.isFinite(membershipActivatedAt) && membershipActivatedAt >= probesCompletedAt, 'membership activation must follow read parity and all negative probes');
+  requireReceipt(receipt?.external_effects?.status === 'CURRENT', 'external-effect evidence must be CURRENT');
+  requireReceipt(receipt?.rollback?.status === 'CURRENT' && receipt?.rollback?.reverse_evidence_complete === true, 'reverse rollback evidence must be complete and CURRENT');
+  requireReceipt(receipt?.rollback?.external_effect_count === 0 && isNonzeroCommitment(receipt?.rollback?.evidence_sha256), 'rollback must prove zero external effects with nonzero evidence');
+
+  const terminalBinding = canonicalDigest({ ...receipt, terminal_receipt_sha256: zero });
+  requireReceipt(receipt?.terminal_receipt_sha256 === terminalBinding, 'terminal receipt digest does not bind the aggregate receipt');
+  requireReceipt(parseTime(receipt?.validated_at) >= membershipActivatedAt, 'validation must occur after gated membership activation');
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function validateAuthAppDataRehearsalContract(contract, documents = loadDocuments()) {
+  const failures = [];
+  const requireContract = (condition, message) => {
+    if (!condition) failures.push(`auth/app-data rehearsal contract: ${message}`);
+  };
+  requireContract(contract?.version === '1.0.0' && contract?.contract_id === 'auth-app-data-rehearsal', 'identity drift');
+  requireContract(contract?.status === 'CURRENT', 'source contract must remain CURRENT');
+  requireContract(contract?.lifecycle?.source_contract === 'SOURCE_READY' && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED' && contract?.lifecycle?.apply_admitted === false, 'lifecycle must remain source-ready, execution-blocked, and apply=false');
+  requireContract(contract?.scope?.offline_contract_only === true, 'scope must remain offline only');
+  for (const field of [
+    'provider_connectivity_included',
+    'provider_runner_included',
+    'credential_material_included',
+    'sql_executor_included',
+    'executable_bundle_included',
+    'auth_or_data_mutation_authorized',
+    'storage_edge_realtime_mutation_authorized',
+    'rollback_or_disposal_authorized',
+    'source_retirement_or_deletion_authorized'
+  ]) {
+    requireContract(contract?.scope?.[field] === false, `${field} must remain false`);
+  }
+  requireContract(contract?.contract_bindings?.digest_model === 'CANONICAL_JSON_BYTES_SHA256_V1', 'binding digest model drift');
+  requireContract(contract?.contract_bindings?.binding_set_sha256 === authAppDataBindingSetSha256, 'binding-set digest drift');
+  requireContract(canonicalDigest(contract?.contract_bindings?.documents ?? []) === authAppDataBindingSetSha256, 'binding-set content does not match its digest');
+  requireContract(canonicalDigest(contract?.contract_bindings?.documents ?? []) === canonicalDigest(authAppDataBindingDocuments), 'contract binding path/version/digest denominator drift');
+  for (const binding of authAppDataBindingDocuments) {
+    const document = documents?.[binding.path];
+    requireContract(document?.version === binding.version, `${binding.path} version drift`);
+    requireContract(document !== undefined && canonicalDigest(document) === binding.sha256, `${binding.path} canonical digest drift`);
+  }
+  const executionAuthentication = contract?.execution_authentication ?? {};
+  const authorityPolicy = executionAuthentication.authority ?? {};
+  const executorPolicy = executionAuthentication.executor ?? {};
+  requireContract(authorityPolicy.verification_boundary === 'pinned_ed25519_signature'
+    && authorityPolicy.signature_domain === 'fawxzzy.platform.auth-app-data.execution-authority.v1'
+    && authorityPolicy.trust_anchor?.status === 'BLOCKED'
+    && authorityPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && authorityPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && authorityPolicy.trust_anchor?.verifier_reference === 'auth-app-data-authority-verifier-v1'
+    && authorityPolicy.trust_anchor?.public_key_spki_base64 === null
+    && authorityPolicy.trust_anchor?.public_key_spki_sha256 === null, 'checked-in execution-authority trust anchor must remain explicitly BLOCKED and uninstalled');
+  requireContract(executorPolicy.verification_boundary === 'distinct_pinned_ed25519_executor_signature'
+    && executorPolicy.signature_domain === 'fawxzzy.platform.auth-app-data.executor-capability.v1'
+    && executorPolicy.trust_anchor?.status === 'BLOCKED'
+    && executorPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && executorPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && executorPolicy.trust_anchor?.verifier_reference === 'auth-app-data-executor-verifier-v1'
+    && executorPolicy.trust_anchor?.public_key_spki_base64 === null
+    && executorPolicy.trust_anchor?.public_key_spki_sha256 === null, 'checked-in executor trust anchor must remain explicitly BLOCKED and uninstalled');
+  requireContract(executionAuthentication.trust_anchors_must_be_distinct === true
+    && executionAuthentication.caller_supplied_trust_material_allowed === false
+    && executionAuthentication.current_receipt_allowed_while_anchor_blocked === false, 'execution authentication trust policy drift');
+  requireContract(exactOrderedValues((contract?.auth_surface_dispositions ?? []).map((surface) => surface.surface), authAppDataAuthSurfaces), 'Auth surface denominator or order drift');
+  requireContract(exactOrderedValues((contract?.auth_surface_dispositions ?? []).map((surface) => surface.disposition), authAppDataAuthDispositions), 'Auth disposition policy drift');
+  requireContract(new Set((contract?.auth_surface_dispositions ?? []).map((surface) => surface.surface)).size === authAppDataAuthSurfaces.length, 'Auth surfaces must be unique');
+  requireContract((contract?.auth_surface_dispositions ?? []).every((surface) => typeof surface.disposition === 'string' && surface.disposition.length > 0), 'every Auth surface requires one closed disposition');
+  requireContract(contract?.application_data_denominator?.relation_total === 41 && contract?.application_data_denominator?.transported_authoritative_or_history === 24 && contract?.application_data_denominator?.derived_rebuildable === 1 && contract?.application_data_denominator?.held_unknown_or_excluded === 16, 'application data classification denominator drift');
+  requireContract(canonicalDigest(contract?.application_data_denominator?.adapters ?? []) === canonicalDigest(authAppDataAdapterCounts), 'adapter relation denominator or order drift');
+  requireContract(exactOrderedValues((contract?.application_data_denominator?.nonrow_surfaces ?? []).map((surface) => surface.surface), authAppDataNonrowSurfaces), 'non-row surface denominator or order drift');
+  requireContract(exactOrderedValues((contract?.application_data_denominator?.nonrow_surfaces ?? []).map((surface) => surface.disposition), authAppDataNonrowDispositions), 'non-row disposition policy drift');
+  requireContract(new Set((contract?.application_data_denominator?.nonrow_surfaces ?? []).map((surface) => surface.surface)).size === authAppDataNonrowSurfaces.length, 'non-row surfaces must be unique');
+  requireContract((contract?.application_data_denominator?.nonrow_surfaces ?? []).every((surface) => typeof surface.disposition === 'string' && surface.disposition.length > 0), 'every non-row surface requires one closed disposition');
+  const identity = contract?.identity_and_membership ?? {};
+  requireContract(identity.canonical_human_key === 'auth.users.id' && identity.private_identity_ledger === 'platform_private.source_identity_ledger' && identity.ledger_must_be_immutable === true && identity.accepted_mapping_required_for_every_owner_fk === true && identity.caller_selected_identity_forbidden === true && identity.raw_identity_in_receipt_forbidden === true, 'identity-ledger boundary drift');
+  requireContract(identity.initial_membership_state === 'pending' && identity.activation_requires_accepted_identity_and_final_parity === true && identity.suspended_membership_preserved === true, 'membership activation boundary drift');
+  requireContract(exactOrderedValues(contract?.action_order, authAppDataActionOrder), 'fixed action order drift');
+  requireContract(contract?.action_order?.indexOf('RUN_SECURITY_AUTH_AND_EGRESS_NEGATIVE_PROBES') < contract?.action_order?.indexOf('ACTIVATE_PENDING_MEMBERSHIPS'), 'membership activation must follow final parity and negative probes');
+  requireContract(exactOrderedValues(contract?.snapshot_protocol?.required_snapshots, ['S0', 'S1', 'S2']) && contract?.snapshot_protocol?.complete_primary_key_and_canonical_row_denominator_required === true && contract?.snapshot_protocol?.timestamp_or_high_water_only_proof_allowed === false && contract?.snapshot_protocol?.write_barrier_requires_separate_authority === true && contract?.snapshot_protocol?.final_s2_required_after_barrier === true && contract?.snapshot_protocol?.delete_requires_tombstone === true && contract?.snapshot_protocol?.resurrection_requires_explicit_generation === true, 'S0/S1/barrier/S2 protocol drift');
+  requireContract(exactOrderedValues(contract?.cas_and_quarantine?.accepted_expected_target, ['ABSENT', 'EXACT_DIGEST']) && contract?.cas_and_quarantine?.unexpected_target_digest === 'QUARANTINE' && contract?.cas_and_quarantine?.unexpected_target_overwrite_forbidden === true && contract?.cas_and_quarantine?.outbound_effects_during_rehearsal === 'QUARANTINED' && contract?.cas_and_quarantine?.credentials_withheld_until_terminal_acceptance === true, 'CAS or quarantine boundary drift');
+  const parity = contract?.postimport_parity ?? {};
+  requireContract(parity.read_count === 2 && parity.reads_must_be_independent === true && parity.distinct_evidence_receipts_required === true && parity.distinct_reader_identities_required === true && parity.distinct_execution_identities_required === true && parity.query_model_binding_required === true && parity.aggregate_commitments_must_match_each_other === true && parity.aggregate_commitments_must_match_expected === true && parity.minimum_observation_window_seconds === 60 && parity.maximum_observation_window_seconds === 7200 && parity.complete_auth_row_and_nonrow_denominators_required === true, 'two-read parity boundary drift');
+  requireContract(canonicalDigest({
+    version: parity?.expected_state_model?.version,
+    digest_model: parity?.expected_state_model?.digest_model,
+    components: parity?.expected_state_model?.components
+  }) === authAppDataExpectedStateQueryModelSha256 && parity?.expected_state_model?.query_model_sha256 === authAppDataExpectedStateQueryModelSha256, 'canonical expected-state query model drift');
+  requireContract(exactOrderedValues(contract?.negative_probe_gate?.required_probes, authAppDataNegativeProbes) && contract?.negative_probe_gate?.all_must_pass === true && contract?.negative_probe_gate?.evidence_must_be_aggregate_only === true, 'negative-probe denominator drift');
+  requireContract(contract?.receipt_policy?.unknown_may_be_promoted_to_current === false, 'UNKNOWN must not be promotable to CURRENT');
+  const rollback = contract?.rollback_and_disposal ?? {};
+  requireContract(rollback.rollback_order === 'REVERSE_DEPENDENCY_AND_JOURNAL_ORDER' && rollback.complete_reverse_evidence_required === true && rollback.sources_remain_active === true && rollback.source_mutation_forbidden === true && rollback.external_egress_must_remain_zero === true && rollback.target_disposal_requires_separate_authority === true && rollback.credential_revocation_requires_separate_authority === true && rollback.broad_drop_is_rollback === false && rollback.terminal_source_contract_disposition === 'QUARANTINED_RETAINED', 'rollback/disposal boundary drift');
+  requireContract(contract?.receipt_example?.status === 'BLOCKED', 'checked-in receipt example must remain BLOCKED');
+  failures.push(...validateAuthAppDataRehearsalReceipt(contract, contract?.receipt_example));
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, evidence) {
   const failures = [];
   const mappings = Array.isArray(evidence?.accepted_mappings) ? evidence.accepted_mappings : [];
@@ -1048,6 +1580,9 @@ export function validateSemantics(documents) {
   failures.push(...validateDisposableTargetBootstrapContract(targetBootstrapContract));
   requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
   requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'disposable target bootstrap source contract: contracts/v1/bootstrap/disposable-target-bootstrap-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate target_bootstrap source-contract binding must remain CURRENT');
+  const authAppDataRehearsalContract = documents['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json'] ?? {};
+  failures.push(...validateAuthAppDataRehearsalContract(authAppDataRehearsalContract, documents));
+  requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'Auth/application-data rehearsal source contract: contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate Auth/application-data rehearsal source-contract binding must remain CURRENT');
   requireCondition(canonicalDigest(migrationGate.data_api_decision_binding ?? {}) === canonicalDigest(dataApiDecisionBindingV1), 'Data API manual decision binding drift');
   const sharedAuthImportGate = migrationGate.shared_auth_import_reauth_rehearsal ?? {};
   requireCondition(sharedAuthImportGate.status === 'CURRENT' && sharedAuthImportGate.source_contract_lifecycle === 'SOURCE_READY' && sharedAuthImportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && sharedAuthImportGate.apply_admitted === false, 'shared Auth import migration gate must remain source-ready, execution-blocked, and non-executable');

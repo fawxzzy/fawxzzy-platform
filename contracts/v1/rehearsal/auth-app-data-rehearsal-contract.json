@@ -1,0 +1,571 @@
+{
+  "version": "1.0.0",
+  "contract_id": "auth-app-data-rehearsal",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED",
+    "apply_admitted": false
+  },
+  "scope": {
+    "offline_contract_only": true,
+    "provider_connectivity_included": false,
+    "provider_runner_included": false,
+    "credential_material_included": false,
+    "sql_executor_included": false,
+    "executable_bundle_included": false,
+    "auth_or_data_mutation_authorized": false,
+    "storage_edge_realtime_mutation_authorized": false,
+    "rollback_or_disposal_authorized": false,
+    "source_retirement_or_deletion_authorized": false
+  },
+  "contract_bindings": {
+    "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
+    "binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+    "documents": [
+      {
+        "path": "contracts/v1/auth/import-rehearsal-contract.json",
+        "version": "1.0.0",
+        "sha256": "57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09"
+      },
+      {
+        "path": "contracts/v1/auth/domain-session-contract.json",
+        "version": "1.1.0",
+        "sha256": "516337d43048199875b3f3b283a3f48b0cba64a720fa5796ca0064a41ac24f16"
+      },
+      {
+        "path": "contracts/v1/transport/app-data-transport-contract.json",
+        "version": "1.0.0",
+        "sha256": "db12ccd31fd627f7b184692f88d2078d162b2f43f06f02826255cbcd3df76c63"
+      },
+      {
+        "path": "contracts/v1/transport/app-data-mutation-journal-contract.json",
+        "version": "1.0.0",
+        "sha256": "4e4208dc28fb5f7b2614cbd27f446d1ccab1996a15734cd666e86d1fae63b0ea"
+      },
+      {
+        "path": "contracts/v1/transport/app-data-receipt.example.json",
+        "version": "1.0.0",
+        "sha256": "14526455a7cbb11600a9922acba2702004586b543b001d6f937ccc9dfa97da23"
+      },
+      {
+        "path": "contracts/v1/transport/mazer-app-data-adapter-contract.json",
+        "version": "1.2.0",
+        "sha256": "ac451c8fefdd6d33543c013476e3b1bcd6c850143fb4614125db7c928b3a64a7"
+      },
+      {
+        "path": "contracts/v1/transport/fitness-app-data-adapter-contract.json",
+        "version": "1.1.0",
+        "sha256": "ffc44ec109b243a9e9a1c28236ef55b0ae00e13fdaadf155f28c1561709e3ee6"
+      },
+      {
+        "path": "contracts/v1/transport/discordos-app-data-adapter-contract.json",
+        "version": "1.1.0",
+        "sha256": "4d9a3e7409f39b126e2e631855d8016cca9585dbf9a505786808aa6007120068"
+      },
+      {
+        "path": "contracts/v1/identity/identity-map.json",
+        "version": "1.0.0",
+        "sha256": "1212e3457552e85d65f262ecb63a3a2a452b3c133e42da15c32ce221d20f3fb9"
+      },
+      {
+        "path": "contracts/v1/membership/membership-lifecycle.json",
+        "version": "1.1.0",
+        "sha256": "8dbeb551521ba94fb4d1a807e4c92cbc3d31dd8df1a9a0e18b9486044d434e78"
+      },
+      {
+        "path": "contracts/v1/bootstrap/disposable-target-bootstrap-contract.json",
+        "version": "1.0.0",
+        "sha256": "1d314175d6b031952aa5824d1b662a3de5a1ca12298605bfad0551c1511d1123"
+      },
+      {
+        "path": "contracts/v1/recovery/independent-backup-contract.json",
+        "version": "2.1.0",
+        "sha256": "ed5c8f927061a82fcc8871a28fe862e1cc8d6d5963bfdad27072a3fe7486c99d"
+      },
+      {
+        "path": "contracts/v1/recovery/micro-recovery-contract.json",
+        "version": "1.0.0",
+        "sha256": "c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4"
+      }
+    ]
+  },
+  "execution_authentication": {
+    "authority": {
+      "verification_boundary": "pinned_ed25519_signature",
+      "signature_domain": "fawxzzy.platform.auth-app-data.execution-authority.v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "auth-app-data-authority-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "executor": {
+      "verification_boundary": "distinct_pinned_ed25519_executor_signature",
+      "signature_domain": "fawxzzy.platform.auth-app-data.executor-capability.v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "auth-app-data-executor-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "trust_anchors_must_be_distinct": true,
+    "caller_supplied_trust_material_allowed": false,
+    "current_receipt_allowed_while_anchor_blocked": false
+  },
+  "auth_surface_dispositions": [
+    {
+      "surface": "users",
+      "disposition": "TRANSPORT_AGGREGATE_PROOF_REQUIRED"
+    },
+    {
+      "surface": "identities",
+      "disposition": "TRANSPORT_AGGREGATE_PROOF_REQUIRED"
+    },
+    {
+      "surface": "password_hashes",
+      "disposition": "OPAQUE_PROVIDER_COMPATIBLE_NEVER_SERIALIZED"
+    },
+    {
+      "surface": "verification_states",
+      "disposition": "TRANSPORT_AGGREGATE_PROOF_REQUIRED"
+    },
+    {
+      "surface": "anonymous_users",
+      "disposition": "AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    {
+      "surface": "mfa_factors_challenges_aal",
+      "disposition": "REENROLL_AND_AAL1_UNTIL_ACCEPTED_FACTOR_PROOF"
+    },
+    {
+      "surface": "sso_connections_and_configuration",
+      "disposition": "AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    {
+      "surface": "invites",
+      "disposition": "AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    {
+      "surface": "recovery_tokens",
+      "disposition": "SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW"
+    },
+    {
+      "surface": "email_change_tokens",
+      "disposition": "SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW"
+    },
+    {
+      "surface": "phone_change_tokens",
+      "disposition": "SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW"
+    },
+    {
+      "surface": "source_sessions_access_refresh_tokens_cookies",
+      "disposition": "REJECT_AND_ISSUE_NEW_TARGET_SESSIONS"
+    },
+    {
+      "surface": "auth_audit_log_database",
+      "disposition": "AGGREGATE_INVENTORY_AND_RETENTION_PROOF_REQUIRED"
+    },
+    {
+      "surface": "auth_audit_log_external_storage",
+      "disposition": "AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    {
+      "surface": "signing_keys_and_jwt_configuration",
+      "disposition": "SEPARATELY_CONFIGURED_NO_SECRET_TRANSPORT"
+    },
+    {
+      "surface": "provider_auth_settings_and_credentials",
+      "disposition": "SEPARATELY_CONFIGURED_NO_SECRET_TRANSPORT"
+    },
+    {
+      "surface": "oauth_server_enablement_and_authorization_path",
+      "disposition": "AGGREGATE_ENABLEMENT_AND_ENDPOINT_PROOF_REQUIRED"
+    },
+    {
+      "surface": "oauth_registered_clients_redirect_uris_and_secret_rotation",
+      "disposition": "AGGREGATE_INVENTORY_NO_SECRET_SERIALIZATION"
+    },
+    {
+      "surface": "oauth_authorizations_consents_and_codes",
+      "disposition": "AGGREGATE_INVENTORY_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    {
+      "surface": "oauth_oidc_issued_access_refresh_and_id_tokens",
+      "disposition": "SOURCE_TOKEN_REJECTED_NEW_TARGET_FLOW"
+    }
+  ],
+  "application_data_denominator": {
+    "relation_total": 41,
+    "transported_authoritative_or_history": 24,
+    "derived_rebuildable": 1,
+    "held_unknown_or_excluded": 16,
+    "adapters": [
+      {
+        "app": "mazer",
+        "relation_count": 4,
+        "contract_path": "contracts/v1/transport/mazer-app-data-adapter-contract.json"
+      },
+      {
+        "app": "fitness",
+        "relation_count": 27,
+        "contract_path": "contracts/v1/transport/fitness-app-data-adapter-contract.json"
+      },
+      {
+        "app": "discordos",
+        "relation_count": 10,
+        "contract_path": "contracts/v1/transport/discordos-app-data-adapter-contract.json"
+      }
+    ],
+    "nonrow_surfaces": [
+      {
+        "surface": "sequences_and_ownership",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "large_objects",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "storage_bucket_metadata",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "storage_object_metadata",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "storage_object_bodies",
+        "disposition": "SEPARATE_TRANSFER_EGRESS_AND_BODY_PARITY_AUTHORITY_BLOCKED"
+      },
+      {
+        "surface": "realtime_publications",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "replica_identity",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "grants",
+        "disposition": "SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED"
+      },
+      {
+        "surface": "rls_and_policies",
+        "disposition": "SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED"
+      },
+      {
+        "surface": "functions_and_acls",
+        "disposition": "SECURITY_PARITY_AND_NEGATIVE_PROBE_REQUIRED"
+      },
+      {
+        "surface": "triggers",
+        "disposition": "AGGREGATE_PARITY_PROOF_REQUIRED"
+      },
+      {
+        "surface": "extensions",
+        "disposition": "OBSERVED_DEFAULT_INSTALLED_AND_COMPATIBILITY_PROOF_REQUIRED"
+      }
+    ]
+  },
+  "identity_and_membership": {
+    "canonical_human_key": "auth.users.id",
+    "private_identity_ledger": "platform_private.source_identity_ledger",
+    "ledger_must_be_immutable": true,
+    "accepted_mapping_required_for_every_owner_fk": true,
+    "caller_selected_identity_forbidden": true,
+    "raw_identity_in_receipt_forbidden": true,
+    "initial_membership_state": "pending",
+    "activation_requires_accepted_identity_and_final_parity": true,
+    "suspended_membership_preserved": true
+  },
+  "action_order": [
+    "BIND_ACTION_TIME_SUBJECT_AND_RUN",
+    "VERIFY_DISPOSABLE_TARGET_BOOTSTRAP_CURRENT",
+    "VERIFY_BACKUP_AND_RESTORE_PREREQUISITES",
+    "CAPTURE_AUTH_AND_DATA_S0",
+    "DENY_EXTERNAL_EGRESS",
+    "WITHHOLD_APPLICATION_CREDENTIALS",
+    "CREATE_AUTH_SHELLS",
+    "LOAD_MAZER_DATA",
+    "LOAD_FITNESS_DATA",
+    "LOAD_DISCORDOS_DATA",
+    "CAPTURE_AUTH_AND_DATA_S1",
+    "AUTHORIZE_AND_ENTER_WRITE_BARRIER",
+    "APPLY_S1_DIFF_AND_TOMBSTONES",
+    "CAPTURE_FINAL_S2",
+    "POSTIMPORT_READ_A",
+    "WAIT_OBSERVATION_WINDOW",
+    "POSTIMPORT_READ_B",
+    "RUN_SECURITY_AUTH_AND_EGRESS_NEGATIVE_PROBES",
+    "ACTIVATE_PENDING_MEMBERSHIPS",
+    "FREEZE_QUARANTINED_TARGET"
+  ],
+  "snapshot_protocol": {
+    "required_snapshots": [
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "complete_primary_key_and_canonical_row_denominator_required": true,
+    "timestamp_or_high_water_only_proof_allowed": false,
+    "write_barrier_requires_separate_authority": true,
+    "final_s2_required_after_barrier": true,
+    "delete_requires_tombstone": true,
+    "resurrection_requires_explicit_generation": true
+  },
+  "cas_and_quarantine": {
+    "accepted_expected_target": [
+      "ABSENT",
+      "EXACT_DIGEST"
+    ],
+    "unexpected_target_digest": "QUARANTINE",
+    "unexpected_target_overwrite_forbidden": true,
+    "outbound_effects_during_rehearsal": "QUARANTINED",
+    "credentials_withheld_until_terminal_acceptance": true
+  },
+  "postimport_parity": {
+    "read_count": 2,
+    "reads_must_be_independent": true,
+    "distinct_evidence_receipts_required": true,
+    "distinct_reader_identities_required": true,
+    "distinct_execution_identities_required": true,
+    "query_model_binding_required": true,
+    "expected_state_model": {
+      "version": "AUTH_APP_DATA_EXPECTED_STATE_V1",
+      "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
+      "components": [
+        "subject_sha256",
+        "run_correlation_sha256",
+        "contract_binding_set_sha256",
+        "package",
+        "auth_surfaces",
+        "application_data",
+        "identity_ledger",
+        "final_s2"
+      ],
+      "query_model_sha256": "c4edb31be26650b35ad2bd9d4572077d92269aeda649a6ff1577411da342405f"
+    },
+    "aggregate_commitments_must_match_each_other": true,
+    "aggregate_commitments_must_match_expected": true,
+    "minimum_observation_window_seconds": 60,
+    "maximum_observation_window_seconds": 7200,
+    "complete_auth_row_and_nonrow_denominators_required": true
+  },
+  "negative_probe_gate": {
+    "required_probes": [
+      "SOURCE_ACCESS_TOKEN_REJECTED",
+      "SOURCE_REFRESH_TOKEN_REJECTED",
+      "SOURCE_COOKIE_REJECTED",
+      "QUARANTINED_IDENTITY_INACTIVE",
+      "SUSPENDED_USER_DENIED",
+      "AAL2_WITHOUT_ACCEPTED_FACTOR_PROOF_DENIED",
+      "RECOVERY_TOKEN_REPLAY_DENIED",
+      "INVITE_TOKEN_REPLAY_DENIED",
+      "NORMALIZED_IDENTITY_COLLISION_QUARANTINED",
+      "WRONG_OWNER_ROW_DENIED",
+      "DIRECT_ID_ACCESS_DENIED",
+      "CAS_CONFLICT_QUARANTINED",
+      "UNAUTHORIZED_STORAGE_ACCESS_DENIED",
+      "EXTERNAL_EGRESS_DENIED"
+    ],
+    "all_must_pass": true,
+    "evidence_must_be_aggregate_only": true
+  },
+  "receipt_policy": {
+    "allowed_classes": [
+      "counts",
+      "booleans",
+      "bounded_ranges",
+      "timestamps",
+      "closed_cohort_labels",
+      "one_way_sha256_digests"
+    ],
+    "forbidden_classes": [
+      "raw_identifiers",
+      "raw_rows",
+      "primary_keys",
+      "uuids",
+      "emails",
+      "provider_project_refs",
+      "credentials",
+      "tokens",
+      "cookies",
+      "password_hashes",
+      "sql",
+      "provider_responses",
+      "storage_object_bodies",
+      "machine_paths"
+    ],
+    "unknown_may_be_promoted_to_current": false
+  },
+  "rollback_and_disposal": {
+    "rollback_order": "REVERSE_DEPENDENCY_AND_JOURNAL_ORDER",
+    "complete_reverse_evidence_required": true,
+    "sources_remain_active": true,
+    "source_mutation_forbidden": true,
+    "external_egress_must_remain_zero": true,
+    "target_disposal_requires_separate_authority": true,
+    "credential_revocation_requires_separate_authority": true,
+    "broad_drop_is_rollback": false,
+    "terminal_source_contract_disposition": "QUARANTINED_RETAINED"
+  },
+  "receipt_example": {
+    "version": "1.0.0",
+    "status": "BLOCKED",
+    "validated_at": null,
+    "evidence_complete": false,
+    "execution_lifecycle": "EXECUTION_BLOCKED",
+    "apply_admitted": false,
+    "source_contract_grants_provider_execution": false,
+    "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "contract_binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+    "package": {
+      "migration_count": 122,
+      "standard_migration_sql_count": 0,
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+    },
+    "execution_authority": {
+      "status": "BLOCKED",
+      "authorized_operation": "AUTH_APP_DATA_REHEARSAL",
+      "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "contract_binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+      "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "executor_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "executor_capability_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "executor_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": null,
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      },
+      "executor_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": null,
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      }
+    },
+    "prerequisites": [
+      {
+        "name": "DISPOSABLE_TARGET_BOOTSTRAP",
+        "status": "BLOCKED",
+        "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "name": "INDEPENDENT_BACKUP",
+        "status": "BLOCKED",
+        "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "name": "MICRO_RECOVERY_CAPABILITY",
+        "status": "BLOCKED",
+        "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "completed_actions": [],
+    "auth_surfaces": [],
+    "application_data": {
+      "relation_total": 41,
+      "adapter_counts": [
+        {
+          "app": "mazer",
+          "relation_count": 4,
+          "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "app": "fitness",
+          "relation_count": 27,
+          "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "app": "discordos",
+          "relation_count": 10,
+          "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "nonrow_surfaces": []
+    },
+    "identity_ledger": {
+      "status": "BLOCKED",
+      "complete_owner_fk_coverage": false,
+      "accepted_mapping_count": 0,
+      "quarantined_mapping_count": 0,
+      "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pending_membership_count": 0,
+      "suspended_membership_count": 0
+    },
+    "snapshots": [],
+    "write_barrier": {
+      "status": "BLOCKED",
+      "authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entered_at": null,
+      "released_at": null
+    },
+    "postimport_reads": {
+      "status": "BLOCKED",
+      "query_model_sha256": "c4edb31be26650b35ad2bd9d4572077d92269aeda649a6ff1577411da342405f",
+      "expected_aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "read_a": null,
+      "read_b": null,
+      "observation_window_seconds": 0,
+      "identical": false
+    },
+    "negative_probes": {
+      "status": "BLOCKED",
+      "completed_at": null,
+      "results": []
+    },
+    "membership_activation": {
+      "status": "BLOCKED",
+      "activated_at": null,
+      "activated_mapping_count": 0,
+      "remaining_pending_count": 0,
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "external_effects": {
+      "status": "BLOCKED",
+      "outbound_network_requests": 0,
+      "auth_messages_sent": 0,
+      "storage_object_writes": 0,
+      "realtime_broadcasts": 0,
+      "edge_function_invocations": 0,
+      "cron_jobs_enabled": 0,
+      "webhooks_enabled": 0
+    },
+    "rollback": {
+      "status": "BLOCKED",
+      "terminal_disposition": "QUARANTINED_RETAINED",
+      "reverse_evidence_complete": false,
+      "source_projects_active": true,
+      "source_mutation_count": 0,
+      "external_effect_count": 0,
+      "target_disposal_authorized": false,
+      "credential_revocation_authorized": false,
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "terminal_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

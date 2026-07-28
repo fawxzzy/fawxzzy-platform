@@ -499,6 +499,10 @@
       "status": "CURRENT"
     },
     {
+      "name": "Auth/application-data rehearsal source contract: contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json",
+      "status": "CURRENT"
+    },
+    {
       "name": "identity collision adjudication",
       "status": "OWNER_DECISION"
     },
