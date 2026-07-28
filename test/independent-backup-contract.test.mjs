@@ -162,7 +162,7 @@ function buildCurrentFixture() {
   const { publicKey: readbackPublicKey, privateKey: readbackPrivateKey } = crypto.generateKeyPairSync('ed25519');
   const releaseSpki = releasePublicKey.export({ format: 'der', type: 'spki' });
   const readbackSpki = readbackPublicKey.export({ format: 'der', type: 'spki' });
-  const repository = 'fawxzzy:recovery-vault';
+  const repository = 'fawxzzy/fawxzzy-recovery-vault';
   value.policy.destination.repository_reference = repository;
   value.policy.destination.capability_status = 'CURRENT';
   value.receipt_contract.release_identity.repository_reference = repository;
@@ -303,14 +303,17 @@ test('canonical serialization is deterministic and LF terminated', () => {
   assert.equal(serialized, canonicalSerialize(structuredClone(contract())));
 });
 
-test('F005 freezes FP-MAN-015 authority and FP-MAN-051 supersession scope', () => {
+test('F005 freezes FP-MAN-015, FP-MAN-051, and FP-MAN-052 authority scope', () => {
   for (const mutate of [
     (value) => { delete value.governance.decision_history[0].authority; },
     (value) => { value.governance.decision_history[0].authority = 'PROVIDER_EXECUTION'; },
     (value) => { delete value.governance.decision_history[1].superseded_reason; },
     (value) => { value.governance.decision_history[1].superseded_reason = 'ACCOUNT_REQUIRED'; },
     (value) => { delete value.governance.decision_history[1].provider_authority; },
-    (value) => { value.governance.decision_history[1].provider_authority = 'CURRENT'; }
+    (value) => { value.governance.decision_history[1].provider_authority = 'CURRENT'; },
+    (value) => { delete value.governance.decision_history[2].authority; },
+    (value) => { value.governance.decision_history[2].provider_scope = 'BACKUP_EXPORT'; },
+    (value) => { value.governance.decision_history[2].backup_authority = 'CURRENT'; }
   ]) {
     const value = contract();
     mutate(value);
@@ -332,13 +335,46 @@ test('F004 freezes all safety denominators as exact ordered sets', () => {
   }
 });
 
-test('unknown provider capability and all execution gates remain blocked', () => {
+test('Phase 1 provider capability is current while cryptographic and backup gates remain blocked', () => {
   const value = contract();
-  assert.equal(value.policy.destination.capability_status, 'UNKNOWN');
-  assert.equal(value.policy.destination.repository_reference, 'UNKNOWN');
+  assert.equal(value.policy.destination.capability_status, 'CURRENT');
+  assert.equal(value.policy.destination.provisioning_status, 'CURRENT');
+  assert.equal(value.policy.destination.repository_reference, 'fawxzzy/fawxzzy-recovery-vault');
+  assert.equal(value.provider_capability_evidence.repository.visibility, 'PRIVATE');
+  assert.equal(value.provider_capability_evidence.repository.empty, true);
+  assert.equal(value.provider_capability_evidence.repository.immutable_releases_enabled, true);
   assert.equal(value.receipt_contract.github_release_attestation.trust_anchor.status, 'BLOCKED');
   assert.equal(value.receipt_contract.github_release_attestation.independent_readback.trust_anchor.status, 'BLOCKED');
-  assert.ok(Object.values(value.execution_gates).every((status) => status === 'BLOCKED'));
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(value.execution_gates).filter(([, status]) => status === 'CURRENT').map(([gate]) => [gate, 'CURRENT'])),
+    {
+      provider_setup: 'CURRENT',
+      github_recovery_vault_provisioning: 'CURRENT',
+      immutable_release_enablement: 'CURRENT'
+    }
+  );
+  assert.ok(Object.entries(value.execution_gates)
+    .filter(([gate]) => !['provider_setup', 'github_recovery_vault_provisioning', 'immutable_release_enablement'].includes(gate))
+    .every(([, status]) => status === 'BLOCKED'));
+});
+
+test('FP-MAN-052 capability evidence is closed, content-addressed, empty, private, immutable, and zero-cost', () => {
+  for (const mutate of [
+    (value) => { value.provider_capability_evidence.operator_authority.payload_sha256 = hash('different-operator-authority'); },
+    (value) => { value.provider_capability_evidence.provider_authority.event_id = `onv1_${hash('different-provider-authority')}`; },
+    (value) => { value.provider_capability_evidence.terminal_result.payload_sha256 = hash('different-terminal-result'); },
+    (value) => { value.provider_capability_evidence.repository.reference = 'fawxzzy:other-vault'; },
+    (value) => { value.provider_capability_evidence.repository.visibility = 'PUBLIC'; },
+    (value) => { value.provider_capability_evidence.repository.empty = false; },
+    (value) => { value.provider_capability_evidence.repository.immutable_releases_enabled = false; },
+    (value) => { value.provider_capability_evidence.sanitized_counts.releases = 1; },
+    (value) => { value.provider_capability_evidence.cost.actual_incremental_usd = 1; },
+    (value) => { value.provider_capability_evidence.unreviewed = true; }
+  ]) {
+    const value = contract();
+    mutate(value);
+    assert.equal(validateIndependentBackupContract(value).ok, false);
+  }
 });
 
 test('F001 closed receipt accepts the complete blocked evidence shape', () => {
@@ -485,13 +521,15 @@ test('release limits, retention, encryption, and zero-dollar boundaries remain f
   }
 });
 
-test('Backblaze, Cloudflare, mutable release, and provider authority cannot become active', () => {
+test('Backblaze, Cloudflare, mutable releases, backup execution, and Phase 1 rollback remain rejected', () => {
   for (const mutate of [
     (value) => { value.policy.destination.provider = 'Backblaze B2'; },
     (value) => { value.policy.destination.repository_reference = 'cloudflare-dns'; },
     (value) => { value.policy.release.lifecycle = 'MUTABLE'; },
     (value) => { value.policy.release.tag_reuse = 'ALLOWED'; },
-    (value) => { value.execution_gates.provider_setup = 'CURRENT'; }
+    (value) => { value.execution_gates.provider_setup = 'BLOCKED'; },
+    (value) => { value.execution_gates.backup_generation_or_upload = 'CURRENT'; },
+    (value) => { value.execution_gates.backup_export = 'CURRENT'; }
   ]) {
     const value = contract();
     mutate(value);

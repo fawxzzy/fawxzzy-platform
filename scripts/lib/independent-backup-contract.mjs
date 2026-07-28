@@ -92,6 +92,22 @@ const receiptValidator = ajv.compile({ $ref: `${sourceSchema.$id}#/$defs/indepen
 const hexSha256 = /^[0-9a-f]{64}$/;
 const eventId = /^onv1_[0-9a-f]{64}$/;
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const recoveryVaultReference = 'fawxzzy/fawxzzy-recovery-vault';
+const phaseOneExecutionGates = Object.freeze({
+  provider_setup: 'CURRENT',
+  github_recovery_vault_provisioning: 'CURRENT',
+  immutable_release_enablement: 'CURRENT',
+  credential_or_key_installation: 'BLOCKED',
+  workflow_publication: 'BLOCKED',
+  backup_generation_or_upload: 'BLOCKED',
+  backup_export: 'BLOCKED',
+  restore_rehearsal: 'BLOCKED',
+  target_schema_auth_or_data_bootstrap: 'BLOCKED',
+  cutover: 'BLOCKED',
+  source_pause_or_deletion: 'BLOCKED',
+  production: 'BLOCKED',
+  billing_or_paid_capability: 'BLOCKED'
+});
 
 function sortValue(value) {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -231,6 +247,12 @@ function exactObjectKeys(value, expected) {
     && sameOrdered(Object.keys(value).sort((a, b) => a.localeCompare(b)), [...expected].sort((a, b) => a.localeCompare(b)));
 }
 
+function eventMatchesPayloadDigest(binding) {
+  return eventId.test(binding?.event_id ?? '')
+    && hexSha256.test(binding?.payload_sha256 ?? '')
+    && binding.event_id === `onv1_${binding.payload_sha256}`;
+}
+
 function utcMilliseconds(value) {
   if (typeof value !== 'string') return Number.NaN;
   const parsed = Date.parse(value);
@@ -275,7 +297,7 @@ export function validateIndependentBackupContract(contract) {
   const failures = validatorFailures(contractValidator, contract, 'independent backup contract schema');
   if (failures.length > 0) return { ok: false, failures: failures.sort((a, b) => a.localeCompare(b)) };
 
-  requireCondition(contract.version === '2.0.0', 'independent backup contract must be version 2.0.0', failures);
+  requireCondition(contract.version === '2.1.0' && contract.governance.source_contract_version === contract.version, 'independent backup contract must be version 2.1.0', failures);
   requireCondition(contract.status === 'BLOCKED' && contract.apply_admitted === false, 'independent backup execution must remain blocked', failures);
   requireCondition(contract.decision_id === 'FP-MAN-015', 'independent backup contract must preserve FP-MAN-015', failures);
   requireCondition(contract.governance.operator_direction_event_id === 'onv1_706060909f09a341088af11beac48acd10e8d6d7c4ef02b6985df5170df76fa6', 'operator direction event binding changed', failures);
@@ -298,6 +320,17 @@ export function validateIndependentBackupContract(contract) {
       provider_authority: 'NONE'
     }),
     'FP-MAN-051 supersession scope changed',
+    failures
+  );
+  requireCondition(
+    JSON.stringify(contract.governance.decision_history[2]) === JSON.stringify({
+      decision_id: 'FP-MAN-052',
+      status: 'CURRENT',
+      authority: 'ZERO_COST_GITHUB_RECOVERY_VAULT_PHASE_1_ONLY',
+      provider_scope: 'REPOSITORY_PROVISIONING_AND_IMMUTABLE_RELEASE_ENABLEMENT_ONLY',
+      backup_authority: 'NONE'
+    }),
+    'FP-MAN-052 provider-only scope changed',
     failures
   );
   requireCondition(contract.policy.destination.provider === 'GitHub' && contract.policy.destination.repository_class === 'DEDICATED_PRIVATE_RECOVERY_VAULT', 'recovery destination must be the dedicated private GitHub vault', failures);
@@ -324,17 +357,27 @@ export function validateIndependentBackupContract(contract) {
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.verification_boundary === 'distinct_pinned_ed25519_reader_signature', 'independent readback verification boundary changed', failures);
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.signature_domain === 'fawxzzy-platform:github-release-independent-readback:v1', 'independent readback signature domain changed', failures);
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.actor_separation_required === true, 'independent readback actor separation changed', failures);
-  requireCondition(Object.values(contract.execution_gates).every((value) => value === 'BLOCKED'), 'all execution gates must remain blocked', failures);
+  requireCondition(JSON.stringify(contract.execution_gates) === JSON.stringify(phaseOneExecutionGates), 'Phase 1 execution-gate denominator changed', failures);
   const destination = contract.policy.destination;
+  const evidence = contract.provider_capability_evidence;
   const releaseIdentity = contract.receipt_contract.release_identity;
   const trustAnchor = contract.receipt_contract.github_release_attestation.trust_anchor;
   const readbackTrustAnchor = contract.receipt_contract.github_release_attestation.independent_readback.trust_anchor;
-  if (destination.capability_status === 'UNKNOWN') {
-    requireCondition(destination.repository_reference === 'UNKNOWN' && releaseIdentity.repository_reference === 'UNKNOWN', 'unknown capability must retain unknown repository identity', failures);
+  requireCondition(destination.repository_reference === recoveryVaultReference && releaseIdentity.repository_reference === recoveryVaultReference, 'recovery-vault repository identity mismatch', failures);
+  requireCondition(destination.capability_status === 'CURRENT' && destination.provisioning_status === 'CURRENT', 'Phase 1 provider capability must remain current', failures);
+  requireCondition(evidence.repository.reference === recoveryVaultReference && evidence.repository.visibility === 'PRIVATE' && evidence.repository.empty === true && evidence.repository.immutable_releases_enabled === true, 'Phase 1 repository evidence drifted', failures);
+  requireCondition(Object.values(evidence.sanitized_counts).every((value) => value === 0), 'Phase 1 sanitized object counts must remain zero', failures);
+  requireCondition(evidence.cost.maximum_usd === 0 && evidence.cost.actual_incremental_usd === 0 && evidence.sanitized_readback_only === true, 'Phase 1 zero-cost sanitized-readback boundary changed', failures);
+  requireCondition(eventMatchesPayloadDigest(evidence.operator_authority), 'FP-MAN-052 operator authority is not content-addressed', failures);
+  requireCondition(eventMatchesPayloadDigest(evidence.provider_authority), 'FP-MAN-052 provider authority is not content-addressed', failures);
+  requireCondition(eventMatchesPayloadDigest(evidence.terminal_result), 'FP-MAN-052 terminal provider result is not content-addressed', failures);
+  const trustAnchorsBlocked = trustAnchor.status === 'BLOCKED' && readbackTrustAnchor.status === 'BLOCKED';
+  const trustAnchorsCurrent = trustAnchor.status === 'CURRENT' && readbackTrustAnchor.status === 'CURRENT';
+  requireCondition(trustAnchorsBlocked || trustAnchorsCurrent, 'release and readback trust anchors must advance together', failures);
+  if (trustAnchorsBlocked) {
     requireCondition(trustAnchor.status === 'BLOCKED' && trustAnchor.key_id === 'UNKNOWN' && trustAnchor.public_key_spki_base64 === null && trustAnchor.public_key_spki_sha256 === null, 'unknown capability must retain blocked trust anchor', failures);
     requireCondition(readbackTrustAnchor.status === 'BLOCKED' && readbackTrustAnchor.key_id === 'UNKNOWN' && readbackTrustAnchor.public_key_spki_base64 === null && readbackTrustAnchor.public_key_spki_sha256 === null, 'unknown capability must retain blocked readback trust anchor', failures);
   } else {
-    requireCondition(destination.repository_reference !== 'UNKNOWN' && releaseIdentity.repository_reference === destination.repository_reference, 'current capability repository identity mismatch', failures);
     requireCondition(trustAnchor.status === 'CURRENT' && trustAnchor.key_id !== 'UNKNOWN' && typeof trustAnchor.public_key_spki_base64 === 'string', 'current capability requires pinned trust anchor', failures);
     requireCondition(trustAnchor.public_key_spki_sha256 === sha256Hex(Buffer.from(trustAnchor.public_key_spki_base64, 'base64')), 'trust-anchor public-key digest mismatch', failures);
     requireCondition(readbackTrustAnchor.status === 'CURRENT' && readbackTrustAnchor.key_id !== 'UNKNOWN' && typeof readbackTrustAnchor.public_key_spki_base64 === 'string', 'current capability requires pinned readback trust anchor', failures);

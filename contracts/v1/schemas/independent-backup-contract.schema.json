@@ -10,6 +10,7 @@
     "decision_id",
     "governance",
     "lifecycle",
+    "provider_capability_evidence",
     "project",
     "policy",
     "coverage_units",
@@ -21,7 +22,7 @@
   ],
   "properties": {
     "version": {
-      "const": "2.0.0"
+      "const": "2.1.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -34,6 +35,9 @@
     },
     "lifecycle": {
       "$ref": "#/$defs/lifecycle"
+    },
+    "provider_capability_evidence": {
+      "$ref": "#/$defs/provider_capability_evidence"
     },
     "project": {
       "$ref": "#/$defs/project"
@@ -91,6 +95,16 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
     },
+    "github_repository_reference": {
+      "anyOf": [
+        {
+          "const": "UNKNOWN"
+        },
+        {
+          "const": "fawxzzy/fawxzzy-recovery-vault"
+        }
+      ]
+    },
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
@@ -112,18 +126,21 @@
           "$ref": "#/$defs/sha256"
         },
         "source_contract_version": {
-          "const": "2.0.0"
+          "const": "2.1.0"
         },
         "decision_history": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
+          "minItems": 3,
+          "maxItems": 3,
           "prefixItems": [
             {
               "$ref": "#/$defs/fp_man_015_history"
             },
             {
               "$ref": "#/$defs/fp_man_051_history"
+            },
+            {
+              "$ref": "#/$defs/fp_man_052_history"
             }
           ],
           "items": false
@@ -178,9 +195,235 @@
         }
       }
     },
+    "fp_man_052_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "status",
+        "authority",
+        "provider_scope",
+        "backup_authority"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "FP-MAN-052"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "authority": {
+          "const": "ZERO_COST_GITHUB_RECOVERY_VAULT_PHASE_1_ONLY"
+        },
+        "provider_scope": {
+          "const": "REPOSITORY_PROVISIONING_AND_IMMUTABLE_RELEASE_ENABLEMENT_ONLY"
+        },
+        "backup_authority": {
+          "const": "NONE"
+        }
+      }
+    },
     "event_id": {
       "type": "string",
       "pattern": "^onv1_[0-9a-f]{64}$"
+    },
+    "provider_capability_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "phase",
+        "operator_authority",
+        "provider_authority",
+        "terminal_result",
+        "repository",
+        "sanitized_counts",
+        "cost",
+        "sanitized_readback_only"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "CURRENT"
+        },
+        "phase": {
+          "const": "FP-MAN-052_PHASE_1"
+        },
+        "operator_authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "event_id",
+            "payload_sha256",
+            "decision"
+          ],
+          "properties": {
+            "event_id": {
+              "const": "onv1_5b3a7900e574459ffec34965cc3c33c44664a99250a399c15bce18dcc9138916"
+            },
+            "payload_sha256": {
+              "const": "5b3a7900e574459ffec34965cc3c33c44664a99250a399c15bce18dcc9138916"
+            },
+            "decision": {
+              "const": "APPROVE_ZERO_COST_GITHUB_RECOVERY_VAULT_PHASE_1"
+            }
+          }
+        },
+        "provider_authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "event_id",
+            "payload_sha256",
+            "packet_id",
+            "reservation_id",
+            "writer_scope"
+          ],
+          "properties": {
+            "event_id": {
+              "const": "onv1_0605f217efeb5dcc6ebdba8739b811151e08851a3661e2d3d8b5d9bb55d177fa"
+            },
+            "payload_sha256": {
+              "const": "0605f217efeb5dcc6ebdba8739b811151e08851a3661e2d3d8b5d9bb55d177fa"
+            },
+            "packet_id": {
+              "const": "FP-PLATFORM-GITHUB-RECOVERY-VAULT-PHASE-1-PROVISION-20260727-001"
+            },
+            "reservation_id": {
+              "const": "rsrv_22dab669acda3db894aebcfd25fa9d005f5b51e32a5301cdd4a38988f7179524"
+            },
+            "writer_scope": {
+              "const": "provider.github.fawxzzy.fawxzzy-recovery-vault.provision-immutable.fp-man-052"
+            }
+          }
+        },
+        "terminal_result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "event_id",
+            "payload_sha256",
+            "result"
+          ],
+          "properties": {
+            "event_id": {
+              "const": "onv1_4c547e42c012d4c80416c312c7876713f469577108a746dbee30d7f0ccbd3be9"
+            },
+            "payload_sha256": {
+              "const": "4c547e42c012d4c80416c312c7876713f469577108a746dbee30d7f0ccbd3be9"
+            },
+            "result": {
+              "const": "PASS_PROVISIONED_PRIVATE_IMMUTABLE_EMPTY"
+            }
+          }
+        },
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "name",
+            "reference",
+            "visibility",
+            "empty",
+            "immutable_releases_enabled"
+          ],
+          "properties": {
+            "owner": {
+              "const": "fawxzzy"
+            },
+            "name": {
+              "const": "fawxzzy-recovery-vault"
+            },
+            "reference": {
+              "const": "fawxzzy/fawxzzy-recovery-vault"
+            },
+            "visibility": {
+              "const": "PRIVATE"
+            },
+            "empty": {
+              "const": true
+            },
+            "immutable_releases_enabled": {
+              "const": true
+            }
+          }
+        },
+        "sanitized_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "releases",
+            "release_assets",
+            "branches",
+            "tags",
+            "workflows",
+            "actions_secrets",
+            "dependabot_secrets",
+            "codespaces_secrets",
+            "environments",
+            "hooks",
+            "deployments"
+          ],
+          "properties": {
+            "releases": {
+              "const": 0
+            },
+            "release_assets": {
+              "const": 0
+            },
+            "branches": {
+              "const": 0
+            },
+            "tags": {
+              "const": 0
+            },
+            "workflows": {
+              "const": 0
+            },
+            "actions_secrets": {
+              "const": 0
+            },
+            "dependabot_secrets": {
+              "const": 0
+            },
+            "codespaces_secrets": {
+              "const": 0
+            },
+            "environments": {
+              "const": 0
+            },
+            "hooks": {
+              "const": 0
+            },
+            "deployments": {
+              "const": 0
+            }
+          }
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "maximum_usd",
+            "actual_incremental_usd"
+          ],
+          "properties": {
+            "maximum_usd": {
+              "const": 0
+            },
+            "actual_incremental_usd": {
+              "const": 0
+            }
+          }
+        },
+        "sanitized_readback_only": {
+          "const": true
+        }
+      }
     },
     "lifecycle": {
       "type": "object",
@@ -304,23 +547,13 @@
           "const": "DEDICATED_PRIVATE_RECOVERY_VAULT"
         },
         "repository_reference": {
-          "anyOf": [
-            {
-              "const": "UNKNOWN"
-            },
-            {
-              "$ref": "#/$defs/safe_reference"
-            }
-          ]
+          "const": "fawxzzy/fawxzzy-recovery-vault"
         },
         "capability_status": {
-          "enum": [
-            "UNKNOWN",
-            "CURRENT"
-          ]
+          "const": "CURRENT"
         },
         "provisioning_status": {
-          "const": "BLOCKED"
+          "const": "CURRENT"
         },
         "immutable_releases_required_before_first_publication": {
           "const": true
@@ -633,14 +866,7 @@
       ],
       "properties": {
         "repository_reference": {
-          "anyOf": [
-            {
-              "const": "UNKNOWN"
-            },
-            {
-              "$ref": "#/$defs/safe_reference"
-            }
-          ]
+          "$ref": "#/$defs/github_repository_reference"
         },
         "release_tag_reuse": {
           "const": "FORBIDDEN"
@@ -1311,7 +1537,7 @@
           ]
         },
         "repository_reference": {
-          "$ref": "#/$defs/safe_reference"
+          "$ref": "#/$defs/github_repository_reference"
         },
         "release_tag": {
           "$ref": "#/$defs/safe_reference"
@@ -1420,7 +1646,7 @@
           "$ref": "#/$defs/utc_timestamp"
         },
         "repository_reference": {
-          "$ref": "#/$defs/safe_reference"
+          "$ref": "#/$defs/github_repository_reference"
         },
         "release_tag": {
           "$ref": "#/$defs/safe_reference"
@@ -1518,13 +1744,13 @@
       ],
       "properties": {
         "provider_setup": {
-          "const": "BLOCKED"
+          "const": "CURRENT"
         },
         "github_recovery_vault_provisioning": {
-          "const": "BLOCKED"
+          "const": "CURRENT"
         },
         "immutable_release_enablement": {
-          "const": "BLOCKED"
+          "const": "CURRENT"
         },
         "credential_or_key_installation": {
           "const": "BLOCKED"

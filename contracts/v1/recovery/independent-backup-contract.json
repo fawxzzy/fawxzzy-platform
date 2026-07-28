@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "status": "BLOCKED",
   "decision_id": "FP-MAN-015",
   "governance": {
@@ -17,9 +17,16 @@
         "disposition": "SUPERSEDED",
         "superseded_reason": "ZERO_BACKBLAZE_OR_CLOUDFLARE_AUTHORITY",
         "provider_authority": "NONE"
+      },
+      {
+        "decision_id": "FP-MAN-052",
+        "status": "CURRENT",
+        "authority": "ZERO_COST_GITHUB_RECOVERY_VAULT_PHASE_1_ONLY",
+        "provider_scope": "REPOSITORY_PROVISIONING_AND_IMMUTABLE_RELEASE_ENABLEMENT_ONLY",
+        "backup_authority": "NONE"
       }
     ],
-    "source_contract_version": "2.0.0"
+    "source_contract_version": "2.1.0"
   },
   "lifecycle": {
     "current_state": "SOURCE_READY",
@@ -33,6 +40,54 @@
     ],
     "execution_status": "BLOCKED"
   },
+  "provider_capability_evidence": {
+    "schema_version": "1.0.0",
+    "status": "CURRENT",
+    "phase": "FP-MAN-052_PHASE_1",
+    "operator_authority": {
+      "event_id": "onv1_5b3a7900e574459ffec34965cc3c33c44664a99250a399c15bce18dcc9138916",
+      "payload_sha256": "5b3a7900e574459ffec34965cc3c33c44664a99250a399c15bce18dcc9138916",
+      "decision": "APPROVE_ZERO_COST_GITHUB_RECOVERY_VAULT_PHASE_1"
+    },
+    "provider_authority": {
+      "event_id": "onv1_0605f217efeb5dcc6ebdba8739b811151e08851a3661e2d3d8b5d9bb55d177fa",
+      "payload_sha256": "0605f217efeb5dcc6ebdba8739b811151e08851a3661e2d3d8b5d9bb55d177fa",
+      "packet_id": "FP-PLATFORM-GITHUB-RECOVERY-VAULT-PHASE-1-PROVISION-20260727-001",
+      "reservation_id": "rsrv_22dab669acda3db894aebcfd25fa9d005f5b51e32a5301cdd4a38988f7179524",
+      "writer_scope": "provider.github.fawxzzy.fawxzzy-recovery-vault.provision-immutable.fp-man-052"
+    },
+    "terminal_result": {
+      "event_id": "onv1_4c547e42c012d4c80416c312c7876713f469577108a746dbee30d7f0ccbd3be9",
+      "payload_sha256": "4c547e42c012d4c80416c312c7876713f469577108a746dbee30d7f0ccbd3be9",
+      "result": "PASS_PROVISIONED_PRIVATE_IMMUTABLE_EMPTY"
+    },
+    "repository": {
+      "owner": "fawxzzy",
+      "name": "fawxzzy-recovery-vault",
+      "reference": "fawxzzy/fawxzzy-recovery-vault",
+      "visibility": "PRIVATE",
+      "empty": true,
+      "immutable_releases_enabled": true
+    },
+    "sanitized_counts": {
+      "releases": 0,
+      "release_assets": 0,
+      "branches": 0,
+      "tags": 0,
+      "workflows": 0,
+      "actions_secrets": 0,
+      "dependabot_secrets": 0,
+      "codespaces_secrets": 0,
+      "environments": 0,
+      "hooks": 0,
+      "deployments": 0
+    },
+    "cost": {
+      "maximum_usd": 0,
+      "actual_incremental_usd": 0
+    },
+    "sanitized_readback_only": true
+  },
   "project": {
     "name": "Fawxzzy shared Supabase project",
     "ref": "bxtcuhkotumitoqtrcej",
@@ -43,9 +98,9 @@
     "destination": {
       "provider": "GitHub",
       "repository_class": "DEDICATED_PRIVATE_RECOVERY_VAULT",
-      "repository_reference": "UNKNOWN",
-      "capability_status": "UNKNOWN",
-      "provisioning_status": "BLOCKED",
+      "repository_reference": "fawxzzy/fawxzzy-recovery-vault",
+      "capability_status": "CURRENT",
+      "provisioning_status": "CURRENT",
       "immutable_releases_required_before_first_publication": true,
       "legal_or_compliance_worm": "NOT_CLAIMED",
       "google_drive_mirroring": "DEFERRED_OPTIONAL_PROVIDER_PACKET"
@@ -124,7 +179,7 @@
     "receipt_identity_preimage": "all_required_receipt_fields_except_receipt_id_and_github_release_attestation",
     "public_binding": "event_id_equals_onv1_plus_exact_payload_sha256",
     "release_identity": {
-      "repository_reference": "UNKNOWN",
+      "repository_reference": "fawxzzy/fawxzzy-recovery-vault",
       "release_tag_reuse": "FORBIDDEN",
       "attestation_required": true,
       "immutable_readback_required": true
@@ -228,9 +283,9 @@
     "failed_clone_deletion_requires_separate_authority": true
   },
   "execution_gates": {
-    "provider_setup": "BLOCKED",
-    "github_recovery_vault_provisioning": "BLOCKED",
-    "immutable_release_enablement": "BLOCKED",
+    "provider_setup": "CURRENT",
+    "github_recovery_vault_provisioning": "CURRENT",
+    "immutable_release_enablement": "CURRENT",
     "credential_or_key_installation": "BLOCKED",
     "workflow_publication": "BLOCKED",
     "backup_generation_or_upload": "BLOCKED",
