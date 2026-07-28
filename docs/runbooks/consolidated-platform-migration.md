@@ -109,7 +109,7 @@ Required evidence:
 
 Exit: parity and rollback evidence are exact and reproducible.
 
-The provider's daily Physical backup is one recovery layer, not the independent encrypted export. Neither a database backup nor a database-only clone proves Storage object-body coverage. Exact cadence, retention, destination, key installation, alert channel, export/Auth mechanism, numerical objectives, provider readback, and restore cost remain action-time gates documented in `docs/runbooks/micro-recovery.md`.
+The provider's daily Physical backup is one recovery layer, not the independent encrypted export. Neither a database backup nor a database-only clone proves Storage object-body coverage. FP-MAN-052 establishes only the exact private GitHub recovery-vault identity and repository-level immutable-release capability as `CURRENT`; cadence, retention enforcement or deletion, credentials and key installation, alerting, export/Auth mechanism, backup generation or upload, release publication, provider readback, restore, numerical objectives, and restore cost remain action-time gates documented in `docs/runbooks/micro-recovery.md`.
 
 ## Gate 4: Bounded target migration
 

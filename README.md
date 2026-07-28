@@ -48,7 +48,7 @@ FP-MAN-013 keeps the shared target on Pro/Micro with provider daily Physical bac
 
 Recovery receipts are aggregate-only and secret-free. Client-side streaming encryption must occur before destination delivery; persistent plaintext is forbidden. Database recovery does not imply Storage object-body recovery, Auth control-plane parity, Edge/Realtime configuration, or safe external effects. Those units stay separate and fail closed.
 
-Exact cadence, retention, destination, key installation, alert channel, export/Auth mechanism, numerical RPO/RTO, provider readback, and restore cost remain `UNKNOWN` execution gates. This repository contains no backup scheduler, provider command, restore automation, or credentials.
+FP-MAN-052 establishes only the Phase 1 provider-capability subset as `CURRENT`: the exact private `fawxzzy/fawxzzy-recovery-vault` repository, zero-dollar provisioning, `PRIVATE` visibility, and repository-level immutable-release enablement. Cadence, retention enforcement or deletion, credentials and key installation, alerting, export/Auth mechanism, backup generation or upload, release publication, provider readback, restore, numerical RPO/RTO, and restore cost remain `UNKNOWN` or `BLOCKED` execution gates. This repository contains no backup scheduler, provider command, restore automation, or credentials.
 
 ## Verification
 
