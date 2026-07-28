@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "status": "BLOCKED",
   "decision_id": "FP-MAN-015",
   "governance": {
@@ -26,7 +26,7 @@
         "backup_authority": "NONE"
       }
     ],
-    "source_contract_version": "2.1.0"
+    "source_contract_version": "2.2.0"
   },
   "lifecycle": {
     "current_state": "SOURCE_READY",
@@ -171,7 +171,7 @@
     "nonempty_without_current_receipt_status": "BLOCKED"
   },
   "receipt_contract": {
-    "schema_version": "2.0.0",
+    "schema_version": "2.1.0",
     "canonical_serialization": "lexicographic_object_keys_array_order_preserved_two_space_json_lf",
     "digest_algorithm": "SHA-256",
     "aggregate_only": true,
@@ -215,6 +215,36 @@
         "public_key_spki_base64": null,
         "public_key_spki_sha256": null
       }
+    },
+    "monthly_selection": {
+      "schema_version": "1.1.0",
+      "verification_boundary": "existing_distinct_pinned_ed25519_reader_trust_anchor",
+      "signature_domain": "fawxzzy-platform:github-release-monthly-selection-ledger:v1",
+      "inventory_source": "COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY",
+      "provider_api": "GITHUB_REST_LIST_RELEASES",
+      "provider_api_version": "2022-11-28",
+      "provider_api_path": "/repos/{owner}/{repo}/releases",
+      "acceptance_definition": "GITHUB_RELEASE_PUBLISHED_AT",
+      "acceptance_timestamp_field": "published_at",
+      "inclusion_predicate": "draft_false_prerelease_false_immutable_true_published_at_in_utc_month",
+      "stable_identity_fields": [
+        "id",
+        "tag_name"
+      ],
+      "pagination": {
+        "per_page": 100,
+        "terminal_page_required": true,
+        "raw_page_digest_list_required": true,
+        "first_page_etag_double_read_required": true
+      },
+      "selection_rule": "EARLIEST_PROVIDER_ACCEPTED_AT_THEN_RELEASE_TAG",
+      "candidate_membership": "EXACTLY_ONCE",
+      "selected_membership": "EXACTLY_ONCE",
+      "concurrency_state": "CONSISTENT_SINGLE_HEAD_REQUIRED",
+      "historical_receipt_schema_versions": [
+        "2.0.0"
+      ],
+      "historical_current_promotion": "REJECT"
     },
     "required_fields": [
       "aggregate_counts",

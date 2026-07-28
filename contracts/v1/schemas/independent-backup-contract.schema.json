@@ -22,7 +22,7 @@
   ],
   "properties": {
     "version": {
-      "const": "2.1.0"
+      "const": "2.2.0"
     },
     "status": {
       "const": "BLOCKED"
@@ -126,7 +126,7 @@
           "$ref": "#/$defs/sha256"
         },
         "source_contract_version": {
-          "const": "2.1.0"
+          "const": "2.2.0"
         },
         "decision_history": {
           "type": "array",
@@ -776,12 +776,13 @@
         "release_identity",
         "manifest",
         "github_release_attestation",
+        "monthly_selection",
         "required_fields",
         "forbidden_classes"
       ],
       "properties": {
         "schema_version": {
-          "const": "2.0.0"
+          "const": "2.1.0"
         },
         "canonical_serialization": {
           "const": "lexicographic_object_keys_array_order_preserved_two_space_json_lf"
@@ -809,6 +810,9 @@
         },
         "github_release_attestation": {
           "$ref": "#/$defs/github_release_attestation_policy"
+        },
+        "monthly_selection": {
+          "$ref": "#/$defs/monthly_selection_policy"
         },
         "required_fields": {
           "const": [
@@ -963,6 +967,112 @@
         }
       }
     },
+    "monthly_selection_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "verification_boundary",
+        "signature_domain",
+        "inventory_source",
+        "provider_api",
+        "provider_api_version",
+        "provider_api_path",
+        "acceptance_definition",
+        "acceptance_timestamp_field",
+        "inclusion_predicate",
+        "stable_identity_fields",
+        "pagination",
+        "selection_rule",
+        "candidate_membership",
+        "selected_membership",
+        "concurrency_state",
+        "historical_receipt_schema_versions",
+        "historical_current_promotion"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "verification_boundary": {
+          "const": "existing_distinct_pinned_ed25519_reader_trust_anchor"
+        },
+        "signature_domain": {
+          "const": "fawxzzy-platform:github-release-monthly-selection-ledger:v1"
+        },
+        "inventory_source": {
+          "const": "COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY"
+        },
+        "provider_api": {
+          "const": "GITHUB_REST_LIST_RELEASES"
+        },
+        "provider_api_version": {
+          "const": "2022-11-28"
+        },
+        "provider_api_path": {
+          "const": "/repos/{owner}/{repo}/releases"
+        },
+        "acceptance_definition": {
+          "const": "GITHUB_RELEASE_PUBLISHED_AT"
+        },
+        "acceptance_timestamp_field": {
+          "const": "published_at"
+        },
+        "inclusion_predicate": {
+          "const": "draft_false_prerelease_false_immutable_true_published_at_in_utc_month"
+        },
+        "stable_identity_fields": {
+          "const": [
+            "id",
+            "tag_name"
+          ]
+        },
+        "pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "per_page",
+            "terminal_page_required",
+            "raw_page_digest_list_required",
+            "first_page_etag_double_read_required"
+          ],
+          "properties": {
+            "per_page": {
+              "const": 100
+            },
+            "terminal_page_required": {
+              "const": true
+            },
+            "raw_page_digest_list_required": {
+              "const": true
+            },
+            "first_page_etag_double_read_required": {
+              "const": true
+            }
+          }
+        },
+        "selection_rule": {
+          "const": "EARLIEST_PROVIDER_ACCEPTED_AT_THEN_RELEASE_TAG"
+        },
+        "candidate_membership": {
+          "const": "EXACTLY_ONCE"
+        },
+        "selected_membership": {
+          "const": "EXACTLY_ONCE"
+        },
+        "concurrency_state": {
+          "const": "CONSISTENT_SINGLE_HEAD_REQUIRED"
+        },
+        "historical_receipt_schema_versions": {
+          "const": [
+            "2.0.0"
+          ]
+        },
+        "historical_current_promotion": {
+          "const": "REJECT"
+        }
+      }
+    },
     "trust_anchor": {
       "type": "object",
       "additionalProperties": false,
@@ -1048,7 +1158,7 @@
       ],
       "properties": {
         "schema_version": {
-          "const": "2.0.0"
+          "const": "2.1.0"
         },
         "status": {
           "enum": [
@@ -1256,6 +1366,51 @@
                     }
                   }
                 }
+              },
+              "monthly_selection": {
+                "type": "object",
+                "properties": {
+                  "selected_release_tag": {
+                    "const": "UNKNOWN"
+                  },
+                  "ledger": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "const": "BLOCKED"
+                      },
+                      "repository_reference": {
+                        "const": "UNKNOWN"
+                      },
+                      "inventory_source": {
+                        "const": "BLOCKED"
+                      },
+                      "complete": {
+                        "const": false
+                      },
+                      "concurrency_state": {
+                        "const": "BLOCKED"
+                      },
+                      "accepted_release_count": {
+                        "const": 0
+                      },
+                      "accepted_releases": {
+                        "const": []
+                      },
+                      "signer": {
+                        "type": "object",
+                        "properties": {
+                          "key_id": {
+                            "const": "UNKNOWN"
+                          },
+                          "signature_base64": {
+                            "const": "AA=="
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1358,22 +1513,232 @@
       "additionalProperties": false,
       "required": [
         "utc_month",
-        "is_first_accepted_utc_month",
-        "retention_class"
+        "candidate_release_tag",
+        "selected_release_tag",
+        "retention_class",
+        "selection_rule",
+        "ledger"
       ],
       "properties": {
         "utc_month": {
           "type": "string",
           "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
         },
-        "is_first_accepted_utc_month": {
-          "type": "boolean"
+        "candidate_release_tag": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "selected_release_tag": {
+          "$ref": "#/$defs/safe_reference"
         },
         "retention_class": {
           "enum": [
             "STANDARD_35_DAY",
             "FIRST_MONTHLY_400_DAY"
           ]
+        },
+        "selection_rule": {
+          "const": "EARLIEST_PROVIDER_ACCEPTED_AT_THEN_RELEASE_TAG"
+        },
+        "ledger": {
+          "$ref": "#/$defs/monthly_accepted_release_ledger"
+        }
+      }
+    },
+    "monthly_accepted_release_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "repository_reference",
+        "utc_month",
+        "inventory_source",
+        "provider_api",
+        "provider_api_version",
+        "provider_api_path",
+        "acceptance_definition",
+        "acceptance_timestamp_field",
+        "inclusion_predicate",
+        "stable_identity_fields",
+        "complete",
+        "concurrency_state",
+        "observed_at",
+        "pagination",
+        "accepted_release_count",
+        "accepted_releases",
+        "inventory_sha256",
+        "signer",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "status": {
+          "enum": [
+            "BLOCKED",
+            "VERIFIED"
+          ]
+        },
+        "repository_reference": {
+          "$ref": "#/$defs/github_repository_reference"
+        },
+        "utc_month": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "inventory_source": {
+          "enum": [
+            "BLOCKED",
+            "COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY"
+          ]
+        },
+        "provider_api": {
+          "const": "GITHUB_REST_LIST_RELEASES"
+        },
+        "provider_api_version": {
+          "const": "2022-11-28"
+        },
+        "provider_api_path": {
+          "const": "/repos/{owner}/{repo}/releases"
+        },
+        "acceptance_definition": {
+          "const": "GITHUB_RELEASE_PUBLISHED_AT"
+        },
+        "acceptance_timestamp_field": {
+          "const": "published_at"
+        },
+        "inclusion_predicate": {
+          "const": "draft_false_prerelease_false_immutable_true_published_at_in_utc_month"
+        },
+        "stable_identity_fields": {
+          "const": [
+            "id",
+            "tag_name"
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "concurrency_state": {
+          "enum": [
+            "BLOCKED",
+            "CONSISTENT_SINGLE_HEAD",
+            "AMBIGUOUS_OR_FORKED"
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "pagination": {
+          "$ref": "#/$defs/monthly_release_pagination"
+        },
+        "accepted_release_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "accepted_releases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/monthly_accepted_release"
+          }
+        },
+        "inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signer": {
+          "$ref": "#/$defs/attestation_signer"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "monthly_accepted_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "tag_name",
+        "draft",
+        "prerelease",
+        "immutable",
+        "created_at",
+        "published_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tag_name": {
+          "$ref": "#/$defs/safe_reference"
+        },
+        "draft": {
+          "const": false
+        },
+        "prerelease": {
+          "const": false
+        },
+        "immutable": {
+          "const": true
+        },
+        "created_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        },
+        "published_at": {
+          "$ref": "#/$defs/utc_timestamp"
+        }
+      }
+    },
+    "monthly_release_pagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "per_page",
+        "page_count",
+        "terminal_page_item_count",
+        "total_native_release_count",
+        "page_exhausted",
+        "page_digests_sha256",
+        "first_page_etag_before_sha256",
+        "first_page_etag_after_sha256",
+        "snapshot_sha256"
+      ],
+      "properties": {
+        "per_page": {
+          "const": 100
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "terminal_page_item_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "total_native_release_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "page_exhausted": {
+          "type": "boolean"
+        },
+        "page_digests_sha256": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "first_page_etag_before_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "first_page_etag_after_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshot_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
