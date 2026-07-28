@@ -1,0 +1,414 @@
+{
+  "version": "1.0.0",
+  "contract_id": "disposable-target-bootstrap",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED",
+    "apply_admitted": false
+  },
+  "scope": {
+    "offline_contract_only": true,
+    "provider_connectivity_included": false,
+    "provider_mutation_authorized": false,
+    "project_creation_authorized": false,
+    "migration_apply_authorized": false,
+    "rollback_or_disposal_authorized": false,
+    "credential_revocation_authorized": false,
+    "executable_migration_representation_included": false
+  },
+  "immutable_bindings": {
+    "digest_model": "SEPARATE_MIGRATION_AND_GOVERNANCE_V1",
+    "migration_count": 122,
+    "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+    "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+    "legacy_combined_digest_admitted": false,
+    "standard_migration_sql_count": 0
+  },
+  "identity_boundary": {
+    "identity_representation": "SHA256_DIGEST_ONLY",
+    "protected_project_set_source": "ACTION_TIME_COMPLETE_PROVIDER_INVENTORY",
+    "protected_project_identity_count_minimum": 4,
+    "protected_inventory_digest_required": true,
+    "protected_inventory_count_must_match": true,
+    "protected_inventory_digest_model": "CANONICAL_PROVIDER_INVENTORY_V1",
+    "protected_identity_digests_canonical_order_required": true,
+    "pagination_and_completeness_evidence_required": true,
+    "disposable_identity_must_be_unique": true,
+    "disposable_identity_must_not_be_protected": true,
+    "project_refs_in_receipts_forbidden": true,
+    "production_or_source_reuse_forbidden": true
+  },
+  "authority_gate": {
+    "binding_model": "SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1",
+    "authorized_operation": "GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY",
+    "subject_run_package_bundle_binding_required": true,
+    "source_contract_is_authority": false
+  },
+  "preimage_gate": {
+    "freshness_seconds_maximum": 7200,
+    "postgres_major": 17,
+    "provider_migration_count": 0,
+    "application_schema_count": 0,
+    "public_base_table_count": 0,
+    "auth_user_count": 0,
+    "storage_bucket_count": 0,
+    "storage_object_count": 0,
+    "realtime_publication_table_count": 0,
+    "edge_function_count": 0,
+    "security_advisor_error_count": 0,
+    "complete_inventory_required": true,
+    "unknown_promotable_to_current": false
+  },
+  "action_order": [
+    "CAPTURE_ACTION_TIME_IDENTITIES",
+    "PROVE_DISPOSABLE_NOT_PROTECTED",
+    "CAPTURE_FRESH_PREIMAGE",
+    "DENY_EXTERNAL_EGRESS",
+    "WITHHOLD_APPLICATION_CREDENTIALS",
+    "DISABLE_DATA_API",
+    "READ_EXTENSION_DEFAULTS",
+    "VERIFY_REVIEWED_EXECUTABLE_BUNDLE",
+    "APPLY_ONLY_UNDER_SEPARATE_AUTHORITY",
+    "CATALOG_READ_A",
+    "CATALOG_READ_B",
+    "VERIFY_SECURITY_PARITY",
+    "VERIFY_ZERO_EXTERNAL_EFFECTS",
+    "RUN_NEGATIVE_PROBES",
+    "PROVE_ROLLBACK_CAPABILITY",
+    "FREEZE_QUARANTINED_TARGET"
+  ],
+  "data_api_gate": {
+    "bootstrap_enabled": false,
+    "bootstrap_exposed_schemas": [],
+    "bootstrap_extra_search_path": [
+      "extensions"
+    ],
+    "automatic_public_exposure": false,
+    "maximum_future_exposed_schemas": [
+      "platform_shared",
+      "discordos",
+      "mazer",
+      "fitness"
+    ],
+    "never_exposed_schemas": [
+      "graphql_public",
+      "public",
+      "private",
+      "extensions",
+      "auth",
+      "storage",
+      "realtime"
+    ],
+    "explicit_grants_and_rls_required": true,
+    "management_api_preimage_required": true
+  },
+  "catalog_parity": {
+    "read_count": 2,
+    "reads_must_be_independent": true,
+    "reads_must_be_byte_identical": true,
+    "expected_state_binding_model": "PACKAGE_BUNDLE_CATALOG_SECURITY_V1",
+    "observed_catalog_must_match_reviewed_expected_digest": true,
+    "observed_security_must_match_reviewed_expected_digest": true,
+    "read_evidence_binding_model": "SUBJECT_RUN_CATALOG_READ_EVIDENCE_V1",
+    "distinct_read_evidence_receipts_required": true,
+    "distinct_reader_identities_required": true,
+    "distinct_execution_identities_required": true,
+    "query_model_binding_required": true,
+    "expected_counts": {
+      "tables": 41,
+      "functions": 30,
+      "policies": 74,
+      "triggers": 10,
+      "indexes": 134,
+      "constraints": 281,
+      "extension_dependencies": 3
+    },
+    "timestamp_or_high_water_only_proof_allowed": false
+  },
+  "security_gate": {
+    "relation_grants_complete": true,
+    "rls_enabled_and_forced_complete": true,
+    "policy_denominator_complete": true,
+    "function_acl_complete": true,
+    "function_search_path_complete": true,
+    "creator_default_acl_complete": true,
+    "public_product_objects_allowed": false,
+    "unknown_provider_role_isolation_promotable": false
+  },
+  "extension_gate": {
+    "required_extensions": [
+      "pgcrypto",
+      "pg_cron",
+      "pg_net"
+    ],
+    "observed_default_version_required": true,
+    "observed_installed_version_required": true,
+    "compatibility_result_required": "PASS",
+    "explicit_version_pin_is_proof": false,
+    "unknown_version_promotable": false
+  },
+  "external_effect_gate": {
+    "required_zero_counts": [
+      "outbound_network_requests",
+      "cron_jobs_enabled",
+      "edge_functions_deployed",
+      "webhooks_enabled",
+      "realtime_publications_enabled",
+      "storage_objects_written",
+      "auth_messages_sent"
+    ],
+    "egress_denied_before_apply": true,
+    "credentials_withheld_before_apply": true,
+    "zero_effect_receipt_required": true
+  },
+  "negative_probe_gate": {
+    "required_probes": [
+      "REST_PUBLIC_DENIED",
+      "GRAPHQL_PUBLIC_DENIED",
+      "RPC_PUBLIC_DENIED",
+      "WRONG_OWNER_DENIED",
+      "ANON_WRITE_DENIED",
+      "EXTERNAL_EGRESS_DENIED"
+    ],
+    "all_must_pass": true
+  },
+  "rollback_and_disposal": {
+    "accepted_terminal_dispositions": [
+      "QUARANTINED_RETAINED",
+      "ROLLED_BACK",
+      "DISPOSED"
+    ],
+    "rollback_preimage_digest_required": true,
+    "rollback_plan_digest_required": true,
+    "rollback_authority_receipt_digest_required": true,
+    "credential_revocation_plan_digest_required": true,
+    "disposed_target_absence_proof_required": true,
+    "disposed_credential_revocation_proof_required": true,
+    "common_target_and_run_binding_required": true,
+    "rollback_postimage_must_equal_preimage": true,
+    "terminal_proof_binding_model": "SUBJECT_RUN_DISPOSITION_EVIDENCE_V1",
+    "disposal_proofs_must_be_distinct": true,
+    "disposal_proofs_individually_fresh": true,
+    "disposal_proof_order": "DISPOSAL_COMPLETION_THEN_ABSENCE_AND_REVOCATION_THEN_TERMINAL_COMPLETION",
+    "source_projects_remain_active": true,
+    "source_mutation_forbidden": true,
+    "disposal_requires_separate_authority": true,
+    "broad_drop_is_rollback": false
+  },
+  "receipt_policy": {
+    "allowed_classes": [
+      "counts",
+      "booleans",
+      "timestamps",
+      "closed_enums",
+      "one_way_sha256_digests",
+      "extension_names_and_versions"
+    ],
+    "forbidden_classes": [
+      "project_refs",
+      "secrets",
+      "credentials",
+      "raw_identity_values",
+      "raw_catalog_rows",
+      "raw_sql",
+      "provider_responses",
+      "urls",
+      "pii",
+      "machine_paths"
+    ]
+  },
+  "receipt_example": {
+    "schema_version": "1.0.0",
+    "status": "BLOCKED",
+    "execution_lifecycle": "EXECUTION_BLOCKED",
+    "apply_admitted": false,
+    "validated_at": "1970-01-01T00:00:00.000Z",
+    "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "evidence_complete": false,
+    "source_contract_grants_provider_authority": false,
+    "source_contract_grants_apply": false,
+    "authorized_operation": "GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY",
+    "authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "authority_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "package": {
+      "migration_count": 122,
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+      "executable_bundle_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reviewed_expected_state_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_catalog_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_security_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_state_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "standard_migration_sql_count": 0
+    },
+    "identity": {
+      "observed_at": "1970-01-01T00:00:00.000Z",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "protected_inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "provider_inventory_snapshot_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "provider_inventory_completeness_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pagination_page_count": 0,
+      "pagination_item_count": 4,
+      "pagination_exhausted": false,
+      "protected_project_count": 4,
+      "protected_project_identity_sha256s": [
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "2222222222222222222222222222222222222222222222222222222222222222",
+        "3333333333333333333333333333333333333333333333333333333333333333",
+        "4444444444444444444444444444444444444444444444444444444444444444"
+      ],
+      "disposable_project_identity_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "disposable_not_protected": true,
+      "inventory_complete": false
+    },
+    "preimage": {
+      "status": "UNKNOWN",
+      "observed_at": "1970-01-01T00:00:00.000Z",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "postgres_major": 17,
+      "provider_migrations": 0,
+      "application_schemas": 0,
+      "public_base_tables": 0,
+      "auth_users": 0,
+      "storage_buckets": 0,
+      "storage_objects": 0,
+      "realtime_publication_tables": 0,
+      "edge_functions": 0,
+      "security_advisor_errors": 0
+    },
+    "completed_actions": [],
+    "data_api": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "control_plane_preimage_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "control_plane_postimage_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "enabled": true,
+      "exposed_schemas": [
+        "graphql_public",
+        "public"
+      ],
+      "extra_search_path": [
+        "public",
+        "extensions"
+      ],
+      "automatic_public_exposure": false
+    },
+    "extensions": {
+      "status": "UNKNOWN",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "units": []
+    },
+    "catalog_reads": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "read_a": {
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "query_model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "read_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "catalog_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "counts": {
+          "tables": 0,
+          "functions": 0,
+          "policies": 0,
+          "triggers": 0,
+          "indexes": 0,
+          "constraints": 0,
+          "extension_dependencies": 0
+        }
+      },
+      "read_b": {
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "query_model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "read_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "catalog_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "counts": {
+          "tables": 0,
+          "functions": 0,
+          "policies": 0,
+          "triggers": 0,
+          "indexes": 0,
+          "constraints": 0,
+          "extension_dependencies": 0
+        }
+      },
+      "identical": false
+    },
+    "security": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "security_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "relation_grants_complete": false,
+      "rls_enabled_and_forced_complete": false,
+      "policy_denominator_complete": false,
+      "function_acl_complete": false,
+      "function_search_path_complete": false,
+      "creator_default_acl_complete": false,
+      "public_product_object_count": 0,
+      "provider_role_isolation": "UNKNOWN"
+    },
+    "external_effects": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "outbound_network_requests": 0,
+      "cron_jobs_enabled": 0,
+      "edge_functions_deployed": 0,
+      "webhooks_enabled": 0,
+      "realtime_publications_enabled": 0,
+      "storage_objects_written": 0,
+      "auth_messages_sent": 0
+    },
+    "negative_probes": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "results": []
+    },
+    "rollback": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "preimage_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "credential_revocation_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "capability_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "completion_observed_at": null,
+      "completion_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "restored_postimage_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "disposal_authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "disposal_completion_observed_at": null,
+      "disposal_completion_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "target_absence_observed_at": null,
+      "target_absence_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "credential_revocation_observed_at": null,
+      "credential_revocation_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "terminal_proof_binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "terminal_disposition": "QUARANTINED_RETAINED",
+      "target_absent_after_disposal": false,
+      "credentials_revoked_after_disposal": false,
+      "source_projects_active": true,
+      "source_mutation_count": 0,
+      "broad_drop_used": false
+    },
+    "terminal_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

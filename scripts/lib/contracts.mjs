@@ -23,6 +23,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/membership/membership-lifecycle.json', 'urn:fawxzzy:platform:schemas:v1:membership-lifecycle'],
   ['contracts/v1/activation/activation-request.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-request'],
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
+  ['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', 'urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-contract'],
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
   ['contracts/v1/gates/fitness-pr108-replay-gate.json', 'urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate'],
@@ -52,6 +53,77 @@ const expectedOperations = Object.freeze([
   'production_deploy',
   'source_pause',
   'source_deletion'
+]);
+
+const targetBootstrapActionOrder = Object.freeze([
+  'CAPTURE_ACTION_TIME_IDENTITIES',
+  'PROVE_DISPOSABLE_NOT_PROTECTED',
+  'CAPTURE_FRESH_PREIMAGE',
+  'DENY_EXTERNAL_EGRESS',
+  'WITHHOLD_APPLICATION_CREDENTIALS',
+  'DISABLE_DATA_API',
+  'READ_EXTENSION_DEFAULTS',
+  'VERIFY_REVIEWED_EXECUTABLE_BUNDLE',
+  'APPLY_ONLY_UNDER_SEPARATE_AUTHORITY',
+  'CATALOG_READ_A',
+  'CATALOG_READ_B',
+  'VERIFY_SECURITY_PARITY',
+  'VERIFY_ZERO_EXTERNAL_EFFECTS',
+  'RUN_NEGATIVE_PROBES',
+  'PROVE_ROLLBACK_CAPABILITY',
+  'FREEZE_QUARANTINED_TARGET'
+]);
+
+const targetBootstrapFutureExposedSchemas = Object.freeze([
+  'platform_shared',
+  'discordos',
+  'mazer',
+  'fitness'
+]);
+
+const targetBootstrapNeverExposedSchemas = Object.freeze([
+  'graphql_public',
+  'public',
+  'private',
+  'extensions',
+  'auth',
+  'storage',
+  'realtime'
+]);
+
+const targetBootstrapRequiredExtensions = Object.freeze([
+  'pgcrypto',
+  'pg_cron',
+  'pg_net'
+]);
+
+const targetBootstrapNegativeProbes = Object.freeze([
+  'REST_PUBLIC_DENIED',
+  'GRAPHQL_PUBLIC_DENIED',
+  'RPC_PUBLIC_DENIED',
+  'WRONG_OWNER_DENIED',
+  'ANON_WRITE_DENIED',
+  'EXTERNAL_EGRESS_DENIED'
+]);
+
+const targetBootstrapCatalogCounts = Object.freeze({
+  tables: 41,
+  functions: 30,
+  policies: 74,
+  triggers: 10,
+  indexes: 134,
+  constraints: 281,
+  extension_dependencies: 3
+});
+
+const targetBootstrapZeroEffectFields = Object.freeze([
+  'outbound_network_requests',
+  'cron_jobs_enabled',
+  'edge_functions_deployed',
+  'webhooks_enabled',
+  'realtime_publications_enabled',
+  'storage_objects_written',
+  'auth_messages_sent'
 ]);
 
 const expectedServiceBindings = Object.freeze({
@@ -427,6 +499,450 @@ export function validateAppDataReceiptSanitization(receipt) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+function isSha256(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isNonzeroSha256(value) {
+  return isSha256(value) && !/^0{64}$/.test(value);
+}
+
+function isFreshObservation(observedAt, validatedAt, maximumAgeSeconds) {
+  const observed = Date.parse(observedAt);
+  const validated = Date.parse(validatedAt);
+  return Number.isFinite(observed)
+    && Number.isFinite(validated)
+    && observed <= validated
+    && validated - observed <= maximumAgeSeconds * 1000;
+}
+
+function validateTargetBootstrapReceiptSanitization(receipt) {
+  const failures = [];
+  const forbiddenKeyPatterns = [
+    [/^project_?refs?$/i, 'FORBIDDEN_FIELD_PROJECT_REFS'],
+    [/(?:^|_)secrets?$/i, 'FORBIDDEN_FIELD_SECRETS'],
+    [/(?:^|_)(?:credentials?|api_?keys?|passwords?|tokens?)$/i, 'FORBIDDEN_FIELD_CREDENTIALS'],
+    [/^(?:raw_?)?(?:sql|catalog_?rows?|identity_?values?)$/i, 'FORBIDDEN_FIELD_RAW_EVIDENCE'],
+    [/^provider_?responses?$/i, 'FORBIDDEN_FIELD_PROVIDER_RESPONSES'],
+    [/^(?:urls?|emails?|usernames?|uuids?|pii|machine_?paths?)$/i, 'FORBIDDEN_FIELD_SENSITIVE_VALUES']
+  ];
+  const classifyString = (value) => {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'EMAIL';
+    if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) return 'UUID';
+    if (/^[a-z]{20}$/.test(value)) return 'PROJECT_REF';
+    if (/^(?:[A-Za-z]:\\|\/(?:home|Users|tmp|var|workspace)\/)/.test(value)) return 'MACHINE_PATH';
+    if (/^https?:\/\//i.test(value)) return 'URL';
+    if (/\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|create\s+(?:table|function|schema)|alter\s+(?:table|function|schema)|drop\s+(?:table|function|schema))\b/i.test(value)) return 'SQL';
+    if (/^(?:gh[pousr]_[A-Za-z0-9]{20,}|(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})$/.test(value)) return 'CREDENTIAL';
+    return null;
+  };
+  const inspect = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(inspect);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [key, entry] of Object.entries(value)) {
+        for (const [pattern, code] of forbiddenKeyPatterns) {
+          if (pattern.test(key)) failures.push(code);
+        }
+        inspect(entry);
+      }
+      return;
+    }
+    if (typeof value === 'string') {
+      const classification = classifyString(value);
+      if (classification) failures.push(`FORBIDDEN_VALUE_${classification}`);
+    }
+  };
+  inspect(receipt);
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function validateDisposableTargetBootstrapReceipt(contract, receipt) {
+  const failures = [];
+  const requireReceipt = (condition, message) => {
+    if (!condition) failures.push(`target bootstrap receipt: ${message}`);
+  };
+  const bindings = contract?.immutable_bindings ?? {};
+  const identity = receipt?.identity ?? {};
+  const preimage = receipt?.preimage ?? {};
+  const dataApi = receipt?.data_api ?? {};
+  const extensions = receipt?.extensions ?? {};
+  const catalogReads = receipt?.catalog_reads ?? {};
+  const security = receipt?.security ?? {};
+  const externalEffects = receipt?.external_effects ?? {};
+  const negativeProbes = receipt?.negative_probes ?? {};
+  const rollback = receipt?.rollback ?? {};
+  const packageBinding = receipt?.package ?? {};
+  const subjectSha256 = identity.disposable_project_identity_sha256;
+  const runCorrelationSha256 = receipt?.run_correlation_sha256;
+  const zeroSha256 = /^0{64}$/;
+  const expectedStateBinding = canonicalDigest({
+    model: 'PACKAGE_BUNDLE_CATALOG_SECURITY_V1',
+    run_correlation_sha256: runCorrelationSha256,
+    subject_sha256: subjectSha256,
+    migration_count: packageBinding.migration_count,
+    migration_package_sha256: packageBinding.migration_package_sha256,
+    governance_manifest_sha256: packageBinding.governance_manifest_sha256,
+    executable_bundle_sha256: packageBinding.executable_bundle_sha256,
+    reviewed_expected_state_receipt_sha256: packageBinding.reviewed_expected_state_receipt_sha256,
+    expected_catalog_sha256: packageBinding.expected_catalog_sha256,
+    expected_security_sha256: packageBinding.expected_security_sha256
+  });
+  const authorityBinding = canonicalDigest({
+    model: 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1',
+    authorized_operation: receipt?.authorized_operation,
+    authority_receipt_sha256: receipt?.authority_receipt_sha256,
+    subject_sha256: subjectSha256,
+    run_correlation_sha256: runCorrelationSha256,
+    migration_count: packageBinding.migration_count,
+    migration_package_sha256: packageBinding.migration_package_sha256,
+    governance_manifest_sha256: packageBinding.governance_manifest_sha256,
+    executable_bundle_sha256: packageBinding.executable_bundle_sha256,
+    expected_state_binding_sha256: packageBinding.expected_state_binding_sha256
+  });
+  const protectedInventoryBinding = canonicalDigest({
+    model: 'CANONICAL_PROVIDER_INVENTORY_V1',
+    subject_sha256: subjectSha256,
+    run_correlation_sha256: runCorrelationSha256,
+    observed_at: identity.observed_at,
+    provider_inventory_snapshot_sha256: identity.provider_inventory_snapshot_sha256,
+    provider_inventory_completeness_receipt_sha256: identity.provider_inventory_completeness_receipt_sha256,
+    pagination_page_count: identity.pagination_page_count,
+    pagination_item_count: identity.pagination_item_count,
+    pagination_exhausted: identity.pagination_exhausted,
+    protected_project_identity_sha256s: identity.protected_project_identity_sha256s
+  });
+  const rollbackCapabilityBinding = canonicalDigest({
+    model: 'SUBJECT_RUN_ROLLBACK_CAPABILITY_V1',
+    subject_sha256: rollback.subject_sha256,
+    run_correlation_sha256: rollback.run_correlation_sha256,
+    preimage_sha256: rollback.preimage_sha256,
+    plan_sha256: rollback.plan_sha256,
+    authority_receipt_sha256: rollback.authority_receipt_sha256,
+    credential_revocation_plan_sha256: rollback.credential_revocation_plan_sha256
+  });
+  const terminalProofBinding = canonicalDigest({
+    model: 'SUBJECT_RUN_DISPOSITION_EVIDENCE_V1',
+    subject_sha256: rollback.subject_sha256,
+    run_correlation_sha256: rollback.run_correlation_sha256,
+    terminal_disposition: rollback.terminal_disposition,
+    capability_binding_sha256: rollback.capability_binding_sha256,
+    completion_observed_at: rollback.completion_observed_at,
+    completion_receipt_sha256: rollback.completion_receipt_sha256,
+    restored_postimage_sha256: rollback.restored_postimage_sha256,
+    disposal_authority_receipt_sha256: rollback.disposal_authority_receipt_sha256,
+    disposal_completion_observed_at: rollback.disposal_completion_observed_at,
+    disposal_completion_receipt_sha256: rollback.disposal_completion_receipt_sha256,
+    target_absence_observed_at: rollback.target_absence_observed_at,
+    target_absence_evidence_sha256: rollback.target_absence_evidence_sha256,
+    credential_revocation_observed_at: rollback.credential_revocation_observed_at,
+    credential_revocation_evidence_sha256: rollback.credential_revocation_evidence_sha256,
+    target_absent_after_disposal: rollback.target_absent_after_disposal,
+    credentials_revoked_after_disposal: rollback.credentials_revoked_after_disposal
+  });
+
+  requireReceipt(receipt?.schema_version === '1.0.0', 'schema version drift');
+  requireReceipt(['CURRENT', 'BLOCKED'].includes(receipt?.status), 'status must be CURRENT or BLOCKED');
+  requireReceipt(receipt?.execution_lifecycle === 'EXECUTION_BLOCKED', 'execution lifecycle promotion is forbidden');
+  requireReceipt(receipt?.apply_admitted === false, 'apply promotion is forbidden');
+  requireReceipt(receipt?.source_contract_grants_provider_authority === false, 'source contract cannot grant provider authority');
+  requireReceipt(receipt?.source_contract_grants_apply === false, 'source contract cannot grant apply authority');
+  requireReceipt(receipt?.authorized_operation === 'GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY', 'authorized operation must be the guarded disposable target bootstrap apply');
+  requireReceipt(packageBinding.migration_count === bindings.migration_count, 'migration count binding drift');
+  requireReceipt(packageBinding.migration_package_sha256 === bindings.migration_package_sha256, 'migration package digest mismatch');
+  requireReceipt(packageBinding.governance_manifest_sha256 === bindings.governance_manifest_sha256, 'governance manifest digest mismatch');
+  requireReceipt(packageBinding.standard_migration_sql_count === 0, 'standard migration SQL must remain absent');
+  requireReceipt(Array.isArray(identity.protected_project_identity_sha256s) && identity.protected_project_identity_sha256s.length >= 4, 'complete protected-project digest set is required');
+  requireReceipt((identity.protected_project_identity_sha256s ?? []).every(isSha256), 'protected-project identities must be SHA-256 digests');
+  requireReceipt(new Set(identity.protected_project_identity_sha256s ?? []).size === (identity.protected_project_identity_sha256s ?? []).length, 'protected-project identity digests must be unique');
+  requireReceipt(identity.protected_project_count === (identity.protected_project_identity_sha256s ?? []).length, 'protected-project count must match the complete digest set');
+  requireReceipt(isSha256(identity.disposable_project_identity_sha256), 'disposable identity must be a SHA-256 digest');
+  requireReceipt(!(identity.protected_project_identity_sha256s ?? []).includes(identity.disposable_project_identity_sha256), 'protected-project reuse is forbidden');
+  requireReceipt(identity.disposable_not_protected === true, 'disposable identity must be proven outside the protected set');
+  requireReceipt(rollback.source_projects_active === true && rollback.source_mutation_count === 0, 'source projects must remain active and unmodified');
+  requireReceipt(rollback.broad_drop_used === false, 'broad drop is not rollback');
+  failures.push(...validateTargetBootstrapReceiptSanitization(receipt).map((failure) => `target bootstrap receipt: ${failure}`));
+
+  if (receipt?.status === 'BLOCKED') {
+    requireReceipt(receipt.evidence_complete === false, 'BLOCKED evidence cannot claim completeness');
+    return failures.sort((left, right) => left.localeCompare(right));
+  }
+
+  requireReceipt(receipt.evidence_complete === true, 'CURRENT evidence must be complete');
+  requireReceipt(isNonzeroSha256(runCorrelationSha256), 'CURRENT evidence requires one nonzero run-correlation digest');
+  requireReceipt(isNonzeroSha256(receipt.authority_receipt_sha256), 'CURRENT evidence requires a nonzero authority receipt digest');
+  requireReceipt(receipt.authority_binding_sha256 === authorityBinding, 'apply authority must bind the guarded operation, subject, run, package, and reviewed bundle');
+  requireReceipt(isNonzeroSha256(packageBinding.executable_bundle_sha256), 'CURRENT evidence requires an exact reviewed executable bundle digest');
+  requireReceipt(isNonzeroSha256(packageBinding.reviewed_expected_state_receipt_sha256), 'CURRENT evidence requires a reviewed expected-state receipt digest');
+  requireReceipt(isNonzeroSha256(packageBinding.expected_catalog_sha256), 'CURRENT evidence requires a reviewed expected catalog digest');
+  requireReceipt(isNonzeroSha256(packageBinding.expected_security_sha256), 'CURRENT evidence requires a reviewed expected security digest');
+  requireReceipt(packageBinding.expected_state_binding_sha256 === expectedStateBinding, 'reviewed package/bundle/catalog/security expected-state binding mismatch');
+  requireReceipt(isNonzeroSha256(receipt.terminal_receipt_sha256), 'CURRENT evidence requires a terminal receipt digest');
+  requireReceipt(identity.inventory_complete === true && isNonzeroSha256(identity.protected_inventory_sha256), 'CURRENT evidence requires a complete protected-project inventory digest');
+  requireReceipt(identity.subject_sha256 === subjectSha256 && identity.run_correlation_sha256 === runCorrelationSha256, 'identity observation must bind the disposable subject and run');
+  requireReceipt(
+    (identity.protected_project_identity_sha256s ?? []).every((value, index, values) => index === 0 || values[index - 1].localeCompare(value) < 0),
+    'protected-project identity digests must use strict canonical order'
+  );
+  requireReceipt(isNonzeroSha256(identity.provider_inventory_snapshot_sha256), 'CURRENT evidence requires a provider inventory snapshot digest');
+  requireReceipt(isNonzeroSha256(identity.provider_inventory_completeness_receipt_sha256), 'CURRENT evidence requires provider inventory completeness evidence');
+  requireReceipt(
+    new Set([
+      identity.provider_inventory_snapshot_sha256,
+      identity.provider_inventory_completeness_receipt_sha256,
+      identity.protected_inventory_sha256
+    ]).size === 3,
+    'provider inventory snapshot, completeness receipt, and canonical inventory digests must be distinct'
+  );
+  requireReceipt(Number.isInteger(identity.pagination_page_count) && identity.pagination_page_count >= 1, 'provider inventory pagination must include at least one page');
+  requireReceipt(identity.pagination_page_count <= identity.pagination_item_count, 'provider inventory page count cannot exceed its item denominator');
+  requireReceipt(identity.pagination_item_count === identity.protected_project_count, 'provider inventory pagination item count must match the protected-project denominator');
+  requireReceipt(identity.pagination_exhausted === true, 'provider inventory pagination must be exhausted');
+  requireReceipt(identity.protected_inventory_sha256 === protectedInventoryBinding, 'protected-project inventory digest must match the canonical complete provider inventory');
+
+  for (const [label, observation] of [
+    ['preimage', preimage],
+    ['Data API', dataApi],
+    ['extensions', extensions],
+    ['catalog reads', catalogReads],
+    ['catalog read A', catalogReads.read_a],
+    ['catalog read B', catalogReads.read_b],
+    ['security', security],
+    ['external effects', externalEffects],
+    ['negative probes', negativeProbes],
+    ['rollback', rollback]
+  ]) {
+    requireReceipt(
+      observation?.subject_sha256 === subjectSha256 && observation?.run_correlation_sha256 === runCorrelationSha256,
+      `${label} observation must bind the disposable subject and run`
+    );
+  }
+
+  for (const [label, observedAt] of [
+    ['identity', identity.observed_at],
+    ['preimage', preimage.observed_at],
+    ['catalog read A', catalogReads.read_a?.observed_at],
+    ['catalog read B', catalogReads.read_b?.observed_at]
+  ]) {
+    requireReceipt(isFreshObservation(observedAt, receipt.validated_at, contract.preimage_gate.freshness_seconds_maximum), `${label} is missing, future, or stale`);
+  }
+
+  requireReceipt(preimage.status === 'CURRENT', 'fresh preimage must be CURRENT');
+  requireReceipt(isNonzeroSha256(preimage.inventory_sha256), 'fresh preimage inventory digest is required');
+  const expectedPreimage = {
+    postgres_major: 17,
+    provider_migrations: 0,
+    application_schemas: 0,
+    public_base_tables: 0,
+    auth_users: 0,
+    storage_buckets: 0,
+    storage_objects: 0,
+    realtime_publication_tables: 0,
+    edge_functions: 0,
+    security_advisor_errors: 0
+  };
+  for (const [field, expected] of Object.entries(expectedPreimage)) {
+    requireReceipt(preimage[field] === expected, `fresh preimage ${field} must equal ${expected}`);
+  }
+
+  requireReceipt(exactOrderedValues(receipt.completed_actions, targetBootstrapActionOrder), 'fixed action order is incomplete or reordered');
+  requireReceipt(dataApi.status === 'CURRENT', 'Data API containment must be CURRENT');
+  requireReceipt(isNonzeroSha256(dataApi.control_plane_preimage_sha256) && isNonzeroSha256(dataApi.control_plane_postimage_sha256), 'Data API control-plane preimage and postimage digests are required');
+  requireReceipt(dataApi.enabled === false, 'Data API must be disabled during bootstrap');
+  requireReceipt(exactOrderedValues(dataApi.exposed_schemas, []), 'bootstrap exposed schemas must be empty');
+  requireReceipt(exactOrderedValues(dataApi.extra_search_path, ['extensions']), 'bootstrap extra search path must contain only extensions');
+  requireReceipt(dataApi.automatic_public_exposure === false, 'automatic public exposure is forbidden');
+
+  requireReceipt(extensions.status === 'CURRENT', 'extension evidence must be CURRENT');
+  requireReceipt(exactOrderedValues((extensions.units ?? []).map((unit) => unit.name), targetBootstrapRequiredExtensions), 'extension denominator or order drift');
+  for (const unit of extensions.units ?? []) {
+    requireReceipt(typeof unit.default_version === 'string' && unit.default_version.length > 0, `${unit.name}: observed default version is required`);
+    requireReceipt(typeof unit.installed_version === 'string' && unit.installed_version.length > 0, `${unit.name}: observed installed version is required`);
+    requireReceipt(unit.compatibility === 'PASS', `${unit.name}: compatibility must PASS`);
+    requireReceipt(unit.explicit_version_pin_claimed === false, `${unit.name}: explicit version pins are not proof`);
+  }
+
+  requireReceipt(catalogReads.status === 'CURRENT', 'catalog parity must be CURRENT');
+  requireReceipt(catalogReads.identical === true, 'catalog reads must be explicitly identical');
+  requireReceipt(isNonzeroSha256(catalogReads.read_a?.catalog_sha256) && catalogReads.read_a?.catalog_sha256 === catalogReads.read_b?.catalog_sha256, 'catalog read digests must be identical and nonzero');
+  requireReceipt(catalogReads.read_a?.catalog_sha256 === packageBinding.expected_catalog_sha256, 'observed catalog digest must match the reviewed expected catalog');
+  requireReceipt(canonicalDigest(catalogReads.read_a?.counts ?? {}) === canonicalDigest(targetBootstrapCatalogCounts), 'catalog read A denominator mismatch');
+  requireReceipt(canonicalDigest(catalogReads.read_b?.counts ?? {}) === canonicalDigest(targetBootstrapCatalogCounts), 'catalog read B denominator mismatch');
+  requireReceipt(Date.parse(catalogReads.read_a?.observed_at) < Date.parse(catalogReads.read_b?.observed_at), 'catalog read B must follow read A');
+  for (const [label, read] of [['A', catalogReads.read_a], ['B', catalogReads.read_b]]) {
+    requireReceipt(isNonzeroSha256(read?.evidence_receipt_sha256), `catalog read ${label} requires an evidence receipt digest`);
+    requireReceipt(isNonzeroSha256(read?.reader_identity_sha256), `catalog read ${label} requires an independent reader identity`);
+    requireReceipt(isNonzeroSha256(read?.execution_identity_sha256), `catalog read ${label} requires an independent execution identity`);
+    requireReceipt(isNonzeroSha256(read?.query_model_sha256), `catalog read ${label} requires a query-model digest`);
+    requireReceipt(
+      read?.read_binding_sha256 === canonicalDigest({
+        model: 'SUBJECT_RUN_CATALOG_READ_EVIDENCE_V1',
+        subject_sha256: read?.subject_sha256,
+        run_correlation_sha256: read?.run_correlation_sha256,
+        observed_at: read?.observed_at,
+        evidence_receipt_sha256: read?.evidence_receipt_sha256,
+        reader_identity_sha256: read?.reader_identity_sha256,
+        execution_identity_sha256: read?.execution_identity_sha256,
+        query_model_sha256: read?.query_model_sha256,
+        catalog_sha256: read?.catalog_sha256,
+        counts: read?.counts
+      }),
+      `catalog read ${label} evidence binding mismatch`
+    );
+  }
+  requireReceipt(catalogReads.read_a?.evidence_receipt_sha256 !== catalogReads.read_b?.evidence_receipt_sha256, 'catalog reads require distinct evidence receipt identities');
+  requireReceipt(catalogReads.read_a?.reader_identity_sha256 !== catalogReads.read_b?.reader_identity_sha256, 'catalog reads require distinct reader identities');
+  requireReceipt(catalogReads.read_a?.execution_identity_sha256 !== catalogReads.read_b?.execution_identity_sha256, 'catalog reads require distinct execution identities');
+  requireReceipt(catalogReads.read_a?.query_model_sha256 === catalogReads.read_b?.query_model_sha256, 'catalog reads must bind the same reviewed query model');
+
+  requireReceipt(security.status === 'CURRENT', 'security parity must be CURRENT');
+  requireReceipt(security.security_sha256 === packageBinding.expected_security_sha256, 'observed security digest must match the reviewed expected security');
+  for (const field of [
+    'relation_grants_complete',
+    'rls_enabled_and_forced_complete',
+    'policy_denominator_complete',
+    'function_acl_complete',
+    'function_search_path_complete',
+    'creator_default_acl_complete'
+  ]) {
+    requireReceipt(security[field] === true, `security gate ${field} must be complete`);
+  }
+  requireReceipt(security.public_product_object_count === 0, 'public product objects are forbidden');
+  requireReceipt(security.provider_role_isolation === 'PASS', 'provider-role isolation must PASS and cannot remain UNKNOWN');
+
+  requireReceipt(externalEffects.status === 'CURRENT', 'external-effect proof must be CURRENT');
+  for (const field of targetBootstrapZeroEffectFields) {
+    requireReceipt(externalEffects[field] === 0, `external effect ${field} must equal zero`);
+  }
+
+  requireReceipt(negativeProbes.status === 'CURRENT', 'negative probes must be CURRENT');
+  requireReceipt(exactOrderedValues((negativeProbes.results ?? []).map((result) => result.name), targetBootstrapNegativeProbes), 'negative-probe denominator or order drift');
+  for (const result of negativeProbes.results ?? []) {
+    requireReceipt(result.passed === true && isNonzeroSha256(result.evidence_sha256), `${result.name}: negative probe must PASS with a digest`);
+  }
+
+  requireReceipt(rollback.status === 'CURRENT', 'rollback capability must be CURRENT');
+  for (const field of ['preimage_sha256', 'plan_sha256', 'authority_receipt_sha256', 'credential_revocation_plan_sha256']) {
+    requireReceipt(isNonzeroSha256(rollback[field]), `rollback ${field} is required`);
+  }
+  requireReceipt(rollback.preimage_sha256 === preimage.inventory_sha256, 'rollback preimage must equal the captured target preimage');
+  requireReceipt(rollback.capability_binding_sha256 === rollbackCapabilityBinding, 'rollback capability must bind the subject, run, preimage, plan, and authorities');
+  requireReceipt(contract.rollback_and_disposal.accepted_terminal_dispositions.includes(rollback.terminal_disposition), 'unsafe terminal disposition');
+  requireReceipt(rollback.terminal_proof_binding_sha256 === terminalProofBinding, 'terminal disposition proof binding mismatch');
+  if (rollback.terminal_disposition === 'QUARANTINED_RETAINED') {
+    requireReceipt(rollback.completion_observed_at === null, 'QUARANTINED_RETAINED cannot claim completion time');
+    requireReceipt(rollback.disposal_completion_observed_at === null && rollback.target_absence_observed_at === null && rollback.credential_revocation_observed_at === null, 'QUARANTINED_RETAINED cannot claim disposal proof observation times');
+    for (const field of [
+      'completion_receipt_sha256',
+      'restored_postimage_sha256',
+      'disposal_authority_receipt_sha256',
+      'disposal_completion_receipt_sha256',
+      'target_absence_evidence_sha256',
+      'credential_revocation_evidence_sha256'
+    ]) {
+      requireReceipt(zeroSha256.test(rollback[field] ?? ''), `QUARANTINED_RETAINED cannot claim ${field}`);
+    }
+    requireReceipt(rollback.target_absent_after_disposal === false && rollback.credentials_revoked_after_disposal === false, 'QUARANTINED_RETAINED cannot claim disposal or credential-revocation completion');
+  } else if (rollback.terminal_disposition === 'ROLLED_BACK') {
+    requireReceipt(
+      isFreshObservation(rollback.completion_observed_at, receipt.validated_at, contract.preimage_gate.freshness_seconds_maximum) &&
+        Date.parse(rollback.completion_observed_at) >= Date.parse(catalogReads.read_b?.observed_at),
+      'ROLLED_BACK requires fresh completion evidence after catalog read B'
+    );
+    requireReceipt(isNonzeroSha256(rollback.completion_receipt_sha256), 'ROLLED_BACK requires completion evidence');
+    requireReceipt(rollback.restored_postimage_sha256 === preimage.inventory_sha256, 'ROLLED_BACK postimage must equal the captured preimage');
+    requireReceipt(rollback.disposal_completion_observed_at === null && rollback.target_absence_observed_at === null && rollback.credential_revocation_observed_at === null, 'ROLLED_BACK cannot claim disposal proof observation times');
+    for (const field of [
+      'disposal_authority_receipt_sha256',
+      'disposal_completion_receipt_sha256',
+      'target_absence_evidence_sha256',
+      'credential_revocation_evidence_sha256'
+    ]) {
+      requireReceipt(zeroSha256.test(rollback[field] ?? ''), `ROLLED_BACK cannot claim ${field}`);
+    }
+    requireReceipt(rollback.target_absent_after_disposal === false && rollback.credentials_revoked_after_disposal === false, 'ROLLED_BACK cannot claim disposal or credential-revocation completion');
+  } else if (rollback.terminal_disposition === 'DISPOSED') {
+    requireReceipt(
+      isFreshObservation(rollback.completion_observed_at, receipt.validated_at, contract.preimage_gate.freshness_seconds_maximum) &&
+        Date.parse(rollback.completion_observed_at) >= Date.parse(rollback.target_absence_observed_at) &&
+        Date.parse(rollback.completion_observed_at) >= Date.parse(rollback.credential_revocation_observed_at),
+      'DISPOSED requires fresh terminal completion after absence and credential-revocation observations'
+    );
+    requireReceipt(isNonzeroSha256(rollback.completion_receipt_sha256), 'DISPOSED requires terminal completion evidence');
+    requireReceipt(isNonzeroSha256(rollback.disposal_authority_receipt_sha256), 'DISPOSED requires disposal authority evidence');
+    requireReceipt(isNonzeroSha256(rollback.disposal_completion_receipt_sha256), 'DISPOSED requires disposal completion evidence');
+    requireReceipt(zeroSha256.test(rollback.restored_postimage_sha256 ?? ''), 'DISPOSED cannot claim a restored rollback postimage');
+    requireReceipt(isNonzeroSha256(rollback.target_absence_evidence_sha256), 'DISPOSED requires subject-bound target-absence evidence');
+    requireReceipt(isNonzeroSha256(rollback.credential_revocation_evidence_sha256), 'DISPOSED requires subject-bound credential-revocation evidence');
+    for (const [label, observedAt] of [
+      ['disposal completion', rollback.disposal_completion_observed_at],
+      ['target absence', rollback.target_absence_observed_at],
+      ['credential revocation', rollback.credential_revocation_observed_at]
+    ]) {
+      requireReceipt(isFreshObservation(observedAt, receipt.validated_at, contract.preimage_gate.freshness_seconds_maximum), `DISPOSED requires fresh ${label} observation`);
+    }
+    requireReceipt(Date.parse(rollback.disposal_completion_observed_at) >= Date.parse(catalogReads.read_b?.observed_at), 'DISPOSED completion must follow catalog read B');
+    requireReceipt(Date.parse(rollback.target_absence_observed_at) >= Date.parse(rollback.disposal_completion_observed_at), 'target-absence observation must follow disposal completion');
+    requireReceipt(Date.parse(rollback.credential_revocation_observed_at) >= Date.parse(rollback.disposal_completion_observed_at), 'credential-revocation observation must follow disposal completion');
+    requireReceipt(
+      new Set([
+        rollback.completion_receipt_sha256,
+        rollback.disposal_authority_receipt_sha256,
+        rollback.disposal_completion_receipt_sha256,
+        rollback.target_absence_evidence_sha256,
+        rollback.credential_revocation_evidence_sha256
+      ]).size === 5,
+      'DISPOSED requires distinct terminal, authority, disposal, absence, and credential-revocation proof identities'
+    );
+    requireReceipt(rollback.target_absent_after_disposal === true, 'DISPOSED requires target-absence proof');
+    requireReceipt(rollback.credentials_revoked_after_disposal === true, 'DISPOSED requires credential-revocation proof');
+  }
+
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function validateDisposableTargetBootstrapContract(contract) {
+  const failures = [];
+  const requireContract = (condition, message) => {
+    if (!condition) failures.push(`target bootstrap contract: ${message}`);
+  };
+  requireContract(contract?.version === '1.0.0' && contract?.contract_id === 'disposable-target-bootstrap', 'identity drift');
+  requireContract(contract?.status === 'CURRENT', 'source contract must remain CURRENT');
+  requireContract(contract?.lifecycle?.source_contract === 'SOURCE_READY' && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED' && contract?.lifecycle?.apply_admitted === false, 'lifecycle must remain source-ready, execution-blocked, and apply=false');
+  requireContract(contract?.scope?.offline_contract_only === true, 'scope must remain offline only');
+  for (const field of [
+    'provider_connectivity_included',
+    'provider_mutation_authorized',
+    'project_creation_authorized',
+    'migration_apply_authorized',
+    'rollback_or_disposal_authorized',
+    'credential_revocation_authorized',
+    'executable_migration_representation_included'
+  ]) {
+    requireContract(contract?.scope?.[field] === false, `${field} must remain false`);
+  }
+  requireContract(contract?.immutable_bindings?.digest_model === 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1', 'digest model drift');
+  requireContract(contract?.immutable_bindings?.migration_count === 122 && contract?.immutable_bindings?.standard_migration_sql_count === 0 && contract?.immutable_bindings?.legacy_combined_digest_admitted === false, 'migration denominator or executable-placement boundary drift');
+  requireContract(contract?.identity_boundary?.identity_representation === 'SHA256_DIGEST_ONLY' && contract?.identity_boundary?.protected_project_identity_count_minimum === 4 && contract?.identity_boundary?.protected_inventory_digest_required === true && contract?.identity_boundary?.protected_inventory_count_must_match === true && contract?.identity_boundary?.protected_inventory_digest_model === 'CANONICAL_PROVIDER_INVENTORY_V1' && contract?.identity_boundary?.protected_identity_digests_canonical_order_required === true && contract?.identity_boundary?.pagination_and_completeness_evidence_required === true && contract?.identity_boundary?.disposable_identity_must_be_unique === true && contract?.identity_boundary?.disposable_identity_must_not_be_protected === true && contract?.identity_boundary?.project_refs_in_receipts_forbidden === true && contract?.identity_boundary?.production_or_source_reuse_forbidden === true, 'protected/disposable identity boundary drift');
+  requireContract(contract?.authority_gate?.binding_model === 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1' && contract?.authority_gate?.authorized_operation === 'GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY' && contract?.authority_gate?.subject_run_package_bundle_binding_required === true && contract?.authority_gate?.source_contract_is_authority === false, 'apply-authority binding boundary drift');
+  requireContract(contract?.preimage_gate?.freshness_seconds_maximum === 7200 && contract?.preimage_gate?.postgres_major === 17 && contract?.preimage_gate?.complete_inventory_required === true && contract?.preimage_gate?.unknown_promotable_to_current === false, 'fresh-preimage policy drift');
+  requireContract(exactOrderedValues(contract?.action_order, targetBootstrapActionOrder), 'fixed action order drift');
+  requireContract(contract?.data_api_gate?.bootstrap_enabled === false && exactOrderedValues(contract?.data_api_gate?.bootstrap_exposed_schemas, []) && exactOrderedValues(contract?.data_api_gate?.bootstrap_extra_search_path, ['extensions']) && contract?.data_api_gate?.automatic_public_exposure === false, 'bootstrap Data API containment drift');
+  requireContract(exactOrderedValues(contract?.data_api_gate?.maximum_future_exposed_schemas, targetBootstrapFutureExposedSchemas), 'maximum future Data API allowlist drift');
+  requireContract(exactOrderedValues(contract?.data_api_gate?.never_exposed_schemas, targetBootstrapNeverExposedSchemas), 'never-exposed schema set drift');
+  requireContract(contract?.data_api_gate?.explicit_grants_and_rls_required === true && contract?.data_api_gate?.management_api_preimage_required === true, 'Data API control-plane, grants, or RLS requirement drift');
+  requireContract(contract?.catalog_parity?.read_count === 2 && contract?.catalog_parity?.reads_must_be_independent === true && contract?.catalog_parity?.reads_must_be_byte_identical === true && contract?.catalog_parity?.expected_state_binding_model === 'PACKAGE_BUNDLE_CATALOG_SECURITY_V1' && contract?.catalog_parity?.observed_catalog_must_match_reviewed_expected_digest === true && contract?.catalog_parity?.observed_security_must_match_reviewed_expected_digest === true && contract?.catalog_parity?.read_evidence_binding_model === 'SUBJECT_RUN_CATALOG_READ_EVIDENCE_V1' && contract?.catalog_parity?.distinct_read_evidence_receipts_required === true && contract?.catalog_parity?.distinct_reader_identities_required === true && contract?.catalog_parity?.distinct_execution_identities_required === true && contract?.catalog_parity?.query_model_binding_required === true && canonicalDigest(contract?.catalog_parity?.expected_counts ?? {}) === canonicalDigest(targetBootstrapCatalogCounts) && contract?.catalog_parity?.timestamp_or_high_water_only_proof_allowed === false, 'two-read catalog parity drift');
+  requireContract(exactOrderedValues(contract?.extension_gate?.required_extensions, targetBootstrapRequiredExtensions) && contract?.extension_gate?.observed_default_version_required === true && contract?.extension_gate?.observed_installed_version_required === true && contract?.extension_gate?.compatibility_result_required === 'PASS' && contract?.extension_gate?.explicit_version_pin_is_proof === false && contract?.extension_gate?.unknown_version_promotable === false, 'extension evidence boundary drift');
+  requireContract(exactOrderedValues(contract?.external_effect_gate?.required_zero_counts, targetBootstrapZeroEffectFields) && contract?.external_effect_gate?.egress_denied_before_apply === true && contract?.external_effect_gate?.credentials_withheld_before_apply === true && contract?.external_effect_gate?.zero_effect_receipt_required === true, 'external-effect boundary drift');
+  requireContract(exactOrderedValues(contract?.negative_probe_gate?.required_probes, targetBootstrapNegativeProbes) && contract?.negative_probe_gate?.all_must_pass === true, 'negative-probe denominator drift');
+  requireContract(contract?.rollback_and_disposal?.source_projects_remain_active === true && contract?.rollback_and_disposal?.source_mutation_forbidden === true && contract?.rollback_and_disposal?.disposal_requires_separate_authority === true && contract?.rollback_and_disposal?.disposed_target_absence_proof_required === true && contract?.rollback_and_disposal?.disposed_credential_revocation_proof_required === true && contract?.rollback_and_disposal?.common_target_and_run_binding_required === true && contract?.rollback_and_disposal?.rollback_postimage_must_equal_preimage === true && contract?.rollback_and_disposal?.terminal_proof_binding_model === 'SUBJECT_RUN_DISPOSITION_EVIDENCE_V1' && contract?.rollback_and_disposal?.disposal_proofs_must_be_distinct === true && contract?.rollback_and_disposal?.disposal_proofs_individually_fresh === true && contract?.rollback_and_disposal?.disposal_proof_order === 'DISPOSAL_COMPLETION_THEN_ABSENCE_AND_REVOCATION_THEN_TERMINAL_COMPLETION' && contract?.rollback_and_disposal?.broad_drop_is_rollback === false, 'rollback/disposal boundary drift');
+  requireContract(contract?.receipt_example?.status === 'BLOCKED', 'checked-in receipt example must remain BLOCKED');
+  failures.push(...validateDisposableTargetBootstrapReceipt(contract, contract?.receipt_example));
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, evidence) {
   const failures = [];
   const mappings = Array.isArray(evidence?.accepted_mappings) ? evidence.accepted_mappings : [];
@@ -528,6 +1044,10 @@ export function validateSemantics(documents) {
   }
 
   const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];
+  const targetBootstrapContract = documents['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json'] ?? {};
+  failures.push(...validateDisposableTargetBootstrapContract(targetBootstrapContract));
+  requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
+  requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'disposable target bootstrap source contract: contracts/v1/bootstrap/disposable-target-bootstrap-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate target_bootstrap source-contract binding must remain CURRENT');
   requireCondition(canonicalDigest(migrationGate.data_api_decision_binding ?? {}) === canonicalDigest(dataApiDecisionBindingV1), 'Data API manual decision binding drift');
   const sharedAuthImportGate = migrationGate.shared_auth_import_reauth_rehearsal ?? {};
   requireCondition(sharedAuthImportGate.status === 'CURRENT' && sharedAuthImportGate.source_contract_lifecycle === 'SOURCE_READY' && sharedAuthImportGate.execution_lifecycle === 'EXECUTION_BLOCKED' && sharedAuthImportGate.apply_admitted === false, 'shared Auth import migration gate must remain source-ready, execution-blocked, and non-executable');
@@ -976,7 +1496,9 @@ export function validateSemantics(documents) {
   requireCondition(security.version === '1.1.0', 'security matrix version must remain 1.1.0');
   const schemaMap = Object.fromEntries(security.schemas.map((schema) => [schema.name, schema]));
   requireCondition(schemaMap.public?.product_tables_allowed === false, 'product tables must remain forbidden in public');
+  requireCondition(schemaMap.public?.data_api === 'not_exposed', 'public must remain unexposed during bootstrap');
   requireCondition(schemaMap.platform_private?.data_api === 'not_exposed', 'platform_private must remain outside the Data API');
+  requireCondition(exactOrderedValues(security.schemas.filter((schema) => schema.data_api === 'exposed').map((schema) => schema.name), targetBootstrapFutureExposedSchemas), 'security matrix future exposure allowlist drift');
   requireCondition(security.relations.every((relation) => !relation.name.startsWith('public.')), 'security matrix must contain no public relations');
   requireCondition(security.relations.every((relation) => relation.rls_enabled && relation.rls_forced), 'every contracted relation must enable and force RLS');
   requireCondition(new Set(security.relations.map((relation) => relation.name)).size === security.relations.length, 'security matrix relation names must be unique');
@@ -1068,7 +1590,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 24,
+    semantic_check_groups: 25,
     failures
   };
 }

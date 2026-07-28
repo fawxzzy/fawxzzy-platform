@@ -1,0 +1,1527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-contract",
+  "title": "Disposable target bootstrap contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "scope",
+    "immutable_bindings",
+    "identity_boundary",
+    "authority_gate",
+    "preimage_gate",
+    "action_order",
+    "data_api_gate",
+    "catalog_parity",
+    "security_gate",
+    "extension_gate",
+    "external_effect_gate",
+    "negative_probe_gate",
+    "rollback_and_disposal",
+    "receipt_policy",
+    "receipt_example"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "disposable-target-bootstrap"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution",
+        "apply_admitted"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_contract_only",
+        "provider_connectivity_included",
+        "provider_mutation_authorized",
+        "project_creation_authorized",
+        "migration_apply_authorized",
+        "rollback_or_disposal_authorized",
+        "credential_revocation_authorized",
+        "executable_migration_representation_included"
+      ],
+      "properties": {
+        "offline_contract_only": {
+          "const": true
+        },
+        "provider_connectivity_included": {
+          "const": false
+        },
+        "provider_mutation_authorized": {
+          "const": false
+        },
+        "project_creation_authorized": {
+          "const": false
+        },
+        "migration_apply_authorized": {
+          "const": false
+        },
+        "rollback_or_disposal_authorized": {
+          "const": false
+        },
+        "credential_revocation_authorized": {
+          "const": false
+        },
+        "executable_migration_representation_included": {
+          "const": false
+        }
+      }
+    },
+    "immutable_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_model",
+        "migration_count",
+        "migration_package_sha256",
+        "governance_manifest_sha256",
+        "legacy_combined_digest_admitted",
+        "standard_migration_sql_count"
+      ],
+      "properties": {
+        "digest_model": {
+          "const": "SEPARATE_MIGRATION_AND_GOVERNANCE_V1"
+        },
+        "migration_count": {
+          "const": 122
+        },
+        "migration_package_sha256": {
+          "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
+        },
+        "governance_manifest_sha256": {
+          "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+        },
+        "legacy_combined_digest_admitted": {
+          "const": false
+        },
+        "standard_migration_sql_count": {
+          "const": 0
+        }
+      }
+    },
+    "identity_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_representation",
+        "protected_project_set_source",
+        "protected_project_identity_count_minimum",
+        "protected_inventory_digest_required",
+        "protected_inventory_count_must_match",
+        "protected_inventory_digest_model",
+        "protected_identity_digests_canonical_order_required",
+        "pagination_and_completeness_evidence_required",
+        "disposable_identity_must_be_unique",
+        "disposable_identity_must_not_be_protected",
+        "project_refs_in_receipts_forbidden",
+        "production_or_source_reuse_forbidden"
+      ],
+      "properties": {
+        "identity_representation": {
+          "const": "SHA256_DIGEST_ONLY"
+        },
+        "protected_project_set_source": {
+          "const": "ACTION_TIME_COMPLETE_PROVIDER_INVENTORY"
+        },
+        "protected_project_identity_count_minimum": {
+          "const": 4
+        },
+        "protected_inventory_digest_required": {
+          "const": true
+        },
+        "protected_inventory_count_must_match": {
+          "const": true
+        },
+        "protected_inventory_digest_model": {
+          "const": "CANONICAL_PROVIDER_INVENTORY_V1"
+        },
+        "protected_identity_digests_canonical_order_required": {
+          "const": true
+        },
+        "pagination_and_completeness_evidence_required": {
+          "const": true
+        },
+        "disposable_identity_must_be_unique": {
+          "const": true
+        },
+        "disposable_identity_must_not_be_protected": {
+          "const": true
+        },
+        "project_refs_in_receipts_forbidden": {
+          "const": true
+        },
+        "production_or_source_reuse_forbidden": {
+          "const": true
+        }
+      }
+    },
+    "authority_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_model",
+        "authorized_operation",
+        "subject_run_package_bundle_binding_required",
+        "source_contract_is_authority"
+      ],
+      "properties": {
+        "binding_model": {
+          "const": "SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1"
+        },
+        "authorized_operation": {
+          "const": "GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY"
+        },
+        "subject_run_package_bundle_binding_required": {
+          "const": true
+        },
+        "source_contract_is_authority": {
+          "const": false
+        }
+      }
+    },
+    "preimage_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_seconds_maximum",
+        "postgres_major",
+        "provider_migration_count",
+        "application_schema_count",
+        "public_base_table_count",
+        "auth_user_count",
+        "storage_bucket_count",
+        "storage_object_count",
+        "realtime_publication_table_count",
+        "edge_function_count",
+        "security_advisor_error_count",
+        "complete_inventory_required",
+        "unknown_promotable_to_current"
+      ],
+      "properties": {
+        "freshness_seconds_maximum": {
+          "const": 7200
+        },
+        "postgres_major": {
+          "const": 17
+        },
+        "provider_migration_count": {
+          "const": 0
+        },
+        "application_schema_count": {
+          "const": 0
+        },
+        "public_base_table_count": {
+          "const": 0
+        },
+        "auth_user_count": {
+          "const": 0
+        },
+        "storage_bucket_count": {
+          "const": 0
+        },
+        "storage_object_count": {
+          "const": 0
+        },
+        "realtime_publication_table_count": {
+          "const": 0
+        },
+        "edge_function_count": {
+          "const": 0
+        },
+        "security_advisor_error_count": {
+          "const": 0
+        },
+        "complete_inventory_required": {
+          "const": true
+        },
+        "unknown_promotable_to_current": {
+          "const": false
+        }
+      }
+    },
+    "action_order": {
+      "$ref": "#/$defs/actionOrder"
+    },
+    "data_api_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_enabled",
+        "bootstrap_exposed_schemas",
+        "bootstrap_extra_search_path",
+        "automatic_public_exposure",
+        "maximum_future_exposed_schemas",
+        "never_exposed_schemas",
+        "explicit_grants_and_rls_required",
+        "management_api_preimage_required"
+      ],
+      "properties": {
+        "bootstrap_enabled": {
+          "const": false
+        },
+        "bootstrap_exposed_schemas": {
+          "const": []
+        },
+        "bootstrap_extra_search_path": {
+          "const": [
+            "extensions"
+          ]
+        },
+        "automatic_public_exposure": {
+          "const": false
+        },
+        "maximum_future_exposed_schemas": {
+          "const": [
+            "platform_shared",
+            "discordos",
+            "mazer",
+            "fitness"
+          ]
+        },
+        "never_exposed_schemas": {
+          "const": [
+            "graphql_public",
+            "public",
+            "private",
+            "extensions",
+            "auth",
+            "storage",
+            "realtime"
+          ]
+        },
+        "explicit_grants_and_rls_required": {
+          "const": true
+        },
+        "management_api_preimage_required": {
+          "const": true
+        }
+      }
+    },
+    "catalog_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read_count",
+        "reads_must_be_independent",
+        "reads_must_be_byte_identical",
+        "expected_state_binding_model",
+        "observed_catalog_must_match_reviewed_expected_digest",
+        "observed_security_must_match_reviewed_expected_digest",
+        "read_evidence_binding_model",
+        "distinct_read_evidence_receipts_required",
+        "distinct_reader_identities_required",
+        "distinct_execution_identities_required",
+        "query_model_binding_required",
+        "expected_counts",
+        "timestamp_or_high_water_only_proof_allowed"
+      ],
+      "properties": {
+        "read_count": {
+          "const": 2
+        },
+        "reads_must_be_independent": {
+          "const": true
+        },
+        "reads_must_be_byte_identical": {
+          "const": true
+        },
+        "expected_state_binding_model": {
+          "const": "PACKAGE_BUNDLE_CATALOG_SECURITY_V1"
+        },
+        "observed_catalog_must_match_reviewed_expected_digest": {
+          "const": true
+        },
+        "observed_security_must_match_reviewed_expected_digest": {
+          "const": true
+        },
+        "read_evidence_binding_model": {
+          "const": "SUBJECT_RUN_CATALOG_READ_EVIDENCE_V1"
+        },
+        "distinct_read_evidence_receipts_required": {
+          "const": true
+        },
+        "distinct_reader_identities_required": {
+          "const": true
+        },
+        "distinct_execution_identities_required": {
+          "const": true
+        },
+        "query_model_binding_required": {
+          "const": true
+        },
+        "expected_counts": {
+          "$ref": "#/$defs/catalogCountsExpected"
+        },
+        "timestamp_or_high_water_only_proof_allowed": {
+          "const": false
+        }
+      }
+    },
+    "security_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation_grants_complete",
+        "rls_enabled_and_forced_complete",
+        "policy_denominator_complete",
+        "function_acl_complete",
+        "function_search_path_complete",
+        "creator_default_acl_complete",
+        "public_product_objects_allowed",
+        "unknown_provider_role_isolation_promotable"
+      ],
+      "properties": {
+        "relation_grants_complete": {
+          "const": true
+        },
+        "rls_enabled_and_forced_complete": {
+          "const": true
+        },
+        "policy_denominator_complete": {
+          "const": true
+        },
+        "function_acl_complete": {
+          "const": true
+        },
+        "function_search_path_complete": {
+          "const": true
+        },
+        "creator_default_acl_complete": {
+          "const": true
+        },
+        "public_product_objects_allowed": {
+          "const": false
+        },
+        "unknown_provider_role_isolation_promotable": {
+          "const": false
+        }
+      }
+    },
+    "extension_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_extensions",
+        "observed_default_version_required",
+        "observed_installed_version_required",
+        "compatibility_result_required",
+        "explicit_version_pin_is_proof",
+        "unknown_version_promotable"
+      ],
+      "properties": {
+        "required_extensions": {
+          "const": [
+            "pgcrypto",
+            "pg_cron",
+            "pg_net"
+          ]
+        },
+        "observed_default_version_required": {
+          "const": true
+        },
+        "observed_installed_version_required": {
+          "const": true
+        },
+        "compatibility_result_required": {
+          "const": "PASS"
+        },
+        "explicit_version_pin_is_proof": {
+          "const": false
+        },
+        "unknown_version_promotable": {
+          "const": false
+        }
+      }
+    },
+    "external_effect_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_zero_counts",
+        "egress_denied_before_apply",
+        "credentials_withheld_before_apply",
+        "zero_effect_receipt_required"
+      ],
+      "properties": {
+        "required_zero_counts": {
+          "const": [
+            "outbound_network_requests",
+            "cron_jobs_enabled",
+            "edge_functions_deployed",
+            "webhooks_enabled",
+            "realtime_publications_enabled",
+            "storage_objects_written",
+            "auth_messages_sent"
+          ]
+        },
+        "egress_denied_before_apply": {
+          "const": true
+        },
+        "credentials_withheld_before_apply": {
+          "const": true
+        },
+        "zero_effect_receipt_required": {
+          "const": true
+        }
+      }
+    },
+    "negative_probe_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_probes",
+        "all_must_pass"
+      ],
+      "properties": {
+        "required_probes": {
+          "$ref": "#/$defs/probeNames"
+        },
+        "all_must_pass": {
+          "const": true
+        }
+      }
+    },
+    "rollback_and_disposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_terminal_dispositions",
+        "rollback_preimage_digest_required",
+        "rollback_plan_digest_required",
+        "rollback_authority_receipt_digest_required",
+        "credential_revocation_plan_digest_required",
+        "disposed_target_absence_proof_required",
+        "disposed_credential_revocation_proof_required",
+        "common_target_and_run_binding_required",
+        "rollback_postimage_must_equal_preimage",
+        "terminal_proof_binding_model",
+        "disposal_proofs_must_be_distinct",
+        "disposal_proofs_individually_fresh",
+        "disposal_proof_order",
+        "source_projects_remain_active",
+        "source_mutation_forbidden",
+        "disposal_requires_separate_authority",
+        "broad_drop_is_rollback"
+      ],
+      "properties": {
+        "accepted_terminal_dispositions": {
+          "const": [
+            "QUARANTINED_RETAINED",
+            "ROLLED_BACK",
+            "DISPOSED"
+          ]
+        },
+        "rollback_preimage_digest_required": {
+          "const": true
+        },
+        "rollback_plan_digest_required": {
+          "const": true
+        },
+        "rollback_authority_receipt_digest_required": {
+          "const": true
+        },
+        "credential_revocation_plan_digest_required": {
+          "const": true
+        },
+        "disposed_target_absence_proof_required": {
+          "const": true
+        },
+        "disposed_credential_revocation_proof_required": {
+          "const": true
+        },
+        "common_target_and_run_binding_required": {
+          "const": true
+        },
+        "rollback_postimage_must_equal_preimage": {
+          "const": true
+        },
+        "terminal_proof_binding_model": {
+          "const": "SUBJECT_RUN_DISPOSITION_EVIDENCE_V1"
+        },
+        "disposal_proofs_must_be_distinct": {
+          "const": true
+        },
+        "disposal_proofs_individually_fresh": {
+          "const": true
+        },
+        "disposal_proof_order": {
+          "const": "DISPOSAL_COMPLETION_THEN_ABSENCE_AND_REVOCATION_THEN_TERMINAL_COMPLETION"
+        },
+        "source_projects_remain_active": {
+          "const": true
+        },
+        "source_mutation_forbidden": {
+          "const": true
+        },
+        "disposal_requires_separate_authority": {
+          "const": true
+        },
+        "broad_drop_is_rollback": {
+          "const": false
+        }
+      }
+    },
+    "receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_classes",
+        "forbidden_classes"
+      ],
+      "properties": {
+        "allowed_classes": {
+          "const": [
+            "counts",
+            "booleans",
+            "timestamps",
+            "closed_enums",
+            "one_way_sha256_digests",
+            "extension_names_and_versions"
+          ]
+        },
+        "forbidden_classes": {
+          "const": [
+            "project_refs",
+            "secrets",
+            "credentials",
+            "raw_identity_values",
+            "raw_catalog_rows",
+            "raw_sql",
+            "provider_responses",
+            "urls",
+            "pii",
+            "machine_paths"
+          ]
+        }
+      }
+    },
+    "receipt_example": {
+      "$ref": "#/$defs/receipt"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$"
+    },
+    "actionOrder": {
+      "const": [
+        "CAPTURE_ACTION_TIME_IDENTITIES",
+        "PROVE_DISPOSABLE_NOT_PROTECTED",
+        "CAPTURE_FRESH_PREIMAGE",
+        "DENY_EXTERNAL_EGRESS",
+        "WITHHOLD_APPLICATION_CREDENTIALS",
+        "DISABLE_DATA_API",
+        "READ_EXTENSION_DEFAULTS",
+        "VERIFY_REVIEWED_EXECUTABLE_BUNDLE",
+        "APPLY_ONLY_UNDER_SEPARATE_AUTHORITY",
+        "CATALOG_READ_A",
+        "CATALOG_READ_B",
+        "VERIFY_SECURITY_PARITY",
+        "VERIFY_ZERO_EXTERNAL_EFFECTS",
+        "RUN_NEGATIVE_PROBES",
+        "PROVE_ROLLBACK_CAPABILITY",
+        "FREEZE_QUARANTINED_TARGET"
+      ]
+    },
+    "probeNames": {
+      "const": [
+        "REST_PUBLIC_DENIED",
+        "GRAPHQL_PUBLIC_DENIED",
+        "RPC_PUBLIC_DENIED",
+        "WRONG_OWNER_DENIED",
+        "ANON_WRITE_DENIED",
+        "EXTERNAL_EGRESS_DENIED"
+      ]
+    },
+    "catalogCountsExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tables",
+        "functions",
+        "policies",
+        "triggers",
+        "indexes",
+        "constraints",
+        "extension_dependencies"
+      ],
+      "properties": {
+        "tables": {
+          "const": 41
+        },
+        "functions": {
+          "const": 30
+        },
+        "policies": {
+          "const": 74
+        },
+        "triggers": {
+          "const": 10
+        },
+        "indexes": {
+          "const": 134
+        },
+        "constraints": {
+          "const": 281
+        },
+        "extension_dependencies": {
+          "const": 3
+        }
+      }
+    },
+    "catalogCountsObserved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tables",
+        "functions",
+        "policies",
+        "triggers",
+        "indexes",
+        "constraints",
+        "extension_dependencies"
+      ],
+      "properties": {
+        "tables": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "functions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "policies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "triggers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "indexes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "constraints": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extension_dependencies": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "catalogRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_at",
+        "subject_sha256",
+        "run_correlation_sha256",
+        "evidence_receipt_sha256",
+        "reader_identity_sha256",
+        "execution_identity_sha256",
+        "query_model_sha256",
+        "read_binding_sha256",
+        "catalog_sha256",
+        "counts"
+      ],
+      "properties": {
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reader_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "execution_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "query_model_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "read_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "catalog_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "counts": {
+          "$ref": "#/$defs/catalogCountsObserved"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "execution_lifecycle",
+        "apply_admitted",
+        "validated_at",
+        "run_correlation_sha256",
+        "evidence_complete",
+        "source_contract_grants_provider_authority",
+        "source_contract_grants_apply",
+        "authorized_operation",
+        "authority_receipt_sha256",
+        "authority_binding_sha256",
+        "package",
+        "identity",
+        "preimage",
+        "completed_actions",
+        "data_api",
+        "extensions",
+        "catalog_reads",
+        "security",
+        "external_effects",
+        "negative_probes",
+        "rollback",
+        "terminal_receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "validated_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_complete": {
+          "type": "boolean"
+        },
+        "source_contract_grants_provider_authority": {
+          "const": false
+        },
+        "source_contract_grants_apply": {
+          "const": false
+        },
+        "authorized_operation": {
+          "const": "GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY"
+        },
+        "authority_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "authority_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "migration_count",
+            "migration_package_sha256",
+            "governance_manifest_sha256",
+            "executable_bundle_sha256",
+            "reviewed_expected_state_receipt_sha256",
+            "expected_catalog_sha256",
+            "expected_security_sha256",
+            "expected_state_binding_sha256",
+            "standard_migration_sql_count"
+          ],
+          "properties": {
+            "migration_count": {
+              "const": 122
+            },
+            "migration_package_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "governance_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executable_bundle_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "reviewed_expected_state_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "expected_catalog_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "expected_security_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "expected_state_binding_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "standard_migration_sql_count": {
+              "const": 0
+            }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "observed_at",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "protected_inventory_sha256",
+            "provider_inventory_snapshot_sha256",
+            "provider_inventory_completeness_receipt_sha256",
+            "pagination_page_count",
+            "pagination_item_count",
+            "pagination_exhausted",
+            "protected_project_count",
+            "protected_project_identity_sha256s",
+            "disposable_project_identity_sha256",
+            "disposable_not_protected",
+            "inventory_complete"
+          ],
+          "properties": {
+            "observed_at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "protected_inventory_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "provider_inventory_snapshot_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "provider_inventory_completeness_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "pagination_page_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pagination_item_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pagination_exhausted": {
+              "type": "boolean"
+            },
+            "protected_project_count": {
+              "type": "integer",
+              "minimum": 4
+            },
+            "protected_project_identity_sha256s": {
+              "type": "array",
+              "minItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/sha256"
+              }
+            },
+            "disposable_project_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "disposable_not_protected": {
+              "const": true
+            },
+            "inventory_complete": {
+              "type": "boolean"
+            }
+          }
+        },
+        "preimage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "observed_at",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "inventory_sha256",
+            "postgres_major",
+            "provider_migrations",
+            "application_schemas",
+            "public_base_tables",
+            "auth_users",
+            "storage_buckets",
+            "storage_objects",
+            "realtime_publication_tables",
+            "edge_functions",
+            "security_advisor_errors"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "observed_at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "inventory_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "postgres_major": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "provider_migrations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "application_schemas": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "public_base_tables": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auth_users": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "storage_buckets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "storage_objects": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "realtime_publication_tables": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "edge_functions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "security_advisor_errors": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "completed_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "data_api": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "control_plane_preimage_sha256",
+            "control_plane_postimage_sha256",
+            "enabled",
+            "exposed_schemas",
+            "extra_search_path",
+            "automatic_public_exposure"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "control_plane_preimage_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "control_plane_postimage_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "exposed_schemas": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "extra_search_path": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "automatic_public_exposure": {
+              "type": "boolean"
+            }
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "units"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "units": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "default_version",
+                  "installed_version",
+                  "compatibility",
+                  "explicit_version_pin_claimed"
+                ],
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "pgcrypto",
+                      "pg_cron",
+                      "pg_net"
+                    ]
+                  },
+                  "default_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "installed_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "compatibility": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "explicit_version_pin_claimed": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "catalog_reads": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "read_a",
+            "read_b",
+            "identical"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "read_a": {
+              "$ref": "#/$defs/catalogRead"
+            },
+            "read_b": {
+              "$ref": "#/$defs/catalogRead"
+            },
+            "identical": {
+              "type": "boolean"
+            }
+          }
+        },
+        "security": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "security_sha256",
+            "relation_grants_complete",
+            "rls_enabled_and_forced_complete",
+            "policy_denominator_complete",
+            "function_acl_complete",
+            "function_search_path_complete",
+            "creator_default_acl_complete",
+            "public_product_object_count",
+            "provider_role_isolation"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "security_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "relation_grants_complete": {
+              "type": "boolean"
+            },
+            "rls_enabled_and_forced_complete": {
+              "type": "boolean"
+            },
+            "policy_denominator_complete": {
+              "type": "boolean"
+            },
+            "function_acl_complete": {
+              "type": "boolean"
+            },
+            "function_search_path_complete": {
+              "type": "boolean"
+            },
+            "creator_default_acl_complete": {
+              "type": "boolean"
+            },
+            "public_product_object_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "provider_role_isolation": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "UNKNOWN"
+              ]
+            }
+          }
+        },
+        "external_effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "outbound_network_requests",
+            "cron_jobs_enabled",
+            "edge_functions_deployed",
+            "webhooks_enabled",
+            "realtime_publications_enabled",
+            "storage_objects_written",
+            "auth_messages_sent"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "outbound_network_requests": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cron_jobs_enabled": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "edge_functions_deployed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "webhooks_enabled": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "realtime_publications_enabled": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "storage_objects_written": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auth_messages_sent": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "negative_probes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "results"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "results": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "passed",
+                  "evidence_sha256"
+                ],
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "REST_PUBLIC_DENIED",
+                      "GRAPHQL_PUBLIC_DENIED",
+                      "RPC_PUBLIC_DENIED",
+                      "WRONG_OWNER_DENIED",
+                      "ANON_WRITE_DENIED",
+                      "EXTERNAL_EGRESS_DENIED"
+                    ]
+                  },
+                  "passed": {
+                    "type": "boolean"
+                  },
+                  "evidence_sha256": {
+                    "$ref": "#/$defs/sha256"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "preimage_sha256",
+            "plan_sha256",
+            "authority_receipt_sha256",
+            "credential_revocation_plan_sha256",
+            "capability_binding_sha256",
+            "completion_observed_at",
+            "completion_receipt_sha256",
+            "restored_postimage_sha256",
+            "disposal_authority_receipt_sha256",
+            "disposal_completion_observed_at",
+            "disposal_completion_receipt_sha256",
+            "target_absence_observed_at",
+            "target_absence_evidence_sha256",
+            "credential_revocation_observed_at",
+            "credential_revocation_evidence_sha256",
+            "terminal_proof_binding_sha256",
+            "terminal_disposition",
+            "target_absent_after_disposal",
+            "credentials_revoked_after_disposal",
+            "source_projects_active",
+            "source_mutation_count",
+            "broad_drop_used"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "preimage_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "plan_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "credential_revocation_plan_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "capability_binding_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "completion_observed_at": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "completion_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "restored_postimage_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "disposal_authority_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "disposal_completion_observed_at": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "disposal_completion_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "target_absence_observed_at": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "target_absence_evidence_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "credential_revocation_observed_at": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "credential_revocation_evidence_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "terminal_proof_binding_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "terminal_disposition": {
+              "enum": [
+                "QUARANTINED_RETAINED",
+                "ROLLED_BACK",
+                "DISPOSED"
+              ]
+            },
+            "target_absent_after_disposal": {
+              "type": "boolean"
+            },
+            "credentials_revoked_after_disposal": {
+              "type": "boolean"
+            },
+            "source_projects_active": {
+              "const": true
+            },
+            "source_mutation_count": {
+              "const": 0
+            },
+            "broad_drop_used": {
+              "const": false
+            }
+          }
+        },
+        "terminal_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}
