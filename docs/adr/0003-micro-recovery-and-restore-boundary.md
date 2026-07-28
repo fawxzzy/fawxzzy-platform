@@ -22,7 +22,11 @@ Recovery evidence is represented by four versioned, sanitized documents:
 
 The independent export must be encrypted as a client-side stream before it reaches its destination. Persistent plaintext is forbidden. Public receipts retain only metadata references, aggregate counts, private digests, ciphertext bytes and digest, timestamps, and status values. Key material, provider endpoints, connection values, raw rows, SQL, user identities, and secret-bearing logs are outside the contract.
 
-The destination must be independently governed, versioned, and immutable for the accepted retention interval. The exact provider, encryption algorithm, key custody installation, cadence, retention, alert channel, logical export/Auth mechanism, and numerical RPO/RTO remain `UNKNOWN` execution gates. Source code cannot promote them to accepted facts.
+The destination must be independently governed and versioned. Immutable releases are required for accepted release artifacts, but this contract makes no legal or compliance-grade WORM claim.
+
+`FP-MAN-052` and the content-addressed terminal provider receipt `onv1_4c547e42c012d4c80416c312c7876713f469577108a746dbee30d7f0ccbd3be9` establish only the Phase 1 provider-capability subset as `CURRENT`: the exact private repository `fawxzzy/fawxzzy-recovery-vault`, zero-dollar repository provisioning, `PRIVATE` visibility, and immutable-release enablement. This is evidence-derived provider state, not promotion by source code.
+
+Cryptographic recipients, pinned Ed25519 trust anchors, private-key or credential installation, workflow publication, cadence, retention enforcement or deletion, alerting, the logical export/Auth mechanism, backup export, encryption, upload, release publication, restore rehearsal, Supabase SQL/Auth/data/settings/apply, deployment, production, and numerical RPO/RTO remain `UNKNOWN` or `BLOCKED` pending separate authority and accepted evidence. Maximum cost remains USD 0 and `apply_admitted=false`.
 
 A `CURRENT` backup receipt must keep its immutable backup version retained through backup completion, rehearsal acceptance, and the injected action-time validation clock. Equality at the latest boundary is accepted; an expiry one second earlier fails closed. A status flag such as `never_delete_before_restore_acceptance` is not evidence unless the timestamps satisfy those boundaries.
 
