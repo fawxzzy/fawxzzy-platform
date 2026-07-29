@@ -9,6 +9,7 @@ import {
   storageEdgeRealtimeComponentDigest,
   storageEdgeRealtimeDataApiProjectionDigest,
   storageEdgeRealtimeExpectedStateDigest,
+  storageEdgeRealtimeForwardEvidenceAuthenticationSubject,
   storageEdgeRealtimeOutboundReadDigest,
   storageEdgeRealtimePerSurfaceReceiptSetDigest,
   storageEdgeRealtimeRollbackAuthenticationSubject,
@@ -63,7 +64,16 @@ const rollbackSigners = Object.freeze([
   }
 ]);
 
-function installTestRollbackTrustAnchors(contract) {
+const forwardEvidenceSigner = Object.freeze({
+  keyId: 'test-storage-edge-realtime-forward-evidence-ed25519-v1',
+  privateKey: crypto.createPrivateKey({
+    key: Buffer.from(`302e020100300506032b657004220420${'000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'}`, 'hex'),
+    format: 'der',
+    type: 'pkcs8'
+  })
+});
+
+function installTestTrustAnchors(contract) {
   for (const signer of rollbackSigners) {
     const publicKey = crypto.createPublicKey(signer.privateKey).export({ format: 'der', type: 'spki' });
     contract.rollback_authentication[signer.policy].trust_anchor = {
@@ -75,6 +85,31 @@ function installTestRollbackTrustAnchors(contract) {
       public_key_spki_sha256: crypto.createHash('sha256').update(publicKey).digest('hex')
     };
   }
+  const publicKey = crypto.createPublicKey(forwardEvidenceSigner.privateKey).export({ format: 'der', type: 'spki' });
+  contract.forward_evidence_authentication.trust_anchor = {
+    status: 'CURRENT',
+    algorithm: 'Ed25519',
+    key_id: forwardEvidenceSigner.keyId,
+    verifier_reference: contract.forward_evidence_authentication.trust_anchor.verifier_reference,
+    public_key_spki_base64: publicKey.toString('base64'),
+    public_key_spki_sha256: crypto.createHash('sha256').update(publicKey).digest('hex')
+  };
+}
+
+function signForwardEvidence(contract, receipt) {
+  const subject = storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt);
+  const publicKey = crypto.createPublicKey(forwardEvidenceSigner.privateKey).export({ format: 'der', type: 'spki' });
+  receipt.forward_evidence_authentication = {
+    algorithm: 'Ed25519',
+    key_id: forwardEvidenceSigner.keyId,
+    public_key_spki_sha256: crypto.createHash('sha256').update(publicKey).digest('hex'),
+    signed_payload_sha256: canonicalDigest(subject),
+    signature_base64: crypto.sign(
+      null,
+      signedBytes(contract.forward_evidence_authentication.signature_domain, subject),
+      forwardEvidenceSigner.privateKey
+    ).toString('base64')
+  };
 }
 
 function signRollbackEvidence(contract, receipt) {
@@ -133,6 +168,7 @@ function currentReceipt({ nonzeroStorage = false } = {}) {
     status: 'CURRENT',
     subject_sha256: subject,
     run_correlation_sha256: run,
+    reviewed_at: '2026-07-29T04:57:00.000Z',
     manifest_sha256: contract.immutable_bindings.promoted_bundle.manifest_sha256,
     reviewer_receipt_sha256: sha('3'),
     reviewed_expected_state_receipt_sha256: sha('4'),
@@ -271,6 +307,7 @@ function currentReceipt({ nonzeroStorage = false } = {}) {
     independently_authenticated: true
   });
   receipt.rollback.per_surface_receipt_set_sha256 = storageEdgeRealtimePerSurfaceReceiptSetDigest(receipt);
+  signForwardEvidence(contract, receipt);
   signRollbackEvidence(contract, receipt);
   receipt.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(receipt);
   return receipt;
@@ -288,7 +325,7 @@ test('Storage/Edge/Realtime contract validates as strict source-only evidence', 
 
 test('contract and CURRENT aggregate-only receipt satisfy the schema', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   const validator = createValidator().getSchema(schemaId);
   assert.ok(validator);
   assert.equal(validator(contract), true, JSON.stringify(validator.errors));
@@ -302,7 +339,7 @@ test('contract and CURRENT aggregate-only receipt satisfy the schema', () => {
 
 test('nonempty Storage body denominator is accepted only when both complete reads match', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   const receipt = currentReceipt({ nonzeroStorage: true });
   assert.deepEqual(validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, receipt, trustedContext), []);
   const missingBody = clone(receipt);
@@ -321,7 +358,7 @@ test('rollback, disposal-absence, and credential-revocation evidence require thr
   assert.ok(validateStorageEdgeRealtimeExecutionDenominatorReceipt(blockedContract, receipt, trustedContext).length >= 3);
 
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   assert.deepEqual(validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, receipt, trustedContext), []);
 
   const crossAnchor = clone(contract);
@@ -338,7 +375,7 @@ test('rollback, disposal-absence, and credential-revocation evidence require thr
 
 test('per-surface rollback signature binds the accepted Edge and Realtime inverse receipts', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   for (const mutate of [
     (receipt) => { receipt.edge.undeploy.receipt_sha256 = sha('e'); },
     (receipt) => { receipt.edge.credential_revocation.receipt_sha256 = sha('e'); },
@@ -358,7 +395,7 @@ test('per-surface rollback signature binds the accepted Edge and Realtime invers
 
 test('Storage body and outbound read pairs enforce the frozen 1..900 second window', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
 
   for (const observedAt of ['2026-07-29T04:58:00.001Z', '2026-07-29T05:13:00.001Z']) {
     const storageReceipt = currentReceipt();
@@ -389,10 +426,12 @@ test('Storage body and outbound read pairs enforce the frozen 1..900 second wind
 
 test('rollback completion follows the zero-effect observation in the frozen action order', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   const receipt = currentReceipt();
   receipt.zero_effects.observed_at = '2026-07-29T04:59:55.000Z';
   receipt.zero_effects.evidence_receipt_sha256 = storageEdgeRealtimeZeroEffectDigest(receipt);
+  signForwardEvidence(contract, receipt);
+  signRollbackEvidence(contract, receipt);
   receipt.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(receipt);
   assert.ok(
     validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, receipt, trustedContext)
@@ -400,9 +439,159 @@ test('rollback completion follows the zero-effect observation in the frozen acti
   );
 });
 
+test('authenticated evidence timestamps enforce the cross-phase action chronology', () => {
+  const contract = loadContract();
+  installTestTrustAnchors(contract);
+
+  const prePostimageRead = currentReceipt();
+  prePostimageRead.complete_reads.read_a.observed_at = '2026-07-29T04:58:00.000Z';
+  prePostimageRead.complete_reads.read_b.observed_at = '2026-07-29T04:58:01.000Z';
+  signForwardEvidence(contract, prePostimageRead);
+  prePostimageRead.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(prePostimageRead);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, prePostimageRead, trustedContext)
+      .some((failure) => failure.includes('postimage must strictly precede complete read A'))
+  );
+
+  const zeroBeforeReadB = currentReceipt();
+  zeroBeforeReadB.zero_effects.observed_at = '2026-07-29T04:59:10.000Z';
+  zeroBeforeReadB.zero_effects.evidence_receipt_sha256 = storageEdgeRealtimeZeroEffectDigest(zeroBeforeReadB);
+  signForwardEvidence(contract, zeroBeforeReadB);
+  zeroBeforeReadB.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(zeroBeforeReadB);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, zeroBeforeReadB, trustedContext)
+      .some((failure) => failure.includes('complete read B must strictly precede'))
+  );
+
+  const staleBundleReview = currentReceipt();
+  staleBundleReview.bundle_evidence.reviewed_at = '2026-07-29T04:44:59.999Z';
+  signForwardEvidence(contract, staleBundleReview);
+  staleBundleReview.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(staleBundleReview);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, staleBundleReview, trustedContext)
+      .some((failure) => failure.includes('bundle evidence must be CURRENT, fresh'))
+  );
+});
+
+test('fully re-signed CURRENT receipts reject equality at every strict cross-phase boundary', () => {
+  const contract = loadContract();
+  installTestTrustAnchors(contract);
+
+  const reviewEqualsPreimage = currentReceipt();
+  reviewEqualsPreimage.bundle_evidence.reviewed_at = reviewEqualsPreimage.data_api.preimage.observed_at;
+  signForwardEvidence(contract, reviewEqualsPreimage);
+  reviewEqualsPreimage.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(reviewEqualsPreimage);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, reviewEqualsPreimage, trustedContext)
+      .some((failure) => failure.includes('bundle review must strictly precede'))
+  );
+
+  const postimageEqualsReadA = currentReceipt();
+  postimageEqualsReadA.complete_reads.read_a.observed_at = postimageEqualsReadA.data_api.postimage.observed_at;
+  postimageEqualsReadA.complete_reads.read_b.observed_at = '2026-07-29T04:58:31.000Z';
+  signForwardEvidence(contract, postimageEqualsReadA);
+  postimageEqualsReadA.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(postimageEqualsReadA);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, postimageEqualsReadA, trustedContext)
+      .some((failure) => failure.includes('postimage must strictly precede'))
+  );
+
+  const readBEqualsZeroEffect = currentReceipt();
+  readBEqualsZeroEffect.zero_effects.observed_at = readBEqualsZeroEffect.complete_reads.read_b.observed_at;
+  readBEqualsZeroEffect.zero_effects.evidence_receipt_sha256 = storageEdgeRealtimeZeroEffectDigest(readBEqualsZeroEffect);
+  signForwardEvidence(contract, readBEqualsZeroEffect);
+  readBEqualsZeroEffect.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(readBEqualsZeroEffect);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, readBEqualsZeroEffect, trustedContext)
+      .some((failure) => failure.includes('read B must strictly precede'))
+  );
+
+  const zeroEffectEqualsRollback = currentReceipt();
+  zeroEffectEqualsRollback.rollback.completed_at = zeroEffectEqualsRollback.zero_effects.observed_at;
+  signRollbackEvidence(contract, zeroEffectEqualsRollback);
+  zeroEffectEqualsRollback.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(zeroEffectEqualsRollback);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, zeroEffectEqualsRollback, trustedContext)
+      .some((failure) => failure.includes('rollback completion must follow'))
+  );
+
+  assert.deepEqual(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, currentReceipt(), trustedContext),
+    []
+  );
+});
+
+test('pinned forward evidence signature rejects coherent bundle, read, and zero-effect substitution', () => {
+  const contract = loadContract();
+  installTestTrustAnchors(contract);
+
+  const bundleSubstitution = currentReceipt();
+  bundleSubstitution.bundle_evidence.reviewer_receipt_sha256 = sha('e');
+  rebindExpectedStateAndTerminal(bundleSubstitution);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, bundleSubstitution, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
+  const readSubstitution = currentReceipt();
+  readSubstitution.complete_reads.read_b.evidence_receipt_sha256 = sha('e');
+  readSubstitution.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(readSubstitution);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, readSubstitution, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
+  const zeroSubstitution = currentReceipt();
+  zeroSubstitution.zero_effects.observer_identity_sha256 = sha('e');
+  zeroSubstitution.zero_effects.evidence_receipt_sha256 = storageEdgeRealtimeZeroEffectDigest(zeroSubstitution);
+  zeroSubstitution.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(zeroSubstitution);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, zeroSubstitution, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
+  const reboundPayload = currentReceipt();
+  reboundPayload.bundle_evidence.reviewer_receipt_sha256 = sha('e');
+  rebindExpectedStateAndTerminal(reboundPayload);
+  reboundPayload.forward_evidence_authentication.signed_payload_sha256 = canonicalDigest(
+    storageEdgeRealtimeForwardEvidenceAuthenticationSubject(reboundPayload)
+  );
+  reboundPayload.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(reboundPayload);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, reboundPayload, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+});
+
+test('forward evidence trust domain rejects wrong signer, identity, and caller receipt material', () => {
+  const contract = loadContract();
+  installTestTrustAnchors(contract);
+
+  const wrongDomain = currentReceipt();
+  wrongDomain.forward_evidence_authentication = clone(wrongDomain.rollback.per_surface_authentication);
+  wrongDomain.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(wrongDomain);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, wrongDomain, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
+  const wrongIdentity = currentReceipt();
+  wrongIdentity.forward_evidence_authentication.key_id = 'caller-selected-forward-evidence-key';
+  wrongIdentity.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(wrongIdentity);
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, wrongIdentity, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
+  const callerMaterial = currentReceipt();
+  callerMaterial.forward_evidence_authentication.public_key_spki_base64 = 'AA==';
+  callerMaterial.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(callerMaterial);
+  assert.ok(validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, callerMaterial, trustedContext).length > 0);
+});
+
 test('CURRENT receipt rejects lifecycle, completeness, parity, zero-effect, rollback, and redaction weakening', () => {
   const contract = loadContract();
-  installTestRollbackTrustAnchors(contract);
+  installTestTrustAnchors(contract);
   const mutations = [
     (receipt) => { receipt.completed_actions.pop(); },
     (receipt) => { receipt.completed_actions.reverse(); },

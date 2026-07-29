@@ -18,6 +18,7 @@
     "outbound_contract",
     "data_api_contract",
     "rollback_contract",
+    "forward_evidence_authentication",
     "rollback_authentication",
     "receipt_policy",
     "receipt_example"
@@ -402,6 +403,9 @@
     "rollback_authentication": {
       "$ref": "#/$defs/rollbackAuthentication"
     },
+    "forward_evidence_authentication": {
+      "$ref": "#/$defs/forwardEvidenceAuthenticationPolicy"
+    },
     "receipt_policy": {
       "type": "object",
       "additionalProperties": false,
@@ -571,6 +575,49 @@
         },
         "trust_anchor": {
           "$ref": "#/$defs/trustAnchor"
+        }
+      }
+    },
+    "forwardEvidenceAuthenticationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_boundary",
+        "signature_domain",
+        "evidence_classes",
+        "trust_anchor",
+        "caller_supplied_trust_material_allowed",
+        "current_receipt_allowed_while_anchor_blocked",
+        "must_be_distinct_from_rollback_anchors"
+      ],
+      "properties": {
+        "verification_boundary": {
+          "const": "distinct_pinned_ed25519_signature"
+        },
+        "signature_domain": {
+          "const": "fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1"
+        },
+        "evidence_classes": {
+          "type": "array",
+          "const": [
+            "BUNDLE_REVIEW",
+            "DATA_API_POSTIMAGE",
+            "COMPLETE_READ_A",
+            "COMPLETE_READ_B",
+            "ZERO_EFFECT"
+          ]
+        },
+        "trust_anchor": {
+          "$ref": "#/$defs/trustAnchor"
+        },
+        "caller_supplied_trust_material_allowed": {
+          "const": false
+        },
+        "current_receipt_allowed_while_anchor_blocked": {
+          "const": false
+        },
+        "must_be_distinct_from_rollback_anchors": {
+          "const": true
         }
       }
     },
@@ -1676,6 +1723,7 @@
         "status",
         "subject_sha256",
         "run_correlation_sha256",
+        "reviewed_at",
         "manifest_sha256",
         "reviewer_receipt_sha256",
         "reviewed_expected_state_receipt_sha256",
@@ -1692,6 +1740,9 @@
         },
         "run_correlation_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "reviewed_at": {
+          "$ref": "#/$defs/timestamp"
         },
         "manifest_sha256": {
           "$ref": "#/$defs/sha256"
@@ -1765,6 +1816,7 @@
         "data_api",
         "complete_reads",
         "zero_effects",
+        "forward_evidence_authentication",
         "rollback",
         "terminal_receipt_sha256"
       ],
@@ -1821,6 +1873,9 @@
         },
         "zero_effects": {
           "$ref": "#/$defs/zeroEffects"
+        },
+        "forward_evidence_authentication": {
+          "$ref": "#/$defs/authentication"
         },
         "rollback": {
           "$ref": "#/$defs/rollbackReceipt"

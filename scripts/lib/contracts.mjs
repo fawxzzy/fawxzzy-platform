@@ -187,7 +187,15 @@ const storageEdgeRealtimeZeroEffectFields = Object.freeze([
   'webhook_invocations'
 ]);
 
-const storageEdgeRealtimeContractSha256 = 'b122121eacf4198bfd32da398eb5949f6ce2dabdecce2ee1c714acf3aca7b239';
+const storageEdgeRealtimeForwardEvidenceClasses = Object.freeze([
+  'BUNDLE_REVIEW',
+  'DATA_API_POSTIMAGE',
+  'COMPLETE_READ_A',
+  'COMPLETE_READ_B',
+  'ZERO_EFFECT'
+]);
+
+const storageEdgeRealtimeContractSha256 = '6f096076ec8a63fea636443bd379f5210d4f41a0ad4ef03fe216a4c809e36773';
 
 const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
@@ -206,7 +214,7 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = 'dbd3e99e8f1cc4d606e73df296d72778c273cb27681ae4ae9436931ab21287a6';
+const authAppDataBindingSetSha256 = '406244c08ce0c827b78f8f9dae8bfd5c92404f3c8c5fb8b458d67c87844831b4';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -744,6 +752,48 @@ export function storageEdgeRealtimePerSurfaceReceiptSetDigest(receipt) {
     edge_credential_revocation_receipt_sha256: receipt?.edge?.credential_revocation?.receipt_sha256,
     realtime_rollback_receipt_sha256: receipt?.realtime?.rollback?.receipt_sha256
   });
+}
+
+export function storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt) {
+  const bundle = receipt?.bundle_evidence ?? {};
+  const postimage = receipt?.data_api?.postimage ?? {};
+  const completeReads = receipt?.complete_reads ?? {};
+  const zeroEffects = receipt?.zero_effects ?? {};
+  return {
+    model: 'STORAGE_EDGE_REALTIME_FORWARD_EVIDENCE_LEDGER_V1',
+    evidence_classes: storageEdgeRealtimeForwardEvidenceClasses,
+    contract_id: receipt?.contract_id,
+    contract_version: receipt?.version,
+    subject_sha256: receipt?.subject_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    trusted_action_time: receipt?.validated_at,
+    package: receipt?.package,
+    bundle_review: {
+      reviewed_at: bundle.reviewed_at,
+      manifest_sha256: bundle.manifest_sha256,
+      reviewer_receipt_sha256: bundle.reviewer_receipt_sha256,
+      reviewed_expected_state_receipt_sha256: bundle.reviewed_expected_state_receipt_sha256
+    },
+    data_api_postimage: {
+      observed_at: postimage.observed_at,
+      observer_identity_sha256: postimage.observer_identity_sha256,
+      evidence_receipt_sha256: postimage.evidence_receipt_sha256,
+      projection_sha256: postimage.projection_sha256
+    },
+    complete_reads: {
+      expected_state_sha256: completeReads.expected_state_sha256,
+      read_a: completeReads.read_a,
+      read_b: completeReads.read_b
+    },
+    zero_effect: {
+      observed_at: zeroEffects.observed_at,
+      observer_identity_sha256: zeroEffects.observer_identity_sha256,
+      execution_identity_sha256: zeroEffects.execution_identity_sha256,
+      complete_denominator: zeroEffects.complete_denominator,
+      counts: Object.fromEntries(storageEdgeRealtimeZeroEffectFields.map((field) => [field, zeroEffects[field]])),
+      evidence_receipt_sha256: zeroEffects.evidence_receipt_sha256
+    }
+  };
 }
 
 export function storageEdgeRealtimeRollbackAuthenticationSubject(receipt, evidenceClass) {
@@ -1618,7 +1668,7 @@ export function validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract,
   requireReceipt(receipt?.package?.migration_count === 122 && receipt?.package?.standard_migration_sql_count === 0, 'migration denominator or executable placement drift');
   requireReceipt(receipt?.package?.migration_package_sha256 === bindings.migration_package_sha256 && receipt?.package?.governance_manifest_sha256 === bindings.governance_manifest_sha256, 'migration or governance package drift');
   requireReceipt(receipt?.package?.bundle_manifest_sha256 === bindings.promoted_bundle?.manifest_sha256 && receipt?.package?.query_model_sha256 === bindings.expected_state_model?.query_model_sha256, 'bundle or query-model binding drift');
-  requireReceipt(bundle.status === 'CURRENT' && bind(bundle), 'bundle evidence must be CURRENT and subject/run-bound');
+  requireReceipt(bundle.status === 'CURRENT' && bind(bundle) && fresh(bundle.reviewed_at), 'bundle evidence must be CURRENT, fresh, and subject/run-bound');
   requireReceipt(bundle.manifest_sha256 === bindings.promoted_bundle?.manifest_sha256, 'reviewed byte-manifest substitution');
   requireReceipt(isNonzeroSha256(bundle.reviewer_receipt_sha256) && isNonzeroSha256(bundle.reviewed_expected_state_receipt_sha256) && bundle.reviewer_receipt_sha256 !== bundle.reviewed_expected_state_receipt_sha256, 'bundle review and expected-state receipts must be distinct and nonzero');
   requireReceipt(bundle.source_artifacts_unchanged === true && bundle.sql_bytes_serialized === false && bundle.executor_included === false, 'bundle evidence cannot serialize SQL, include an executor, or admit byte drift');
@@ -1717,6 +1767,7 @@ export function validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract,
   requireReceipt(new Set([dataApi.preimage?.observer_identity_sha256, dataApi.postimage?.observer_identity_sha256, dataApi.rollback?.observer_identity_sha256]).size === 3, 'Data API readbacks require distinct observers');
   requireReceipt(new Set([dataApi.preimage?.evidence_receipt_sha256, dataApi.postimage?.evidence_receipt_sha256, dataApi.rollback?.evidence_receipt_sha256]).size === 3, 'Data API readbacks require distinct evidence receipts');
   requireReceipt(Date.parse(dataApi.preimage?.observed_at) < Date.parse(dataApi.postimage?.observed_at) && Date.parse(dataApi.postimage?.observed_at) < Date.parse(dataApi.rollback?.observed_at), 'Data API preimage, postimage, and rollback chronology is invalid');
+  requireReceipt(Date.parse(bundle.reviewed_at) < Date.parse(dataApi.preimage?.observed_at), 'bundle review must strictly precede the Data API execution preimage');
 
   const completeReads = receipt?.complete_reads ?? {};
   const expectedState = storageEdgeRealtimeExpectedStateDigest(receipt);
@@ -1736,19 +1787,53 @@ export function validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract,
     completeReads.read_a?.evidence_receipt_sha256,
     completeReads.read_b?.evidence_receipt_sha256
   ]).size === 6, 'complete reads require distinct reader, execution, and evidence identities');
+  requireReceipt(Date.parse(dataApi.postimage?.observed_at) < Date.parse(completeReads.read_a?.observed_at), 'Data API postimage must strictly precede complete read A');
 
   const zeroEffects = receipt?.zero_effects ?? {};
   requireReceipt(zeroEffects.status === 'CURRENT' && bind(zeroEffects) && fresh(zeroEffects.observed_at) && zeroEffects.complete_denominator === true, 'zero-effect evidence must be CURRENT, complete, fresh, and subject/run-bound');
   requireReceipt(isNonzeroSha256(zeroEffects.observer_identity_sha256) && isNonzeroSha256(zeroEffects.execution_identity_sha256) && zeroEffects.observer_identity_sha256 !== zeroEffects.execution_identity_sha256, 'zero-effect observer and execution identities must be distinct and nonzero');
   for (const field of storageEdgeRealtimeZeroEffectFields) requireReceipt(zeroEffects[field] === 0, `external effect ${field} must equal zero`);
   requireReceipt(zeroEffects.evidence_receipt_sha256 === storageEdgeRealtimeZeroEffectDigest(receipt), 'zero-effect evidence receipt must content-address the exact subject, run, action-time observation, identities, complete denominator, and zero counts');
+  requireReceipt(Date.parse(completeReads.read_b?.observed_at) < Date.parse(zeroEffects.observed_at), 'complete read B must strictly precede the zero-effect observation');
+
+  const forwardPolicy = contract?.forward_evidence_authentication ?? {};
+  const evidenceAnchors = [
+    forwardPolicy.trust_anchor,
+    contract?.rollback_authentication?.per_surface?.trust_anchor,
+    contract?.rollback_authentication?.disposal_absence?.trust_anchor,
+    contract?.rollback_authentication?.credential_revocation?.trust_anchor
+  ];
+  requireReceipt(
+    evidenceAnchors.every((anchor) => anchor?.status === 'CURRENT')
+      && new Set(evidenceAnchors.map((anchor) => anchor?.key_id)).size === evidenceAnchors.length
+      && new Set(evidenceAnchors.map((anchor) => anchor?.public_key_spki_sha256)).size === evidenceAnchors.length,
+    'forward and rollback evidence require four distinct installed trust anchors'
+  );
+  requireReceipt(
+    sameValues(Object.keys(receipt?.forward_evidence_authentication ?? {}), [
+      'algorithm',
+      'key_id',
+      'public_key_spki_sha256',
+      'signed_payload_sha256',
+      'signature_base64'
+    ]),
+    'forward evidence receipt cannot carry caller-supplied trust material'
+  );
+  requireReceipt(
+    authAppDataVerifyAuthentication(
+      storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt),
+      receipt?.forward_evidence_authentication,
+      forwardPolicy
+    ),
+    'forward bundle-review, complete-read, and zero-effect evidence requires a valid signature from its pinned distinct trust domain'
+  );
 
   const rollback = receipt?.rollback ?? {};
   requireReceipt(rollback.status === 'CURRENT' && bind(rollback) && fresh(rollback.completed_at) && exactOrderedValues(rollback.inverse_order, storageEdgeRealtimeRollbackOrder), 'rollback must be CURRENT, fresh, subject/run-bound, and use the exact inverse order');
   requireReceipt(
     Date.parse(rollback.completed_at) >= Date.parse(dataApi.rollback?.observed_at)
       && Date.parse(rollback.completed_at) >= Date.parse(completeReads.read_b?.observed_at)
-      && Date.parse(rollback.completed_at) >= Date.parse(zeroEffects.observed_at),
+      && Date.parse(rollback.completed_at) > Date.parse(zeroEffects.observed_at),
     'rollback completion must follow the terminal readbacks and zero-effect observation'
   );
   requireReceipt(rollback.preimage_restored === true && rollback.independently_authenticated === true && rollback.broad_drop_used === false && rollback.execution_authorized_by_source_contract === false, 'rollback proof or authority boundary drift');
@@ -1806,6 +1891,16 @@ export function validateStorageEdgeRealtimeExecutionDenominatorContract(contract
   requireContract(contract?.data_api_contract?.oauth_scope === 'rest:read' && contract?.data_api_contract?.permission === 'data_api_config_read' && contract?.data_api_contract?.jwt_secret_redacted_required === true && contract?.data_api_contract?.raw_response_persistence_forbidden === true, 'Data API readback boundary drift');
   requireContract(exactOrderedValues(contract?.rollback_contract?.inverse_order, storageEdgeRealtimeRollbackOrder) && contract?.rollback_contract?.broad_drop_is_rollback === false && contract?.rollback_contract?.execution_requires_separate_authority === true, 'rollback boundary drift');
   const rollbackAuthentication = contract?.rollback_authentication ?? {};
+  const forwardAuthentication = contract?.forward_evidence_authentication ?? {};
+  requireContract(
+    forwardAuthentication.verification_boundary === 'distinct_pinned_ed25519_signature'
+      && forwardAuthentication.signature_domain === 'fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1'
+      && exactOrderedValues(forwardAuthentication.evidence_classes, storageEdgeRealtimeForwardEvidenceClasses)
+      && forwardAuthentication.caller_supplied_trust_material_allowed === false
+      && forwardAuthentication.current_receipt_allowed_while_anchor_blocked === false
+      && forwardAuthentication.must_be_distinct_from_rollback_anchors === true,
+    'forward evidence authentication policy drift'
+  );
   requireContract(
     rollbackAuthentication.per_surface?.signature_domain === 'fawxzzy.platform.storage-edge-realtime.per-surface-rollback.v1'
       && rollbackAuthentication.disposal_absence?.signature_domain === 'fawxzzy.platform.storage-edge-realtime.disposal-absence.v1'
@@ -1828,6 +1923,17 @@ export function validateStorageEdgeRealtimeExecutionDenominatorContract(contract
       && anchor?.public_key_spki_sha256 === null)
       && new Set(rollbackAnchors.map((anchor) => anchor?.verifier_reference)).size === 3,
     'checked-in rollback trust anchors must remain distinct, BLOCKED, and uninstalled'
+  );
+  const forwardAnchor = forwardAuthentication.trust_anchor;
+  requireContract(
+    forwardAnchor?.status === 'BLOCKED'
+      && forwardAnchor?.algorithm === 'Ed25519'
+      && forwardAnchor?.key_id === 'UNKNOWN'
+      && forwardAnchor?.verifier_reference === 'storage-edge-realtime-forward-evidence-verifier-v1'
+      && forwardAnchor?.public_key_spki_base64 === null
+      && forwardAnchor?.public_key_spki_sha256 === null
+      && !rollbackAnchors.some((anchor) => anchor?.verifier_reference === forwardAnchor?.verifier_reference),
+    'checked-in forward evidence trust anchor must remain distinct, BLOCKED, and uninstalled'
   );
   requireContract(contract?.receipt_policy?.canonical_blocked_projection_required === true && contract?.receipt_policy?.trusted_action_time_must_be_injected === true && contract?.receipt_policy?.receipt_validated_at_is_trusted === false && contract?.receipt_policy?.unknown_may_be_promoted_to_current === false && contract?.receipt_policy?.aggregate_only === true, 'receipt trust/redaction boundary drift');
   requireContract(contract?.receipt_example?.status === 'BLOCKED', 'checked-in receipt must remain BLOCKED');

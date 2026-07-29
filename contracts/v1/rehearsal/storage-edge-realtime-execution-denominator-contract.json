@@ -235,6 +235,28 @@
     "broad_drop_is_rollback": false,
     "execution_requires_separate_authority": true
   },
+  "forward_evidence_authentication": {
+    "verification_boundary": "distinct_pinned_ed25519_signature",
+    "signature_domain": "fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1",
+    "evidence_classes": [
+      "BUNDLE_REVIEW",
+      "DATA_API_POSTIMAGE",
+      "COMPLETE_READ_A",
+      "COMPLETE_READ_B",
+      "ZERO_EFFECT"
+    ],
+    "trust_anchor": {
+      "status": "BLOCKED",
+      "algorithm": "Ed25519",
+      "key_id": "UNKNOWN",
+      "verifier_reference": "storage-edge-realtime-forward-evidence-verifier-v1",
+      "public_key_spki_base64": null,
+      "public_key_spki_sha256": null
+    },
+    "caller_supplied_trust_material_allowed": false,
+    "current_receipt_allowed_while_anchor_blocked": false,
+    "must_be_distinct_from_rollback_anchors": true
+  },
   "rollback_authentication": {
     "per_surface": {
       "verification_boundary": "pinned_ed25519_signature",
@@ -324,6 +346,7 @@
       "status": "BLOCKED",
       "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reviewed_at": "1970-01-01T00:00:00.000Z",
       "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "reviewer_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "reviewed_expected_state_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -651,6 +674,13 @@
       "pg_net_history_growth": 0,
       "webhook_invocations": 0,
       "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "forward_evidence_authentication": {
+      "algorithm": "Ed25519",
+      "key_id": "UNKNOWN",
+      "public_key_spki_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signature_base64": "AA=="
     },
     "rollback": {
       "status": "BLOCKED",

@@ -68,7 +68,18 @@ The complete read A/read B pair recomputes the closed expected-state digest from
 the exact subject, run, package, reviewed bundle evidence, every surface
 aggregate, and the Data API postimage. Independent readers, executions, evidence
 receipts, complete pagination, fresh observations, and a bounded observation
-window are required.
+window are required. A fourth, distinct pinned Ed25519 trust domain authenticates
+one forward-evidence ledger covering the bundle review, Data API postimage,
+complete reads A/B, and zero-effect proof. The signed subject binds the exact
+subject, run, trusted action time, package, manifest and query-model identities,
+evidence receipts, observation times, completeness, and all zero-effect counts.
+Caller-supplied keys or trust anchors are not receipt evidence.
+
+The evidence chronology is enforced from the authenticated timestamps: bundle
+review precedes the Data API execution preimage, the contained Data API postimage
+precedes complete read A, complete read B precedes zero-effect verification, and
+zero-effect verification precedes rollback completion. Labels in
+`completed_actions` are not treated as chronology proof.
 
 ## Zero-effect and rollback proof
 
@@ -92,8 +103,9 @@ The trusted action time is injected by the validator caller; the receipt's own
 timestamp is not a clock authority. Evidence older than 900 seconds, future
 evidence, incomplete or unexhausted pagination, missing/duplicate/reordered
 surfaces, `UNKNOWN` promotion, mismatched reads, false-zero claims, nonzero
-effects, bundle substitution, partial rollback, or reused evidence identities
-fail closed.
+effects, bundle/review/read/zero-effect substitution, wrong signer or trust
+identity, cross-phase chronology inversion, partial rollback, or reused evidence
+identities fail closed.
 
 Receipts permit only counts, booleans, timestamps, closed labels, and one-way
 digests. Raw provider responses, project references, provider URLs, object keys
