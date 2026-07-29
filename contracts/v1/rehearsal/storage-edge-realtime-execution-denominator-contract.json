@@ -1,0 +1,735 @@
+{
+  "version": "1.0.0",
+  "contract_id": "storage-edge-realtime-execution-denominator",
+  "status": "CURRENT",
+  "lifecycle": {
+    "source_contract": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED",
+    "apply_admitted": false
+  },
+  "scope": {
+    "offline_contract_only": true,
+    "aggregate_evidence_only": true,
+    "provider_connectivity_included": false,
+    "provider_runner_included": false,
+    "credential_material_included": false,
+    "sql_bytes_included": false,
+    "executable_bundle_included": false,
+    "storage_transfer_authorized": false,
+    "edge_deploy_authorized": false,
+    "realtime_mutation_authorized": false,
+    "data_api_mutation_authorized": false,
+    "rollback_disposal_or_revocation_authorized": false
+  },
+  "immutable_bindings": {
+    "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
+    "migration_count": 122,
+    "standard_migration_sql_count": 0,
+    "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+    "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+    "promoted_bundle": {
+      "model": "REVIEWED_INERT_SQL_PROMOTED_BYTE_MANIFEST_V1",
+      "artifact_count": 4,
+      "executable_statement_count": 721,
+      "artifacts": [
+        {
+          "ordinal": 1,
+          "path": "bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql",
+          "bytes": 16387,
+          "sha256": "fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313"
+        },
+        {
+          "ordinal": 2,
+          "path": "bootstrap/artifacts/inert-sql/00000000000002_fitness_schema_inert.sql",
+          "bytes": 148809,
+          "sha256": "5fe4ef8fbd9a1e873cd0f8f385b4128d3450c01f6a4d0e6eaae1c6943a1c4c9b"
+        },
+        {
+          "ordinal": 3,
+          "path": "bootstrap/artifacts/inert-sql/00000000000003_discordos_schema_inert.sql",
+          "bytes": 20670,
+          "sha256": "5b2783d8f6a78a2a9898c94559b31c168dcb1b5deebc1546365c1c8f09ade79f"
+        },
+        {
+          "ordinal": 4,
+          "path": "bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql",
+          "bytes": 2507,
+          "sha256": "f3cf571b37a6aa756c72ec398fa0f24f26b3d93bff2a768a318ceb87aa9ece64"
+        }
+      ],
+      "toolchain": {
+        "generator_path": "scripts/generate-target-bootstrap.mjs",
+        "generator_sha256": "064e758edc29dc11cb87370ef08bb3968366e70708db46ba04a8b1da2786f540",
+        "config_path": "bootstrap/generator/config.v1.json",
+        "config_sha256": "a53ed812826372398bf0685aa4ebfcd9449188a295080f5bc0a040bcb681f4d1",
+        "verifier_path": "scripts/verify-target-bootstrap.mjs",
+        "verifier_sha256": "4d0f3e4c2d2f68c185fbbb704579ecdb2442619d31dd1d335bbf0d3b42a4a1de"
+      },
+      "manifest_sha256": "ce85de2e32fca8497d7bb6380e51e3bc9d5717f1a07b25151414da5552075849",
+      "reviewer_receipt_required": true,
+      "reviewed_expected_state_receipt_required": true,
+      "sql_bytes_in_receipt_forbidden": true,
+      "executor_in_source_forbidden": true
+    },
+    "expected_state_model": {
+      "version": "STORAGE_EDGE_REALTIME_EXPECTED_STATE_V1",
+      "components": [
+        "subject_sha256",
+        "run_correlation_sha256",
+        "package",
+        "bundle_evidence",
+        "storage_aggregate_sha256",
+        "edge_aggregate_sha256",
+        "realtime_aggregate_sha256",
+        "outbound_aggregate_sha256",
+        "data_api_postimage_sha256"
+      ],
+      "query_model_sha256": "fc34c2bd4a84cc04f632ab42fc15d5c1b767ce839ce6d014f4d116ed4473308c"
+    }
+  },
+  "action_order": [
+    "BIND_ACTION_TIME_SUBJECT_RUN_AND_PACKAGE",
+    "VERIFY_REVIEWED_PROMOTED_BYTE_MANIFEST",
+    "CAPTURE_COMPLETE_STORAGE_DENOMINATOR",
+    "CAPTURE_STORAGE_BODY_READ_A",
+    "CAPTURE_STORAGE_BODY_READ_B",
+    "CAPTURE_COMPLETE_EDGE_DENOMINATOR",
+    "CAPTURE_COMPLETE_REALTIME_DENOMINATOR",
+    "CAPTURE_COMPLETE_OUTBOUND_DENOMINATOR",
+    "CAPTURE_DATA_API_PREIMAGE_GET",
+    "DENY_EXTERNAL_EFFECTS",
+    "APPLY_ONLY_UNDER_SEPARATE_AUTHORITY",
+    "CAPTURE_COMPLETE_READ_A",
+    "WAIT_OBSERVATION_WINDOW",
+    "CAPTURE_COMPLETE_READ_B",
+    "VERIFY_ZERO_GROWTH_AND_EFFECTS",
+    "PROVE_ROLLBACK_INVERSE_ORDER",
+    "PROVE_DISPOSAL_ABSENCE_AND_CREDENTIAL_REVOCATION",
+    "FREEZE_QUARANTINED_TARGET"
+  ],
+  "storage_contract": {
+    "complete_bucket_settings_required": true,
+    "complete_object_metadata_required": true,
+    "complete_multipart_inventory_required": true,
+    "body_identity_components": [
+      "bucket_name_digest",
+      "object_key_digest",
+      "version_digest",
+      "size_bytes",
+      "checksum_sha256"
+    ],
+    "body_read_count": 2,
+    "body_reads_must_be_independent": true,
+    "zero_or_complete_nonzero_body_denominator_required": true,
+    "missing_extra_changed_duplicate_rejected": true,
+    "mutation_method": "STORAGE_API_ONLY",
+    "direct_sql_storage_mutation_forbidden": true,
+    "raw_object_keys_or_bodies_in_receipt_forbidden": true
+  },
+  "edge_contract": {
+    "products": [
+      "discordos",
+      "fitness",
+      "mazer"
+    ],
+    "function_identity_components": [
+      "slug_digest",
+      "version_digest",
+      "source_sha256",
+      "bundle_sha256",
+      "entrypoint_sha256",
+      "import_map_sha256",
+      "static_assets_sha256",
+      "config_sha256",
+      "verify_jwt"
+    ],
+    "routes_schedules_hooks_complete": true,
+    "secret_name_set_digest_only": true,
+    "secret_values_forbidden": true,
+    "target_parity_required": true,
+    "zero_invocation_and_egress_required": true,
+    "undeploy_inverse_required": true,
+    "credential_inverse_required": true
+  },
+  "realtime_contract": {
+    "service_settings_and_limits_required": true,
+    "publication_membership_complete": true,
+    "replica_identity_per_published_table_required": true,
+    "private_schema_rls_and_grants_required": true,
+    "broadcast_paths": [
+      "CLIENT_JSON",
+      "CLIENT_BINARY",
+      "REST_JSON",
+      "REST_BINARY",
+      "DATABASE_JSON",
+      "DATABASE_BINARY"
+    ],
+    "database_broadcast_publication_required": true,
+    "message_and_replay_disposition_required": true,
+    "presence_disposition": "EPHEMERAL_NOT_MIGRATED",
+    "zero_connected_clients_and_events_required": true,
+    "rollback_required": true
+  },
+  "outbound_contract": {
+    "surface_order": [
+      "vault",
+      "cron",
+      "pg_net",
+      "database_webhooks",
+      "wrappers",
+      "foreign_servers",
+      "subscriptions",
+      "other_outbound_units"
+    ],
+    "dispositions": {
+      "vault": "NAME_COUNT_CIPHERTEXT_DIGEST_ONLY_ROOT_KEY_NONPORTABLE",
+      "cron": "COMPLETE_JOB_AND_HISTORY_AGGREGATE_REQUIRED",
+      "pg_net": "COMPLETE_QUEUE_AND_HISTORY_AGGREGATE_REQUIRED",
+      "database_webhooks": "TRIGGER_AND_CONFIG_DIGEST_URL_REDACTED",
+      "wrappers": "COMPLETE_AGGREGATE_AND_CREDENTIAL_HOLD_REQUIRED",
+      "foreign_servers": "COMPLETE_AGGREGATE_AND_CREDENTIAL_HOLD_REQUIRED",
+      "subscriptions": "COMPLETE_AGGREGATE_AND_EGRESS_HOLD_REQUIRED",
+      "other_outbound_units": "COMPLETE_AGGREGATE_AND_EXPLICIT_DISPOSITION_REQUIRED"
+    },
+    "two_complete_reads_required": true,
+    "zero_growth_and_zero_external_effects_required": true,
+    "urls_and_secrets_in_receipt_forbidden": true
+  },
+  "data_api_contract": {
+    "method": "SANITIZED_ACTION_TIME_GET_POSTGREST_PROJECTION_V1",
+    "oauth_scope": "rest:read",
+    "permission": "data_api_config_read",
+    "jwt_secret_redacted_required": true,
+    "raw_response_persistence_forbidden": true,
+    "request_headers_persistence_forbidden": true,
+    "required_postimage": {
+      "enabled": false,
+      "exposed_schemas": [],
+      "extra_search_path": [
+        "extensions"
+      ],
+      "automatic_public_exposure": false
+    },
+    "exact_postimage_and_rollback_readbacks_required": true
+  },
+  "rollback_contract": {
+    "inverse_order": [
+      "DATA_API_CONFIGURATION",
+      "DATABASE_WEBHOOKS",
+      "PG_NET",
+      "CRON",
+      "EDGE_FUNCTIONS",
+      "REALTIME_CONFIGURATION",
+      "STORAGE_OBJECT_BODIES",
+      "STORAGE_OBJECT_METADATA",
+      "STORAGE_BUCKETS",
+      "CREDENTIALS",
+      "DISPOSABLE_TARGET"
+    ],
+    "exact_preimage_restoration_required": true,
+    "per_surface_receipts_required": true,
+    "disposal_absence_receipt_required": true,
+    "credential_revocation_receipt_required": true,
+    "independent_authentication_required": true,
+    "identifier_or_name_digests_only": true,
+    "broad_drop_is_rollback": false,
+    "execution_requires_separate_authority": true
+  },
+  "forward_evidence_authentication": {
+    "verification_boundary": "distinct_pinned_ed25519_signature",
+    "signature_domain": "fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1",
+    "evidence_classes": [
+      "BUNDLE_REVIEW",
+      "DATA_API_PREIMAGE",
+      "DATA_API_POSTIMAGE",
+      "COMPLETE_READ_A",
+      "COMPLETE_READ_B",
+      "ZERO_EFFECT"
+    ],
+    "trust_anchor": {
+      "status": "BLOCKED",
+      "algorithm": "Ed25519",
+      "key_id": "UNKNOWN",
+      "verifier_reference": "storage-edge-realtime-forward-evidence-verifier-v1",
+      "public_key_spki_base64": null,
+      "public_key_spki_sha256": null
+    },
+    "caller_supplied_trust_material_allowed": false,
+    "current_receipt_allowed_while_anchor_blocked": false,
+    "must_be_distinct_from_rollback_anchors": true
+  },
+  "rollback_authentication": {
+    "per_surface": {
+      "verification_boundary": "pinned_ed25519_signature",
+      "signature_domain": "fawxzzy.platform.storage-edge-realtime.per-surface-rollback.v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "storage-edge-realtime-per-surface-rollback-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "disposal_absence": {
+      "verification_boundary": "distinct_pinned_ed25519_signature",
+      "signature_domain": "fawxzzy.platform.storage-edge-realtime.disposal-absence.v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "storage-edge-realtime-disposal-absence-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "credential_revocation": {
+      "verification_boundary": "distinct_pinned_ed25519_signature",
+      "signature_domain": "fawxzzy.platform.storage-edge-realtime.credential-revocation.v1",
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "storage-edge-realtime-credential-revocation-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "all_trust_anchors_must_be_distinct": true,
+    "caller_supplied_trust_material_allowed": false,
+    "current_receipt_allowed_while_anchor_blocked": false
+  },
+  "receipt_policy": {
+    "status_values": [
+      "BLOCKED",
+      "CURRENT"
+    ],
+    "canonical_blocked_projection_required": true,
+    "trusted_action_time_must_be_injected": true,
+    "receipt_validated_at_is_trusted": false,
+    "maximum_evidence_age_seconds": 900,
+    "minimum_read_separation_seconds": 1,
+    "maximum_read_separation_seconds": 900,
+    "every_inventory_requires_complete_pagination": true,
+    "unknown_may_be_promoted_to_current": false,
+    "aggregate_only": true,
+    "forbidden_evidence_classes": [
+      "raw_provider_response",
+      "project_reference",
+      "provider_url",
+      "object_key",
+      "object_body",
+      "secret_value",
+      "credential",
+      "sql_bytes",
+      "machine_path",
+      "pii"
+    ],
+    "terminal_receipt_digest_model": "STORAGE_EDGE_REALTIME_TERMINAL_RECEIPT_V1"
+  },
+  "receipt_example": {
+    "version": "1.0.0",
+    "contract_id": "storage-edge-realtime-execution-denominator",
+    "status": "BLOCKED",
+    "validated_at": "1970-01-01T00:00:00.000Z",
+    "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "package": {
+      "migration_count": 122,
+      "standard_migration_sql_count": 0,
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+      "bundle_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "query_model_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "completed_actions": [],
+    "bundle_evidence": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reviewed_at": "1970-01-01T00:00:00.000Z",
+      "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reviewer_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reviewed_expected_state_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_artifacts_unchanged": false,
+      "sql_bytes_serialized": false,
+      "executor_included": false
+    },
+    "storage": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pagination_complete": false,
+      "page_count": 0,
+      "page_exhausted": false,
+      "pagination_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bucket_count": 0,
+      "object_count": 0,
+      "multipart_upload_count": 0,
+      "total_bytes": 0,
+      "body_state": "UNKNOWN",
+      "bucket_settings_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "object_metadata_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "body_inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "mutation_method": "STORAGE_API_ONLY",
+      "direct_sql_mutation": false,
+      "object_keys_serialized": false,
+      "object_bodies_serialized": false,
+      "body_read_a": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "object_count": 0,
+        "total_bytes": 0,
+        "body_inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "body_read_b": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "object_count": 0,
+        "total_bytes": 0,
+        "body_inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "edge": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pagination_complete": false,
+      "page_count": 0,
+      "page_exhausted": false,
+      "pagination_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "function_count": 0,
+      "route_count": 0,
+      "schedule_count": 0,
+      "hook_count": 0,
+      "secret_name_count": 0,
+      "function_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "route_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "schedule_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hook_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "secret_name_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "invocation_count": 0,
+      "outbound_network_request_count": 0,
+      "secret_values_serialized": false,
+      "undeploy": {
+        "status": "BLOCKED",
+        "receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "independently_authenticated": false
+      },
+      "credential_revocation": {
+        "status": "BLOCKED",
+        "receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "independently_authenticated": false
+      }
+    },
+    "realtime": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pagination_complete": false,
+      "page_count": 0,
+      "page_exhausted": false,
+      "pagination_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "service_settings_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "service_limits_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publication_count": 0,
+      "published_table_count": 0,
+      "publication_membership_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "replica_identity_count": 0,
+      "replica_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "private_schema_security_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "broadcast_path_count": 6,
+      "broadcast_path_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message_replay_disposition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "presence_disposition": "EPHEMERAL_NOT_MIGRATED",
+      "presence_persisted_count": 0,
+      "connected_client_count": 0,
+      "broadcast_event_count": 0,
+      "postgres_change_event_count": 0,
+      "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "rollback": {
+        "status": "BLOCKED",
+        "receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "independently_authenticated": false
+      }
+    },
+    "outbound": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "pagination_complete": false,
+      "page_count": 0,
+      "page_exhausted": false,
+      "pagination_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "units": [
+        {
+          "surface": "vault",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "NAME_COUNT_CIPHERTEXT_DIGEST_ONLY_ROOT_KEY_NONPORTABLE",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "cron",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_JOB_AND_HISTORY_AGGREGATE_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "pg_net",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_QUEUE_AND_HISTORY_AGGREGATE_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "database_webhooks",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "TRIGGER_AND_CONFIG_DIGEST_URL_REDACTED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "wrappers",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_AGGREGATE_AND_CREDENTIAL_HOLD_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "foreign_servers",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_AGGREGATE_AND_CREDENTIAL_HOLD_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "subscriptions",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_AGGREGATE_AND_EGRESS_HOLD_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        },
+        {
+          "surface": "other_outbound_units",
+          "status": "BLOCKED",
+          "inventory_count": 0,
+          "history_count": 0,
+          "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "disposition": "COMPLETE_AGGREGATE_AND_EXPLICIT_DISPOSITION_REQUIRED",
+          "urls_redacted": true,
+          "secret_material_serialized": false
+        }
+      ],
+      "read_a": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "inventory_count": 0,
+        "history_count": 0,
+        "external_effect_count": 0,
+        "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "read_b": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "inventory_count": 0,
+        "history_count": 0,
+        "external_effect_count": 0,
+        "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "history_growth": 0,
+      "external_effect_growth": 0,
+      "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "data_api": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "oauth_scope": "rest:read",
+      "permission": "data_api_config_read",
+      "jwt_secret_redacted": true,
+      "raw_response_persisted": false,
+      "request_headers_persisted": false,
+      "preimage": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "observer_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "enabled": true,
+        "exposed_schemas": [
+          "graphql_public",
+          "public"
+        ],
+        "extra_search_path": [
+          "public",
+          "extensions"
+        ],
+        "automatic_public_exposure": false,
+        "projection_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "postimage": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "observer_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "enabled": false,
+        "exposed_schemas": [],
+        "extra_search_path": [
+          "extensions"
+        ],
+        "automatic_public_exposure": false,
+        "projection_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "rollback": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "observer_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "enabled": true,
+        "exposed_schemas": [
+          "graphql_public",
+          "public"
+        ],
+        "extra_search_path": [
+          "public",
+          "extensions"
+        ],
+        "automatic_public_exposure": false,
+        "projection_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "complete_reads": {
+      "status": "BLOCKED",
+      "expected_state_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "read_a": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "query_model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "complete": false
+      },
+      "read_b": {
+        "status": "BLOCKED",
+        "observed_at": "1970-01-01T00:00:00.000Z",
+        "reader_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "query_model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "aggregate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "complete": false
+      }
+    },
+    "zero_effects": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "observed_at": "1970-01-01T00:00:00.000Z",
+      "observer_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "execution_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "complete_denominator": false,
+      "outbound_network_requests": 0,
+      "storage_object_writes": 0,
+      "edge_function_invocations": 0,
+      "realtime_broadcasts": 0,
+      "realtime_connected_clients": 0,
+      "cron_history_growth": 0,
+      "pg_net_history_growth": 0,
+      "webhook_invocations": 0,
+      "evidence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "forward_evidence_authentication": {
+      "algorithm": "Ed25519",
+      "key_id": "UNKNOWN",
+      "public_key_spki_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "signature_base64": "AA=="
+    },
+    "rollback": {
+      "status": "BLOCKED",
+      "subject_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "completed_at": "1970-01-01T00:00:00.000Z",
+      "inverse_order": [
+        "DATA_API_CONFIGURATION",
+        "DATABASE_WEBHOOKS",
+        "PG_NET",
+        "CRON",
+        "EDGE_FUNCTIONS",
+        "REALTIME_CONFIGURATION",
+        "STORAGE_OBJECT_BODIES",
+        "STORAGE_OBJECT_METADATA",
+        "STORAGE_BUCKETS",
+        "CREDENTIALS",
+        "DISPOSABLE_TARGET"
+      ],
+      "preimage_restored": false,
+      "per_surface_receipt_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "disposal_absence_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "credential_revocation_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "per_surface_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      },
+      "disposal_absence_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      },
+      "credential_revocation_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      },
+      "independently_authenticated": false,
+      "broad_drop_used": false,
+      "execution_authorized_by_source_contract": false
+    },
+    "terminal_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

@@ -24,6 +24,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/activation/activation-request.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-request'],
   ['contracts/v1/activation/activation-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:activation-receipt'],
   ['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', 'urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-contract'],
+  ['contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json', 'urn:fawxzzy:platform:schemas:v1:storage-edge-realtime-execution-denominator-contract'],
   ['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json', 'urn:fawxzzy:platform:schemas:v1:auth-app-data-rehearsal-contract'],
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
@@ -127,6 +128,76 @@ const targetBootstrapZeroEffectFields = Object.freeze([
   'auth_messages_sent'
 ]);
 
+const storageEdgeRealtimeContractPath = 'contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json';
+
+const storageEdgeRealtimeActionOrder = Object.freeze([
+  'BIND_ACTION_TIME_SUBJECT_RUN_AND_PACKAGE',
+  'VERIFY_REVIEWED_PROMOTED_BYTE_MANIFEST',
+  'CAPTURE_COMPLETE_STORAGE_DENOMINATOR',
+  'CAPTURE_STORAGE_BODY_READ_A',
+  'CAPTURE_STORAGE_BODY_READ_B',
+  'CAPTURE_COMPLETE_EDGE_DENOMINATOR',
+  'CAPTURE_COMPLETE_REALTIME_DENOMINATOR',
+  'CAPTURE_COMPLETE_OUTBOUND_DENOMINATOR',
+  'CAPTURE_DATA_API_PREIMAGE_GET',
+  'DENY_EXTERNAL_EFFECTS',
+  'APPLY_ONLY_UNDER_SEPARATE_AUTHORITY',
+  'CAPTURE_COMPLETE_READ_A',
+  'WAIT_OBSERVATION_WINDOW',
+  'CAPTURE_COMPLETE_READ_B',
+  'VERIFY_ZERO_GROWTH_AND_EFFECTS',
+  'PROVE_ROLLBACK_INVERSE_ORDER',
+  'PROVE_DISPOSAL_ABSENCE_AND_CREDENTIAL_REVOCATION',
+  'FREEZE_QUARANTINED_TARGET'
+]);
+
+const storageEdgeRealtimeOutboundSurfaces = Object.freeze([
+  'vault',
+  'cron',
+  'pg_net',
+  'database_webhooks',
+  'wrappers',
+  'foreign_servers',
+  'subscriptions',
+  'other_outbound_units'
+]);
+
+const storageEdgeRealtimeRollbackOrder = Object.freeze([
+  'DATA_API_CONFIGURATION',
+  'DATABASE_WEBHOOKS',
+  'PG_NET',
+  'CRON',
+  'EDGE_FUNCTIONS',
+  'REALTIME_CONFIGURATION',
+  'STORAGE_OBJECT_BODIES',
+  'STORAGE_OBJECT_METADATA',
+  'STORAGE_BUCKETS',
+  'CREDENTIALS',
+  'DISPOSABLE_TARGET'
+]);
+
+const storageEdgeRealtimeZeroEffectFields = Object.freeze([
+  'outbound_network_requests',
+  'storage_object_writes',
+  'edge_function_invocations',
+  'realtime_broadcasts',
+  'realtime_connected_clients',
+  'cron_history_growth',
+  'pg_net_history_growth',
+  'webhook_invocations'
+]);
+
+const storageEdgeRealtimeForwardEvidenceClasses = Object.freeze([
+  'BUNDLE_REVIEW',
+  'DATA_API_PREIMAGE',
+  'DATA_API_POSTIMAGE',
+  'COMPLETE_READ_A',
+  'COMPLETE_READ_B',
+  'ZERO_EFFECT'
+]);
+
+const storageEdgeRealtimeContractSha256 = '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97';
+
 const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
   Object.freeze({ path: 'contracts/v1/auth/domain-session-contract.json', version: '1.1.0', sha256: '516337d43048199875b3f3b283a3f48b0cba64a720fa5796ca0064a41ac24f16' }),
@@ -139,11 +210,12 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/identity/identity-map.json', version: '1.0.0', sha256: '1212e3457552e85d65f262ecb63a3a2a452b3c133e42da15c32ce221d20f3fb9' }),
   Object.freeze({ path: 'contracts/v1/membership/membership-lifecycle.json', version: '1.1.0', sha256: '8dbeb551521ba94fb4d1a807e4c92cbc3d31dd8df1a9a0e18b9486044d434e78' }),
   Object.freeze({ path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', version: '1.0.0', sha256: 'd217f31885f995e939d8e37c07ef5201bef43934227564a9083b662b2054c869' }),
+  Object.freeze({ path: storageEdgeRealtimeContractPath, version: '1.0.0', sha256: storageEdgeRealtimeContractSha256 }),
   Object.freeze({ path: 'contracts/v1/recovery/independent-backup-contract.json', version: '2.2.0', sha256: 'a627535f8f48d0c14b81a6bb611bf4f36935af96a66beb1d6a23096df4c2fd10' }),
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = '3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6';
+const authAppDataBindingSetSha256 = '9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -600,6 +672,157 @@ function digest(value) {
 
 function canonicalDigest(value) {
   return crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
+}
+
+export function storageEdgeRealtimeComponentDigest(component, omittedKeys = ['aggregate_sha256']) {
+  const omitted = new Set(omittedKeys);
+  return canonicalDigest(Object.fromEntries(
+    Object.entries(component ?? {}).filter(([key]) => !omitted.has(key))
+  ));
+}
+
+export function storageEdgeRealtimeDataApiProjectionDigest(projection) {
+  return canonicalDigest({
+    status: projection?.status,
+    observed_at: projection?.observed_at,
+    observer_identity_sha256: projection?.observer_identity_sha256,
+    evidence_receipt_sha256: projection?.evidence_receipt_sha256,
+    enabled: projection?.enabled,
+    exposed_schemas: projection?.exposed_schemas,
+    extra_search_path: projection?.extra_search_path,
+    automatic_public_exposure: projection?.automatic_public_exposure
+  });
+}
+
+export function storageEdgeRealtimeOutboundReadDigest(units, read) {
+  return canonicalDigest({
+    model: 'STORAGE_EDGE_REALTIME_OUTBOUND_READ_V1',
+    units,
+    inventory_count: read?.inventory_count,
+    history_count: read?.history_count,
+    external_effect_count: read?.external_effect_count
+  });
+}
+
+export function storageEdgeRealtimeZeroEffectDigest(receipt) {
+  return canonicalDigest({
+    model: 'STORAGE_EDGE_REALTIME_ZERO_EFFECT_EVIDENCE_V1',
+    subject_sha256: receipt?.zero_effects?.subject_sha256,
+    run_correlation_sha256: receipt?.zero_effects?.run_correlation_sha256,
+    observed_at: receipt?.zero_effects?.observed_at,
+    observer_identity_sha256: receipt?.zero_effects?.observer_identity_sha256,
+    execution_identity_sha256: receipt?.zero_effects?.execution_identity_sha256,
+    complete_denominator: receipt?.zero_effects?.complete_denominator,
+    counts: Object.fromEntries(storageEdgeRealtimeZeroEffectFields.map((field) => [field, receipt?.zero_effects?.[field]]))
+  });
+}
+
+export function storageEdgeRealtimeExpectedStateDigest(receipt) {
+  return canonicalDigest({
+    model: 'STORAGE_EDGE_REALTIME_EXPECTED_STATE_V1',
+    subject_sha256: receipt?.subject_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    package: receipt?.package,
+    bundle_evidence: {
+      manifest_sha256: receipt?.bundle_evidence?.manifest_sha256,
+      reviewer_receipt_sha256: receipt?.bundle_evidence?.reviewer_receipt_sha256,
+      reviewed_expected_state_receipt_sha256: receipt?.bundle_evidence?.reviewed_expected_state_receipt_sha256
+    },
+    storage_aggregate_sha256: receipt?.storage?.aggregate_sha256,
+    edge_aggregate_sha256: receipt?.edge?.aggregate_sha256,
+    realtime_aggregate_sha256: receipt?.realtime?.aggregate_sha256,
+    outbound_aggregate_sha256: receipt?.outbound?.aggregate_sha256,
+    data_api_postimage_sha256: receipt?.data_api?.postimage?.projection_sha256
+  });
+}
+
+export function storageEdgeRealtimeTerminalReceiptDigest(receipt) {
+  const { terminal_receipt_sha256: _ignored, ...subject } = receipt ?? {};
+  return canonicalDigest({
+    model: 'STORAGE_EDGE_REALTIME_TERMINAL_RECEIPT_V1',
+    receipt: subject
+  });
+}
+
+export function storageEdgeRealtimePerSurfaceReceiptSetDigest(receipt) {
+  return canonicalDigest({
+    model: 'STORAGE_EDGE_REALTIME_PER_SURFACE_ROLLBACK_SET_V1',
+    subject_sha256: receipt?.rollback?.subject_sha256,
+    run_correlation_sha256: receipt?.rollback?.run_correlation_sha256,
+    edge_undeploy_receipt_sha256: receipt?.edge?.undeploy?.receipt_sha256,
+    edge_credential_revocation_receipt_sha256: receipt?.edge?.credential_revocation?.receipt_sha256,
+    realtime_rollback_receipt_sha256: receipt?.realtime?.rollback?.receipt_sha256
+  });
+}
+
+export function storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt) {
+  const bundle = receipt?.bundle_evidence ?? {};
+  const preimage = receipt?.data_api?.preimage ?? {};
+  const postimage = receipt?.data_api?.postimage ?? {};
+  const completeReads = receipt?.complete_reads ?? {};
+  const zeroEffects = receipt?.zero_effects ?? {};
+  return {
+    model: 'STORAGE_EDGE_REALTIME_FORWARD_EVIDENCE_LEDGER_V1',
+    evidence_classes: storageEdgeRealtimeForwardEvidenceClasses,
+    contract_id: receipt?.contract_id,
+    contract_version: receipt?.version,
+    subject_sha256: receipt?.subject_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    trusted_action_time: receipt?.validated_at,
+    package: receipt?.package,
+    bundle_review: {
+      reviewed_at: bundle.reviewed_at,
+      manifest_sha256: bundle.manifest_sha256,
+      reviewer_receipt_sha256: bundle.reviewer_receipt_sha256,
+      reviewed_expected_state_receipt_sha256: bundle.reviewed_expected_state_receipt_sha256
+    },
+    data_api_preimage: {
+      observed_at: preimage.observed_at,
+      observer_identity_sha256: preimage.observer_identity_sha256,
+      evidence_receipt_sha256: preimage.evidence_receipt_sha256,
+      projection_sha256: preimage.projection_sha256
+    },
+    data_api_postimage: {
+      observed_at: postimage.observed_at,
+      observer_identity_sha256: postimage.observer_identity_sha256,
+      evidence_receipt_sha256: postimage.evidence_receipt_sha256,
+      projection_sha256: postimage.projection_sha256
+    },
+    complete_reads: {
+      expected_state_sha256: completeReads.expected_state_sha256,
+      read_a: completeReads.read_a,
+      read_b: completeReads.read_b
+    },
+    zero_effect: {
+      observed_at: zeroEffects.observed_at,
+      observer_identity_sha256: zeroEffects.observer_identity_sha256,
+      execution_identity_sha256: zeroEffects.execution_identity_sha256,
+      complete_denominator: zeroEffects.complete_denominator,
+      counts: Object.fromEntries(storageEdgeRealtimeZeroEffectFields.map((field) => [field, zeroEffects[field]])),
+      evidence_receipt_sha256: zeroEffects.evidence_receipt_sha256
+    }
+  };
+}
+
+export function storageEdgeRealtimeRollbackAuthenticationSubject(receipt, evidenceClass) {
+  const rollback = receipt?.rollback ?? {};
+  const evidenceField = {
+    PER_SURFACE_ROLLBACK: 'per_surface_receipt_set_sha256',
+    DISPOSAL_ABSENCE: 'disposal_absence_receipt_sha256',
+    CREDENTIAL_REVOCATION: 'credential_revocation_receipt_sha256'
+  }[evidenceClass];
+  return {
+    model: 'STORAGE_EDGE_REALTIME_ROLLBACK_AUTHENTICATION_V1',
+    evidence_class: evidenceClass,
+    subject_sha256: rollback.subject_sha256,
+    run_correlation_sha256: rollback.run_correlation_sha256,
+    completed_at: rollback.completed_at,
+    inverse_order: rollback.inverse_order,
+    preimage_restored: rollback.preimage_restored,
+    evidence_receipt_sha256: rollback[evidenceField],
+    broad_drop_used: rollback.broad_drop_used,
+    execution_authorized_by_source_contract: rollback.execution_authorized_by_source_contract
+  };
 }
 
 function authAppDataPrerequisiteSetSha256(receipt) {
@@ -1398,6 +1621,334 @@ export function validateDisposableTargetBootstrapContract(contract) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+function validateStorageEdgeRealtimeReceiptSanitization(receipt) {
+  const failures = [];
+  const forbiddenKey = /^(?:raw_?provider_?response|project_?ref(?:erence)?|provider_?url|object_?key|object_?body|secret_?value|credential|sql_?bytes|machine_?path|pii|email|uuid)$/i;
+  const inspect = (value, location = 'receipt') => {
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => inspect(entry, `${location}[${index}]`));
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [key, child] of Object.entries(value)) {
+        if (forbiddenKey.test(key)) failures.push(`${location}.${key}: forbidden evidence field`);
+        inspect(child, `${location}.${key}`);
+      }
+      return;
+    }
+    if (typeof value !== 'string') return;
+    if (/https?:\/\//i.test(value)) failures.push(`${location}: provider URL is forbidden`);
+    if (/\b[a-z0-9]{20}\b/.test(value) && !/^[0-9a-f]{64}$/.test(value)) failures.push(`${location}: project reference is forbidden`);
+    if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(value)) failures.push(`${location}: PII is forbidden`);
+    if (/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i.test(value)) failures.push(`${location}: UUID is forbidden`);
+    if (/^(?:[A-Za-z]:[\\/]|\/(?:Users|home|tmp)\b)/i.test(value)) failures.push(`${location}: machine path is forbidden`);
+  };
+  inspect(receipt);
+  return failures;
+}
+
+export function validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, receipt, validationContext = null) {
+  const failures = [];
+  const requireReceipt = (condition, message) => {
+    if (!condition) failures.push(`Storage/Edge/Realtime receipt: ${message}`);
+  };
+  const zero = /^0{64}$/;
+  const trustedActionTime = validationContext?.trusted_action_time;
+  const subject = receipt?.subject_sha256;
+  const run = receipt?.run_correlation_sha256;
+  const maximumAge = contract?.receipt_policy?.maximum_evidence_age_seconds ?? 900;
+  const fresh = (value) => typeof trustedActionTime === 'string' && isFreshObservation(value, trustedActionTime, maximumAge);
+  const bind = (component) => component?.subject_sha256 === subject && component?.run_correlation_sha256 === run;
+
+  requireReceipt(receipt?.version === '1.0.0' && receipt?.contract_id === 'storage-edge-realtime-execution-denominator', 'identity drift');
+  if (receipt?.status === 'BLOCKED') {
+    requireReceipt(canonicalDigest(receipt) === canonicalDigest(contract?.receipt_example), 'BLOCKED receipt must equal the complete canonical blocked projection');
+    return failures.sort((left, right) => left.localeCompare(right));
+  }
+  requireReceipt(receipt?.status === 'CURRENT', 'status must be BLOCKED or CURRENT');
+  requireReceipt(typeof trustedActionTime === 'string' && !Number.isNaN(Date.parse(trustedActionTime)), 'CURRENT validation requires an injected trusted action time');
+  requireReceipt(receipt?.validated_at === trustedActionTime, 'validated_at must equal the injected trusted action time');
+  requireReceipt(isNonzeroSha256(subject) && isNonzeroSha256(run) && subject !== run, 'subject and run commitments must be distinct and nonzero');
+  requireReceipt(exactOrderedValues(receipt?.completed_actions, storageEdgeRealtimeActionOrder), 'fixed action order is incomplete, duplicated, or reordered');
+
+  const bindings = contract?.immutable_bindings ?? {};
+  const bundle = receipt?.bundle_evidence ?? {};
+  requireReceipt(receipt?.package?.migration_count === 122 && receipt?.package?.standard_migration_sql_count === 0, 'migration denominator or executable placement drift');
+  requireReceipt(receipt?.package?.migration_package_sha256 === bindings.migration_package_sha256 && receipt?.package?.governance_manifest_sha256 === bindings.governance_manifest_sha256, 'migration or governance package drift');
+  requireReceipt(receipt?.package?.bundle_manifest_sha256 === bindings.promoted_bundle?.manifest_sha256 && receipt?.package?.query_model_sha256 === bindings.expected_state_model?.query_model_sha256, 'bundle or query-model binding drift');
+  requireReceipt(bundle.status === 'CURRENT' && bind(bundle) && fresh(bundle.reviewed_at), 'bundle evidence must be CURRENT, fresh, and subject/run-bound');
+  requireReceipt(bundle.manifest_sha256 === bindings.promoted_bundle?.manifest_sha256, 'reviewed byte-manifest substitution');
+  requireReceipt(isNonzeroSha256(bundle.reviewer_receipt_sha256) && isNonzeroSha256(bundle.reviewed_expected_state_receipt_sha256) && bundle.reviewer_receipt_sha256 !== bundle.reviewed_expected_state_receipt_sha256, 'bundle review and expected-state receipts must be distinct and nonzero');
+  requireReceipt(bundle.source_artifacts_unchanged === true && bundle.sql_bytes_serialized === false && bundle.executor_included === false, 'bundle evidence cannot serialize SQL, include an executor, or admit byte drift');
+
+  const storage = receipt?.storage ?? {};
+  requireReceipt(storage.status === 'CURRENT' && bind(storage), 'Storage denominator must be CURRENT and subject/run-bound');
+  requireReceipt(storage.pagination_complete === true && storage.page_exhausted === true && Number.isInteger(storage.page_count) && storage.page_count >= 1 && isNonzeroSha256(storage.pagination_sha256), 'Storage pagination must be complete and exhausted');
+  for (const field of ['bucket_count', 'object_count', 'multipart_upload_count', 'total_bytes']) requireReceipt(Number.isInteger(storage[field]) && storage[field] >= 0, `Storage ${field} must be a nonnegative integer`);
+  requireReceipt(storage.body_state === (storage.object_count === 0 ? 'ZERO_COMPLETE' : 'NONZERO_COMPLETE'), 'Storage body denominator must be zero-complete or complete-nonzero');
+  requireReceipt(storage.object_count > 0 || storage.total_bytes === 0, 'zero-object Storage denominator cannot claim bytes');
+  for (const field of ['bucket_settings_sha256', 'object_metadata_sha256', 'body_inventory_sha256']) requireReceipt(isNonzeroSha256(storage[field]), `Storage ${field} must be content-addressed`);
+  requireReceipt(storage.mutation_method === 'STORAGE_API_ONLY' && storage.direct_sql_mutation === false && storage.object_keys_serialized === false && storage.object_bodies_serialized === false, 'Storage mutation and redaction boundary drift');
+  for (const [label, read] of [['A', storage.body_read_a], ['B', storage.body_read_b]]) {
+    requireReceipt(read?.status === 'CURRENT' && fresh(read?.observed_at), `Storage body read ${label} must be CURRENT and fresh`);
+    requireReceipt(isNonzeroSha256(read?.reader_identity_sha256) && isNonzeroSha256(read?.execution_identity_sha256) && isNonzeroSha256(read?.evidence_receipt_sha256), `Storage body read ${label} requires independent evidence identities`);
+    requireReceipt(read?.object_count === storage.object_count && read?.total_bytes === storage.total_bytes && read?.body_inventory_sha256 === storage.body_inventory_sha256, `Storage body read ${label} denominator mismatch`);
+  }
+  const storageReadSeparation = (Date.parse(storage.body_read_b?.observed_at) - Date.parse(storage.body_read_a?.observed_at)) / 1000;
+  requireReceipt(
+    storageReadSeparation >= contract?.receipt_policy?.minimum_read_separation_seconds
+      && storageReadSeparation <= contract?.receipt_policy?.maximum_read_separation_seconds,
+    'Storage body reads must use the required observation window'
+  );
+  requireReceipt(new Set([
+    storage.body_read_a?.reader_identity_sha256,
+    storage.body_read_b?.reader_identity_sha256,
+    storage.body_read_a?.execution_identity_sha256,
+    storage.body_read_b?.execution_identity_sha256,
+    storage.body_read_a?.evidence_receipt_sha256,
+    storage.body_read_b?.evidence_receipt_sha256
+  ]).size === 6, 'Storage body reads require distinct reader, execution, and evidence identities');
+  requireReceipt(storage.aggregate_sha256 === storageEdgeRealtimeComponentDigest(storage), 'Storage aggregate digest mismatch');
+
+  const edge = receipt?.edge ?? {};
+  requireReceipt(edge.status === 'CURRENT' && bind(edge), 'Edge denominator must be CURRENT and subject/run-bound');
+  requireReceipt(edge.pagination_complete === true && edge.page_exhausted === true && Number.isInteger(edge.page_count) && edge.page_count >= 1 && isNonzeroSha256(edge.pagination_sha256), 'Edge pagination must be complete and exhausted');
+  for (const field of ['function_count', 'route_count', 'schedule_count', 'hook_count', 'secret_name_count', 'invocation_count', 'outbound_network_request_count']) requireReceipt(Number.isInteger(edge[field]) && edge[field] >= 0, `Edge ${field} must be a nonnegative integer`);
+  for (const field of ['function_manifest_sha256', 'route_manifest_sha256', 'schedule_manifest_sha256', 'hook_manifest_sha256', 'secret_name_set_sha256']) requireReceipt(isNonzeroSha256(edge[field]), `Edge ${field} must be content-addressed`);
+  requireReceipt(edge.invocation_count === 0 && edge.outbound_network_request_count === 0 && edge.secret_values_serialized === false, 'Edge rehearsal requires zero invocation/egress and no secret values');
+  for (const inverse of [edge.undeploy, edge.credential_revocation]) requireReceipt(inverse?.status === 'CURRENT' && isNonzeroSha256(inverse?.receipt_sha256) && inverse?.independently_authenticated === true, 'Edge inverse evidence must be CURRENT, authenticated, and content-addressed');
+  requireReceipt(edge.undeploy?.receipt_sha256 !== edge.credential_revocation?.receipt_sha256, 'Edge undeploy and credential-revocation evidence must be distinct');
+  requireReceipt(edge.aggregate_sha256 === storageEdgeRealtimeComponentDigest(edge), 'Edge aggregate digest mismatch');
+
+  const realtime = receipt?.realtime ?? {};
+  requireReceipt(realtime.status === 'CURRENT' && bind(realtime), 'Realtime denominator must be CURRENT and subject/run-bound');
+  requireReceipt(realtime.pagination_complete === true && realtime.page_exhausted === true && Number.isInteger(realtime.page_count) && realtime.page_count >= 1 && isNonzeroSha256(realtime.pagination_sha256), 'Realtime pagination must be complete and exhausted');
+  requireReceipt(realtime.broadcast_path_count === 6 && realtime.presence_disposition === 'EPHEMERAL_NOT_MIGRATED' && realtime.presence_persisted_count === 0, 'Realtime Broadcast or Presence denominator drift');
+  for (const field of ['service_settings_sha256', 'service_limits_sha256', 'publication_membership_sha256', 'replica_identity_sha256', 'private_schema_security_sha256', 'broadcast_path_manifest_sha256', 'message_replay_disposition_sha256']) requireReceipt(isNonzeroSha256(realtime[field]), `Realtime ${field} must be content-addressed`);
+  requireReceipt(realtime.replica_identity_count === realtime.published_table_count, 'Realtime replica-identity denominator must cover every published table');
+  requireReceipt(realtime.connected_client_count === 0 && realtime.broadcast_event_count === 0 && realtime.postgres_change_event_count === 0, 'Realtime rehearsal must have zero connected clients and events');
+  requireReceipt(realtime.rollback?.status === 'CURRENT' && isNonzeroSha256(realtime.rollback?.receipt_sha256) && realtime.rollback?.independently_authenticated === true, 'Realtime rollback evidence must be CURRENT and independently authenticated');
+  requireReceipt(realtime.aggregate_sha256 === storageEdgeRealtimeComponentDigest(realtime), 'Realtime aggregate digest mismatch');
+
+  const outbound = receipt?.outbound ?? {};
+  requireReceipt(outbound.status === 'CURRENT' && bind(outbound), 'outbound denominator must be CURRENT and subject/run-bound');
+  requireReceipt(outbound.pagination_complete === true && outbound.page_exhausted === true && Number.isInteger(outbound.page_count) && outbound.page_count >= 1 && isNonzeroSha256(outbound.pagination_sha256), 'outbound pagination must be complete and exhausted');
+  requireReceipt(exactOrderedValues((outbound.units ?? []).map((unit) => unit.surface), storageEdgeRealtimeOutboundSurfaces), 'outbound surface denominator or order drift');
+  requireReceipt(new Set((outbound.units ?? []).map((unit) => unit.surface)).size === storageEdgeRealtimeOutboundSurfaces.length, 'outbound surfaces must be unique');
+  const dispositions = contract?.outbound_contract?.dispositions ?? {};
+  for (const unit of outbound.units ?? []) {
+    requireReceipt(unit.status === 'CURRENT' && unit.disposition === dispositions[unit.surface], `${unit.surface}: disposition or status drift`);
+    requireReceipt(Number.isInteger(unit.inventory_count) && unit.inventory_count >= 0 && Number.isInteger(unit.history_count) && unit.history_count >= 0, `${unit.surface}: invalid count`);
+    requireReceipt(isNonzeroSha256(unit.manifest_sha256) && unit.urls_redacted === true && unit.secret_material_serialized === false, `${unit.surface}: manifest/redaction boundary drift`);
+  }
+  const inventoryTotal = (outbound.units ?? []).reduce((sum, unit) => sum + unit.inventory_count, 0);
+  const historyTotal = (outbound.units ?? []).reduce((sum, unit) => sum + unit.history_count, 0);
+  for (const [label, read] of [['A', outbound.read_a], ['B', outbound.read_b]]) {
+    requireReceipt(read?.status === 'CURRENT' && fresh(read?.observed_at), `outbound read ${label} must be CURRENT and fresh`);
+    requireReceipt(read?.inventory_count === inventoryTotal && read?.history_count === historyTotal && read?.external_effect_count === 0, `outbound read ${label} denominator mismatch`);
+    requireReceipt(isNonzeroSha256(read?.reader_identity_sha256) && isNonzeroSha256(read?.execution_identity_sha256) && isNonzeroSha256(read?.evidence_receipt_sha256), `outbound read ${label} evidence identities are incomplete`);
+  }
+  requireReceipt(outbound.read_a?.aggregate_sha256 === storageEdgeRealtimeOutboundReadDigest(outbound.units, outbound.read_a), 'outbound read A aggregate mismatch');
+  requireReceipt(outbound.read_b?.aggregate_sha256 === storageEdgeRealtimeOutboundReadDigest(outbound.units, outbound.read_b), 'outbound read B aggregate mismatch');
+  requireReceipt(outbound.read_a?.aggregate_sha256 === outbound.read_b?.aggregate_sha256 && isNonzeroSha256(outbound.read_a?.aggregate_sha256), 'outbound complete reads must match');
+  const outboundReadSeparation = (Date.parse(outbound.read_b?.observed_at) - Date.parse(outbound.read_a?.observed_at)) / 1000;
+  requireReceipt(
+    outboundReadSeparation >= contract?.receipt_policy?.minimum_read_separation_seconds
+      && outboundReadSeparation <= contract?.receipt_policy?.maximum_read_separation_seconds,
+    'outbound reads must use the required observation window'
+  );
+  requireReceipt(outbound.history_growth === 0 && outbound.external_effect_growth === 0, 'outbound history and external-effect growth must remain zero');
+  requireReceipt(outbound.aggregate_sha256 === storageEdgeRealtimeComponentDigest(outbound), 'outbound aggregate digest mismatch');
+
+  const dataApi = receipt?.data_api ?? {};
+  requireReceipt(dataApi.status === 'CURRENT' && bind(dataApi), 'Data API evidence must be CURRENT and subject/run-bound');
+  requireReceipt(dataApi.oauth_scope === 'rest:read' && dataApi.permission === 'data_api_config_read', 'Data API scope or permission drift');
+  requireReceipt(dataApi.jwt_secret_redacted === true && dataApi.raw_response_persisted === false && dataApi.request_headers_persisted === false, 'Data API raw evidence must remain redacted and unpersisted');
+  const expectedPreimage = { enabled: true, exposed_schemas: ['graphql_public', 'public'], extra_search_path: ['public', 'extensions'], automatic_public_exposure: false };
+  const expectedPostimage = contract?.data_api_contract?.required_postimage ?? {};
+  for (const [label, projection, expected] of [['preimage', dataApi.preimage, expectedPreimage], ['postimage', dataApi.postimage, expectedPostimage], ['rollback', dataApi.rollback, expectedPreimage]]) {
+    requireReceipt(projection?.status === 'CURRENT' && fresh(projection?.observed_at), `Data API ${label} must be CURRENT and fresh`);
+    requireReceipt(isNonzeroSha256(projection?.observer_identity_sha256) && isNonzeroSha256(projection?.evidence_receipt_sha256), `Data API ${label} requires observer and evidence identities`);
+    requireReceipt(canonicalDigest({ enabled: projection?.enabled, exposed_schemas: projection?.exposed_schemas, extra_search_path: projection?.extra_search_path, automatic_public_exposure: projection?.automatic_public_exposure }) === canonicalDigest(expected), `Data API ${label} projection mismatch`);
+    requireReceipt(projection?.projection_sha256 === storageEdgeRealtimeDataApiProjectionDigest(projection), `Data API ${label} digest mismatch`);
+  }
+  requireReceipt(new Set([dataApi.preimage?.observer_identity_sha256, dataApi.postimage?.observer_identity_sha256, dataApi.rollback?.observer_identity_sha256]).size === 3, 'Data API readbacks require distinct observers');
+  requireReceipt(new Set([dataApi.preimage?.evidence_receipt_sha256, dataApi.postimage?.evidence_receipt_sha256, dataApi.rollback?.evidence_receipt_sha256]).size === 3, 'Data API readbacks require distinct evidence receipts');
+  requireReceipt(Date.parse(dataApi.preimage?.observed_at) < Date.parse(dataApi.postimage?.observed_at) && Date.parse(dataApi.postimage?.observed_at) < Date.parse(dataApi.rollback?.observed_at), 'Data API preimage, postimage, and rollback chronology is invalid');
+  requireReceipt(Date.parse(bundle.reviewed_at) < Date.parse(dataApi.preimage?.observed_at), 'bundle review must strictly precede the Data API execution preimage');
+
+  const completeReads = receipt?.complete_reads ?? {};
+  const expectedState = storageEdgeRealtimeExpectedStateDigest(receipt);
+  requireReceipt(completeReads.status === 'CURRENT' && completeReads.expected_state_sha256 === expectedState, 'complete-read expected state binding mismatch');
+  for (const [label, read] of [['A', completeReads.read_a], ['B', completeReads.read_b]]) {
+    requireReceipt(read?.status === 'CURRENT' && read?.complete === true && fresh(read?.observed_at), `complete read ${label} must be CURRENT, complete, and fresh`);
+    requireReceipt(read?.query_model_sha256 === bindings.expected_state_model?.query_model_sha256 && read?.aggregate_sha256 === expectedState, `complete read ${label} query or aggregate mismatch`);
+    requireReceipt(isNonzeroSha256(read?.reader_identity_sha256) && isNonzeroSha256(read?.execution_identity_sha256) && isNonzeroSha256(read?.evidence_receipt_sha256), `complete read ${label} evidence identities are incomplete`);
+  }
+  const readSeparation = (Date.parse(completeReads.read_b?.observed_at) - Date.parse(completeReads.read_a?.observed_at)) / 1000;
+  requireReceipt(readSeparation >= 1 && readSeparation <= 900, 'complete reads must use the required observation window');
+  requireReceipt(new Set([
+    completeReads.read_a?.reader_identity_sha256,
+    completeReads.read_b?.reader_identity_sha256,
+    completeReads.read_a?.execution_identity_sha256,
+    completeReads.read_b?.execution_identity_sha256,
+    completeReads.read_a?.evidence_receipt_sha256,
+    completeReads.read_b?.evidence_receipt_sha256
+  ]).size === 6, 'complete reads require distinct reader, execution, and evidence identities');
+  requireReceipt(Date.parse(dataApi.postimage?.observed_at) < Date.parse(completeReads.read_a?.observed_at), 'Data API postimage must strictly precede complete read A');
+
+  const zeroEffects = receipt?.zero_effects ?? {};
+  requireReceipt(zeroEffects.status === 'CURRENT' && bind(zeroEffects) && fresh(zeroEffects.observed_at) && zeroEffects.complete_denominator === true, 'zero-effect evidence must be CURRENT, complete, fresh, and subject/run-bound');
+  requireReceipt(isNonzeroSha256(zeroEffects.observer_identity_sha256) && isNonzeroSha256(zeroEffects.execution_identity_sha256) && zeroEffects.observer_identity_sha256 !== zeroEffects.execution_identity_sha256, 'zero-effect observer and execution identities must be distinct and nonzero');
+  for (const field of storageEdgeRealtimeZeroEffectFields) requireReceipt(zeroEffects[field] === 0, `external effect ${field} must equal zero`);
+  requireReceipt(zeroEffects.evidence_receipt_sha256 === storageEdgeRealtimeZeroEffectDigest(receipt), 'zero-effect evidence receipt must content-address the exact subject, run, action-time observation, identities, complete denominator, and zero counts');
+  requireReceipt(Date.parse(completeReads.read_b?.observed_at) < Date.parse(zeroEffects.observed_at), 'complete read B must strictly precede the zero-effect observation');
+
+  const forwardPolicy = contract?.forward_evidence_authentication ?? {};
+  const evidenceAnchors = [
+    forwardPolicy.trust_anchor,
+    contract?.rollback_authentication?.per_surface?.trust_anchor,
+    contract?.rollback_authentication?.disposal_absence?.trust_anchor,
+    contract?.rollback_authentication?.credential_revocation?.trust_anchor
+  ];
+  requireReceipt(
+    evidenceAnchors.every((anchor) => anchor?.status === 'CURRENT')
+      && new Set(evidenceAnchors.map((anchor) => anchor?.key_id)).size === evidenceAnchors.length
+      && new Set(evidenceAnchors.map((anchor) => anchor?.public_key_spki_sha256)).size === evidenceAnchors.length,
+    'forward and rollback evidence require four distinct installed trust anchors'
+  );
+  requireReceipt(
+    sameValues(Object.keys(receipt?.forward_evidence_authentication ?? {}), [
+      'algorithm',
+      'key_id',
+      'public_key_spki_sha256',
+      'signed_payload_sha256',
+      'signature_base64'
+    ]),
+    'forward evidence receipt cannot carry caller-supplied trust material'
+  );
+  requireReceipt(
+    authAppDataVerifyAuthentication(
+      storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt),
+      receipt?.forward_evidence_authentication,
+      forwardPolicy
+    ),
+    'forward bundle-review, complete-read, and zero-effect evidence requires a valid signature from its pinned distinct trust domain'
+  );
+
+  const rollback = receipt?.rollback ?? {};
+  requireReceipt(rollback.status === 'CURRENT' && bind(rollback) && fresh(rollback.completed_at) && exactOrderedValues(rollback.inverse_order, storageEdgeRealtimeRollbackOrder), 'rollback must be CURRENT, fresh, subject/run-bound, and use the exact inverse order');
+  requireReceipt(
+    Date.parse(rollback.completed_at) >= Date.parse(dataApi.rollback?.observed_at)
+      && Date.parse(rollback.completed_at) >= Date.parse(completeReads.read_b?.observed_at)
+      && Date.parse(rollback.completed_at) > Date.parse(zeroEffects.observed_at),
+    'rollback completion must follow the terminal readbacks and zero-effect observation'
+  );
+  requireReceipt(rollback.preimage_restored === true && rollback.independently_authenticated === true && rollback.broad_drop_used === false && rollback.execution_authorized_by_source_contract === false, 'rollback proof or authority boundary drift');
+  for (const field of ['per_surface_receipt_set_sha256', 'disposal_absence_receipt_sha256', 'credential_revocation_receipt_sha256']) requireReceipt(isNonzeroSha256(rollback[field]), `rollback ${field} is required`);
+  requireReceipt(rollback.per_surface_receipt_set_sha256 === storageEdgeRealtimePerSurfaceReceiptSetDigest(receipt), 'per-surface rollback receipt set must bind the accepted Edge and Realtime inverse evidence');
+  requireReceipt(new Set([rollback.per_surface_receipt_set_sha256, rollback.disposal_absence_receipt_sha256, rollback.credential_revocation_receipt_sha256]).size === 3, 'rollback, disposal, and credential-revocation evidence must be distinct');
+  for (const [evidenceClass, authenticationField, policyField] of [
+    ['PER_SURFACE_ROLLBACK', 'per_surface_authentication', 'per_surface'],
+    ['DISPOSAL_ABSENCE', 'disposal_absence_authentication', 'disposal_absence'],
+    ['CREDENTIAL_REVOCATION', 'credential_revocation_authentication', 'credential_revocation']
+  ]) {
+    requireReceipt(
+      authAppDataVerifyAuthentication(
+        storageEdgeRealtimeRollbackAuthenticationSubject(receipt, evidenceClass),
+        rollback[authenticationField],
+        contract?.rollback_authentication?.[policyField]
+      ),
+      `${evidenceClass} requires a valid signature from its pinned distinct trust domain`
+    );
+  }
+
+  requireReceipt(receipt?.terminal_receipt_sha256 === storageEdgeRealtimeTerminalReceiptDigest(receipt), 'terminal receipt digest mismatch');
+  requireReceipt(!JSON.stringify(receipt).includes('UNKNOWN'), 'CURRENT receipt cannot promote UNKNOWN evidence');
+  failures.push(...validateStorageEdgeRealtimeReceiptSanitization(receipt).map((failure) => `Storage/Edge/Realtime receipt: ${failure}`));
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
+export function validateStorageEdgeRealtimeExecutionDenominatorContract(contract) {
+  const failures = [];
+  const requireContract = (condition, message) => {
+    if (!condition) failures.push(`Storage/Edge/Realtime contract: ${message}`);
+  };
+  requireContract(contract?.version === '1.0.0' && contract?.contract_id === 'storage-edge-realtime-execution-denominator' && contract?.status === 'CURRENT', 'identity drift');
+  requireContract(contract?.lifecycle?.source_contract === 'SOURCE_READY' && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED' && contract?.lifecycle?.apply_admitted === false, 'lifecycle must remain source-ready, execution-blocked, and apply=false');
+  requireContract(contract?.scope?.offline_contract_only === true, 'scope must remain offline only');
+  for (const field of ['provider_connectivity_included', 'provider_runner_included', 'credential_material_included', 'sql_bytes_included', 'executable_bundle_included', 'storage_transfer_authorized', 'edge_deploy_authorized', 'realtime_mutation_authorized', 'data_api_mutation_authorized', 'rollback_disposal_or_revocation_authorized']) {
+    requireContract(contract?.scope?.[field] === false, `${field} must remain false`);
+  }
+  requireContract(contract?.immutable_bindings?.migration_count === 122 && contract?.immutable_bindings?.standard_migration_sql_count === 0, 'migration denominator drift');
+  requireContract(contract?.immutable_bindings?.migration_package_sha256 === 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db' && contract?.immutable_bindings?.governance_manifest_sha256 === '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec', 'package identities drift');
+  requireContract(contract?.immutable_bindings?.promoted_bundle?.manifest_sha256 === 'ce85de2e32fca8497d7bb6380e51e3bc9d5717f1a07b25151414da5552075849' && contract?.immutable_bindings?.promoted_bundle?.artifact_count === 4 && contract?.immutable_bindings?.promoted_bundle?.executable_statement_count === 721, 'reviewed promoted-byte manifest drift');
+  for (const artifact of contract?.immutable_bindings?.promoted_bundle?.artifacts ?? []) {
+    const absolute = path.join(repositoryRoot, artifact.path);
+    requireContract(fs.existsSync(absolute), `${artifact.path} missing`);
+    if (fs.existsSync(absolute)) {
+      const bytes = fs.readFileSync(absolute);
+      requireContract(bytes.length === artifact.bytes && crypto.createHash('sha256').update(bytes).digest('hex') === artifact.sha256, `${artifact.path} byte identity drift`);
+    }
+  }
+  requireContract(contract?.immutable_bindings?.expected_state_model?.query_model_sha256 === 'fc34c2bd4a84cc04f632ab42fc15d5c1b767ce839ce6d014f4d116ed4473308c', 'expected-state query model drift');
+  requireContract(exactOrderedValues(contract?.action_order, storageEdgeRealtimeActionOrder), 'action order drift');
+  requireContract(contract?.storage_contract?.body_read_count === 2 && contract?.storage_contract?.body_reads_must_be_independent === true && contract?.storage_contract?.mutation_method === 'STORAGE_API_ONLY' && contract?.storage_contract?.direct_sql_storage_mutation_forbidden === true, 'Storage evidence boundary drift');
+  requireContract(exactOrderedValues(contract?.realtime_contract?.broadcast_paths, ['CLIENT_JSON', 'CLIENT_BINARY', 'REST_JSON', 'REST_BINARY', 'DATABASE_JSON', 'DATABASE_BINARY']) && contract?.realtime_contract?.presence_disposition === 'EPHEMERAL_NOT_MIGRATED', 'Realtime denominator drift');
+  requireContract(exactOrderedValues(contract?.outbound_contract?.surface_order, storageEdgeRealtimeOutboundSurfaces), 'outbound surface order drift');
+  requireContract(contract?.data_api_contract?.oauth_scope === 'rest:read' && contract?.data_api_contract?.permission === 'data_api_config_read' && contract?.data_api_contract?.jwt_secret_redacted_required === true && contract?.data_api_contract?.raw_response_persistence_forbidden === true, 'Data API readback boundary drift');
+  requireContract(exactOrderedValues(contract?.rollback_contract?.inverse_order, storageEdgeRealtimeRollbackOrder) && contract?.rollback_contract?.broad_drop_is_rollback === false && contract?.rollback_contract?.execution_requires_separate_authority === true, 'rollback boundary drift');
+  const rollbackAuthentication = contract?.rollback_authentication ?? {};
+  const forwardAuthentication = contract?.forward_evidence_authentication ?? {};
+  requireContract(
+    forwardAuthentication.verification_boundary === 'distinct_pinned_ed25519_signature'
+      && forwardAuthentication.signature_domain === 'fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1'
+      && exactOrderedValues(forwardAuthentication.evidence_classes, storageEdgeRealtimeForwardEvidenceClasses)
+      && forwardAuthentication.caller_supplied_trust_material_allowed === false
+      && forwardAuthentication.current_receipt_allowed_while_anchor_blocked === false
+      && forwardAuthentication.must_be_distinct_from_rollback_anchors === true,
+    'forward evidence authentication policy drift'
+  );
+  requireContract(
+    rollbackAuthentication.per_surface?.signature_domain === 'fawxzzy.platform.storage-edge-realtime.per-surface-rollback.v1'
+      && rollbackAuthentication.disposal_absence?.signature_domain === 'fawxzzy.platform.storage-edge-realtime.disposal-absence.v1'
+      && rollbackAuthentication.credential_revocation?.signature_domain === 'fawxzzy.platform.storage-edge-realtime.credential-revocation.v1'
+      && rollbackAuthentication.all_trust_anchors_must_be_distinct === true
+      && rollbackAuthentication.caller_supplied_trust_material_allowed === false
+      && rollbackAuthentication.current_receipt_allowed_while_anchor_blocked === false,
+    'rollback authentication policy drift'
+  );
+  const rollbackAnchors = [
+    rollbackAuthentication.per_surface?.trust_anchor,
+    rollbackAuthentication.disposal_absence?.trust_anchor,
+    rollbackAuthentication.credential_revocation?.trust_anchor
+  ];
+  requireContract(
+    rollbackAnchors.every((anchor) => anchor?.status === 'BLOCKED'
+      && anchor?.algorithm === 'Ed25519'
+      && anchor?.key_id === 'UNKNOWN'
+      && anchor?.public_key_spki_base64 === null
+      && anchor?.public_key_spki_sha256 === null)
+      && new Set(rollbackAnchors.map((anchor) => anchor?.verifier_reference)).size === 3,
+    'checked-in rollback trust anchors must remain distinct, BLOCKED, and uninstalled'
+  );
+  const forwardAnchor = forwardAuthentication.trust_anchor;
+  requireContract(
+    forwardAnchor?.status === 'BLOCKED'
+      && forwardAnchor?.algorithm === 'Ed25519'
+      && forwardAnchor?.key_id === 'UNKNOWN'
+      && forwardAnchor?.verifier_reference === 'storage-edge-realtime-forward-evidence-verifier-v1'
+      && forwardAnchor?.public_key_spki_base64 === null
+      && forwardAnchor?.public_key_spki_sha256 === null
+      && !rollbackAnchors.some((anchor) => anchor?.verifier_reference === forwardAnchor?.verifier_reference),
+    'checked-in forward evidence trust anchor must remain distinct, BLOCKED, and uninstalled'
+  );
+  requireContract(contract?.receipt_policy?.canonical_blocked_projection_required === true && contract?.receipt_policy?.trusted_action_time_must_be_injected === true && contract?.receipt_policy?.receipt_validated_at_is_trusted === false && contract?.receipt_policy?.unknown_may_be_promoted_to_current === false && contract?.receipt_policy?.aggregate_only === true, 'receipt trust/redaction boundary drift');
+  requireContract(contract?.receipt_example?.status === 'BLOCKED', 'checked-in receipt must remain BLOCKED');
+  failures.push(...validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, contract?.receipt_example));
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateAuthAppDataRehearsalReceipt(contract, receipt, validationContext = null) {
   const failures = [];
   const requireReceipt = (condition, message) => {
@@ -1697,6 +2248,18 @@ export function validateAuthAppDataRehearsalContract(contract, documents = loadD
     requireContract(document?.version === binding.version, `${binding.path} version drift`);
     requireContract(document !== undefined && canonicalDigest(document) === binding.sha256, `${binding.path} canonical digest drift`);
   }
+  const executionDenominator = contract?.execution_denominator ?? {};
+  requireContract(
+    executionDenominator.status === 'CURRENT'
+      && executionDenominator.contract_path === storageEdgeRealtimeContractPath
+      && executionDenominator.contract_version === '1.0.0'
+      && executionDenominator.contract_sha256 === storageEdgeRealtimeContractSha256
+      && executionDenominator.source_contract === 'SOURCE_READY'
+      && executionDenominator.execution === 'EXECUTION_BLOCKED'
+      && executionDenominator.apply_admitted === false
+      && executionDenominator.provider_mutation_authorized === false,
+    'Storage/Edge/Realtime execution-denominator binding or lifecycle drift'
+  );
   const executionAuthentication = contract?.execution_authentication ?? {};
   const authorityPolicy = executionAuthentication.authority ?? {};
   const executorPolicy = executionAuthentication.executor ?? {};
@@ -1882,6 +2445,9 @@ export function validateSemantics(documents) {
   failures.push(...validateDisposableTargetBootstrapContract(targetBootstrapContract));
   requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
   requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'disposable target bootstrap source contract: contracts/v1/bootstrap/disposable-target-bootstrap-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate target_bootstrap source-contract binding must remain CURRENT');
+  const storageEdgeRealtimeContract = documents[storageEdgeRealtimeContractPath] ?? {};
+  failures.push(...validateStorageEdgeRealtimeExecutionDenominatorContract(storageEdgeRealtimeContract));
+  requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === `Storage/Edge/Realtime execution denominator source contract: ${storageEdgeRealtimeContractPath}` && evidence.status === 'CURRENT') === true, 'migration gate Storage/Edge/Realtime execution-denominator binding must remain CURRENT');
   const authAppDataRehearsalContract = documents['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json'] ?? {};
   failures.push(...validateAuthAppDataRehearsalContract(authAppDataRehearsalContract, documents));
   requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'Auth/application-data rehearsal source contract: contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate Auth/application-data rehearsal source-contract binding must remain CURRENT');
@@ -2427,7 +2993,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 25,
+    semantic_check_groups: 26,
     failures
   };
 }
