@@ -503,6 +503,10 @@
       "status": "CURRENT"
     },
     {
+      "name": "Storage/Edge/Realtime execution denominator source contract: contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json",
+      "status": "CURRENT"
+    },
+    {
       "name": "identity collision adjudication",
       "status": "OWNER_DECISION"
     },

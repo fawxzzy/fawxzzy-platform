@@ -11,6 +11,7 @@
     "lifecycle",
     "scope",
     "contract_bindings",
+    "execution_denominator",
     "execution_authentication",
     "auth_surface_dispositions",
     "application_data_denominator",
@@ -119,11 +120,51 @@
         },
         "documents": {
           "type": "array",
-          "minItems": 13,
-          "maxItems": 13,
+          "minItems": 14,
+          "maxItems": 14,
           "items": {
             "$ref": "#/$defs/documentBinding"
           }
+        }
+      }
+    },
+    "execution_denominator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "contract_path",
+        "contract_version",
+        "contract_sha256",
+        "source_contract",
+        "execution",
+        "apply_admitted",
+        "provider_mutation_authorized"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "contract_path": {
+          "const": "contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json"
+        },
+        "contract_version": {
+          "const": "1.0.0"
+        },
+        "contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "provider_mutation_authorized": {
+          "const": false
         }
       }
     },
