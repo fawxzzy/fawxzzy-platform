@@ -7,7 +7,7 @@ import {
   loadDocuments,
   repositoryRoot,
   validateAuthAppDataRehearsalContract,
-  validateAuthAppDataRehearsalReceipt,
+  validateAuthAppDataRehearsalReceipt as validateAuthAppDataRehearsalReceiptRaw,
   validateDisposableTargetBootstrapContract,
   validateSchemaInstances,
   validateSemantics
@@ -23,8 +23,14 @@ const authorityPublicSpki = Buffer.from(`302a300506032b6570032100${'d75a980182b1
 const authorityPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'}`, 'hex');
 const executorPublicSpki = Buffer.from(`302a300506032b6570032100${'3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'}`, 'hex');
 const executorPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb'}`, 'hex');
+const writeBarrierPublicSpki = Buffer.from(`302a300506032b6570032100${'fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025'}`, 'hex');
+const writeBarrierPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7'}`, 'hex');
 const authorityPrivateKey = crypto.createPrivateKey({ key: authorityPrivatePkcs8, format: 'der', type: 'pkcs8' });
 const executorPrivateKey = crypto.createPrivateKey({ key: executorPrivatePkcs8, format: 'der', type: 'pkcs8' });
+const writeBarrierPrivateKey = crypto.createPrivateKey({ key: writeBarrierPrivatePkcs8, format: 'der', type: 'pkcs8' });
+const consumptionPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'}`, 'hex');
+const consumptionPrivateKey = crypto.createPrivateKey({ key: consumptionPrivatePkcs8, format: 'der', type: 'pkcs8' });
+const consumptionPublicSpki = crypto.createPublicKey(consumptionPrivateKey).export({ format: 'der', type: 'spki' });
 
 function loadContract() {
   return JSON.parse(fs.readFileSync(contractPath, 'utf8'));
@@ -56,6 +62,108 @@ function installTestTrustAnchors(contract) {
     public_key_spki_base64: executorPublicSpki.toString('base64'),
     public_key_spki_sha256: crypto.createHash('sha256').update(executorPublicSpki).digest('hex')
   };
+  contract.execution_authentication.write_barrier.trust_anchor = {
+    status: 'CURRENT',
+    algorithm: 'Ed25519',
+    key_id: 'test-auth-app-data-write-barrier-authority-ed25519-v1',
+    verifier_reference: 'auth-app-data-write-barrier-authority-verifier-v1',
+    public_key_spki_base64: writeBarrierPublicSpki.toString('base64'),
+    public_key_spki_sha256: crypto.createHash('sha256').update(writeBarrierPublicSpki).digest('hex')
+  };
+  contract.execution_authentication.write_barrier_consumption.trust_anchor = {
+    status: 'CURRENT',
+    algorithm: 'Ed25519',
+    key_id: 'test-auth-app-data-write-barrier-consumption-ed25519-v1',
+    verifier_reference: 'auth-app-data-write-barrier-consumption-verifier-v1',
+    public_key_spki_base64: consumptionPublicSpki.toString('base64'),
+    public_key_spki_sha256: crypto.createHash('sha256').update(consumptionPublicSpki).digest('hex')
+  };
+}
+
+function trustedValidationContext(contract, receipt, mutate = null) {
+  const barrier = receipt.write_barrier;
+  const context = {
+    trusted_action_time: '2026-07-28T12:16:00.000Z',
+    consumption_evidence: {
+      subject_sha256: receipt.subject_sha256,
+      run_correlation_sha256: receipt.run_correlation_sha256,
+      authority_event_id: barrier.authority_event_id,
+      authority_event_payload_sha256: barrier.authority_event_payload_sha256,
+      authority_receipt_sha256: barrier.authority_receipt_sha256,
+      observer_identity_sha256: sha('5'),
+      consumed_at: '2026-07-28T12:16:00.000Z',
+      ledger_observed_at: '2026-07-28T12:16:00.000Z',
+      ledger_sequence: 1,
+      prior_consumption_count: 0,
+      current_consumption_count: 1,
+      transition: 'UNCONSUMED_TO_CONSUMED',
+      ledger_preimage_sha256: sha('3'),
+      ledger_postimage_sha256: sha('4'),
+      evidence_receipt_sha256: sha('0'),
+      authentication: {
+        algorithm: 'Ed25519',
+        key_id: 'test-auth-app-data-write-barrier-consumption-ed25519-v1',
+        public_key_spki_sha256: crypto.createHash('sha256').update(consumptionPublicSpki).digest('hex'),
+        signed_payload_sha256: sha('0'),
+        signature_base64: 'AA=='
+      }
+    }
+  };
+  if (mutate) mutate(context);
+  const evidence = context.consumption_evidence;
+  const subject = {
+    model: 'AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1',
+    trusted_action_time: context.trusted_action_time,
+    subject_sha256: evidence.subject_sha256,
+    run_correlation_sha256: evidence.run_correlation_sha256,
+    authority_event_id: evidence.authority_event_id,
+    authority_event_payload_sha256: evidence.authority_event_payload_sha256,
+    authority_receipt_sha256: evidence.authority_receipt_sha256,
+    observer_identity_sha256: evidence.observer_identity_sha256,
+    consumed_at: evidence.consumed_at,
+    ledger_observed_at: evidence.ledger_observed_at,
+    ledger_sequence: evidence.ledger_sequence,
+    prior_consumption_count: evidence.prior_consumption_count,
+    current_consumption_count: evidence.current_consumption_count,
+    transition: evidence.transition,
+    ledger_preimage_sha256: evidence.ledger_preimage_sha256,
+    ledger_postimage_sha256: evidence.ledger_postimage_sha256
+  };
+  evidence.evidence_receipt_sha256 = canonicalDigest(subject);
+  evidence.authentication.signed_payload_sha256 = evidence.evidence_receipt_sha256;
+  evidence.authentication.signature_base64 = crypto.sign(null, signedBytes(contract.execution_authentication.write_barrier_consumption.signature_domain, subject), consumptionPrivateKey).toString('base64');
+  return context;
+}
+
+function validateAuthAppDataRehearsalReceipt(contract, receipt, validationContext) {
+  const context = validationContext ?? (receipt?.status === 'CURRENT' ? trustedValidationContext(contract, receipt) : null);
+  return validateAuthAppDataRehearsalReceiptRaw(contract, receipt, context);
+}
+
+function blockedMutationCases(value, path = [], cases = []) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) cases.push({ path, replacement: ['NON_CANONICAL'] });
+    value.forEach((entry, index) => blockedMutationCases(entry, [...path, index], cases));
+    return cases;
+  }
+  if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, entry]) => blockedMutationCases(entry, [...path, key], cases));
+    return cases;
+  }
+  let replacement;
+  if (value === null) replacement = 'NON_CANONICAL';
+  else if (typeof value === 'boolean') replacement = !value;
+  else if (typeof value === 'number') replacement = value + 1;
+  else if (/^[0-9a-f]{64}$/.test(value)) replacement = value === sha('8') ? sha('7') : sha('8');
+  else replacement = `${value}-NON_CANONICAL`;
+  cases.push({ path, replacement });
+  return cases;
+}
+
+function replaceAtPath(value, path, replacement) {
+  let cursor = value;
+  for (const segment of path.slice(0, -1)) cursor = cursor[segment];
+  cursor[path.at(-1)] = replacement;
 }
 
 function bindExecutionAuthority(receipt) {
@@ -137,6 +245,41 @@ function rebindAuthorityHashesWithoutSigning(receipt) {
   authority.executor_receipt_sha256 = canonicalDigest(executorSubject);
   authority.authority_authentication.signed_payload_sha256 = authority.authority_receipt_sha256;
   authority.executor_authentication.signed_payload_sha256 = authority.executor_receipt_sha256;
+}
+
+function bindWriteBarrier(receipt) {
+  const barrier = receipt.write_barrier;
+  const subject = {
+    model: 'AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_V1',
+    status: barrier.status,
+    authorized_operation: barrier.authorized_operation,
+    contract_version: barrier.contract_version,
+    subject_sha256: barrier.subject_sha256,
+    run_correlation_sha256: barrier.run_correlation_sha256,
+    contract_binding_set_sha256: barrier.contract_binding_set_sha256,
+    migration_package_sha256: barrier.migration_package_sha256,
+    governance_manifest_sha256: barrier.governance_manifest_sha256,
+    prerequisite_set_sha256: barrier.prerequisite_set_sha256,
+    source_scope_sha256: barrier.source_scope_sha256,
+    authority_identity_sha256: barrier.authority_identity_sha256,
+    authority_event_id: barrier.authority_event_id,
+    authority_event_payload_sha256: barrier.authority_event_payload_sha256,
+    authority_issued_at: barrier.authority_issued_at,
+    authority_authorized_at: barrier.authority_authorized_at,
+    authority_observed_at: barrier.authority_observed_at,
+    authority_expires_at: barrier.authority_expires_at,
+    authority_maximum_age_seconds: barrier.authority_maximum_age_seconds,
+    entered_at: barrier.entered_at,
+    released_at: barrier.released_at
+  };
+  barrier.authority_receipt_sha256 = canonicalDigest(subject);
+  barrier.authority_authentication = {
+    algorithm: 'Ed25519',
+    key_id: 'test-auth-app-data-write-barrier-authority-ed25519-v1',
+    public_key_spki_sha256: crypto.createHash('sha256').update(writeBarrierPublicSpki).digest('hex'),
+    signed_payload_sha256: barrier.authority_receipt_sha256,
+    signature_base64: crypto.sign(null, signedBytes('fawxzzy.platform.auth-app-data.write-barrier-authority.v1', subject), writeBarrierPrivateKey).toString('base64')
+  };
 }
 
 function bindExpectedState(receipt) {
@@ -254,10 +397,29 @@ function currentReceipt(contract = loadContract()) {
   ];
   receipt.write_barrier = {
     status: 'CURRENT',
-    authority_receipt_sha256: sha('8'),
+    authorized_operation: 'SOURCE_WRITE_BARRIER',
+    contract_version: contract.version,
+    subject_sha256: receipt.subject_sha256,
+    run_correlation_sha256: receipt.run_correlation_sha256,
+    contract_binding_set_sha256: receipt.contract_binding_set_sha256,
+    migration_package_sha256: receipt.package.migration_package_sha256,
+    governance_manifest_sha256: receipt.package.governance_manifest_sha256,
+    prerequisite_set_sha256: canonicalDigest(receipt.prerequisites),
+    source_scope_sha256: sha('f'),
+    authority_identity_sha256: sha('9'),
+    authority_event_id: `onv1_${sha('7')}`,
+    authority_event_payload_sha256: sha('7'),
+    authority_issued_at: '2026-07-28T12:09:00.000Z',
+    authority_authorized_at: '2026-07-28T12:10:00.000Z',
+    authority_observed_at: '2026-07-28T12:10:30.000Z',
+    authority_expires_at: '2026-07-28T12:20:00.000Z',
+    authority_maximum_age_seconds: contract.execution_authentication.write_barrier.freshness_seconds_maximum,
+    authority_receipt_sha256: sha('0'),
+    authority_authentication: clone(receipt.write_barrier.authority_authentication),
     entered_at: '2026-07-28T12:11:00.000Z',
     released_at: '2026-07-28T12:13:00.000Z'
   };
+  bindWriteBarrier(receipt);
   receipt.postimport_reads = {
     status: 'CURRENT',
     query_model_sha256: expectedQueryModelSha256,
@@ -336,6 +498,7 @@ test('Auth/application-data rehearsal source contract is schema-valid, exact-bou
   assert.equal(contract.scope.auth_or_data_mutation_authorized, false);
   assert.equal(contract.execution_authentication.authority.trust_anchor.status, 'BLOCKED');
   assert.equal(contract.execution_authentication.executor.trust_anchor.status, 'BLOCKED');
+  assert.equal(contract.execution_authentication.write_barrier.trust_anchor.status, 'BLOCKED');
   assert.equal(contract.execution_authentication.current_receipt_allowed_while_anchor_blocked, false);
   assert.ok(contract.action_order.indexOf('RUN_SECURITY_AUTH_AND_EGRESS_NEGATIVE_PROBES') < contract.action_order.indexOf('ACTIVATE_PENDING_MEMBERSHIPS'));
   assert.equal(contract.auth_surface_dispositions.length, 20);
@@ -359,6 +522,7 @@ test('contract rejects lifecycle, provider, digest, and UNKNOWN-promotion weaken
     (contract) => { contract.scope.provider_runner_included = true; },
     (contract) => { contract.scope.auth_or_data_mutation_authorized = true; },
     (contract) => { contract.execution_authentication.authority.trust_anchor.status = 'CURRENT'; },
+    (contract) => { contract.execution_authentication.write_barrier.trust_anchor.status = 'CURRENT'; },
     (contract) => { contract.execution_authentication.caller_supplied_trust_material_allowed = true; },
     (contract) => { contract.contract_bindings.documents[0].sha256 = sha('f'); },
     (contract) => { contract.receipt_policy.unknown_may_be_promoted_to_current = true; }
@@ -483,6 +647,146 @@ test('CURRENT receipt enforces S0, S1, separately authorized barrier, and final 
     mutate(receipt);
     bindTerminalReceipt(receipt);
     assert.ok(validateAuthAppDataRehearsalReceipt(contract, receipt).some((failure) => failure.includes('snapshot') || failure.includes('chronology') || failure.includes('barrier') || failure.includes('S0')));
+  }
+});
+
+test('coherent source write-barrier authority substitution fails without its distinct pinned Ed25519 signature', () => {
+  const contract = loadContract();
+  const receipt = currentReceipt(contract);
+  receipt.write_barrier.authority_identity_sha256 = sha('7');
+  receipt.write_barrier.source_scope_sha256 = sha('8');
+  const barrier = receipt.write_barrier;
+  const subject = {
+    model: 'AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_V1',
+    status: barrier.status,
+    authorized_operation: barrier.authorized_operation,
+    contract_version: barrier.contract_version,
+    subject_sha256: barrier.subject_sha256,
+    run_correlation_sha256: barrier.run_correlation_sha256,
+    contract_binding_set_sha256: barrier.contract_binding_set_sha256,
+    migration_package_sha256: barrier.migration_package_sha256,
+    governance_manifest_sha256: barrier.governance_manifest_sha256,
+    prerequisite_set_sha256: barrier.prerequisite_set_sha256,
+    source_scope_sha256: barrier.source_scope_sha256,
+    authority_identity_sha256: barrier.authority_identity_sha256,
+    authority_event_id: barrier.authority_event_id,
+    authority_event_payload_sha256: barrier.authority_event_payload_sha256,
+    authority_issued_at: barrier.authority_issued_at,
+    authority_authorized_at: barrier.authority_authorized_at,
+    authority_observed_at: barrier.authority_observed_at,
+    authority_expires_at: barrier.authority_expires_at,
+    authority_maximum_age_seconds: barrier.authority_maximum_age_seconds,
+    entered_at: barrier.entered_at,
+    released_at: barrier.released_at
+  };
+  barrier.authority_receipt_sha256 = canonicalDigest(subject);
+  barrier.authority_authentication.signed_payload_sha256 = barrier.authority_receipt_sha256;
+  bindTerminalReceipt(receipt);
+  const failures = validateAuthAppDataRehearsalReceipt(contract, receipt);
+  assert.ok(failures.some((failure) => failure.includes('write-barrier authority authentication')), failures.join('\n'));
+});
+
+test('source write-barrier authority binds exact contract, scope, subject, run, package, prerequisites, and chronology', () => {
+  const contract = loadContract();
+  for (const mutate of [
+    (receipt) => { receipt.write_barrier.contract_version = '9.9.9'; },
+    (receipt) => { receipt.write_barrier.subject_sha256 = sha('f'); },
+    (receipt) => { receipt.write_barrier.run_correlation_sha256 = sha('f'); },
+    (receipt) => { receipt.write_barrier.contract_binding_set_sha256 = sha('f'); },
+    (receipt) => { receipt.write_barrier.migration_package_sha256 = sha('f'); },
+    (receipt) => { receipt.write_barrier.prerequisite_set_sha256 = sha('f'); },
+    (receipt) => { receipt.write_barrier.source_scope_sha256 = sha('0'); }
+  ]) {
+    const receipt = currentReceipt(contract);
+    mutate(receipt);
+    bindTerminalReceipt(receipt);
+    const failures = validateAuthAppDataRehearsalReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('write-barrier')), failures.join('\n'));
+  }
+});
+
+test('source write-barrier authority rejects stale, expired, future, replayed, wrong-event, wrong-role, wrong-subject, and wrong-run evidence', () => {
+  const contract = loadContract();
+  const cases = [
+    (receipt) => { receipt.validated_at = '2026-07-28T12:26:00.000Z'; },
+    (receipt) => { receipt.write_barrier.authority_expires_at = '2026-07-28T12:15:59.999Z'; bindWriteBarrier(receipt); },
+    (receipt) => { receipt.write_barrier.authority_issued_at = '2026-07-28T12:17:00.000Z'; bindWriteBarrier(receipt); },
+    (receipt) => { receipt.write_barrier.authority_authorized_at = '2026-07-28T11:59:00.000Z'; receipt.write_barrier.authority_issued_at = '2026-07-28T11:58:00.000Z'; receipt.write_barrier.authority_observed_at = '2026-07-28T12:00:00.000Z'; receipt.write_barrier.authority_expires_at = '2026-07-28T12:14:00.000Z'; bindWriteBarrier(receipt); },
+    (receipt) => { receipt.write_barrier.authority_event_id = `onv1_${sha('6')}`; bindWriteBarrier(receipt); },
+    (receipt) => { receipt.write_barrier.authority_authentication.key_id = 'test-auth-app-data-authority-ed25519-v1'; },
+    (receipt) => { receipt.write_barrier.subject_sha256 = sha('f'); bindWriteBarrier(receipt); },
+    (receipt) => { receipt.write_barrier.run_correlation_sha256 = sha('f'); bindWriteBarrier(receipt); }
+  ];
+  for (const mutate of cases) {
+    const receipt = currentReceipt(contract);
+    mutate(receipt);
+    bindTerminalReceipt(receipt);
+    const failures = validateAuthAppDataRehearsalReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('write-barrier authority')), failures.join('\n'));
+  }
+});
+
+test('write-barrier authority requires trusted action time and authenticated one-time event consumption', () => {
+  const contract = loadContract();
+  const receipt = currentReceipt(contract);
+  const validContext = trustedValidationContext(contract, receipt);
+  assert.deepEqual(validateAuthAppDataRehearsalReceiptRaw(contract, receipt, validContext), []);
+  assert.ok(validateAuthAppDataRehearsalReceiptRaw(contract, receipt).some((failure) => failure.includes('trusted action-time')));
+
+  const expiredReplay = clone(validContext);
+  expiredReplay.trusted_action_time = '2026-07-28T12:20:00.001Z';
+  assert.ok(validateAuthAppDataRehearsalReceiptRaw(contract, receipt, expiredReplay).some((failure) => failure.includes('trusted action time') || failure.includes('expired') || failure.includes('consumption')));
+
+  const alreadyConsumed = trustedValidationContext(contract, receipt, (context) => {
+    context.trusted_action_time = '2026-07-28T12:17:00.000Z';
+    context.consumption_evidence.consumed_at = context.trusted_action_time;
+    context.consumption_evidence.ledger_observed_at = context.trusted_action_time;
+    context.consumption_evidence.ledger_sequence = 2;
+    context.consumption_evidence.prior_consumption_count = 1;
+    context.consumption_evidence.current_consumption_count = 1;
+    context.consumption_evidence.transition = 'ALREADY_CONSUMED';
+  });
+  assert.ok(validateAuthAppDataRehearsalReceiptRaw(contract, receipt, alreadyConsumed).some((failure) => failure.includes('already consumed') || failure.includes('one-time transition')));
+
+  const wrongConsumptionSigner = trustedValidationContext(contract, receipt);
+  wrongConsumptionSigner.consumption_evidence.authentication.signature_base64 = receipt.write_barrier.authority_authentication.signature_base64;
+  assert.ok(validateAuthAppDataRehearsalReceiptRaw(contract, receipt, wrongConsumptionSigner).some((failure) => failure.includes('consumption evidence does not verify')));
+});
+
+test('BLOCKED rehearsal receipt rejects nested CURRENT and nonzero unauthenticated execution or write-barrier claims', () => {
+  const contract = loadContract();
+  for (const mutate of [
+    (receipt) => { receipt.execution_authority.authority_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.execution_authority.authority_identity_sha256 = sha('8'); },
+    (receipt) => { receipt.execution_authority.authority_authentication.signed_payload_sha256 = sha('8'); },
+    (receipt) => { receipt.execution_authority.executor_authentication.signed_payload_sha256 = sha('8'); },
+    (receipt) => { receipt.write_barrier.status = 'CURRENT'; },
+    (receipt) => { receipt.write_barrier.authority_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.write_barrier.authority_event_id = `onv1_${sha('8')}`; receipt.write_barrier.authority_event_payload_sha256 = sha('8'); },
+    (receipt) => { receipt.write_barrier.authority_issued_at = '2026-07-28T12:00:00.000Z'; },
+    (receipt) => { receipt.write_barrier.source_scope_sha256 = sha('8'); },
+    (receipt) => { receipt.external_effects.status = 'CURRENT'; },
+    (receipt) => { receipt.rollback.status = 'CURRENT'; }
+  ]) {
+    const receipt = clone(contract.receipt_example);
+    mutate(receipt);
+    const failures = validateAuthAppDataRehearsalReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('BLOCKED')), failures.join('\n'));
+  }
+});
+
+test('canonical BLOCKED rehearsal projection rejects every mutated leaf or empty denominator', () => {
+  const contract = loadContract();
+  const cases = blockedMutationCases(contract.receipt_example);
+  assert.ok(cases.length >= 75);
+  for (const { path, replacement } of cases) {
+    const receipt = clone(contract.receipt_example);
+    replaceAtPath(receipt, path, replacement);
+    const failures = validateAuthAppDataRehearsalReceiptRaw(contract, receipt);
+    assert.ok(failures.length > 0, path.join('.'));
+    if (receipt.status === 'BLOCKED') {
+      assert.ok(failures.some((failure) => failure.includes('canonical projection')), path.join('.'));
+    }
   }
 });
 

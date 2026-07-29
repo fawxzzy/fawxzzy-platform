@@ -7,7 +7,7 @@ import {
   loadDocuments,
   repositoryRoot,
   validateDisposableTargetBootstrapContract,
-  validateDisposableTargetBootstrapReceipt,
+  validateDisposableTargetBootstrapReceipt as validateDisposableTargetBootstrapReceiptRaw,
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
@@ -17,6 +17,117 @@ const schemaId = 'urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-co
 const sha = (character) => character.repeat(64);
 const clone = (value) => structuredClone(value);
 const canonicalDigest = (value) => crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
+const authorityPublicSpki = Buffer.from(`302a300506032b6570032100${'d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a'}`, 'hex');
+const authorityPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'}`, 'hex');
+const authorityPrivateKey = crypto.createPrivateKey({ key: authorityPrivatePkcs8, format: 'der', type: 'pkcs8' });
+const consumptionPublicSpki = Buffer.from(`302a300506032b6570032100${'3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'}`, 'hex');
+const consumptionPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb'}`, 'hex');
+const consumptionPrivateKey = crypto.createPrivateKey({ key: consumptionPrivatePkcs8, format: 'der', type: 'pkcs8' });
+const signedBytes = (domain, subject) => Buffer.from(`${domain}\n${JSON.stringify(subject, null, 2)}\n`, 'utf8');
+
+function installTestTrustAnchor(contract) {
+  contract.execution_authentication.authority.trust_anchor = {
+    status: 'CURRENT',
+    algorithm: 'Ed25519',
+    key_id: 'test-disposable-target-bootstrap-authority-ed25519-v1',
+    verifier_reference: 'disposable-target-bootstrap-authority-verifier-v1',
+    public_key_spki_base64: authorityPublicSpki.toString('base64'),
+    public_key_spki_sha256: crypto.createHash('sha256').update(authorityPublicSpki).digest('hex')
+  };
+  contract.execution_authentication.consumption.trust_anchor = {
+    status: 'CURRENT',
+    algorithm: 'Ed25519',
+    key_id: 'test-disposable-target-bootstrap-consumption-ed25519-v1',
+    verifier_reference: 'disposable-target-bootstrap-authority-consumption-verifier-v1',
+    public_key_spki_base64: consumptionPublicSpki.toString('base64'),
+    public_key_spki_sha256: crypto.createHash('sha256').update(consumptionPublicSpki).digest('hex')
+  };
+}
+
+function trustedValidationContext(contract, receipt, mutate = null) {
+  const context = {
+    trusted_action_time: '2026-07-28T12:10:00.000Z',
+    consumption_evidence: {
+      subject_sha256: receipt.identity.disposable_project_identity_sha256,
+      run_correlation_sha256: receipt.run_correlation_sha256,
+      authority_event_id: receipt.authority_event_id,
+      authority_event_payload_sha256: receipt.authority_event_payload_sha256,
+      authority_receipt_sha256: receipt.authority_receipt_sha256,
+      observer_identity_sha256: sha('5'),
+      consumed_at: '2026-07-28T12:10:00.000Z',
+      ledger_observed_at: '2026-07-28T12:10:00.000Z',
+      ledger_sequence: 1,
+      prior_consumption_count: 0,
+      current_consumption_count: 1,
+      transition: 'UNCONSUMED_TO_CONSUMED',
+      ledger_preimage_sha256: sha('3'),
+      ledger_postimage_sha256: sha('4'),
+      evidence_receipt_sha256: sha('0'),
+      authentication: {
+        algorithm: 'Ed25519',
+        key_id: 'test-disposable-target-bootstrap-consumption-ed25519-v1',
+        public_key_spki_sha256: crypto.createHash('sha256').update(consumptionPublicSpki).digest('hex'),
+        signed_payload_sha256: sha('0'),
+        signature_base64: 'AA=='
+      }
+    }
+  };
+  if (mutate) mutate(context);
+  const evidence = context.consumption_evidence;
+  const subject = {
+    model: 'DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_CONSUMPTION_V1',
+    trusted_action_time: context.trusted_action_time,
+    subject_sha256: evidence.subject_sha256,
+    run_correlation_sha256: evidence.run_correlation_sha256,
+    authority_event_id: evidence.authority_event_id,
+    authority_event_payload_sha256: evidence.authority_event_payload_sha256,
+    authority_receipt_sha256: evidence.authority_receipt_sha256,
+    observer_identity_sha256: evidence.observer_identity_sha256,
+    consumed_at: evidence.consumed_at,
+    ledger_observed_at: evidence.ledger_observed_at,
+    ledger_sequence: evidence.ledger_sequence,
+    prior_consumption_count: evidence.prior_consumption_count,
+    current_consumption_count: evidence.current_consumption_count,
+    transition: evidence.transition,
+    ledger_preimage_sha256: evidence.ledger_preimage_sha256,
+    ledger_postimage_sha256: evidence.ledger_postimage_sha256
+  };
+  evidence.evidence_receipt_sha256 = canonicalDigest(subject);
+  evidence.authentication.signed_payload_sha256 = evidence.evidence_receipt_sha256;
+  evidence.authentication.signature_base64 = crypto.sign(null, signedBytes(contract.execution_authentication.consumption.signature_domain, subject), consumptionPrivateKey).toString('base64');
+  return context;
+}
+
+function validateDisposableTargetBootstrapReceipt(contract, receipt, validationContext) {
+  const context = validationContext ?? (receipt?.status === 'CURRENT' ? trustedValidationContext(contract, receipt) : null);
+  return validateDisposableTargetBootstrapReceiptRaw(contract, receipt, context);
+}
+
+function blockedMutationCases(value, path = [], cases = []) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) cases.push({ path, replacement: ['NON_CANONICAL'] });
+    value.forEach((entry, index) => blockedMutationCases(entry, [...path, index], cases));
+    return cases;
+  }
+  if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, entry]) => blockedMutationCases(entry, [...path, key], cases));
+    return cases;
+  }
+  let replacement;
+  if (value === null) replacement = 'NON_CANONICAL';
+  else if (typeof value === 'boolean') replacement = !value;
+  else if (typeof value === 'number') replacement = value + 1;
+  else if (/^[0-9a-f]{64}$/.test(value)) replacement = value === sha('8') ? sha('7') : sha('8');
+  else replacement = `${value}-NON_CANONICAL`;
+  cases.push({ path, replacement });
+  return cases;
+}
+
+function replaceAtPath(value, path, replacement) {
+  let cursor = value;
+  for (const segment of path.slice(0, -1)) cursor = cursor[segment];
+  cursor[path.at(-1)] = replacement;
+}
 
 function bindExpectedState(receipt) {
   receipt.package.expected_state_binding_sha256 = canonicalDigest({
@@ -33,7 +144,30 @@ function bindExpectedState(receipt) {
   });
 }
 
-function bindAuthority(receipt) {
+function bindAuthority(contract, receipt) {
+  const authoritySubject = {
+    model: 'DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_V1',
+    contract_version: receipt.authority_contract_version,
+    status: receipt.status,
+    authorized_operation: receipt.authorized_operation,
+    subject_sha256: receipt.identity.disposable_project_identity_sha256,
+    run_correlation_sha256: receipt.run_correlation_sha256,
+    migration_count: receipt.package.migration_count,
+    migration_package_sha256: receipt.package.migration_package_sha256,
+    governance_manifest_sha256: receipt.package.governance_manifest_sha256,
+    executable_bundle_sha256: receipt.package.executable_bundle_sha256,
+    expected_state_binding_sha256: receipt.package.expected_state_binding_sha256,
+    authority_identity_sha256: receipt.authority_identity_sha256,
+    authority_event_id: receipt.authority_event_id,
+    authority_event_payload_sha256: receipt.authority_event_payload_sha256,
+    authority_issued_at: receipt.authority_issued_at,
+    authority_authorized_at: receipt.authority_authorized_at,
+    authority_observed_at: receipt.authority_observed_at,
+    authority_expires_at: receipt.authority_expires_at,
+    authority_maximum_age_seconds: receipt.authority_maximum_age_seconds,
+    source_contract_id: contract.contract_id
+  };
+  receipt.authority_receipt_sha256 = canonicalDigest(authoritySubject);
   receipt.authority_binding_sha256 = canonicalDigest({
     model: 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1',
     authorized_operation: receipt.authorized_operation,
@@ -45,6 +179,35 @@ function bindAuthority(receipt) {
     governance_manifest_sha256: receipt.package.governance_manifest_sha256,
     executable_bundle_sha256: receipt.package.executable_bundle_sha256,
     expected_state_binding_sha256: receipt.package.expected_state_binding_sha256
+  });
+  receipt.authority_authentication = {
+    algorithm: 'Ed25519',
+    key_id: 'test-disposable-target-bootstrap-authority-ed25519-v1',
+    public_key_spki_sha256: crypto.createHash('sha256').update(authorityPublicSpki).digest('hex'),
+    signed_payload_sha256: receipt.authority_receipt_sha256,
+    signature_base64: crypto.sign(null, signedBytes(contract.execution_authentication.authority.signature_domain, authoritySubject), authorityPrivateKey).toString('base64')
+  };
+}
+
+function bindZeroEffects(receipt) {
+  const effects = receipt.external_effects;
+  effects.evidence_receipt_sha256 = canonicalDigest({
+    model: 'SUBJECT_RUN_ZERO_EFFECT_OBSERVATION_V1',
+    subject_sha256: effects.subject_sha256,
+    run_correlation_sha256: effects.run_correlation_sha256,
+    observed_at: effects.observed_at,
+    observer_identity_sha256: effects.observer_identity_sha256,
+    execution_identity_sha256: effects.execution_identity_sha256,
+    complete_denominator: effects.complete_denominator,
+    counts: Object.fromEntries([
+      'outbound_network_requests',
+      'cron_jobs_enabled',
+      'edge_functions_deployed',
+      'webhooks_enabled',
+      'realtime_publications_enabled',
+      'storage_objects_written',
+      'auth_messages_sent'
+    ].map((field) => [field, effects[field]]))
   });
 }
 
@@ -116,13 +279,22 @@ function loadContract() {
 }
 
 function currentReceipt(contract = loadContract()) {
+  installTestTrustAnchor(contract);
   const receipt = clone(contract.receipt_example);
   receipt.status = 'CURRENT';
   receipt.validated_at = '2026-07-28T12:10:00.000Z';
   receipt.run_correlation_sha256 = sha('a');
   receipt.evidence_complete = true;
   receipt.authorized_operation = 'GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY';
-  receipt.authority_receipt_sha256 = sha('a');
+  receipt.authority_contract_version = contract.version;
+  receipt.authority_identity_sha256 = sha('9');
+  receipt.authority_event_payload_sha256 = sha('8');
+  receipt.authority_event_id = `onv1_${receipt.authority_event_payload_sha256}`;
+  receipt.authority_issued_at = '2026-07-28T11:59:00.000Z';
+  receipt.authority_authorized_at = '2026-07-28T12:00:00.000Z';
+  receipt.authority_observed_at = '2026-07-28T12:01:00.000Z';
+  receipt.authority_expires_at = '2026-07-28T12:15:00.000Z';
+  receipt.authority_maximum_age_seconds = contract.execution_authentication.authority.freshness_seconds_maximum;
   receipt.package.executable_bundle_sha256 = sha('b');
   receipt.package.reviewed_expected_state_receipt_sha256 = sha('c');
   receipt.package.expected_catalog_sha256 = sha('f');
@@ -223,6 +395,10 @@ function currentReceipt(contract = loadContract()) {
   receipt.external_effects.status = 'CURRENT';
   receipt.external_effects.subject_sha256 = receipt.identity.disposable_project_identity_sha256;
   receipt.external_effects.run_correlation_sha256 = receipt.run_correlation_sha256;
+  receipt.external_effects.observed_at = '2026-07-28T12:04:00.000Z';
+  receipt.external_effects.observer_identity_sha256 = sha('b');
+  receipt.external_effects.execution_identity_sha256 = sha('c');
+  receipt.external_effects.complete_denominator = true;
   receipt.negative_probes = {
     status: 'CURRENT',
     subject_sha256: receipt.identity.disposable_project_identity_sha256,
@@ -261,7 +437,8 @@ function currentReceipt(contract = loadContract()) {
     broad_drop_used: false
   };
   bindExpectedState(receipt);
-  bindAuthority(receipt);
+  bindAuthority(contract, receipt);
+  bindZeroEffects(receipt);
   bindProtectedInventory(receipt);
   bindCatalogRead(receipt.catalog_reads.read_a);
   bindCatalogRead(receipt.catalog_reads.read_b);
@@ -411,8 +588,155 @@ test('apply authority binds the exact guarded operation, subject, run, package, 
   {
     const receipt = currentReceipt(contract);
     receipt.authorized_operation = 'UNSCOPED_APPLY';
-    bindAuthority(receipt);
+    bindAuthority(contract, receipt);
     assert.ok(validateDisposableTargetBootstrapReceipt(contract, receipt).some((failure) => failure.includes('guarded disposable target bootstrap apply')));
+  }
+});
+
+test('coherent bootstrap authority substitution fails without the pinned Ed25519 signature', () => {
+  const contract = loadContract();
+  const receipt = currentReceipt(contract);
+  receipt.authority_identity_sha256 = sha('f');
+  const authoritySubject = {
+    model: 'DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_V1',
+    contract_version: receipt.authority_contract_version,
+    status: receipt.status,
+    authorized_operation: receipt.authorized_operation,
+    subject_sha256: receipt.identity.disposable_project_identity_sha256,
+    run_correlation_sha256: receipt.run_correlation_sha256,
+    migration_count: receipt.package.migration_count,
+    migration_package_sha256: receipt.package.migration_package_sha256,
+    governance_manifest_sha256: receipt.package.governance_manifest_sha256,
+    executable_bundle_sha256: receipt.package.executable_bundle_sha256,
+    expected_state_binding_sha256: receipt.package.expected_state_binding_sha256,
+    authority_identity_sha256: receipt.authority_identity_sha256,
+    authority_event_id: receipt.authority_event_id,
+    authority_event_payload_sha256: receipt.authority_event_payload_sha256,
+    authority_issued_at: receipt.authority_issued_at,
+    authority_authorized_at: receipt.authority_authorized_at,
+    authority_observed_at: receipt.authority_observed_at,
+    authority_expires_at: receipt.authority_expires_at,
+    authority_maximum_age_seconds: receipt.authority_maximum_age_seconds,
+    source_contract_id: contract.contract_id
+  };
+  receipt.authority_receipt_sha256 = canonicalDigest(authoritySubject);
+  receipt.authority_authentication.signed_payload_sha256 = receipt.authority_receipt_sha256;
+  receipt.authority_binding_sha256 = canonicalDigest({
+    model: 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1',
+    authorized_operation: receipt.authorized_operation,
+    authority_receipt_sha256: receipt.authority_receipt_sha256,
+    subject_sha256: receipt.identity.disposable_project_identity_sha256,
+    run_correlation_sha256: receipt.run_correlation_sha256,
+    migration_count: receipt.package.migration_count,
+    migration_package_sha256: receipt.package.migration_package_sha256,
+    governance_manifest_sha256: receipt.package.governance_manifest_sha256,
+    executable_bundle_sha256: receipt.package.executable_bundle_sha256,
+    expected_state_binding_sha256: receipt.package.expected_state_binding_sha256
+  });
+  assert.ok(validateDisposableTargetBootstrapReceipt(contract, receipt).some((failure) => failure.includes('authentication')));
+});
+
+test('bootstrap authority rejects stale, expired, future, replayed, wrong-event, wrong-role, wrong-subject, and wrong-run evidence', () => {
+  const contract = loadContract();
+  const cases = [
+    (receipt) => { receipt.validated_at = '2026-07-28T12:16:00.000Z'; },
+    (receipt) => { receipt.authority_expires_at = '2026-07-28T12:09:59.999Z'; bindAuthority(contract, receipt); },
+    (receipt) => { receipt.authority_issued_at = '2026-07-28T12:11:00.000Z'; bindAuthority(contract, receipt); },
+    (receipt) => { receipt.authority_authorized_at = '2026-07-28T11:50:00.000Z'; receipt.authority_issued_at = '2026-07-28T11:49:00.000Z'; receipt.authority_observed_at = '2026-07-28T11:51:00.000Z'; receipt.authority_expires_at = '2026-07-28T12:05:00.000Z'; bindAuthority(contract, receipt); },
+    (receipt) => { receipt.authority_event_id = `onv1_${sha('7')}`; bindAuthority(contract, receipt); },
+    (receipt) => { receipt.authority_authentication.key_id = 'test-auth-app-data-write-barrier-authority-ed25519-v1'; },
+    (receipt) => { receipt.identity.disposable_project_identity_sha256 = sha('6'); bindExpectedState(receipt); bindAuthority(contract, receipt); },
+    (receipt) => { receipt.run_correlation_sha256 = sha('6'); bindExpectedState(receipt); bindAuthority(contract, receipt); }
+  ];
+  for (const mutate of cases) {
+    const receipt = currentReceipt(contract);
+    mutate(receipt);
+    const failures = validateDisposableTargetBootstrapReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('authority') || failure.includes('subject') || failure.includes('run')), failures.join('\n'));
+  }
+});
+
+test('bootstrap authority requires trusted action time and authenticated one-time event consumption', () => {
+  const contract = loadContract();
+  const receipt = currentReceipt(contract);
+  const validContext = trustedValidationContext(contract, receipt);
+  assert.deepEqual(validateDisposableTargetBootstrapReceiptRaw(contract, receipt, validContext), []);
+  assert.ok(validateDisposableTargetBootstrapReceiptRaw(contract, receipt).some((failure) => failure.includes('trusted action-time')));
+
+  const expiredReplay = clone(validContext);
+  expiredReplay.trusted_action_time = '2026-07-28T12:15:00.001Z';
+  assert.ok(validateDisposableTargetBootstrapReceiptRaw(contract, receipt, expiredReplay).some((failure) => failure.includes('trusted action time') || failure.includes('expired') || failure.includes('consumption')));
+
+  const alreadyConsumed = trustedValidationContext(contract, receipt, (context) => {
+    context.trusted_action_time = '2026-07-28T12:11:00.000Z';
+    context.consumption_evidence.consumed_at = context.trusted_action_time;
+    context.consumption_evidence.ledger_observed_at = context.trusted_action_time;
+    context.consumption_evidence.ledger_sequence = 2;
+    context.consumption_evidence.prior_consumption_count = 1;
+    context.consumption_evidence.current_consumption_count = 1;
+    context.consumption_evidence.transition = 'ALREADY_CONSUMED';
+  });
+  assert.ok(validateDisposableTargetBootstrapReceiptRaw(contract, receipt, alreadyConsumed).some((failure) => failure.includes('already consumed') || failure.includes('one-time transition')));
+
+  const wrongConsumptionSigner = trustedValidationContext(contract, receipt);
+  wrongConsumptionSigner.consumption_evidence.authentication.signature_base64 = receipt.authority_authentication.signature_base64;
+  assert.ok(validateDisposableTargetBootstrapReceiptRaw(contract, receipt, wrongConsumptionSigner).some((failure) => failure.includes('consumption evidence does not verify')));
+});
+
+test('BLOCKED bootstrap receipt rejects nested CURRENT and nonzero unauthenticated authority or zero-effect evidence', () => {
+  const contract = loadContract();
+  for (const mutate of [
+    (receipt) => { receipt.authority_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.authority_event_id = `onv1_${sha('8')}`; receipt.authority_event_payload_sha256 = sha('8'); },
+    (receipt) => { receipt.authority_issued_at = '2026-07-28T12:00:00.000Z'; },
+    (receipt) => { receipt.external_effects.status = 'CURRENT'; },
+    (receipt) => { receipt.external_effects.observer_identity_sha256 = sha('8'); },
+    (receipt) => { receipt.external_effects.evidence_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.security.security_sha256 = sha('8'); },
+    (receipt) => { receipt.rollback.authority_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.catalog_reads.read_a.evidence_receipt_sha256 = sha('8'); },
+    (receipt) => { receipt.authority_authentication.signed_payload_sha256 = sha('8'); },
+    (receipt) => { receipt.preimage.status = 'CURRENT'; },
+    (receipt) => { receipt.completed_actions = [...contract.action_order]; }
+  ]) {
+    const receipt = clone(contract.receipt_example);
+    mutate(receipt);
+    const failures = validateDisposableTargetBootstrapReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('BLOCKED')), failures.join('\n'));
+  }
+});
+
+test('canonical BLOCKED bootstrap projection rejects every mutated leaf or empty denominator', () => {
+  const contract = loadContract();
+  const cases = blockedMutationCases(contract.receipt_example);
+  assert.ok(cases.length >= 100);
+  for (const { path, replacement } of cases) {
+    const receipt = clone(contract.receipt_example);
+    replaceAtPath(receipt, path, replacement);
+    const failures = validateDisposableTargetBootstrapReceiptRaw(contract, receipt);
+    assert.ok(failures.length > 0, path.join('.'));
+    if (receipt.status === 'BLOCKED') {
+      assert.ok(failures.some((failure) => failure.includes('canonical checked-in projection')), path.join('.'));
+    }
+  }
+});
+
+test('zero-effect proof is fresh, complete, independently identified, and content-addressed', () => {
+  const contract = loadContract();
+  for (const mutate of [
+    (receipt) => { receipt.external_effects.complete_denominator = false; },
+    (receipt) => { receipt.external_effects.observed_at = '2026-07-27T12:00:00.000Z'; },
+    (receipt) => { receipt.external_effects.observer_identity_sha256 = receipt.external_effects.execution_identity_sha256; },
+    (receipt) => { receipt.external_effects.evidence_receipt_sha256 = sha('f'); },
+    (receipt) => {
+      receipt.external_effects.outbound_network_requests = 1;
+      bindZeroEffects(receipt);
+    }
+  ]) {
+    const receipt = currentReceipt(contract);
+    mutate(receipt);
+    const failures = validateDisposableTargetBootstrapReceipt(contract, receipt);
+    assert.ok(failures.some((failure) => failure.includes('external-effect') || failure.includes('external effect')), failures.join('\n'));
   }
 });
 

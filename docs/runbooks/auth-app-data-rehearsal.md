@@ -20,7 +20,7 @@ The gate binding in `contracts/v1/gates/migration-gate-state.json` marks only th
 
 Every CURRENT action receipt additionally binds the exact 122-migration package and governance identities, the complete contract-binding set, a separately admitted Auth/application-data rehearsal authority identity, an exact executor identity and capability, a distinct executor receipt, and three subject/run-bound prerequisite receipts: disposable-target bootstrap, independent backup, and micro-recovery capability. The canonical authority and executor subjects bind those values together. Each subject must also carry a domain-separated Ed25519 signature verified against a different public trust anchor pinned by the source contract. Recomputable hashes or caller-selected authority, executor, capability, key, verifier, or signature claims are not authentication.
 
-The checked-in source contract intentionally keeps both public trust anchors `BLOCKED` and uninstalled. A `CURRENT` rehearsal receipt is therefore impossible until a separately reviewed source packet installs two distinct public anchors; private signing material never belongs in this repository. This source contract remains explicitly unable to grant provider execution.
+The checked-in source contract intentionally keeps all four public trust anchors `BLOCKED` and uninstalled: rehearsal authority, executor capability, source write-barrier authority, and external write-barrier consumption evidence. A `CURRENT` rehearsal receipt is therefore impossible until a separately reviewed source packet installs four distinct public anchors; private signing material never belongs in this repository. This source contract remains explicitly unable to grant provider execution.
 
 ## Closed rehearsal denominator
 
@@ -53,7 +53,7 @@ The contract fixes the following causal sequence:
 5. create Auth shells;
 6. load Mazer, Fitness, then DiscordOS data;
 7. capture complete `S1`;
-8. enter a separately authorized write barrier;
+8. enter a separately authorized write barrier whose contract version, target/run, complete contract and package identities, prerequisite set, source scope, authority identity, matching `onv1_` event/payload identity, fixed 900-second issue/authorization/observation/expiry window, and enter/release chronology are independently Ed25519-signed by the third pinned trust anchor; evaluate freshness against an injected trusted action-time value rather than receipt-owned validation time; and require the fourth trust domain to authenticate the exact `0 -> 1` external-ledger consumption of that event;
 9. apply the `S1` diff and explicit tombstones;
 10. capture final `S2`;
 11. perform independent aggregate read A;
@@ -103,7 +103,11 @@ npm test
 npm run verify
 ```
 
-The focused suite includes positive CURRENT receipt validation under deterministic test-only trust anchors and negative mutations for lifecycle/apply promotion, binding drift, coherent authority/executor/capability substitution, trust-anchor and signature substitution, missing or duplicated Auth/non-row denominators, `UNKNOWN` promotion, snapshot/barrier order, identity coverage, independent read parity, security/Auth/egress probes, raw evidence leakage, rollback, disposal authority, and terminal digest drift. Test-only private keys never enter the source contract or receipt example.
+The focused suite includes positive CURRENT receipt validation under deterministic test-only trust anchors and negative mutations for lifecycle/apply promotion, binding drift, coherent authority/executor/capability substitution, coherent write-barrier authority/scope substitution, stale/future/expired or relabeled authority events, wrong-role/subject/run signatures, trusted-clock substitution, unchanged replay after trusted expiry, authenticated replay after prior consumption, consumption-signature substitution, missing or duplicated Auth/non-row denominators, `UNKNOWN` promotion, snapshot/barrier order, identity coverage, independent read parity, security/Auth/egress probes, raw evidence leakage, rollback, disposal authority, and terminal digest drift.
+
+Freshness and replay closure are external-input contracts. `receipt.validated_at` remains receipt data and is never the trusted clock. `AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1` binds the injected trusted action time, subject/run/event/payload/authority receipt, a distinct observer, a positive external-ledger sequence, distinct ledger preimage/postimage commitments, and exactly one `UNCONSUMED_TO_CONSUMED` transition. Its observation and consumption timestamps equal the trusted action time, and its domain-separated Ed25519 signature is verified against the fourth pinned trust anchor. The source validator does not persist a ledger or perform provider work; the external authorized executor must supply fresh trusted time and authenticated ledger evidence.
+
+The checked-in `BLOCKED` receipt is one canonical complete projection. The validator compares the entire receipt to it, while an exhaustive generated test mutates every leaf and empty denominator and requires rejection. No nested authority/executor signature payload, event, timestamp, scope, catalog/security/rollback evidence, or other placeholder can become nonzero or `CURRENT` under a `BLOCKED` outer receipt. Test-only private keys never enter the source contract or receipt example.
 
 ## Provider facts remain external evidence
 

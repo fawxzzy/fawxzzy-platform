@@ -133,7 +133,9 @@
       "required": [
         "authority",
         "executor",
-        "trust_anchors_must_be_distinct",
+        "write_barrier",
+        "write_barrier_consumption",
+        "all_trust_anchors_must_be_distinct",
         "caller_supplied_trust_material_allowed",
         "current_receipt_allowed_while_anchor_blocked"
       ],
@@ -178,7 +180,75 @@
             }
           }
         },
-        "trust_anchors_must_be_distinct": {
+        "write_barrier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "freshness_seconds_maximum",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_write_barrier_authority_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.write-barrier-authority.v1"
+            },
+            "freshness_seconds_maximum": {
+              "const": 900
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "write_barrier_consumption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "evidence_model",
+            "required_transition",
+            "trusted_action_time_injected_required",
+            "receipt_validated_at_is_trusted_action_time",
+            "external_consumption_ledger_required",
+            "source_persists_consumption_ledger",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_one_time_consumption_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.write-barrier-consumption.v1"
+            },
+            "evidence_model": {
+              "const": "AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1"
+            },
+            "required_transition": {
+              "const": "UNCONSUMED_TO_CONSUMED"
+            },
+            "trusted_action_time_injected_required": {
+              "const": true
+            },
+            "receipt_validated_at_is_trusted_action_time": {
+              "const": false
+            },
+            "external_consumption_ledger_required": {
+              "const": true
+            },
+            "source_persists_consumption_ledger": {
+              "const": false
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "all_trust_anchors_must_be_distinct": {
           "const": true
         },
         "caller_supplied_trust_material_allowed": {
@@ -1224,7 +1294,25 @@
           "additionalProperties": false,
           "required": [
             "status",
+            "authorized_operation",
+            "contract_version",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "contract_binding_set_sha256",
+            "migration_package_sha256",
+            "governance_manifest_sha256",
+            "prerequisite_set_sha256",
+            "source_scope_sha256",
+            "authority_identity_sha256",
+            "authority_event_id",
+            "authority_event_payload_sha256",
+            "authority_issued_at",
+            "authority_authorized_at",
+            "authority_observed_at",
+            "authority_expires_at",
+            "authority_maximum_age_seconds",
             "authority_receipt_sha256",
+            "authority_authentication",
             "entered_at",
             "released_at"
           ],
@@ -1235,8 +1323,70 @@
                 "BLOCKED"
               ]
             },
+            "authorized_operation": {
+              "const": "SOURCE_WRITE_BARRIER"
+            },
+            "contract_version": {
+              "const": "1.0.0"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "contract_binding_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "migration_package_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "governance_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "prerequisite_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "source_scope_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_event_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^onv1_[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "authority_event_payload_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_issued_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_authorized_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_observed_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_expires_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_maximum_age_seconds": {
+              "const": 900
+            },
             "authority_receipt_sha256": {
               "$ref": "#/$defs/sha256"
+            },
+            "authority_authentication": {
+              "$ref": "#/$defs/executionAuthenticationResult"
             },
             "entered_at": {
               "$ref": "#/$defs/timestampOrNull"

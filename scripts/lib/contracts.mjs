@@ -138,12 +138,12 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/transport/discordos-app-data-adapter-contract.json', version: '1.1.0', sha256: '4d9a3e7409f39b126e2e631855d8016cca9585dbf9a505786808aa6007120068' }),
   Object.freeze({ path: 'contracts/v1/identity/identity-map.json', version: '1.0.0', sha256: '1212e3457552e85d65f262ecb63a3a2a452b3c133e42da15c32ce221d20f3fb9' }),
   Object.freeze({ path: 'contracts/v1/membership/membership-lifecycle.json', version: '1.1.0', sha256: '8dbeb551521ba94fb4d1a807e4c92cbc3d31dd8df1a9a0e18b9486044d434e78' }),
-  Object.freeze({ path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', version: '1.0.0', sha256: '1d314175d6b031952aa5824d1b662a3de5a1ca12298605bfad0551c1511d1123' }),
+  Object.freeze({ path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', version: '1.0.0', sha256: 'd217f31885f995e939d8e37c07ef5201bef43934227564a9083b662b2054c869' }),
   Object.freeze({ path: 'contracts/v1/recovery/independent-backup-contract.json', version: '2.2.0', sha256: 'a627535f8f48d0c14b81a6bb611bf4f36935af96a66beb1d6a23096df4c2fd10' }),
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = '87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e';
+const authAppDataBindingSetSha256 = '3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -638,6 +638,94 @@ function authAppDataExecutorReceiptSubject(receipt, authority) {
   };
 }
 
+function targetBootstrapAuthorityReceiptSubject(contract, receipt) {
+  return {
+    model: 'DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_V1',
+    contract_version: receipt?.authority_contract_version,
+    status: receipt?.status,
+    authorized_operation: receipt?.authorized_operation,
+    subject_sha256: receipt?.identity?.disposable_project_identity_sha256,
+    run_correlation_sha256: receipt?.run_correlation_sha256,
+    migration_count: receipt?.package?.migration_count,
+    migration_package_sha256: receipt?.package?.migration_package_sha256,
+    governance_manifest_sha256: receipt?.package?.governance_manifest_sha256,
+    executable_bundle_sha256: receipt?.package?.executable_bundle_sha256,
+    expected_state_binding_sha256: receipt?.package?.expected_state_binding_sha256,
+    authority_identity_sha256: receipt?.authority_identity_sha256,
+    authority_event_id: receipt?.authority_event_id,
+    authority_event_payload_sha256: receipt?.authority_event_payload_sha256,
+    authority_issued_at: receipt?.authority_issued_at,
+    authority_authorized_at: receipt?.authority_authorized_at,
+    authority_observed_at: receipt?.authority_observed_at,
+    authority_expires_at: receipt?.authority_expires_at,
+    authority_maximum_age_seconds: receipt?.authority_maximum_age_seconds,
+    source_contract_id: contract?.contract_id
+  };
+}
+
+function targetBootstrapZeroEffectReceiptSubject(receipt) {
+  const externalEffects = receipt?.external_effects ?? {};
+  return {
+    model: 'SUBJECT_RUN_ZERO_EFFECT_OBSERVATION_V1',
+    subject_sha256: externalEffects.subject_sha256,
+    run_correlation_sha256: externalEffects.run_correlation_sha256,
+    observed_at: externalEffects.observed_at,
+    observer_identity_sha256: externalEffects.observer_identity_sha256,
+    execution_identity_sha256: externalEffects.execution_identity_sha256,
+    complete_denominator: externalEffects.complete_denominator,
+    counts: Object.fromEntries(targetBootstrapZeroEffectFields.map((field) => [field, externalEffects[field]]))
+  };
+}
+
+function authAppDataWriteBarrierAuthoritySubject(receipt) {
+  const barrier = receipt?.write_barrier ?? {};
+  return {
+    model: 'AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_V1',
+    status: barrier.status,
+    authorized_operation: barrier.authorized_operation,
+    contract_version: barrier.contract_version,
+    subject_sha256: barrier.subject_sha256,
+    run_correlation_sha256: barrier.run_correlation_sha256,
+    contract_binding_set_sha256: barrier.contract_binding_set_sha256,
+    migration_package_sha256: barrier.migration_package_sha256,
+    governance_manifest_sha256: barrier.governance_manifest_sha256,
+    prerequisite_set_sha256: barrier.prerequisite_set_sha256,
+    source_scope_sha256: barrier.source_scope_sha256,
+    authority_identity_sha256: barrier.authority_identity_sha256,
+    authority_event_id: barrier.authority_event_id,
+    authority_event_payload_sha256: barrier.authority_event_payload_sha256,
+    authority_issued_at: barrier.authority_issued_at,
+    authority_authorized_at: barrier.authority_authorized_at,
+    authority_observed_at: barrier.authority_observed_at,
+    authority_expires_at: barrier.authority_expires_at,
+    authority_maximum_age_seconds: barrier.authority_maximum_age_seconds,
+    entered_at: barrier.entered_at,
+    released_at: barrier.released_at
+  };
+}
+
+function authorityEventConsumptionSubject(model, validationContext) {
+  const evidence = validationContext?.consumption_evidence ?? {};
+  return {
+    model,
+    trusted_action_time: validationContext?.trusted_action_time,
+    subject_sha256: evidence.subject_sha256,
+    run_correlation_sha256: evidence.run_correlation_sha256,
+    authority_event_id: evidence.authority_event_id,
+    authority_event_payload_sha256: evidence.authority_event_payload_sha256,
+    authority_receipt_sha256: evidence.authority_receipt_sha256,
+    observer_identity_sha256: evidence.observer_identity_sha256,
+    consumed_at: evidence.consumed_at,
+    ledger_observed_at: evidence.ledger_observed_at,
+    ledger_sequence: evidence.ledger_sequence,
+    prior_consumption_count: evidence.prior_consumption_count,
+    current_consumption_count: evidence.current_consumption_count,
+    transition: evidence.transition,
+    ledger_preimage_sha256: evidence.ledger_preimage_sha256,
+    ledger_postimage_sha256: evidence.ledger_postimage_sha256
+  };
+}
+
 function authAppDataExpectedStateSubject(receipt) {
   const finalS2 = (receipt?.snapshots ?? []).find((snapshot) => snapshot?.name === 'S2') ?? null;
   return {
@@ -824,7 +912,7 @@ function validateTargetBootstrapReceiptSanitization(receipt) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
-export function validateDisposableTargetBootstrapReceipt(contract, receipt) {
+export function validateDisposableTargetBootstrapReceipt(contract, receipt, validationContext = null) {
   const failures = [];
   const requireReceipt = (condition, message) => {
     if (!condition) failures.push(`target bootstrap receipt: ${message}`);
@@ -931,14 +1019,88 @@ export function validateDisposableTargetBootstrapReceipt(contract, receipt) {
   failures.push(...validateTargetBootstrapReceiptSanitization(receipt).map((failure) => `target bootstrap receipt: ${failure}`));
 
   if (receipt?.status === 'BLOCKED') {
+    requireReceipt(canonicalDigest(receipt) === canonicalDigest(contract?.receipt_example), 'BLOCKED receipt must equal the complete canonical checked-in projection');
     requireReceipt(receipt.evidence_complete === false, 'BLOCKED evidence cannot claim completeness');
+    requireReceipt(receipt?.validated_at === null, 'BLOCKED evidence cannot claim validation time');
+    requireReceipt(receipt?.authority_identity_sha256 === '0'.repeat(64)
+      && receipt?.authority_event_id === null
+      && receipt?.authority_event_payload_sha256 === '0'.repeat(64)
+      && receipt?.authority_issued_at === null
+      && receipt?.authority_authorized_at === null
+      && receipt?.authority_observed_at === null
+      && receipt?.authority_expires_at === null
+      && receipt?.authority_receipt_sha256 === '0'.repeat(64)
+      && receipt?.authority_binding_sha256 === '0'.repeat(64)
+      && receipt?.authority_authentication?.key_id === 'UNKNOWN'
+      && receipt?.authority_authentication?.public_key_spki_sha256 === null
+      && receipt?.authority_authentication?.signed_payload_sha256 === '0'.repeat(64)
+      && receipt?.authority_authentication?.signature_base64 === 'AA==', 'checked-in BLOCKED receipt cannot claim authenticated apply authority');
+    requireReceipt(preimage.status === 'UNKNOWN'
+      && dataApi.status === 'BLOCKED'
+      && extensions.status === 'UNKNOWN'
+      && catalogReads.status === 'BLOCKED'
+      && security.status === 'BLOCKED'
+      && externalEffects.status === 'BLOCKED'
+      && negativeProbes.status === 'BLOCKED'
+      && rollback.status === 'BLOCKED', 'BLOCKED evidence cannot contain nested CURRENT execution claims');
+    requireReceipt(exactOrderedValues(receipt?.completed_actions, []), 'BLOCKED evidence cannot claim completed actions');
+    requireReceipt(externalEffects.observed_at === null
+      && externalEffects.observer_identity_sha256 === '0'.repeat(64)
+      && externalEffects.execution_identity_sha256 === '0'.repeat(64)
+      && externalEffects.complete_denominator === false
+      && externalEffects.evidence_receipt_sha256 === '0'.repeat(64), 'BLOCKED evidence cannot claim zero-effect observation evidence');
     return failures.sort((left, right) => left.localeCompare(right));
   }
 
   requireReceipt(receipt.evidence_complete === true, 'CURRENT evidence must be complete');
   requireReceipt(isNonzeroSha256(runCorrelationSha256), 'CURRENT evidence requires one nonzero run-correlation digest');
+  const authoritySubject = targetBootstrapAuthorityReceiptSubject(contract, receipt);
+  requireReceipt(receipt.authority_contract_version === contract?.version, 'apply authority contract-version binding mismatch');
+  requireReceipt(isNonzeroSha256(receipt.authority_identity_sha256), 'CURRENT evidence requires a nonzero authority identity');
+  requireReceipt(receipt.authority_maximum_age_seconds === contract?.execution_authentication?.authority?.freshness_seconds_maximum, 'apply authority maximum-age policy mismatch');
+  requireReceipt(/^onv1_[0-9a-f]{64}$/.test(receipt.authority_event_id ?? '')
+    && receipt.authority_event_id === `onv1_${receipt.authority_event_payload_sha256}`
+    && isNonzeroSha256(receipt.authority_event_payload_sha256), 'apply authority event identity does not match its payload digest');
+  const authorityIssuedAt = Date.parse(receipt.authority_issued_at);
+  const authorityAuthorizedAt = Date.parse(receipt.authority_authorized_at);
+  const authorityObservedAt = Date.parse(receipt.authority_observed_at);
+  const authorityExpiresAt = Date.parse(receipt.authority_expires_at);
+  const authorityValidatedAt = Date.parse(receipt.validated_at);
+  const trustedActionTime = Date.parse(validationContext?.trusted_action_time);
+  requireReceipt([authorityIssuedAt, authorityAuthorizedAt, authorityObservedAt, authorityExpiresAt, authorityValidatedAt, trustedActionTime].every(Number.isFinite), 'apply authority freshness or trusted action-time timestamp is invalid');
+  requireReceipt(authorityIssuedAt <= authorityAuthorizedAt
+    && authorityAuthorizedAt <= authorityObservedAt
+    && authorityObservedAt <= authorityValidatedAt
+    && authorityValidatedAt <= trustedActionTime
+    && trustedActionTime <= authorityExpiresAt, 'apply authority issuance, authorization, observation, receipt validation, trusted action time, and expiry chronology is invalid');
+  requireReceipt(trustedActionTime - authorityAuthorizedAt <= receipt.authority_maximum_age_seconds * 1000
+    && authorityExpiresAt - authorityAuthorizedAt <= receipt.authority_maximum_age_seconds * 1000, 'apply authority is stale, expired, or exceeds the contract maximum age');
   requireReceipt(isNonzeroSha256(receipt.authority_receipt_sha256), 'CURRENT evidence requires a nonzero authority receipt digest');
+  requireReceipt(receipt.authority_receipt_sha256 === canonicalDigest(authoritySubject), 'apply authority receipt does not bind the exact contract, operation, subject, run, package, reviewed bundle, and authority identity');
   requireReceipt(receipt.authority_binding_sha256 === authorityBinding, 'apply authority must bind the guarded operation, subject, run, package, and reviewed bundle');
+  requireReceipt(authAppDataVerifyAuthentication(authoritySubject, receipt.authority_authentication, contract?.execution_authentication?.authority), 'apply authority authentication does not verify against the pinned source-authorized trust anchor');
+  requireReceipt(contract?.execution_authentication?.authority?.trust_anchor?.key_id !== contract?.execution_authentication?.consumption?.trust_anchor?.key_id
+    && contract?.execution_authentication?.authority?.trust_anchor?.public_key_spki_sha256 !== contract?.execution_authentication?.consumption?.trust_anchor?.public_key_spki_sha256, 'apply authority and one-time consumption trust anchors must be distinct');
+  const consumptionEvidence = validationContext?.consumption_evidence ?? {};
+  const consumptionSubject = authorityEventConsumptionSubject('DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_CONSUMPTION_V1', validationContext);
+  requireReceipt(consumptionEvidence.subject_sha256 === identity.disposable_project_identity_sha256
+    && consumptionEvidence.run_correlation_sha256 === runCorrelationSha256
+    && consumptionEvidence.authority_event_id === receipt.authority_event_id
+    && consumptionEvidence.authority_event_payload_sha256 === receipt.authority_event_payload_sha256
+    && consumptionEvidence.authority_receipt_sha256 === receipt.authority_receipt_sha256, 'apply authority consumption evidence must bind the exact subject, run, event, payload, and authority receipt');
+  requireReceipt(consumptionEvidence.consumed_at === validationContext?.trusted_action_time
+    && consumptionEvidence.ledger_observed_at === validationContext?.trusted_action_time, 'apply authority consumption evidence must be observed and consumed at the injected trusted action time');
+  requireReceipt(consumptionEvidence.prior_consumption_count === 0
+    && consumptionEvidence.current_consumption_count === 1
+    && consumptionEvidence.transition === 'UNCONSUMED_TO_CONSUMED', 'apply authority event was already consumed or lacks an exact one-time transition');
+  requireReceipt(Number.isInteger(consumptionEvidence.ledger_sequence) && consumptionEvidence.ledger_sequence >= 1, 'apply authority consumption evidence requires a positive external ledger sequence');
+  requireReceipt(isNonzeroSha256(consumptionEvidence.observer_identity_sha256)
+    && consumptionEvidence.observer_identity_sha256 !== receipt.authority_identity_sha256, 'apply authority consumption observer must be nonzero and distinct from the authority');
+  requireReceipt(isNonzeroSha256(consumptionEvidence.ledger_preimage_sha256)
+    && isNonzeroSha256(consumptionEvidence.ledger_postimage_sha256)
+    && consumptionEvidence.ledger_preimage_sha256 !== consumptionEvidence.ledger_postimage_sha256, 'apply authority consumption requires distinct nonzero external ledger preimage and postimage commitments');
+  requireReceipt(consumptionEvidence.evidence_receipt_sha256 === canonicalDigest(consumptionSubject), 'apply authority consumption receipt does not bind the trusted action-time ledger transition');
+  requireReceipt(authAppDataVerifyAuthentication(consumptionSubject, consumptionEvidence.authentication, contract?.execution_authentication?.consumption), 'apply authority consumption evidence does not verify against the distinct pinned consumption trust anchor');
   requireReceipt(isNonzeroSha256(packageBinding.executable_bundle_sha256), 'CURRENT evidence requires an exact reviewed executable bundle digest');
   requireReceipt(isNonzeroSha256(packageBinding.reviewed_expected_state_receipt_sha256), 'CURRENT evidence requires a reviewed expected-state receipt digest');
   requireReceipt(isNonzeroSha256(packageBinding.expected_catalog_sha256), 'CURRENT evidence requires a reviewed expected catalog digest');
@@ -1078,9 +1240,14 @@ export function validateDisposableTargetBootstrapReceipt(contract, receipt) {
   requireReceipt(security.provider_role_isolation === 'PASS', 'provider-role isolation must PASS and cannot remain UNKNOWN');
 
   requireReceipt(externalEffects.status === 'CURRENT', 'external-effect proof must be CURRENT');
+  requireReceipt(externalEffects.complete_denominator === true, 'external-effect proof requires the complete zero-effect denominator');
+  requireReceipt(isFreshObservation(externalEffects.observed_at, receipt.validated_at, contract.preimage_gate.freshness_seconds_maximum), 'external-effect observation is missing, future, or stale');
+  requireReceipt(isNonzeroSha256(externalEffects.observer_identity_sha256) && isNonzeroSha256(externalEffects.execution_identity_sha256), 'external-effect observer and execution identities must be nonzero');
+  requireReceipt(externalEffects.observer_identity_sha256 !== externalEffects.execution_identity_sha256, 'external-effect observer and execution identities must be distinct');
   for (const field of targetBootstrapZeroEffectFields) {
     requireReceipt(externalEffects[field] === 0, `external effect ${field} must equal zero`);
   }
+  requireReceipt(externalEffects.evidence_receipt_sha256 === canonicalDigest(targetBootstrapZeroEffectReceiptSubject(receipt)), 'external-effect evidence receipt must content-address the exact subject, run, observation, identities, complete denominator, and zero counts');
 
   requireReceipt(negativeProbes.status === 'CURRENT', 'negative probes must be CURRENT');
   requireReceipt(exactOrderedValues((negativeProbes.results ?? []).map((result) => result.name), targetBootstrapNegativeProbes), 'negative-probe denominator or order drift');
@@ -1191,7 +1358,30 @@ export function validateDisposableTargetBootstrapContract(contract) {
   requireContract(contract?.immutable_bindings?.digest_model === 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1', 'digest model drift');
   requireContract(contract?.immutable_bindings?.migration_count === 122 && contract?.immutable_bindings?.standard_migration_sql_count === 0 && contract?.immutable_bindings?.legacy_combined_digest_admitted === false, 'migration denominator or executable-placement boundary drift');
   requireContract(contract?.identity_boundary?.identity_representation === 'SHA256_DIGEST_ONLY' && contract?.identity_boundary?.protected_project_identity_count_minimum === 4 && contract?.identity_boundary?.protected_inventory_digest_required === true && contract?.identity_boundary?.protected_inventory_count_must_match === true && contract?.identity_boundary?.protected_inventory_digest_model === 'CANONICAL_PROVIDER_INVENTORY_V1' && contract?.identity_boundary?.protected_identity_digests_canonical_order_required === true && contract?.identity_boundary?.pagination_and_completeness_evidence_required === true && contract?.identity_boundary?.disposable_identity_must_be_unique === true && contract?.identity_boundary?.disposable_identity_must_not_be_protected === true && contract?.identity_boundary?.project_refs_in_receipts_forbidden === true && contract?.identity_boundary?.production_or_source_reuse_forbidden === true, 'protected/disposable identity boundary drift');
-  requireContract(contract?.authority_gate?.binding_model === 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1' && contract?.authority_gate?.authorized_operation === 'GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY' && contract?.authority_gate?.subject_run_package_bundle_binding_required === true && contract?.authority_gate?.source_contract_is_authority === false, 'apply-authority binding boundary drift');
+  requireContract(contract?.authority_gate?.binding_model === 'SUBJECT_RUN_BOOTSTRAP_APPLY_AUTHORITY_V1' && contract?.authority_gate?.authorized_operation === 'GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY' && contract?.authority_gate?.subject_run_package_bundle_binding_required === true && contract?.authority_gate?.contract_version_binding_required === true && contract?.authority_gate?.authority_identity_binding_required === true && contract?.authority_gate?.authority_event_identity_required === true && contract?.authority_gate?.signed_freshness_required === true && contract?.authority_gate?.trusted_action_time_injected_required === true && contract?.authority_gate?.receipt_validated_at_is_trusted_action_time === false && contract?.authority_gate?.authenticated_one_time_consumption_required === true && contract?.authority_gate?.external_consumption_ledger_required === true && contract?.authority_gate?.source_persists_consumption_ledger === false && contract?.authority_gate?.pinned_signature_required === true && contract?.authority_gate?.source_contract_is_authority === false, 'apply-authority binding boundary drift');
+  const bootstrapAuthorityPolicy = contract?.execution_authentication?.authority ?? {};
+  const bootstrapConsumptionPolicy = contract?.execution_authentication?.consumption ?? {};
+  requireContract(bootstrapAuthorityPolicy.verification_boundary === 'pinned_ed25519_signature'
+    && bootstrapAuthorityPolicy.signature_domain === 'fawxzzy.platform.disposable-target-bootstrap.apply-authority.v1'
+    && bootstrapAuthorityPolicy.freshness_seconds_maximum === 900
+    && bootstrapAuthorityPolicy.trust_anchor?.status === 'BLOCKED'
+    && bootstrapAuthorityPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && bootstrapAuthorityPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && bootstrapAuthorityPolicy.trust_anchor?.verifier_reference === 'disposable-target-bootstrap-authority-verifier-v1'
+    && bootstrapAuthorityPolicy.trust_anchor?.public_key_spki_base64 === null
+    && bootstrapAuthorityPolicy.trust_anchor?.public_key_spki_sha256 === null
+    && bootstrapConsumptionPolicy.verification_boundary === 'distinct_pinned_ed25519_one_time_consumption_signature'
+    && bootstrapConsumptionPolicy.signature_domain === 'fawxzzy.platform.disposable-target-bootstrap.authority-consumption.v1'
+    && bootstrapConsumptionPolicy.evidence_model === 'DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_CONSUMPTION_V1'
+    && bootstrapConsumptionPolicy.required_transition === 'UNCONSUMED_TO_CONSUMED'
+    && bootstrapConsumptionPolicy.trust_anchor?.status === 'BLOCKED'
+    && bootstrapConsumptionPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && bootstrapConsumptionPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && bootstrapConsumptionPolicy.trust_anchor?.verifier_reference === 'disposable-target-bootstrap-authority-consumption-verifier-v1'
+    && bootstrapConsumptionPolicy.trust_anchor?.public_key_spki_base64 === null
+    && bootstrapConsumptionPolicy.trust_anchor?.public_key_spki_sha256 === null
+    && contract?.execution_authentication?.caller_supplied_trust_material_allowed === false
+    && contract?.execution_authentication?.current_receipt_allowed_while_anchor_blocked === false, 'checked-in bootstrap apply-authority trust anchor must remain explicitly BLOCKED and uninstalled');
   requireContract(contract?.preimage_gate?.freshness_seconds_maximum === 7200 && contract?.preimage_gate?.postgres_major === 17 && contract?.preimage_gate?.complete_inventory_required === true && contract?.preimage_gate?.unknown_promotable_to_current === false, 'fresh-preimage policy drift');
   requireContract(exactOrderedValues(contract?.action_order, targetBootstrapActionOrder), 'fixed action order drift');
   requireContract(contract?.data_api_gate?.bootstrap_enabled === false && exactOrderedValues(contract?.data_api_gate?.bootstrap_exposed_schemas, []) && exactOrderedValues(contract?.data_api_gate?.bootstrap_extra_search_path, ['extensions']) && contract?.data_api_gate?.automatic_public_exposure === false, 'bootstrap Data API containment drift');
@@ -1200,7 +1390,7 @@ export function validateDisposableTargetBootstrapContract(contract) {
   requireContract(contract?.data_api_gate?.explicit_grants_and_rls_required === true && contract?.data_api_gate?.management_api_preimage_required === true, 'Data API control-plane, grants, or RLS requirement drift');
   requireContract(contract?.catalog_parity?.read_count === 2 && contract?.catalog_parity?.reads_must_be_independent === true && contract?.catalog_parity?.reads_must_be_byte_identical === true && contract?.catalog_parity?.expected_state_binding_model === 'PACKAGE_BUNDLE_CATALOG_SECURITY_V1' && contract?.catalog_parity?.observed_catalog_must_match_reviewed_expected_digest === true && contract?.catalog_parity?.observed_security_must_match_reviewed_expected_digest === true && contract?.catalog_parity?.read_evidence_binding_model === 'SUBJECT_RUN_CATALOG_READ_EVIDENCE_V1' && contract?.catalog_parity?.distinct_read_evidence_receipts_required === true && contract?.catalog_parity?.distinct_reader_identities_required === true && contract?.catalog_parity?.distinct_execution_identities_required === true && contract?.catalog_parity?.query_model_binding_required === true && canonicalDigest(contract?.catalog_parity?.expected_counts ?? {}) === canonicalDigest(targetBootstrapCatalogCounts) && contract?.catalog_parity?.timestamp_or_high_water_only_proof_allowed === false, 'two-read catalog parity drift');
   requireContract(exactOrderedValues(contract?.extension_gate?.required_extensions, targetBootstrapRequiredExtensions) && contract?.extension_gate?.observed_default_version_required === true && contract?.extension_gate?.observed_installed_version_required === true && contract?.extension_gate?.compatibility_result_required === 'PASS' && contract?.extension_gate?.explicit_version_pin_is_proof === false && contract?.extension_gate?.unknown_version_promotable === false, 'extension evidence boundary drift');
-  requireContract(exactOrderedValues(contract?.external_effect_gate?.required_zero_counts, targetBootstrapZeroEffectFields) && contract?.external_effect_gate?.egress_denied_before_apply === true && contract?.external_effect_gate?.credentials_withheld_before_apply === true && contract?.external_effect_gate?.zero_effect_receipt_required === true, 'external-effect boundary drift');
+  requireContract(contract?.external_effect_gate?.evidence_binding_model === 'SUBJECT_RUN_ZERO_EFFECT_OBSERVATION_V1' && exactOrderedValues(contract?.external_effect_gate?.required_zero_counts, targetBootstrapZeroEffectFields) && contract?.external_effect_gate?.subject_run_binding_required === true && contract?.external_effect_gate?.complete_denominator_required === true && contract?.external_effect_gate?.distinct_observer_and_execution_identities_required === true && contract?.external_effect_gate?.fresh_observation_required === true && contract?.external_effect_gate?.content_addressed_evidence_receipt_required === true && contract?.external_effect_gate?.egress_denied_before_apply === true && contract?.external_effect_gate?.credentials_withheld_before_apply === true && contract?.external_effect_gate?.zero_effect_receipt_required === true, 'external-effect boundary drift');
   requireContract(exactOrderedValues(contract?.negative_probe_gate?.required_probes, targetBootstrapNegativeProbes) && contract?.negative_probe_gate?.all_must_pass === true, 'negative-probe denominator drift');
   requireContract(contract?.rollback_and_disposal?.source_projects_remain_active === true && contract?.rollback_and_disposal?.source_mutation_forbidden === true && contract?.rollback_and_disposal?.disposal_requires_separate_authority === true && contract?.rollback_and_disposal?.disposed_target_absence_proof_required === true && contract?.rollback_and_disposal?.disposed_credential_revocation_proof_required === true && contract?.rollback_and_disposal?.common_target_and_run_binding_required === true && contract?.rollback_and_disposal?.rollback_postimage_must_equal_preimage === true && contract?.rollback_and_disposal?.terminal_proof_binding_model === 'SUBJECT_RUN_DISPOSITION_EVIDENCE_V1' && contract?.rollback_and_disposal?.disposal_proofs_must_be_distinct === true && contract?.rollback_and_disposal?.disposal_proofs_individually_fresh === true && contract?.rollback_and_disposal?.disposal_proof_order === 'DISPOSAL_COMPLETION_THEN_ABSENCE_AND_REVOCATION_THEN_TERMINAL_COMPLETION' && contract?.rollback_and_disposal?.broad_drop_is_rollback === false, 'rollback/disposal boundary drift');
   requireContract(contract?.receipt_example?.status === 'BLOCKED', 'checked-in receipt example must remain BLOCKED');
@@ -1208,7 +1398,7 @@ export function validateDisposableTargetBootstrapContract(contract) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
-export function validateAuthAppDataRehearsalReceipt(contract, receipt) {
+export function validateAuthAppDataRehearsalReceipt(contract, receipt, validationContext = null) {
   const failures = [];
   const requireReceipt = (condition, message) => {
     if (!condition) failures.push(`auth/app-data rehearsal receipt: ${message}`);
@@ -1244,6 +1434,7 @@ export function validateAuthAppDataRehearsalReceipt(contract, receipt) {
   }
 
   if (receipt?.status === 'BLOCKED') {
+    requireReceipt(canonicalDigest(receipt) === canonicalDigest(contract?.receipt_example), 'checked-in BLOCKED receipt must equal the complete canonical projection');
     requireReceipt(receipt?.evidence_complete === false, 'checked-in BLOCKED receipt cannot claim complete evidence');
     requireReceipt(receipt?.validated_at === null, 'checked-in BLOCKED receipt cannot claim validation time');
     requireReceipt(receipt?.execution_authority?.status === 'BLOCKED', 'checked-in BLOCKED receipt cannot claim execution authority');
@@ -1253,6 +1444,35 @@ export function validateAuthAppDataRehearsalReceipt(contract, receipt) {
       && receipt?.execution_authority?.executor_authentication?.key_id === 'UNKNOWN'
       && receipt?.execution_authority?.executor_authentication?.public_key_spki_sha256 === null
       && receipt?.execution_authority?.executor_authentication?.signature_base64 === 'AA==', 'checked-in BLOCKED receipt cannot claim authenticated authority or executor');
+    requireReceipt(receipt?.write_barrier?.authority_authentication?.key_id === 'UNKNOWN'
+      && receipt?.write_barrier?.authority_authentication?.public_key_spki_sha256 === null
+      && receipt?.write_barrier?.authority_authentication?.signed_payload_sha256 === zero
+      && receipt?.write_barrier?.authority_authentication?.signature_base64 === 'AA==', 'checked-in BLOCKED receipt cannot claim authenticated write-barrier authority');
+    requireReceipt(receipt?.subject_sha256 === zero && receipt?.run_correlation_sha256 === zero, 'checked-in BLOCKED receipt cannot claim subject or run execution identity');
+    requireReceipt(receipt?.execution_authority?.authority_identity_sha256 === zero
+      && receipt?.execution_authority?.executor_identity_sha256 === zero
+      && receipt?.execution_authority?.executor_capability_sha256 === zero
+      && receipt?.execution_authority?.prerequisite_set_sha256 === zero
+      && receipt?.execution_authority?.authority_receipt_sha256 === zero
+      && receipt?.execution_authority?.executor_receipt_sha256 === zero, 'checked-in BLOCKED receipt cannot claim execution authority or executor evidence');
+    requireReceipt(receipt?.write_barrier?.status === 'BLOCKED'
+      && receipt?.write_barrier?.subject_sha256 === zero
+      && receipt?.write_barrier?.run_correlation_sha256 === zero
+      && receipt?.write_barrier?.prerequisite_set_sha256 === zero
+      && receipt?.write_barrier?.source_scope_sha256 === zero
+      && receipt?.write_barrier?.authority_identity_sha256 === zero
+      && receipt?.write_barrier?.authority_event_id === null
+      && receipt?.write_barrier?.authority_event_payload_sha256 === zero
+      && receipt?.write_barrier?.authority_issued_at === null
+      && receipt?.write_barrier?.authority_authorized_at === null
+      && receipt?.write_barrier?.authority_observed_at === null
+      && receipt?.write_barrier?.authority_expires_at === null
+      && receipt?.write_barrier?.authority_receipt_sha256 === zero
+      && receipt?.write_barrier?.entered_at === null
+      && receipt?.write_barrier?.released_at === null, 'checked-in BLOCKED receipt cannot claim write-barrier authority, freshness, or chronology');
+    requireReceipt(receipt?.identity_ledger?.status === 'BLOCKED'
+      && receipt?.external_effects?.status === 'BLOCKED'
+      && receipt?.rollback?.status === 'BLOCKED', 'checked-in BLOCKED receipt cannot contain nested CURRENT execution evidence');
     requireReceipt(exactOrderedValues((receipt?.prerequisites ?? []).map((prerequisite) => prerequisite.name), authAppDataPrerequisites) && receipt.prerequisites.every((prerequisite) => prerequisite.status === 'BLOCKED'), 'checked-in prerequisites must remain complete and BLOCKED');
     requireReceipt(exactOrderedValues(receipt?.completed_actions, []), 'checked-in BLOCKED receipt cannot claim completed actions');
     requireReceipt(exactOrderedValues(receipt?.auth_surfaces, []), 'checked-in BLOCKED receipt cannot claim Auth evidence');
@@ -1346,7 +1566,64 @@ export function validateAuthAppDataRehearsalReceipt(contract, receipt) {
   const enteredAt = parseTime(receipt?.write_barrier?.entered_at);
   const releasedAt = parseTime(receipt?.write_barrier?.released_at);
   requireReceipt(s0 < s1 && s1 <= enteredAt && enteredAt < s2 && s2 <= releasedAt, 'S0/S1/barrier/S2 chronology is invalid');
-  requireReceipt(receipt?.write_barrier?.status === 'CURRENT' && isNonzeroCommitment(receipt?.write_barrier?.authority_receipt_sha256), 'write barrier requires separate nonzero authority evidence');
+  const writeBarrier = receipt?.write_barrier ?? {};
+  const writeBarrierSubject = authAppDataWriteBarrierAuthoritySubject(receipt);
+  requireReceipt(writeBarrier.status === 'CURRENT' && writeBarrier.authorized_operation === 'SOURCE_WRITE_BARRIER', 'write barrier requires separately admitted authority for the exact operation');
+  requireReceipt(writeBarrier.contract_version === contract?.version, 'write-barrier authority contract-version binding mismatch');
+  requireReceipt(writeBarrier.subject_sha256 === receipt?.subject_sha256 && writeBarrier.run_correlation_sha256 === receipt?.run_correlation_sha256, 'write-barrier authority subject/run binding mismatch');
+  requireReceipt(writeBarrier.contract_binding_set_sha256 === receipt?.contract_binding_set_sha256
+    && writeBarrier.migration_package_sha256 === receipt?.package?.migration_package_sha256
+    && writeBarrier.governance_manifest_sha256 === receipt?.package?.governance_manifest_sha256
+    && writeBarrier.prerequisite_set_sha256 === prerequisiteSetSha256, 'write-barrier authority package, contract, or prerequisite binding mismatch');
+  requireReceipt(isNonzeroCommitment(writeBarrier.source_scope_sha256) && isNonzeroCommitment(writeBarrier.authority_identity_sha256), 'write-barrier source scope and authority identity must be nonzero');
+  requireReceipt(![authority.authority_identity_sha256, authority.executor_identity_sha256, authority.executor_capability_sha256].includes(writeBarrier.authority_identity_sha256), 'write-barrier authority identity must be distinct from rehearsal authority and executor identities');
+  requireReceipt(writeBarrier.authority_maximum_age_seconds === contract?.execution_authentication?.write_barrier?.freshness_seconds_maximum, 'write-barrier authority maximum-age policy mismatch');
+  requireReceipt(/^onv1_[0-9a-f]{64}$/.test(writeBarrier.authority_event_id ?? '')
+    && writeBarrier.authority_event_id === `onv1_${writeBarrier.authority_event_payload_sha256}`
+    && isNonzeroCommitment(writeBarrier.authority_event_payload_sha256), 'write-barrier authority event identity does not match its payload digest');
+  const barrierIssuedAt = parseTime(writeBarrier.authority_issued_at);
+  const barrierAuthorizedAt = parseTime(writeBarrier.authority_authorized_at);
+  const barrierObservedAt = parseTime(writeBarrier.authority_observed_at);
+  const barrierExpiresAt = parseTime(writeBarrier.authority_expires_at);
+  const barrierValidatedAt = parseTime(receipt?.validated_at);
+  const trustedActionTime = parseTime(validationContext?.trusted_action_time);
+  requireReceipt([barrierIssuedAt, barrierAuthorizedAt, barrierObservedAt, barrierExpiresAt, barrierValidatedAt, trustedActionTime].every(Number.isFinite), 'write-barrier authority freshness or trusted action-time timestamp is invalid');
+  requireReceipt(barrierIssuedAt <= barrierAuthorizedAt
+    && barrierAuthorizedAt <= barrierObservedAt
+    && barrierObservedAt <= barrierValidatedAt
+    && barrierValidatedAt <= trustedActionTime
+    && trustedActionTime <= barrierExpiresAt, 'write-barrier authority issuance, authorization, observation, receipt validation, trusted action time, and expiry chronology is invalid');
+  requireReceipt(trustedActionTime - barrierAuthorizedAt <= writeBarrier.authority_maximum_age_seconds * 1000
+    && barrierExpiresAt - barrierAuthorizedAt <= writeBarrier.authority_maximum_age_seconds * 1000, 'write-barrier authority is stale, expired, or exceeds the contract maximum age');
+  requireReceipt(writeBarrier.authority_receipt_sha256 === canonicalDigest(writeBarrierSubject), 'write-barrier authority receipt does not bind the exact contract, source scope, subject, run, package, prerequisites, and chronology');
+  requireReceipt(authAppDataVerifyAuthentication(writeBarrierSubject, writeBarrier.authority_authentication, contract?.execution_authentication?.write_barrier), 'write-barrier authority authentication does not verify against its distinct pinned source-authorized trust anchor');
+  const consumptionTrustAnchor = contract?.execution_authentication?.write_barrier_consumption?.trust_anchor ?? {};
+  requireReceipt([
+    authorityAuthenticationPolicy?.trust_anchor,
+    executorAuthenticationPolicy?.trust_anchor,
+    contract?.execution_authentication?.write_barrier?.trust_anchor
+  ].every((anchor) => anchor?.key_id !== consumptionTrustAnchor.key_id
+    && anchor?.public_key_spki_sha256 !== consumptionTrustAnchor.public_key_spki_sha256), 'write-barrier consumption trust anchor must be distinct from every authority and executor trust anchor');
+  const consumptionEvidence = validationContext?.consumption_evidence ?? {};
+  const consumptionSubject = authorityEventConsumptionSubject('AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1', validationContext);
+  requireReceipt(consumptionEvidence.subject_sha256 === receipt?.subject_sha256
+    && consumptionEvidence.run_correlation_sha256 === receipt?.run_correlation_sha256
+    && consumptionEvidence.authority_event_id === writeBarrier.authority_event_id
+    && consumptionEvidence.authority_event_payload_sha256 === writeBarrier.authority_event_payload_sha256
+    && consumptionEvidence.authority_receipt_sha256 === writeBarrier.authority_receipt_sha256, 'write-barrier consumption evidence must bind the exact subject, run, event, payload, and authority receipt');
+  requireReceipt(consumptionEvidence.consumed_at === validationContext?.trusted_action_time
+    && consumptionEvidence.ledger_observed_at === validationContext?.trusted_action_time, 'write-barrier consumption evidence must be observed and consumed at the injected trusted action time');
+  requireReceipt(consumptionEvidence.prior_consumption_count === 0
+    && consumptionEvidence.current_consumption_count === 1
+    && consumptionEvidence.transition === 'UNCONSUMED_TO_CONSUMED', 'write-barrier authority event was already consumed or lacks an exact one-time transition');
+  requireReceipt(Number.isInteger(consumptionEvidence.ledger_sequence) && consumptionEvidence.ledger_sequence >= 1, 'write-barrier consumption evidence requires a positive external ledger sequence');
+  requireReceipt(isNonzeroCommitment(consumptionEvidence.observer_identity_sha256)
+    && consumptionEvidence.observer_identity_sha256 !== writeBarrier.authority_identity_sha256, 'write-barrier consumption observer must be nonzero and distinct from the authority');
+  requireReceipt(isNonzeroCommitment(consumptionEvidence.ledger_preimage_sha256)
+    && isNonzeroCommitment(consumptionEvidence.ledger_postimage_sha256)
+    && consumptionEvidence.ledger_preimage_sha256 !== consumptionEvidence.ledger_postimage_sha256, 'write-barrier consumption requires distinct nonzero external ledger preimage and postimage commitments');
+  requireReceipt(consumptionEvidence.evidence_receipt_sha256 === canonicalDigest(consumptionSubject), 'write-barrier consumption receipt does not bind the trusted action-time ledger transition');
+  requireReceipt(authAppDataVerifyAuthentication(consumptionSubject, consumptionEvidence.authentication, contract?.execution_authentication?.write_barrier_consumption), 'write-barrier consumption evidence does not verify against the distinct pinned consumption trust anchor');
 
   const reads = receipt?.postimport_reads ?? {};
   const readA = reads.read_a ?? {};
@@ -1423,6 +1700,8 @@ export function validateAuthAppDataRehearsalContract(contract, documents = loadD
   const executionAuthentication = contract?.execution_authentication ?? {};
   const authorityPolicy = executionAuthentication.authority ?? {};
   const executorPolicy = executionAuthentication.executor ?? {};
+  const writeBarrierPolicy = executionAuthentication.write_barrier ?? {};
+  const writeBarrierConsumptionPolicy = executionAuthentication.write_barrier_consumption ?? {};
   requireContract(authorityPolicy.verification_boundary === 'pinned_ed25519_signature'
     && authorityPolicy.signature_domain === 'fawxzzy.platform.auth-app-data.execution-authority.v1'
     && authorityPolicy.trust_anchor?.status === 'BLOCKED'
@@ -1439,7 +1718,30 @@ export function validateAuthAppDataRehearsalContract(contract, documents = loadD
     && executorPolicy.trust_anchor?.verifier_reference === 'auth-app-data-executor-verifier-v1'
     && executorPolicy.trust_anchor?.public_key_spki_base64 === null
     && executorPolicy.trust_anchor?.public_key_spki_sha256 === null, 'checked-in executor trust anchor must remain explicitly BLOCKED and uninstalled');
-  requireContract(executionAuthentication.trust_anchors_must_be_distinct === true
+  requireContract(writeBarrierPolicy.verification_boundary === 'distinct_pinned_ed25519_write_barrier_authority_signature'
+    && writeBarrierPolicy.signature_domain === 'fawxzzy.platform.auth-app-data.write-barrier-authority.v1'
+    && writeBarrierPolicy.freshness_seconds_maximum === 900
+    && writeBarrierPolicy.trust_anchor?.status === 'BLOCKED'
+    && writeBarrierPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && writeBarrierPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && writeBarrierPolicy.trust_anchor?.verifier_reference === 'auth-app-data-write-barrier-authority-verifier-v1'
+    && writeBarrierPolicy.trust_anchor?.public_key_spki_base64 === null
+    && writeBarrierPolicy.trust_anchor?.public_key_spki_sha256 === null, 'checked-in write-barrier trust anchor must remain explicitly BLOCKED and uninstalled');
+  requireContract(writeBarrierConsumptionPolicy.verification_boundary === 'distinct_pinned_ed25519_one_time_consumption_signature'
+    && writeBarrierConsumptionPolicy.signature_domain === 'fawxzzy.platform.auth-app-data.write-barrier-consumption.v1'
+    && writeBarrierConsumptionPolicy.evidence_model === 'AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1'
+    && writeBarrierConsumptionPolicy.required_transition === 'UNCONSUMED_TO_CONSUMED'
+    && writeBarrierConsumptionPolicy.trusted_action_time_injected_required === true
+    && writeBarrierConsumptionPolicy.receipt_validated_at_is_trusted_action_time === false
+    && writeBarrierConsumptionPolicy.external_consumption_ledger_required === true
+    && writeBarrierConsumptionPolicy.source_persists_consumption_ledger === false
+    && writeBarrierConsumptionPolicy.trust_anchor?.status === 'BLOCKED'
+    && writeBarrierConsumptionPolicy.trust_anchor?.algorithm === 'Ed25519'
+    && writeBarrierConsumptionPolicy.trust_anchor?.key_id === 'UNKNOWN'
+    && writeBarrierConsumptionPolicy.trust_anchor?.verifier_reference === 'auth-app-data-write-barrier-consumption-verifier-v1'
+    && writeBarrierConsumptionPolicy.trust_anchor?.public_key_spki_base64 === null
+    && writeBarrierConsumptionPolicy.trust_anchor?.public_key_spki_sha256 === null, 'checked-in write-barrier consumption trust anchor must remain explicitly BLOCKED and external');
+  requireContract(executionAuthentication.all_trust_anchors_must_be_distinct === true
     && executionAuthentication.caller_supplied_trust_material_allowed === false
     && executionAuthentication.current_receipt_allowed_while_anchor_blocked === false, 'execution authentication trust policy drift');
   requireContract(exactOrderedValues((contract?.auth_surface_dispositions ?? []).map((surface) => surface.surface), authAppDataAuthSurfaces), 'Auth surface denominator or order drift');

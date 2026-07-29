@@ -13,6 +13,7 @@
     "immutable_bindings",
     "identity_boundary",
     "authority_gate",
+    "execution_authentication",
     "preimage_gate",
     "action_order",
     "data_api_gate",
@@ -190,6 +191,16 @@
         "binding_model",
         "authorized_operation",
         "subject_run_package_bundle_binding_required",
+        "contract_version_binding_required",
+        "authority_identity_binding_required",
+        "authority_event_identity_required",
+        "signed_freshness_required",
+        "trusted_action_time_injected_required",
+        "receipt_validated_at_is_trusted_action_time",
+        "authenticated_one_time_consumption_required",
+        "external_consumption_ledger_required",
+        "source_persists_consumption_ledger",
+        "pinned_signature_required",
         "source_contract_is_authority"
       ],
       "properties": {
@@ -202,7 +213,107 @@
         "subject_run_package_bundle_binding_required": {
           "const": true
         },
+        "contract_version_binding_required": {
+          "const": true
+        },
+        "authority_identity_binding_required": {
+          "const": true
+        },
+        "authority_event_identity_required": {
+          "const": true
+        },
+        "signed_freshness_required": {
+          "const": true
+        },
+        "trusted_action_time_injected_required": {
+          "const": true
+        },
+        "receipt_validated_at_is_trusted_action_time": {
+          "const": false
+        },
+        "authenticated_one_time_consumption_required": {
+          "const": true
+        },
+        "external_consumption_ledger_required": {
+          "const": true
+        },
+        "source_persists_consumption_ledger": {
+          "const": false
+        },
+        "pinned_signature_required": {
+          "const": true
+        },
         "source_contract_is_authority": {
+          "const": false
+        }
+      }
+    },
+    "execution_authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "consumption",
+        "caller_supplied_trust_material_allowed",
+        "current_receipt_allowed_while_anchor_blocked"
+      ],
+      "properties": {
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "freshness_seconds_maximum",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "pinned_ed25519_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.disposable-target-bootstrap.apply-authority.v1"
+            },
+            "freshness_seconds_maximum": {
+              "const": 900
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "consumption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "evidence_model",
+            "required_transition",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_one_time_consumption_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.disposable-target-bootstrap.authority-consumption.v1"
+            },
+            "evidence_model": {
+              "const": "DISPOSABLE_TARGET_BOOTSTRAP_APPLY_AUTHORITY_CONSUMPTION_V1"
+            },
+            "required_transition": {
+              "const": "UNCONSUMED_TO_CONSUMED"
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "caller_supplied_trust_material_allowed": {
+          "const": false
+        },
+        "current_receipt_allowed_while_anchor_blocked": {
           "const": false
         }
       }
@@ -465,12 +576,21 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "evidence_binding_model",
         "required_zero_counts",
+        "subject_run_binding_required",
+        "complete_denominator_required",
+        "distinct_observer_and_execution_identities_required",
+        "fresh_observation_required",
+        "content_addressed_evidence_receipt_required",
         "egress_denied_before_apply",
         "credentials_withheld_before_apply",
         "zero_effect_receipt_required"
       ],
       "properties": {
+        "evidence_binding_model": {
+          "const": "SUBJECT_RUN_ZERO_EFFECT_OBSERVATION_V1"
+        },
         "required_zero_counts": {
           "const": [
             "outbound_network_requests",
@@ -481,6 +601,21 @@
             "storage_objects_written",
             "auth_messages_sent"
           ]
+        },
+        "subject_run_binding_required": {
+          "const": true
+        },
+        "complete_denominator_required": {
+          "const": true
+        },
+        "distinct_observer_and_execution_identities_required": {
+          "const": true
+        },
+        "fresh_observation_required": {
+          "const": true
+        },
+        "content_addressed_evidence_receipt_required": {
+          "const": true
         },
         "egress_denied_before_apply": {
           "const": true
@@ -635,6 +770,111 @@
     "timestamp": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$"
+    },
+    "timestampOrNull": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "eventIdOrNull": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^onv1_[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "executionTrustAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "algorithm",
+        "key_id",
+        "verifier_reference",
+        "public_key_spki_base64",
+        "public_key_spki_sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verifier_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_spki_base64": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "public_key_spki_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "executionAuthenticationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "public_key_spki_sha256",
+        "signed_payload_sha256",
+        "signature_base64"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_spki_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "actionOrder": {
       "const": [
@@ -807,8 +1047,18 @@
         "source_contract_grants_provider_authority",
         "source_contract_grants_apply",
         "authorized_operation",
+        "authority_contract_version",
+        "authority_identity_sha256",
+        "authority_event_id",
+        "authority_event_payload_sha256",
+        "authority_issued_at",
+        "authority_authorized_at",
+        "authority_observed_at",
+        "authority_expires_at",
+        "authority_maximum_age_seconds",
         "authority_receipt_sha256",
         "authority_binding_sha256",
+        "authority_authentication",
         "package",
         "identity",
         "preimage",
@@ -839,7 +1089,7 @@
           "const": false
         },
         "validated_at": {
-          "$ref": "#/$defs/timestamp"
+          "$ref": "#/$defs/timestampOrNull"
         },
         "run_correlation_sha256": {
           "$ref": "#/$defs/sha256"
@@ -856,11 +1106,41 @@
         "authorized_operation": {
           "const": "GUARDED_DISPOSABLE_TARGET_BOOTSTRAP_APPLY"
         },
+        "authority_contract_version": {
+          "const": "1.0.0"
+        },
+        "authority_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "authority_event_id": {
+          "$ref": "#/$defs/eventIdOrNull"
+        },
+        "authority_event_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "authority_issued_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "authority_authorized_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "authority_observed_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "authority_expires_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "authority_maximum_age_seconds": {
+          "const": 900
+        },
         "authority_receipt_sha256": {
           "$ref": "#/$defs/sha256"
         },
         "authority_binding_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "authority_authentication": {
+          "$ref": "#/$defs/executionAuthenticationResult"
         },
         "package": {
           "type": "object",
@@ -927,7 +1207,7 @@
           ],
           "properties": {
             "observed_at": {
-              "$ref": "#/$defs/timestamp"
+              "$ref": "#/$defs/timestampOrNull"
             },
             "subject_sha256": {
               "$ref": "#/$defs/sha256"
@@ -1003,7 +1283,7 @@
               "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/status"
             },
             "observed_at": {
-              "$ref": "#/$defs/timestamp"
+              "$ref": "#/$defs/timestampOrNull"
             },
             "subject_sha256": {
               "$ref": "#/$defs/sha256"
@@ -1278,6 +1558,11 @@
             "status",
             "subject_sha256",
             "run_correlation_sha256",
+            "observed_at",
+            "observer_identity_sha256",
+            "execution_identity_sha256",
+            "complete_denominator",
+            "evidence_receipt_sha256",
             "outbound_network_requests",
             "cron_jobs_enabled",
             "edge_functions_deployed",
@@ -1294,6 +1579,21 @@
               "$ref": "#/$defs/sha256"
             },
             "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "observed_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "observer_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "execution_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "complete_denominator": {
+              "type": "boolean"
+            },
+            "evidence_receipt_sha256": {
               "$ref": "#/$defs/sha256"
             },
             "outbound_network_requests": {

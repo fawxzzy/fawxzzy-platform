@@ -21,7 +21,7 @@
   },
   "contract_bindings": {
     "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
-    "binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
+    "binding_set_sha256": "3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6",
     "documents": [
       {
         "path": "contracts/v1/auth/import-rehearsal-contract.json",
@@ -76,7 +76,7 @@
       {
         "path": "contracts/v1/bootstrap/disposable-target-bootstrap-contract.json",
         "version": "1.0.0",
-        "sha256": "1d314175d6b031952aa5824d1b662a3de5a1ca12298605bfad0551c1511d1123"
+        "sha256": "d217f31885f995e939d8e37c07ef5201bef43934227564a9083b662b2054c869"
       },
       {
         "path": "contracts/v1/recovery/independent-backup-contract.json",
@@ -115,7 +115,38 @@
         "public_key_spki_sha256": null
       }
     },
-    "trust_anchors_must_be_distinct": true,
+    "write_barrier": {
+      "verification_boundary": "distinct_pinned_ed25519_write_barrier_authority_signature",
+      "signature_domain": "fawxzzy.platform.auth-app-data.write-barrier-authority.v1",
+      "freshness_seconds_maximum": 900,
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "auth-app-data-write-barrier-authority-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "write_barrier_consumption": {
+      "verification_boundary": "distinct_pinned_ed25519_one_time_consumption_signature",
+      "signature_domain": "fawxzzy.platform.auth-app-data.write-barrier-consumption.v1",
+      "evidence_model": "AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1",
+      "required_transition": "UNCONSUMED_TO_CONSUMED",
+      "trusted_action_time_injected_required": true,
+      "receipt_validated_at_is_trusted_action_time": false,
+      "external_consumption_ledger_required": true,
+      "source_persists_consumption_ledger": false,
+      "trust_anchor": {
+        "status": "BLOCKED",
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "verifier_reference": "auth-app-data-write-barrier-consumption-verifier-v1",
+        "public_key_spki_base64": null,
+        "public_key_spki_sha256": null
+      }
+    },
+    "all_trust_anchors_must_be_distinct": true,
     "caller_supplied_trust_material_allowed": false,
     "current_receipt_allowed_while_anchor_blocked": false
   },
@@ -426,7 +457,7 @@
     "source_contract_grants_provider_execution": false,
     "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "contract_binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
+    "contract_binding_set_sha256": "3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6",
     "package": {
       "migration_count": 122,
       "standard_migration_sql_count": 0,
@@ -438,7 +469,7 @@
       "authorized_operation": "AUTH_APP_DATA_REHEARSAL",
       "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "contract_binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
+      "contract_binding_set_sha256": "3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6",
       "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
       "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
       "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -520,7 +551,31 @@
     "snapshots": [],
     "write_barrier": {
       "status": "BLOCKED",
+      "authorized_operation": "SOURCE_WRITE_BARRIER",
+      "contract_version": "1.0.0",
+      "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "contract_binding_set_sha256": "3220e329aa10d1bc1027f53704ad389012e66780ddb1c36cdd077e73b82d6df6",
+      "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
+      "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
+      "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_scope_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_identity_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_event_id": null,
+      "authority_event_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_issued_at": null,
+      "authority_authorized_at": null,
+      "authority_observed_at": null,
+      "authority_expires_at": null,
+      "authority_maximum_age_seconds": 900,
       "authority_receipt_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "authority_authentication": {
+        "algorithm": "Ed25519",
+        "key_id": "UNKNOWN",
+        "public_key_spki_sha256": null,
+        "signed_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signature_base64": "AA=="
+      },
       "entered_at": null,
       "released_at": null
     },
