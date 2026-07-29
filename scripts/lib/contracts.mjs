@@ -139,11 +139,11 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/identity/identity-map.json', version: '1.0.0', sha256: '1212e3457552e85d65f262ecb63a3a2a452b3c133e42da15c32ce221d20f3fb9' }),
   Object.freeze({ path: 'contracts/v1/membership/membership-lifecycle.json', version: '1.1.0', sha256: '8dbeb551521ba94fb4d1a807e4c92cbc3d31dd8df1a9a0e18b9486044d434e78' }),
   Object.freeze({ path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', version: '1.0.0', sha256: '1d314175d6b031952aa5824d1b662a3de5a1ca12298605bfad0551c1511d1123' }),
-  Object.freeze({ path: 'contracts/v1/recovery/independent-backup-contract.json', version: '2.1.0', sha256: 'ed5c8f927061a82fcc8871a28fe862e1cc8d6d5963bfdad27072a3fe7486c99d' }),
+  Object.freeze({ path: 'contracts/v1/recovery/independent-backup-contract.json', version: '2.2.0', sha256: 'a627535f8f48d0c14b81a6bb611bf4f36935af96a66beb1d6a23096df4c2fd10' }),
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = 'e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6';
+const authAppDataBindingSetSha256 = '87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',

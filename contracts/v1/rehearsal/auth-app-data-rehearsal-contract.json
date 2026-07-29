@@ -21,7 +21,7 @@
   },
   "contract_bindings": {
     "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
-    "binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+    "binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
     "documents": [
       {
         "path": "contracts/v1/auth/import-rehearsal-contract.json",
@@ -80,8 +80,8 @@
       },
       {
         "path": "contracts/v1/recovery/independent-backup-contract.json",
-        "version": "2.1.0",
-        "sha256": "ed5c8f927061a82fcc8871a28fe862e1cc8d6d5963bfdad27072a3fe7486c99d"
+        "version": "2.2.0",
+        "sha256": "a627535f8f48d0c14b81a6bb611bf4f36935af96a66beb1d6a23096df4c2fd10"
       },
       {
         "path": "contracts/v1/recovery/micro-recovery-contract.json",
@@ -426,7 +426,7 @@
     "source_contract_grants_provider_execution": false,
     "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "contract_binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+    "contract_binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
     "package": {
       "migration_count": 122,
       "standard_migration_sql_count": 0,
@@ -438,7 +438,7 @@
       "authorized_operation": "AUTH_APP_DATA_REHEARSAL",
       "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "contract_binding_set_sha256": "e64d705bd1228ff4e488ecd36b1416736169355361ebe9b40e4e71b66ca520f6",
+      "contract_binding_set_sha256": "87d342e6e8a0f5f3965c15787bd87fffde38e979a3971fa7f27f99f8b5953f1e",
       "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
       "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
       "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
