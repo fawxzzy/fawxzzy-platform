@@ -240,6 +240,7 @@
     "signature_domain": "fawxzzy.platform.storage-edge-realtime.forward-evidence-ledger.v1",
     "evidence_classes": [
       "BUNDLE_REVIEW",
+      "DATA_API_PREIMAGE",
       "DATA_API_POSTIMAGE",
       "COMPLETE_READ_A",
       "COMPLETE_READ_B",

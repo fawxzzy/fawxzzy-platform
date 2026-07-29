@@ -69,10 +69,12 @@ the exact subject, run, package, reviewed bundle evidence, every surface
 aggregate, and the Data API postimage. Independent readers, executions, evidence
 receipts, complete pagination, fresh observations, and a bounded observation
 window are required. A fourth, distinct pinned Ed25519 trust domain authenticates
-one forward-evidence ledger covering the bundle review, Data API postimage,
+one forward-evidence ledger covering the bundle review, Data API preimage and
+postimage,
 complete reads A/B, and zero-effect proof. The signed subject binds the exact
 subject, run, trusted action time, package, manifest and query-model identities,
-evidence receipts, observation times, completeness, and all zero-effect counts.
+the preimage and postimage projection/evidence identities, observation times,
+completeness, and all zero-effect counts.
 Caller-supplied keys or trust anchors are not receipt evidence.
 
 The evidence chronology is enforced from the authenticated timestamps: bundle

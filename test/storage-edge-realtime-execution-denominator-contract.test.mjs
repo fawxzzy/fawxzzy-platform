@@ -525,6 +525,25 @@ test('pinned forward evidence signature rejects coherent bundle, read, and zero-
   const contract = loadContract();
   installTestTrustAnchors(contract);
 
+  const preimageSubstitution = currentReceipt();
+  const originalForwardAuthentication = clone(preimageSubstitution.forward_evidence_authentication);
+  preimageSubstitution.data_api.preimage.observed_at = '2026-07-29T04:58:00.000Z';
+  preimageSubstitution.data_api.preimage.observer_identity_sha256 = sha('e');
+  preimageSubstitution.data_api.preimage.evidence_receipt_sha256 = sha('f');
+  preimageSubstitution.data_api.preimage.projection_sha256 = storageEdgeRealtimeDataApiProjectionDigest(
+    preimageSubstitution.data_api.preimage
+  );
+  preimageSubstitution.terminal_receipt_sha256 = storageEdgeRealtimeTerminalReceiptDigest(preimageSubstitution);
+  assert.deepEqual(preimageSubstitution.forward_evidence_authentication, originalForwardAuthentication);
+  assert.notEqual(
+    canonicalDigest(storageEdgeRealtimeForwardEvidenceAuthenticationSubject(preimageSubstitution)),
+    originalForwardAuthentication.signed_payload_sha256
+  );
+  assert.ok(
+    validateStorageEdgeRealtimeExecutionDenominatorReceipt(contract, preimageSubstitution, trustedContext)
+      .some((failure) => failure.includes('forward bundle-review'))
+  );
+
   const bundleSubstitution = currentReceipt();
   bundleSubstitution.bundle_evidence.reviewer_receipt_sha256 = sha('e');
   rebindExpectedStateAndTerminal(bundleSubstitution);

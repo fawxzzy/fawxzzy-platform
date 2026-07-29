@@ -601,6 +601,7 @@
           "type": "array",
           "const": [
             "BUNDLE_REVIEW",
+            "DATA_API_PREIMAGE",
             "DATA_API_POSTIMAGE",
             "COMPLETE_READ_A",
             "COMPLETE_READ_B",

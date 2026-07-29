@@ -189,13 +189,14 @@ const storageEdgeRealtimeZeroEffectFields = Object.freeze([
 
 const storageEdgeRealtimeForwardEvidenceClasses = Object.freeze([
   'BUNDLE_REVIEW',
+  'DATA_API_PREIMAGE',
   'DATA_API_POSTIMAGE',
   'COMPLETE_READ_A',
   'COMPLETE_READ_B',
   'ZERO_EFFECT'
 ]);
 
-const storageEdgeRealtimeContractSha256 = '6f096076ec8a63fea636443bd379f5210d4f41a0ad4ef03fe216a4c809e36773';
+const storageEdgeRealtimeContractSha256 = '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97';
 
 const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
@@ -214,7 +215,7 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = '406244c08ce0c827b78f8f9dae8bfd5c92404f3c8c5fb8b458d67c87844831b4';
+const authAppDataBindingSetSha256 = '9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -756,6 +757,7 @@ export function storageEdgeRealtimePerSurfaceReceiptSetDigest(receipt) {
 
 export function storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt) {
   const bundle = receipt?.bundle_evidence ?? {};
+  const preimage = receipt?.data_api?.preimage ?? {};
   const postimage = receipt?.data_api?.postimage ?? {};
   const completeReads = receipt?.complete_reads ?? {};
   const zeroEffects = receipt?.zero_effects ?? {};
@@ -773,6 +775,12 @@ export function storageEdgeRealtimeForwardEvidenceAuthenticationSubject(receipt)
       manifest_sha256: bundle.manifest_sha256,
       reviewer_receipt_sha256: bundle.reviewer_receipt_sha256,
       reviewed_expected_state_receipt_sha256: bundle.reviewed_expected_state_receipt_sha256
+    },
+    data_api_preimage: {
+      observed_at: preimage.observed_at,
+      observer_identity_sha256: preimage.observer_identity_sha256,
+      evidence_receipt_sha256: preimage.evidence_receipt_sha256,
+      projection_sha256: preimage.projection_sha256
     },
     data_api_postimage: {
       observed_at: postimage.observed_at,
