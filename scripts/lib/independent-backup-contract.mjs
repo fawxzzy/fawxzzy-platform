@@ -93,6 +93,15 @@ const hexSha256 = /^[0-9a-f]{64}$/;
 const eventId = /^onv1_[0-9a-f]{64}$/;
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const recoveryVaultReference = 'fawxzzy/fawxzzy-recovery-vault';
+export const monthlySelectionRule = 'EARLIEST_PROVIDER_ACCEPTED_AT_THEN_RELEASE_TAG';
+export const monthlyLedgerSignatureDomain = 'fawxzzy-platform:github-release-monthly-selection-ledger:v1';
+export const monthlyLedgerProviderApi = 'GITHUB_REST_LIST_RELEASES';
+export const monthlyLedgerProviderApiVersion = '2022-11-28';
+export const monthlyLedgerProviderApiPath = '/repos/{owner}/{repo}/releases';
+export const monthlyLedgerAcceptanceDefinition = 'GITHUB_RELEASE_PUBLISHED_AT';
+export const monthlyLedgerAcceptanceTimestampField = 'published_at';
+export const monthlyLedgerInclusionPredicate = 'draft_false_prerelease_false_immutable_true_published_at_in_utc_month';
+export const monthlyLedgerStableIdentityFields = Object.freeze(['id', 'tag_name']);
 const phaseOneExecutionGates = Object.freeze({
   provider_setup: 'CURRENT',
   github_recovery_vault_provisioning: 'CURRENT',
@@ -196,6 +205,73 @@ export function independentBackupReadbackSubjectDigest(readback) {
   return sha256Hex(independentBackupReadbackSubject(readback));
 }
 
+export function independentBackupMonthlyLedgerInventoryDigest(ledger) {
+  return sha256Hex({
+    acceptance_definition: ledger?.acceptance_definition,
+    acceptance_timestamp_field: ledger?.acceptance_timestamp_field,
+    accepted_releases: ledger?.accepted_releases,
+    inclusion_predicate: ledger?.inclusion_predicate,
+    pagination: ledger?.pagination,
+    provider_api: ledger?.provider_api,
+    provider_api_path: ledger?.provider_api_path,
+    provider_api_version: ledger?.provider_api_version,
+    stable_identity_fields: ledger?.stable_identity_fields,
+    utc_month: ledger?.utc_month
+  });
+}
+
+export function independentBackupMonthlyLedgerPaginationDigest(ledger) {
+  return sha256Hex({
+    acceptance_definition: ledger?.acceptance_definition,
+    acceptance_timestamp_field: ledger?.acceptance_timestamp_field,
+    inclusion_predicate: ledger?.inclusion_predicate,
+    pagination: without(ledger?.pagination, ['snapshot_sha256']),
+    provider_api: ledger?.provider_api,
+    provider_api_path: ledger?.provider_api_path,
+    provider_api_version: ledger?.provider_api_version,
+    repository_reference: ledger?.repository_reference,
+    stable_identity_fields: ledger?.stable_identity_fields,
+    utc_month: ledger?.utc_month
+  });
+}
+
+export function independentBackupMonthlyLedgerEvidenceDigest(ledger) {
+  return sha256Hex(without(ledger, ['evidence_sha256']));
+}
+
+export function independentBackupMonthlyLedgerSubject(ledger) {
+  const signer = ledger?.signer ?? {};
+  return {
+    domain: monthlyLedgerSignatureDomain,
+    accepted_release_count: ledger?.accepted_release_count,
+    accepted_releases: ledger?.accepted_releases,
+    acceptance_definition: ledger?.acceptance_definition,
+    acceptance_timestamp_field: ledger?.acceptance_timestamp_field,
+    complete: ledger?.complete,
+    concurrency_state: ledger?.concurrency_state,
+    inclusion_predicate: ledger?.inclusion_predicate,
+    inventory_sha256: ledger?.inventory_sha256,
+    inventory_source: ledger?.inventory_source,
+    observed_at: ledger?.observed_at,
+    pagination: ledger?.pagination,
+    provider_api: ledger?.provider_api,
+    provider_api_path: ledger?.provider_api_path,
+    provider_api_version: ledger?.provider_api_version,
+    repository_reference: ledger?.repository_reference,
+    schema_version: ledger?.schema_version,
+    signer_algorithm: signer.algorithm,
+    signer_key_id: signer.key_id,
+    signer_public_key_spki_sha256: signer.public_key_spki_sha256,
+    stable_identity_fields: ledger?.stable_identity_fields,
+    status: ledger?.status,
+    utc_month: ledger?.utc_month
+  };
+}
+
+export function independentBackupMonthlyLedgerSubjectDigest(ledger) {
+  return sha256Hex(independentBackupMonthlyLedgerSubject(ledger));
+}
+
 export function independentBackupAttestationSubject(receipt) {
   const attestation = receipt?.github_release_attestation ?? {};
   const signer = attestation.signer ?? {};
@@ -293,11 +369,28 @@ function verifyIndependentReadback(readback, trustAnchor) {
   );
 }
 
+function verifyMonthlyLedger(ledger, trustAnchor) {
+  return verifyEd25519Subject(
+    independentBackupMonthlyLedgerSubject(ledger),
+    ledger?.signer?.signature_base64,
+    trustAnchor
+  );
+}
+
+function compareAcceptedReleases(left, right) {
+  const leftTime = utcMilliseconds(left?.published_at);
+  const rightTime = utcMilliseconds(right?.published_at);
+  if (leftTime !== rightTime) return leftTime - rightTime;
+  if (left?.tag_name < right?.tag_name) return -1;
+  if (left?.tag_name > right?.tag_name) return 1;
+  return 0;
+}
+
 export function validateIndependentBackupContract(contract) {
   const failures = validatorFailures(contractValidator, contract, 'independent backup contract schema');
   if (failures.length > 0) return { ok: false, failures: failures.sort((a, b) => a.localeCompare(b)) };
 
-  requireCondition(contract.version === '2.1.0' && contract.governance.source_contract_version === contract.version, 'independent backup contract must be version 2.1.0', failures);
+  requireCondition(contract.version === '2.2.0' && contract.governance.source_contract_version === contract.version, 'independent backup contract must be version 2.2.0', failures);
   requireCondition(contract.status === 'BLOCKED' && contract.apply_admitted === false, 'independent backup execution must remain blocked', failures);
   requireCondition(contract.decision_id === 'FP-MAN-015', 'independent backup contract must preserve FP-MAN-015', failures);
   requireCondition(contract.governance.operator_direction_event_id === 'onv1_706060909f09a341088af11beac48acd10e8d6d7c4ef02b6985df5170df76fa6', 'operator direction event binding changed', failures);
@@ -357,6 +450,20 @@ export function validateIndependentBackupContract(contract) {
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.verification_boundary === 'distinct_pinned_ed25519_reader_signature', 'independent readback verification boundary changed', failures);
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.signature_domain === 'fawxzzy-platform:github-release-independent-readback:v1', 'independent readback signature domain changed', failures);
   requireCondition(contract.receipt_contract.github_release_attestation.independent_readback.actor_separation_required === true, 'independent readback actor separation changed', failures);
+  const monthlyPolicy = contract.receipt_contract.monthly_selection;
+  requireCondition(contract.receipt_contract.schema_version === '2.1.0', 'independent backup receipt contract must be version 2.1.0', failures);
+  requireCondition(monthlyPolicy.verification_boundary === 'existing_distinct_pinned_ed25519_reader_trust_anchor', 'monthly ledger trust boundary changed', failures);
+  requireCondition(monthlyPolicy.signature_domain === monthlyLedgerSignatureDomain, 'monthly ledger signature domain changed', failures);
+  requireCondition(monthlyPolicy.inventory_source === 'COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY', 'monthly ledger inventory source changed', failures);
+  requireCondition(monthlyPolicy.schema_version === '1.1.0', 'monthly ledger policy must be version 1.1.0', failures);
+  requireCondition(monthlyPolicy.provider_api === monthlyLedgerProviderApi && monthlyPolicy.provider_api_version === monthlyLedgerProviderApiVersion && monthlyPolicy.provider_api_path === monthlyLedgerProviderApiPath, 'monthly ledger GitHub API binding changed', failures);
+  requireCondition(monthlyPolicy.acceptance_definition === monthlyLedgerAcceptanceDefinition && monthlyPolicy.acceptance_timestamp_field === monthlyLedgerAcceptanceTimestampField, 'monthly ledger provider-acceptance definition changed', failures);
+  requireCondition(monthlyPolicy.inclusion_predicate === monthlyLedgerInclusionPredicate && sameOrdered(monthlyPolicy.stable_identity_fields, monthlyLedgerStableIdentityFields), 'monthly ledger native release inclusion or identity boundary changed', failures);
+  requireCondition(monthlyPolicy.pagination?.per_page === 100 && monthlyPolicy.pagination?.terminal_page_required === true && monthlyPolicy.pagination?.raw_page_digest_list_required === true && monthlyPolicy.pagination?.first_page_etag_double_read_required === true, 'monthly ledger pagination proof boundary changed', failures);
+  requireCondition(monthlyPolicy.selection_rule === monthlySelectionRule, 'monthly ledger selection rule changed', failures);
+  requireCondition(monthlyPolicy.candidate_membership === 'EXACTLY_ONCE' && monthlyPolicy.selected_membership === 'EXACTLY_ONCE', 'monthly ledger membership constraints changed', failures);
+  requireCondition(monthlyPolicy.concurrency_state === 'CONSISTENT_SINGLE_HEAD_REQUIRED', 'monthly ledger concurrency boundary changed', failures);
+  requireCondition(sameOrdered(monthlyPolicy.historical_receipt_schema_versions, ['2.0.0']) && monthlyPolicy.historical_current_promotion === 'REJECT', 'historical receipt promotion boundary changed', failures);
   requireCondition(JSON.stringify(contract.execution_gates) === JSON.stringify(phaseOneExecutionGates), 'Phase 1 execution-gate denominator changed', failures);
   const destination = contract.policy.destination;
   const evidence = contract.provider_capability_evidence;
@@ -422,21 +529,28 @@ export function validateIndependentBackupReceipt(contract, receipt) {
   requireCondition(new Set(receipt.key_recipient_ids ?? []).size === receipt.key_recipient_ids?.length && receipt.key_recipient_ids?.length >= contract.policy.encryption.minimum_age_recipient_count, 'at least two unique public age recipient fingerprints are required', failures);
   requireCondition(receipt.cost?.maximum_usd === 0 && receipt.cost?.observed_usd === 0, 'receipt cost must be exactly zero', failures);
   requireCondition(receipt.github_release_attestation?.independent_readback?.evidence_sha256 === independentBackupReadbackEvidenceDigest(receipt.github_release_attestation?.independent_readback), 'independent readback evidence digest mismatch', failures);
+  const monthlyPolicy = contract.receipt_contract.monthly_selection;
+  const monthlySelection = receipt.monthly_selection;
+  const monthlyLedger = monthlySelection?.ledger;
+  const acceptedReleases = monthlyLedger?.accepted_releases ?? [];
+  requireCondition(monthlySelection?.selection_rule === monthlySelectionRule, 'monthly selection rule mismatch', failures);
+  requireCondition(monthlySelection?.candidate_release_tag === receipt.release_tag, 'monthly candidate release tag mismatch', failures);
+  requireCondition(monthlyLedger?.utc_month === monthlySelection?.utc_month, 'monthly ledger period mismatch', failures);
+  requireCondition(monthlyLedger?.schema_version === monthlyPolicy.schema_version, 'monthly ledger schema version mismatch', failures);
+  requireCondition(monthlyLedger?.accepted_release_count === acceptedReleases.length, 'monthly ledger accepted-release count mismatch', failures);
+  requireCondition(monthlyLedger?.pagination?.snapshot_sha256 === independentBackupMonthlyLedgerPaginationDigest(monthlyLedger), 'monthly ledger pagination snapshot digest mismatch', failures);
+  requireCondition(monthlyLedger?.inventory_sha256 === independentBackupMonthlyLedgerInventoryDigest(monthlyLedger), 'monthly ledger inventory digest mismatch', failures);
+  requireCondition(monthlyLedger?.evidence_sha256 === independentBackupMonthlyLedgerEvidenceDigest(monthlyLedger), 'monthly ledger evidence digest mismatch', failures);
 
   const snapshotAt = utcMilliseconds(receipt.snapshot_at);
   const completedAt = utcMilliseconds(receipt.completed_at);
   const observedAt = utcMilliseconds(receipt.freshness?.observed_at);
   const retentionUntil = utcMilliseconds(receipt.retention_until);
-  const requiredRetentionDays = receipt.monthly_selection?.is_first_accepted_utc_month
-    ? contract.policy.retention.first_accepted_monthly_days
-    : contract.policy.retention.standard_days;
   requireCondition(Number.isFinite(snapshotAt) && Number.isFinite(completedAt) && completedAt >= snapshotAt, 'backup completion timestamp is invalid', failures);
   requireCondition(Number.isFinite(observedAt) && observedAt >= completedAt, 'backup freshness observation timestamp is invalid', failures);
   requireCondition(receipt.freshness?.age_seconds === Math.floor((observedAt - snapshotAt) / 1000), 'backup freshness age does not match timestamps', failures);
   requireCondition(receipt.freshness?.maximum_age_seconds === contract.policy.objectives.rpo_seconds, 'backup freshness maximum changed', failures);
-  requireCondition(Number.isFinite(retentionUntil) && retentionUntil >= completedAt + requiredRetentionDays * 86400000, 'backup retention window is too short', failures);
-  requireCondition(receipt.monthly_selection?.utc_month === receipt.snapshot_at?.slice(0, 7), 'backup monthly-selection period mismatch', failures);
-  requireCondition(receipt.monthly_selection?.retention_class === (receipt.monthly_selection?.is_first_accepted_utc_month ? 'FIRST_MONTHLY_400_DAY' : 'STANDARD_35_DAY'), 'backup retention class mismatch', failures);
+  requireCondition(Number.isFinite(retentionUntil), 'backup retention deadline is invalid', failures);
 
   if (receipt.status === 'CURRENT') {
     const destination = contract.policy.destination;
@@ -464,6 +578,54 @@ export function validateIndependentBackupReceipt(contract, receipt) {
     requireCondition(trustAnchor.status === 'CURRENT' && attestation?.signer?.algorithm === 'Ed25519' && attestation?.signer?.key_id === trustAnchor.key_id && attestation?.signer?.public_key_spki_sha256 === trustAnchor.public_key_spki_sha256, 'release signer does not match pinned trust anchor', failures);
     requireCondition(readbackTrustAnchor.status === 'CURRENT' && readback?.signer?.algorithm === 'Ed25519' && readback?.signer?.key_id === readbackTrustAnchor.key_id && readback?.signer?.public_key_spki_sha256 === readbackTrustAnchor.public_key_spki_sha256, 'readback signer does not match pinned independent trust anchor', failures);
     requireCondition(readbackTrustAnchor.key_id !== trustAnchor.key_id && readbackTrustAnchor.public_key_spki_sha256 !== trustAnchor.public_key_spki_sha256, 'release and readback signer identities must be distinct', failures);
+    const monthlyObservedAt = utcMilliseconds(monthlyLedger?.observed_at);
+    const releaseTags = acceptedReleases.map((entry) => entry.tag_name);
+    const releaseIds = acceptedReleases.map((entry) => entry.id);
+    const candidateMatches = releaseTags.filter((tag) => tag === monthlySelection?.candidate_release_tag).length;
+    const selectedMatches = releaseTags.filter((tag) => tag === monthlySelection?.selected_release_tag).length;
+    const timestampsValid = acceptedReleases.every((entry) => {
+      const createdAt = utcMilliseconds(entry.created_at);
+      const publishedAt = utcMilliseconds(entry.published_at);
+      return Number.isFinite(createdAt)
+        && Number.isFinite(publishedAt)
+        && createdAt <= publishedAt
+        && entry.published_at.slice(0, 7) === monthlySelection?.utc_month
+        && entry.draft === false
+        && entry.prerelease === false
+        && entry.immutable === true
+        && publishedAt <= monthlyObservedAt;
+    });
+    const orderedReleases = [...acceptedReleases].sort(compareAcceptedReleases);
+    const candidateEntry = acceptedReleases.find((entry) => entry.tag_name === monthlySelection?.candidate_release_tag);
+    const candidatePublishedAt = utcMilliseconds(candidateEntry?.published_at);
+    const requiredRetentionDays = monthlySelection?.retention_class === 'FIRST_MONTHLY_400_DAY'
+      ? contract.policy.retention.first_accepted_monthly_days
+      : contract.policy.retention.standard_days;
+    const pagination = monthlyLedger?.pagination;
+    requireCondition(monthlyLedger?.status === 'VERIFIED' && monthlyLedger?.complete === true, 'current receipt requires a complete verified monthly ledger', failures);
+    requireCondition(monthlyLedger?.inventory_source === 'COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY', 'monthly ledger inventory is not provider-native and complete', failures);
+    requireCondition(monthlyLedger?.provider_api === monthlyLedgerProviderApi && monthlyLedger?.provider_api_version === monthlyLedgerProviderApiVersion && monthlyLedger?.provider_api_path === monthlyLedgerProviderApiPath, 'monthly ledger GitHub API evidence binding mismatch', failures);
+    requireCondition(monthlyLedger?.acceptance_definition === monthlyLedgerAcceptanceDefinition && monthlyLedger?.acceptance_timestamp_field === monthlyLedgerAcceptanceTimestampField, 'monthly ledger GitHub publication acceptance mapping mismatch', failures);
+    requireCondition(monthlyLedger?.inclusion_predicate === monthlyLedgerInclusionPredicate && sameOrdered(monthlyLedger?.stable_identity_fields, monthlyLedgerStableIdentityFields), 'monthly ledger native release inclusion or identity mismatch', failures);
+    requireCondition(monthlyLedger?.concurrency_state === 'CONSISTENT_SINGLE_HEAD', 'monthly ledger is ambiguous or forked', failures);
+    requireCondition(monthlyLedger?.repository_reference === attestation?.repository_reference && monthlyLedger?.repository_reference === recoveryVaultReference, 'monthly ledger repository identity mismatch', failures);
+    requireCondition(pagination?.per_page === 100 && pagination?.page_count >= 1 && pagination?.page_count === pagination?.page_digests_sha256?.length && pagination?.page_exhausted === true, 'monthly ledger pagination is incomplete', failures);
+    requireCondition(pagination?.total_native_release_count === (pagination?.page_count - 1) * pagination?.per_page + pagination?.terminal_page_item_count && pagination?.total_native_release_count >= acceptedReleases.length, 'monthly ledger native pagination count mismatch', failures);
+    requireCondition(pagination?.first_page_etag_before_sha256 === pagination?.first_page_etag_after_sha256, 'monthly ledger pagination changed during enumeration', failures);
+    requireCondition(acceptedReleases.length > 0 && new Set(releaseTags).size === releaseTags.length && new Set(releaseIds).size === releaseIds.length, 'monthly ledger stable release identities must be nonempty and unique', failures);
+    requireCondition(timestampsValid, 'monthly ledger contains an ineligible or cross-month native release', failures);
+    requireCondition(JSON.stringify(acceptedReleases) === JSON.stringify(orderedReleases), 'monthly ledger accepted releases are not deterministically ordered', failures);
+    requireCondition(candidateMatches === 1, 'monthly candidate must appear exactly once in the accepted-release ledger', failures);
+    requireCondition(selectedMatches === 1 && monthlySelection?.selected_release_tag === acceptedReleases[0]?.tag_name, 'monthly selected release must be the unique deterministic earliest accepted release', failures);
+    requireCondition(monthlySelection?.retention_class === (monthlySelection?.candidate_release_tag === monthlySelection?.selected_release_tag ? 'FIRST_MONTHLY_400_DAY' : 'STANDARD_35_DAY'), 'backup retention class mismatch', failures);
+    requireCondition(monthlySelection?.utc_month === candidateEntry?.published_at?.slice(0, 7), 'backup monthly-selection period must match candidate GitHub published_at', failures);
+    requireCondition(Number.isFinite(candidatePublishedAt) && candidatePublishedAt >= completedAt, 'candidate GitHub published_at must not precede backup completion', failures);
+    requireCondition(candidatePublishedAt <= attestationObservedAt && candidatePublishedAt <= readbackObservedAt, 'candidate GitHub published_at must not follow attestation or readback observation', failures);
+    requireCondition(Number.isFinite(candidatePublishedAt) && retentionUntil >= candidatePublishedAt + requiredRetentionDays * 86400000, 'backup retention window is too short from candidate GitHub published_at', failures);
+    requireCondition(Number.isFinite(monthlyObservedAt) && observedAt - monthlyObservedAt >= 0 && observedAt - monthlyObservedAt <= policy.maximum_age_seconds * 1000, 'monthly ledger is stale', failures);
+    requireCondition(readbackTrustAnchor.status === 'CURRENT' && monthlyLedger?.signer?.algorithm === 'Ed25519' && monthlyLedger?.signer?.key_id === readbackTrustAnchor.key_id && monthlyLedger?.signer?.public_key_spki_sha256 === readbackTrustAnchor.public_key_spki_sha256, 'monthly ledger signer does not match pinned independent trust anchor', failures);
+    requireCondition(monthlyLedger?.signer?.signed_payload_sha256 === independentBackupMonthlyLedgerSubjectDigest(monthlyLedger), 'monthly ledger signed-payload digest mismatch', failures);
+    requireCondition(verifyMonthlyLedger(monthlyLedger, readbackTrustAnchor), 'monthly ledger signature verification failed', failures);
     requireCondition(readback?.signer?.signed_payload_sha256 === independentBackupReadbackSubjectDigest(readback), 'independent readback signed-payload digest mismatch', failures);
     requireCondition(verifyIndependentReadback(readback, readbackTrustAnchor), 'independent readback signature verification failed', failures);
     requireCondition(attestation?.signer?.signed_payload_sha256 === independentBackupAttestationSubjectDigest(receipt), 'release attestation signed-payload digest mismatch', failures);
@@ -480,6 +642,12 @@ export function validateIndependentBackupReceipt(contract, receipt) {
     requireCondition(readback?.status === 'BLOCKED' && readback?.reader_class === 'BLOCKED' && readback?.reader_identity === 'UNKNOWN' && readback?.observation_method === 'BLOCKED', 'blocked receipt must retain one blocked independent-readback state', failures);
     requireCondition(readback?.repository_reference === 'UNKNOWN' && readback?.release_tag === receipt.release_tag && readback?.immutable_release === false && readback?.tag_reused === false && readback?.assets_manifest_sha256 === receipt.release_assets?.assets_manifest_sha256 && readback?.observed_receipt_id === receipt.receipt_id, 'blocked independent-readback content binding mismatch', failures);
     requireCondition(readback?.signer?.algorithm === 'Ed25519' && readback?.signer?.key_id === 'UNKNOWN' && readback?.signer?.signature_base64 === 'AA==' && readback?.signer?.signed_payload_sha256 === independentBackupReadbackSubjectDigest(readback), 'blocked independent-readback signer state is invalid', failures);
+    requireCondition(monthlySelection?.selected_release_tag === 'UNKNOWN' && monthlySelection?.retention_class === 'STANDARD_35_DAY', 'blocked receipt must not assert a selected monthly release', failures);
+    requireCondition(monthlyLedger?.status === 'BLOCKED' && monthlyLedger?.repository_reference === 'UNKNOWN' && monthlyLedger?.inventory_source === 'BLOCKED' && monthlyLedger?.complete === false && monthlyLedger?.concurrency_state === 'BLOCKED', 'blocked receipt must retain one blocked monthly-ledger state', failures);
+    requireCondition(monthlyLedger?.accepted_release_count === 0 && acceptedReleases.length === 0, 'blocked monthly ledger must not assert accepted releases', failures);
+    requireCondition(monthlyLedger?.pagination?.page_count === 0 && monthlyLedger?.pagination?.total_native_release_count === 0 && monthlyLedger?.pagination?.page_digests_sha256?.length === 0 && monthlyLedger?.pagination?.page_exhausted === false, 'blocked monthly ledger must not assert pagination evidence', failures);
+    requireCondition(retentionUntil >= completedAt + contract.policy.retention.standard_days * 86400000, 'blocked backup retention window is too short', failures);
+    requireCondition(monthlyLedger?.signer?.algorithm === 'Ed25519' && monthlyLedger?.signer?.key_id === 'UNKNOWN' && monthlyLedger?.signer?.signature_base64 === 'AA==' && monthlyLedger?.signer?.signed_payload_sha256 === independentBackupMonthlyLedgerSubjectDigest(monthlyLedger), 'blocked monthly-ledger signer state is invalid', failures);
   }
   return { ok: failures.length === 0, failures: failures.sort((a, b) => a.localeCompare(b)) };
 }

@@ -12,12 +12,18 @@ import {
   independentBackupAttestationSubjectDigest,
   independentBackupContractPath,
   independentBackupManifestDigest,
+  independentBackupMonthlyLedgerEvidenceDigest,
+  independentBackupMonthlyLedgerInventoryDigest,
+  independentBackupMonthlyLedgerPaginationDigest,
+  independentBackupMonthlyLedgerSubject,
+  independentBackupMonthlyLedgerSubjectDigest,
   independentBackupPublicPayloadDigest,
   independentBackupReadbackEvidenceDigest,
   independentBackupReadbackSubject,
   independentBackupReadbackSubjectDigest,
   independentBackupReceiptIdentityDigest,
   independentBackupSourceStateDigest,
+  monthlySelectionRule,
   receiptRequiredFields,
   sha256Hex,
   validateIndependentBackupContract,
@@ -26,9 +32,17 @@ import {
 } from '../scripts/lib/independent-backup-contract.mjs';
 
 const contract = () => JSON.parse(fs.readFileSync(independentBackupContractPath, 'utf8'));
+const microRecoveryContract = () => JSON.parse(
+  fs.readFileSync('contracts/v1/recovery/micro-recovery-contract.json', 'utf8')
+);
 const hash = (label) => sha256Hex(label);
 
 function bindReceipt(receipt) {
+  const ledger = receipt.monthly_selection.ledger;
+  ledger.pagination.snapshot_sha256 = independentBackupMonthlyLedgerPaginationDigest(ledger);
+  ledger.inventory_sha256 = independentBackupMonthlyLedgerInventoryDigest(ledger);
+  ledger.signer.signed_payload_sha256 = independentBackupMonthlyLedgerSubjectDigest(ledger);
+  ledger.evidence_sha256 = independentBackupMonthlyLedgerEvidenceDigest(ledger);
   receipt.source_state_sha256 = independentBackupSourceStateDigest(receipt);
   receipt.manifest_sha256 = independentBackupManifestDigest(receipt);
   receipt.receipt_id = independentBackupReceiptIdentityDigest(receipt);
@@ -49,7 +63,7 @@ function buildReceipt(overrides = {}) {
     { name: 'backup.age.part-002', bytes: 2048, sha256: hash('chunk-2') }
   ];
   const receipt = {
-    schema_version: '2.0.0',
+    schema_version: '2.1.0',
     status: 'BLOCKED',
     aggregate_counts: Object.fromEntries(coverageUnits.map((unit, index) => [unit, index + 1])),
     ciphertext_bytes: 3072,
@@ -112,8 +126,49 @@ function buildReceipt(overrides = {}) {
     migration_ledger_sha256: hash('migration-ledger'),
     monthly_selection: {
       utc_month: '2026-07',
-      is_first_accepted_utc_month: false,
-      retention_class: 'STANDARD_35_DAY'
+      candidate_release_tag: 'backup-20260727T000000Z',
+      selected_release_tag: 'UNKNOWN',
+      retention_class: 'STANDARD_35_DAY',
+      selection_rule: monthlySelectionRule,
+      ledger: {
+        schema_version: '1.1.0',
+        status: 'BLOCKED',
+        repository_reference: 'UNKNOWN',
+        utc_month: '2026-07',
+        inventory_source: 'BLOCKED',
+        provider_api: 'GITHUB_REST_LIST_RELEASES',
+        provider_api_version: '2022-11-28',
+        provider_api_path: '/repos/{owner}/{repo}/releases',
+        acceptance_definition: 'GITHUB_RELEASE_PUBLISHED_AT',
+        acceptance_timestamp_field: 'published_at',
+        inclusion_predicate: 'draft_false_prerelease_false_immutable_true_published_at_in_utc_month',
+        stable_identity_fields: ['id', 'tag_name'],
+        complete: false,
+        concurrency_state: 'BLOCKED',
+        observed_at: '2026-07-27T01:00:00.000Z',
+        pagination: {
+          per_page: 100,
+          page_count: 0,
+          terminal_page_item_count: 0,
+          total_native_release_count: 0,
+          page_exhausted: false,
+          page_digests_sha256: [],
+          first_page_etag_before_sha256: hash('blocked-etag'),
+          first_page_etag_after_sha256: hash('blocked-etag'),
+          snapshot_sha256: hash('pending-pagination')
+        },
+        accepted_release_count: 0,
+        accepted_releases: [],
+        inventory_sha256: hash('pending-monthly-inventory'),
+        signer: {
+          algorithm: 'Ed25519',
+          key_id: 'UNKNOWN',
+          public_key_spki_sha256: hash('unknown-readback-public-key'),
+          signed_payload_sha256: hash('blocked-monthly-ledger-subject'),
+          signature_base64: 'AA=='
+        },
+        evidence_sha256: hash('pending-monthly-ledger')
+      }
     },
     postgres_version: '17.4',
     project: { name: 'Fawxzzy shared Supabase project', ref: 'bxtcuhkotumitoqtrcej' },
@@ -182,6 +237,7 @@ function buildCurrentFixture() {
   };
   const receipt = buildReceipt({
     status: 'CURRENT',
+    retention_until: '2027-09-01T00:30:00.000Z',
     freshness: {
       status: 'CURRENT',
       age_seconds: 3600,
@@ -199,6 +255,64 @@ function buildCurrentFixture() {
       evidence_sha256: hash('watchdog-evidence')
     }
   });
+  receipt.monthly_selection = {
+    utc_month: '2026-07',
+    candidate_release_tag: receipt.release_tag,
+    selected_release_tag: receipt.release_tag,
+    retention_class: 'FIRST_MONTHLY_400_DAY',
+    selection_rule: monthlySelectionRule,
+    ledger: {
+      schema_version: '1.1.0',
+      status: 'VERIFIED',
+      repository_reference: repository,
+      utc_month: '2026-07',
+      inventory_source: 'COMPLETE_PROVIDER_NATIVE_ACCEPTED_RELEASE_INVENTORY',
+      provider_api: 'GITHUB_REST_LIST_RELEASES',
+      provider_api_version: '2022-11-28',
+      provider_api_path: '/repos/{owner}/{repo}/releases',
+      acceptance_definition: 'GITHUB_RELEASE_PUBLISHED_AT',
+      acceptance_timestamp_field: 'published_at',
+      inclusion_predicate: 'draft_false_prerelease_false_immutable_true_published_at_in_utc_month',
+      stable_identity_fields: ['id', 'tag_name'],
+      complete: true,
+      concurrency_state: 'CONSISTENT_SINGLE_HEAD',
+      observed_at: '2026-07-27T01:00:00.000Z',
+      pagination: {
+        per_page: 100,
+        page_count: 1,
+        terminal_page_item_count: 1,
+        total_native_release_count: 1,
+        page_exhausted: true,
+        page_digests_sha256: [hash('native-release-page-1')],
+        first_page_etag_before_sha256: hash('native-release-etag'),
+        first_page_etag_after_sha256: hash('native-release-etag'),
+        snapshot_sha256: hash('pending-pagination')
+      },
+      accepted_release_count: 1,
+      accepted_releases: [
+        {
+          id: 270001,
+          tag_name: receipt.release_tag,
+          draft: false,
+          prerelease: false,
+          immutable: true,
+          created_at: '2026-07-27T00:30:30.000Z',
+          published_at: '2026-07-27T00:31:00.000Z'
+        }
+      ],
+      inventory_sha256: hash('pending-monthly-inventory'),
+      signer: {
+        algorithm: 'Ed25519',
+        key_id: value.receipt_contract.github_release_attestation.independent_readback.trust_anchor.key_id,
+        public_key_spki_sha256: sha256Hex(readbackSpki),
+        signed_payload_sha256: hash('pending-monthly-ledger-subject'),
+        signature_base64: 'AA=='
+      },
+      evidence_sha256: hash('pending-monthly-ledger')
+    }
+  };
+  signMonthlyLedger(receipt, readbackPrivateKey);
+  bindReceipt(receipt);
   receipt.github_release_attestation = {
     schema_version: '1.0.0',
     status: 'VERIFIED',
@@ -268,6 +382,19 @@ function signReadback(receipt, privateKey) {
   readback.evidence_sha256 = independentBackupReadbackEvidenceDigest(readback);
 }
 
+function signMonthlyLedger(receipt, privateKey) {
+  const ledger = receipt.monthly_selection.ledger;
+  ledger.pagination.snapshot_sha256 = independentBackupMonthlyLedgerPaginationDigest(ledger);
+  ledger.inventory_sha256 = independentBackupMonthlyLedgerInventoryDigest(ledger);
+  ledger.signer.signed_payload_sha256 = independentBackupMonthlyLedgerSubjectDigest(ledger);
+  ledger.signer.signature_base64 = crypto.sign(
+    null,
+    Buffer.from(canonicalSerialize(independentBackupMonthlyLedgerSubject(ledger))),
+    privateKey
+  ).toString('base64');
+  ledger.evidence_sha256 = independentBackupMonthlyLedgerEvidenceDigest(ledger);
+}
+
 function signReleaseAttestation(receipt, privateKey) {
   const signer = receipt.github_release_attestation.signer;
   signer.signed_payload_sha256 = independentBackupAttestationSubjectDigest(receipt);
@@ -276,6 +403,55 @@ function signReleaseAttestation(receipt, privateKey) {
     Buffer.from(canonicalSerialize(independentBackupAttestationSubject(receipt))),
     privateKey
   ).toString('base64');
+}
+
+function resignCurrentFixture(fixture) {
+  signMonthlyLedger(fixture.receipt, fixture.readbackPrivateKey);
+  bindReceipt(fixture.receipt);
+  signReadback(fixture.receipt, fixture.readbackPrivateKey);
+  signReleaseAttestation(fixture.receipt, fixture.releasePrivateKey);
+}
+
+function buildLaterAcceptedFixture() {
+  const fixture = buildCurrentFixture();
+  const { receipt } = fixture;
+  receipt.monthly_selection.selected_release_tag = 'backup-20260701T000000Z';
+  receipt.monthly_selection.retention_class = 'STANDARD_35_DAY';
+  receipt.monthly_selection.ledger.accepted_release_count = 2;
+  receipt.monthly_selection.ledger.accepted_releases = [
+    {
+      id: 270000,
+      tag_name: 'backup-20260701T000000Z',
+      draft: false,
+      prerelease: false,
+      immutable: true,
+      created_at: '2026-07-01T00:30:30.000Z',
+      published_at: '2026-07-01T00:31:00.000Z'
+    },
+    {
+      id: 270001,
+      tag_name: receipt.release_tag,
+      draft: false,
+      prerelease: false,
+      immutable: true,
+      created_at: '2026-07-27T00:30:30.000Z',
+      published_at: '2026-07-27T00:31:00.000Z'
+    }
+  ];
+  receipt.monthly_selection.ledger.pagination.terminal_page_item_count = 2;
+  receipt.monthly_selection.ledger.pagination.total_native_release_count = 2;
+  receipt.retention_until = '2026-08-31T00:31:00.000Z';
+  resignCurrentFixture(fixture);
+  return fixture;
+}
+
+function assertCurrentFixtureRejected(mutator, expectedFragment, { later = false } = {}) {
+  const fixture = later ? buildLaterAcceptedFixture() : buildCurrentFixture();
+  mutator(fixture.receipt);
+  resignCurrentFixture(fixture);
+  const result = validateIndependentBackupReceipt(fixture.value, fixture.receipt);
+  assert.equal(result.ok, false);
+  assert.ok(result.failures.some((failure) => failure.includes(expectedFragment)), result.failures.join('\n'));
 }
 
 function assertRejected(mutator, expectedFragment) {
@@ -293,6 +469,28 @@ test('source contract is canonical, closed, and valid', () => {
   assert.deepEqual(value.receipt_contract.required_fields, receiptRequiredFields);
   assert.deepEqual(value.receipt_contract.forbidden_classes, forbiddenClasses);
   assert.deepEqual(value.restore_quarantine.external_effect_units, externalEffectUnits);
+  assert.equal(value.apply_admitted, false);
+});
+
+test('provider backups remain database-only and cannot substitute for the independent archive', () => {
+  const source = microRecoveryContract();
+  const value = contract();
+  assert.deepEqual(source.posture.daily_physical_backups, {
+    status: 'CURRENT',
+    frequency: 'daily',
+    retention_days: 7,
+    database_only: true,
+    storage_object_bodies_included: false
+  });
+  assert.deepEqual(source.posture.independent_encrypted_export, {
+    status: 'REQUIRED',
+    required_before: 'shared_auth_or_data_load',
+    execution_status: 'BLOCKED'
+  });
+  assert.equal(value.policy.export.default_supabase_db_dump_only, 'REJECT_AS_INCOMPLETE');
+  assert.ok(value.coverage_units.includes('storage_object_bodies'));
+  assert.equal(value.storage_body_boundary.separate_recovery_contract_required_when_nonempty, true);
+  assert.equal(value.execution_gates.restore_rehearsal, 'BLOCKED');
   assert.equal(value.apply_admitted, false);
 });
 
@@ -406,11 +604,263 @@ test('F001 CURRENT evidence enforces freshness, watchdog, storage, retention, an
     (copy) => { copy.storage_body_state.status = 'BLOCKED'; },
     (copy) => { copy.restore_quarantine.application_traffic_allowed = true; },
     (copy) => { copy.monthly_selection.utc_month = '2026-06'; },
-    (copy) => { copy.monthly_selection.retention_class = 'FIRST_MONTHLY_400_DAY'; }
+    (copy) => { copy.monthly_selection.retention_class = 'STANDARD_35_DAY'; }
   ]) {
     const candidate = structuredClone(receipt);
     mutate(candidate);
     assert.equal(validateIndependentBackupReceipt(value, candidate).ok, false);
+  }
+});
+
+test('monthly ledger selects one first accepted release for 400 days and later releases for 35 days', () => {
+  const first = buildCurrentFixture();
+  assert.equal(first.receipt.monthly_selection.retention_class, 'FIRST_MONTHLY_400_DAY');
+  assert.equal(first.receipt.monthly_selection.selected_release_tag, first.receipt.release_tag);
+  assert.deepEqual(validateIndependentBackupReceipt(first.value, first.receipt), { ok: true, failures: [] });
+
+  const later = buildLaterAcceptedFixture();
+  assert.equal(later.receipt.monthly_selection.retention_class, 'STANDARD_35_DAY');
+  assert.notEqual(later.receipt.monthly_selection.selected_release_tag, later.receipt.release_tag);
+  assert.deepEqual(validateIndependentBackupReceipt(later.value, later.receipt), { ok: true, failures: [] });
+
+  const tied = buildCurrentFixture();
+  tied.receipt.monthly_selection.selected_release_tag = 'backup-20260727T000000A';
+  tied.receipt.monthly_selection.retention_class = 'STANDARD_35_DAY';
+  tied.receipt.monthly_selection.ledger.accepted_release_count = 2;
+  tied.receipt.monthly_selection.ledger.accepted_releases = [
+    {
+      id: 270000,
+      tag_name: 'backup-20260727T000000A',
+      draft: false,
+      prerelease: false,
+      immutable: true,
+      created_at: '2026-07-27T00:30:29.000Z',
+      published_at: '2026-07-27T00:31:00.000Z'
+    },
+    {
+      id: 270001,
+      tag_name: tied.receipt.release_tag,
+      draft: false,
+      prerelease: false,
+      immutable: true,
+      created_at: '2026-07-27T00:30:30.000Z',
+      published_at: '2026-07-27T00:31:00.000Z'
+    }
+  ];
+  tied.receipt.monthly_selection.ledger.pagination.terminal_page_item_count = 2;
+  tied.receipt.monthly_selection.ledger.pagination.total_native_release_count = 2;
+  tied.receipt.retention_until = '2026-08-31T00:31:00.000Z';
+  resignCurrentFixture(tied);
+  assert.deepEqual(validateIndependentBackupReceipt(tied.value, tied.receipt), { ok: true, failures: [] });
+});
+
+test('monthly selection month and retention deadline derive from candidate GitHub published_at', () => {
+  const crossMonth = buildCurrentFixture();
+  crossMonth.receipt.snapshot_at = '2026-07-31T23:58:00.000Z';
+  crossMonth.receipt.completed_at = '2026-07-31T23:59:00.000Z';
+  crossMonth.receipt.freshness.observed_at = '2026-08-01T00:02:00.000Z';
+  crossMonth.receipt.freshness.age_seconds = 240;
+  crossMonth.receipt.github_release_attestation.observed_at = '2026-08-01T00:02:00.000Z';
+  crossMonth.receipt.github_release_attestation.independent_readback.observed_at = '2026-08-01T00:02:00.000Z';
+  crossMonth.receipt.monthly_selection.utc_month = '2026-08';
+  crossMonth.receipt.monthly_selection.ledger.utc_month = '2026-08';
+  crossMonth.receipt.monthly_selection.ledger.observed_at = '2026-08-01T00:02:00.000Z';
+  crossMonth.receipt.monthly_selection.ledger.accepted_releases[0].created_at = '2026-07-31T23:59:30.000Z';
+  crossMonth.receipt.monthly_selection.ledger.accepted_releases[0].published_at = '2026-08-01T00:01:00.000Z';
+  crossMonth.receipt.retention_until = new Date(
+    Date.parse('2026-08-01T00:01:00.000Z') + 400 * 86400000
+  ).toISOString();
+  resignCurrentFixture(crossMonth);
+  assert.deepEqual(validateIndependentBackupReceipt(crossMonth.value, crossMonth.receipt), { ok: true, failures: [] });
+
+  const oneMillisecondShort = structuredClone(crossMonth.receipt);
+  oneMillisecondShort.retention_until = new Date(Date.parse(crossMonth.receipt.retention_until) - 1).toISOString();
+  bindReceipt(oneMillisecondShort);
+  assert.ok(
+    validateIndependentBackupReceipt(crossMonth.value, oneMillisecondShort).failures
+      .some((failure) => failure.includes('candidate GitHub published_at'))
+  );
+});
+
+test('candidate GitHub publication follows backup completion and precedes attestation readback', () => {
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases[0].created_at = '2026-07-27T00:28:00.000Z';
+      receipt.monthly_selection.ledger.accepted_releases[0].published_at = '2026-07-27T00:29:59.999Z';
+    },
+    'must not precede backup completion'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases[0].published_at = '2026-07-27T01:00:00.001Z';
+      receipt.retention_until = '2027-09-01T01:00:00.001Z';
+    },
+    'must not follow attestation or readback observation'
+  );
+});
+
+test('native GitHub release created_at does not follow published_at', () => {
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases[0].created_at = '2026-07-27T00:59:00.000Z';
+    },
+    'ineligible or cross-month native release'
+  );
+});
+
+test('monthly ledger rejects incomplete, ambiguous, duplicate, missing, reordered, cross-month, and relabeled inventories', () => {
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.complete = false; },
+    'complete verified monthly ledger'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.concurrency_state = 'AMBIGUOUS_OR_FORKED'; },
+    'ambiguous or forked'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases.push({
+        id: 270002,
+        tag_name: receipt.release_tag,
+        draft: false,
+        prerelease: false,
+        immutable: true,
+        created_at: '2026-07-27T00:31:30.000Z',
+        published_at: '2026-07-27T00:32:00.000Z'
+      });
+      receipt.monthly_selection.ledger.accepted_release_count = 2;
+      receipt.monthly_selection.ledger.pagination.terminal_page_item_count = 2;
+      receipt.monthly_selection.ledger.pagination.total_native_release_count = 2;
+    },
+    'stable release identities'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases[0].tag_name = 'backup-20260701T000000Z';
+      receipt.monthly_selection.selected_release_tag = 'backup-20260701T000000Z';
+    },
+    'candidate must appear exactly once'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.accepted_releases.reverse(); },
+    'deterministically ordered',
+    { later: true }
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.accepted_releases[0].published_at = '2026-06-30T23:59:00.000Z'; },
+    'ineligible or cross-month'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.candidate_release_tag = 'backup-relabelled'; },
+    'candidate release tag mismatch'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.selected_release_tag = 'backup-not-in-ledger'; },
+    'unique deterministic earliest'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.selection_rule = 'CALLER_SELECTED'; },
+    'must be equal to constant'
+  );
+});
+
+test('monthly ledger closes native GitHub release identity, eligibility, pagination, and concurrency evidence', () => {
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.accepted_releases[0].draft = true; },
+    'must be equal to constant'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.accepted_releases[0].prerelease = true; },
+    'must be equal to constant'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.accepted_releases[0].immutable = false; },
+    'must be equal to constant'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => {
+      receipt.monthly_selection.ledger.accepted_releases[1].id =
+        receipt.monthly_selection.ledger.accepted_releases[0].id;
+    },
+    'stable release identities',
+    { later: true }
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.pagination.page_exhausted = false; },
+    'pagination is incomplete'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.pagination.page_digests_sha256 = []; },
+    'pagination is incomplete'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.pagination.total_native_release_count = 2; },
+    'native pagination count mismatch'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.pagination.first_page_etag_after_sha256 = hash('changed-etag'); },
+    'changed during enumeration'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.provider_api_version = 'latest'; },
+    'must be equal to constant'
+  );
+
+  const paginationDigestDrift = buildCurrentFixture();
+  paginationDigestDrift.receipt.monthly_selection.ledger.pagination.snapshot_sha256 = hash('forged-pagination');
+  assert.ok(
+    validateIndependentBackupReceipt(paginationDigestDrift.value, paginationDigestDrift.receipt).failures
+      .includes('monthly ledger pagination snapshot digest mismatch')
+  );
+});
+
+test('monthly ledger rejects wrong class, short deadline, stale evidence, forged signatures and digest drift', () => {
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.retention_class = 'STANDARD_35_DAY'; },
+    'retention class mismatch'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.retention_until = '2026-08-31T00:30:00.000Z'; },
+    'retention window'
+  );
+  assertCurrentFixtureRejected(
+    (receipt) => { receipt.monthly_selection.ledger.observed_at = '2026-07-26T00:00:00.000Z'; },
+    'monthly ledger is stale'
+  );
+
+  const forged = buildCurrentFixture();
+  forged.receipt.monthly_selection.ledger.signer.signature_base64 = 'AA==';
+  forged.receipt.monthly_selection.ledger.evidence_sha256 = independentBackupMonthlyLedgerEvidenceDigest(forged.receipt.monthly_selection.ledger);
+  bindReceipt(forged.receipt);
+  signReadback(forged.receipt, forged.readbackPrivateKey);
+  signReleaseAttestation(forged.receipt, forged.releasePrivateKey);
+  assert.ok(validateIndependentBackupReceipt(forged.value, forged.receipt).failures.includes('monthly ledger signature verification failed'));
+
+  const digestDrift = buildCurrentFixture();
+  digestDrift.receipt.monthly_selection.ledger.inventory_sha256 = hash('forged-inventory');
+  assert.ok(validateIndependentBackupReceipt(digestDrift.value, digestDrift.receipt).failures.includes('monthly ledger inventory digest mismatch'));
+});
+
+test('historical receipt v2.0.0 cannot be promoted to CURRENT', () => {
+  const { value, receipt } = buildCurrentFixture();
+  receipt.schema_version = '2.0.0';
+  assert.equal(validateIndependentBackupReceipt(value, receipt).ok, false);
+});
+
+test('quarantined restore evidence rejects incomplete or promoted receipt boundaries', () => {
+  const scenarios = [
+    (receipt) => { receipt.restore_quarantine.external_effect_units.pop(); },
+    (receipt) => { receipt.restore_quarantine.external_effect_units.reverse(); },
+    (receipt) => { receipt.restore_quarantine.parity_units.pop(); },
+    (receipt) => { receipt.restore_quarantine.parity_units.reverse(); },
+    (receipt) => { receipt.restore_quarantine.application_traffic_allowed = true; },
+    (receipt) => { receipt.restore_quarantine.failed_clone_deletion_requires_separate_authority = false; }
+  ];
+  for (const mutate of scenarios) {
+    const receipt = buildReceipt();
+    mutate(receipt);
+    bindReceipt(receipt);
+    assert.equal(validateIndependentBackupReceipt(contract(), receipt).ok, false);
   }
 });
 
@@ -428,6 +878,11 @@ test('RR-F001 BLOCKED receipt rejects contradictory CURRENT and VERIFIED subevid
       receipt.github_release_attestation.independent_readback.reader_identity = 'fabricated-reader';
       receipt.github_release_attestation.independent_readback.observation_method = 'SIGNED_NATIVE_GITHUB_READBACK';
       receipt.github_release_attestation.independent_readback.immutable_release = true;
+    },
+    (receipt) => {
+      receipt.monthly_selection.ledger.status = 'VERIFIED';
+      receipt.monthly_selection.ledger.complete = true;
+      receipt.monthly_selection.ledger.concurrency_state = 'CONSISTENT_SINGLE_HEAD';
     }
   ];
   for (const mutate of mutations) {
@@ -551,6 +1006,7 @@ test('RR-F002 nested schema-invalid receipt values fail closed without throwing'
     (receipt) => { receipt.release_assets.chunks = null; },
     (receipt) => { receipt.release_assets.chunks = {}; },
     (receipt) => { receipt.github_release_attestation.independent_readback = []; },
+    (receipt) => { receipt.monthly_selection.ledger = []; },
     (receipt) => { receipt.restore_quarantine = 'not-an-object'; },
     (receipt) => { receipt.key_recipient_ids = {}; }
   ];

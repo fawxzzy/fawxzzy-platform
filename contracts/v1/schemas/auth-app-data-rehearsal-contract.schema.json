@@ -1,0 +1,1608 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:auth-app-data-rehearsal-contract",
+  "title": "Auth and application-data rehearsal source contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "contract_id",
+    "status",
+    "lifecycle",
+    "scope",
+    "contract_bindings",
+    "execution_authentication",
+    "auth_surface_dispositions",
+    "application_data_denominator",
+    "identity_and_membership",
+    "action_order",
+    "snapshot_protocol",
+    "cas_and_quarantine",
+    "postimport_parity",
+    "negative_probe_gate",
+    "receipt_policy",
+    "rollback_and_disposal",
+    "receipt_example"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "auth-app-data-rehearsal"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution",
+        "apply_admitted"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_contract_only",
+        "provider_connectivity_included",
+        "provider_runner_included",
+        "credential_material_included",
+        "sql_executor_included",
+        "executable_bundle_included",
+        "auth_or_data_mutation_authorized",
+        "storage_edge_realtime_mutation_authorized",
+        "rollback_or_disposal_authorized",
+        "source_retirement_or_deletion_authorized"
+      ],
+      "properties": {
+        "offline_contract_only": {
+          "const": true
+        },
+        "provider_connectivity_included": {
+          "const": false
+        },
+        "provider_runner_included": {
+          "const": false
+        },
+        "credential_material_included": {
+          "const": false
+        },
+        "sql_executor_included": {
+          "const": false
+        },
+        "executable_bundle_included": {
+          "const": false
+        },
+        "auth_or_data_mutation_authorized": {
+          "const": false
+        },
+        "storage_edge_realtime_mutation_authorized": {
+          "const": false
+        },
+        "rollback_or_disposal_authorized": {
+          "const": false
+        },
+        "source_retirement_or_deletion_authorized": {
+          "const": false
+        }
+      }
+    },
+    "contract_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_model",
+        "binding_set_sha256",
+        "documents"
+      ],
+      "properties": {
+        "digest_model": {
+          "const": "CANONICAL_JSON_BYTES_SHA256_V1"
+        },
+        "binding_set_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "documents": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "items": {
+            "$ref": "#/$defs/documentBinding"
+          }
+        }
+      }
+    },
+    "execution_authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "executor",
+        "write_barrier",
+        "write_barrier_consumption",
+        "all_trust_anchors_must_be_distinct",
+        "caller_supplied_trust_material_allowed",
+        "current_receipt_allowed_while_anchor_blocked"
+      ],
+      "properties": {
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "pinned_ed25519_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.execution-authority.v1"
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "executor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_executor_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.executor-capability.v1"
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "write_barrier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "freshness_seconds_maximum",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_write_barrier_authority_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.write-barrier-authority.v1"
+            },
+            "freshness_seconds_maximum": {
+              "const": 900
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "write_barrier_consumption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verification_boundary",
+            "signature_domain",
+            "evidence_model",
+            "required_transition",
+            "trusted_action_time_injected_required",
+            "receipt_validated_at_is_trusted_action_time",
+            "external_consumption_ledger_required",
+            "source_persists_consumption_ledger",
+            "trust_anchor"
+          ],
+          "properties": {
+            "verification_boundary": {
+              "const": "distinct_pinned_ed25519_one_time_consumption_signature"
+            },
+            "signature_domain": {
+              "const": "fawxzzy.platform.auth-app-data.write-barrier-consumption.v1"
+            },
+            "evidence_model": {
+              "const": "AUTH_APP_DATA_WRITE_BARRIER_AUTHORITY_CONSUMPTION_V1"
+            },
+            "required_transition": {
+              "const": "UNCONSUMED_TO_CONSUMED"
+            },
+            "trusted_action_time_injected_required": {
+              "const": true
+            },
+            "receipt_validated_at_is_trusted_action_time": {
+              "const": false
+            },
+            "external_consumption_ledger_required": {
+              "const": true
+            },
+            "source_persists_consumption_ledger": {
+              "const": false
+            },
+            "trust_anchor": {
+              "$ref": "#/$defs/executionTrustAnchor"
+            }
+          }
+        },
+        "all_trust_anchors_must_be_distinct": {
+          "const": true
+        },
+        "caller_supplied_trust_material_allowed": {
+          "const": false
+        },
+        "current_receipt_allowed_while_anchor_blocked": {
+          "const": false
+        }
+      }
+    },
+    "auth_surface_dispositions": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/disposition"
+      }
+    },
+    "application_data_denominator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation_total",
+        "transported_authoritative_or_history",
+        "derived_rebuildable",
+        "held_unknown_or_excluded",
+        "adapters",
+        "nonrow_surfaces"
+      ],
+      "properties": {
+        "relation_total": {
+          "const": 41
+        },
+        "transported_authoritative_or_history": {
+          "const": 24
+        },
+        "derived_rebuildable": {
+          "const": 1
+        },
+        "held_unknown_or_excluded": {
+          "const": 16
+        },
+        "adapters": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "app",
+              "relation_count",
+              "contract_path"
+            ],
+            "properties": {
+              "app": {
+                "enum": [
+                  "mazer",
+                  "fitness",
+                  "discordos"
+                ]
+              },
+              "relation_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "contract_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "nonrow_surfaces": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/disposition"
+          }
+        }
+      }
+    },
+    "identity_and_membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_human_key",
+        "private_identity_ledger",
+        "ledger_must_be_immutable",
+        "accepted_mapping_required_for_every_owner_fk",
+        "caller_selected_identity_forbidden",
+        "raw_identity_in_receipt_forbidden",
+        "initial_membership_state",
+        "activation_requires_accepted_identity_and_final_parity",
+        "suspended_membership_preserved"
+      ],
+      "properties": {
+        "canonical_human_key": {
+          "const": "auth.users.id"
+        },
+        "private_identity_ledger": {
+          "const": "platform_private.source_identity_ledger"
+        },
+        "ledger_must_be_immutable": {
+          "const": true
+        },
+        "accepted_mapping_required_for_every_owner_fk": {
+          "const": true
+        },
+        "caller_selected_identity_forbidden": {
+          "const": true
+        },
+        "raw_identity_in_receipt_forbidden": {
+          "const": true
+        },
+        "initial_membership_state": {
+          "const": "pending"
+        },
+        "activation_requires_accepted_identity_and_final_parity": {
+          "const": true
+        },
+        "suspended_membership_preserved": {
+          "const": true
+        }
+      }
+    },
+    "action_order": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "snapshot_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_snapshots",
+        "complete_primary_key_and_canonical_row_denominator_required",
+        "timestamp_or_high_water_only_proof_allowed",
+        "write_barrier_requires_separate_authority",
+        "final_s2_required_after_barrier",
+        "delete_requires_tombstone",
+        "resurrection_requires_explicit_generation"
+      ],
+      "properties": {
+        "required_snapshots": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {
+              "const": "S0"
+            },
+            {
+              "const": "S1"
+            },
+            {
+              "const": "S2"
+            }
+          ],
+          "items": false
+        },
+        "complete_primary_key_and_canonical_row_denominator_required": {
+          "const": true
+        },
+        "timestamp_or_high_water_only_proof_allowed": {
+          "const": false
+        },
+        "write_barrier_requires_separate_authority": {
+          "const": true
+        },
+        "final_s2_required_after_barrier": {
+          "const": true
+        },
+        "delete_requires_tombstone": {
+          "const": true
+        },
+        "resurrection_requires_explicit_generation": {
+          "const": true
+        }
+      }
+    },
+    "cas_and_quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_expected_target",
+        "unexpected_target_digest",
+        "unexpected_target_overwrite_forbidden",
+        "outbound_effects_during_rehearsal",
+        "credentials_withheld_until_terminal_acceptance"
+      ],
+      "properties": {
+        "accepted_expected_target": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "ABSENT"
+            },
+            {
+              "const": "EXACT_DIGEST"
+            }
+          ],
+          "items": false
+        },
+        "unexpected_target_digest": {
+          "const": "QUARANTINE"
+        },
+        "unexpected_target_overwrite_forbidden": {
+          "const": true
+        },
+        "outbound_effects_during_rehearsal": {
+          "const": "QUARANTINED"
+        },
+        "credentials_withheld_until_terminal_acceptance": {
+          "const": true
+        }
+      }
+    },
+    "postimport_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read_count",
+        "reads_must_be_independent",
+        "distinct_evidence_receipts_required",
+        "distinct_reader_identities_required",
+        "distinct_execution_identities_required",
+        "query_model_binding_required",
+        "expected_state_model",
+        "aggregate_commitments_must_match_each_other",
+        "aggregate_commitments_must_match_expected",
+        "minimum_observation_window_seconds",
+        "maximum_observation_window_seconds",
+        "complete_auth_row_and_nonrow_denominators_required"
+      ],
+      "properties": {
+        "read_count": {
+          "const": 2
+        },
+        "reads_must_be_independent": {
+          "const": true
+        },
+        "distinct_evidence_receipts_required": {
+          "const": true
+        },
+        "distinct_reader_identities_required": {
+          "const": true
+        },
+        "distinct_execution_identities_required": {
+          "const": true
+        },
+        "query_model_binding_required": {
+          "const": true
+        },
+        "expected_state_model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "digest_model",
+            "components",
+            "query_model_sha256"
+          ],
+          "properties": {
+            "version": {
+              "const": "AUTH_APP_DATA_EXPECTED_STATE_V1"
+            },
+            "digest_model": {
+              "const": "CANONICAL_JSON_BYTES_SHA256_V1"
+            },
+            "components": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "prefixItems": [
+                {
+                  "const": "subject_sha256"
+                },
+                {
+                  "const": "run_correlation_sha256"
+                },
+                {
+                  "const": "contract_binding_set_sha256"
+                },
+                {
+                  "const": "package"
+                },
+                {
+                  "const": "auth_surfaces"
+                },
+                {
+                  "const": "application_data"
+                },
+                {
+                  "const": "identity_ledger"
+                },
+                {
+                  "const": "final_s2"
+                }
+              ],
+              "items": false
+            },
+            "query_model_sha256": {
+              "const": "c4edb31be26650b35ad2bd9d4572077d92269aeda649a6ff1577411da342405f"
+            }
+          }
+        },
+        "aggregate_commitments_must_match_each_other": {
+          "const": true
+        },
+        "aggregate_commitments_must_match_expected": {
+          "const": true
+        },
+        "minimum_observation_window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximum_observation_window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "complete_auth_row_and_nonrow_denominators_required": {
+          "const": true
+        }
+      }
+    },
+    "negative_probe_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_probes",
+        "all_must_pass",
+        "evidence_must_be_aggregate_only"
+      ],
+      "properties": {
+        "required_probes": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "all_must_pass": {
+          "const": true
+        },
+        "evidence_must_be_aggregate_only": {
+          "const": true
+        }
+      }
+    },
+    "receipt_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_classes",
+        "forbidden_classes",
+        "unknown_may_be_promoted_to_current"
+      ],
+      "properties": {
+        "allowed_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unknown_may_be_promoted_to_current": {
+          "const": false
+        }
+      }
+    },
+    "rollback_and_disposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_order",
+        "complete_reverse_evidence_required",
+        "sources_remain_active",
+        "source_mutation_forbidden",
+        "external_egress_must_remain_zero",
+        "target_disposal_requires_separate_authority",
+        "credential_revocation_requires_separate_authority",
+        "broad_drop_is_rollback",
+        "terminal_source_contract_disposition"
+      ],
+      "properties": {
+        "rollback_order": {
+          "const": "REVERSE_DEPENDENCY_AND_JOURNAL_ORDER"
+        },
+        "complete_reverse_evidence_required": {
+          "const": true
+        },
+        "sources_remain_active": {
+          "const": true
+        },
+        "source_mutation_forbidden": {
+          "const": true
+        },
+        "external_egress_must_remain_zero": {
+          "const": true
+        },
+        "target_disposal_requires_separate_authority": {
+          "const": true
+        },
+        "credential_revocation_requires_separate_authority": {
+          "const": true
+        },
+        "broad_drop_is_rollback": {
+          "const": false
+        },
+        "terminal_source_contract_disposition": {
+          "const": "QUARANTINED_RETAINED"
+        }
+      }
+    },
+    "receipt_example": {
+      "$ref": "#/$defs/receipt"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestampOrNull": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "documentBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "executionTrustAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "algorithm",
+        "key_id",
+        "verifier_reference",
+        "public_key_spki_base64",
+        "public_key_spki_sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verifier_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_spki_base64": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "public_key_spki_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "executionAuthenticationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "public_key_spki_sha256",
+        "signed_payload_sha256",
+        "signature_base64"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_spki_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "signature_base64": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "disposition"
+      ],
+      "properties": {
+        "surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "aggregateSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "disposition",
+        "status",
+        "count",
+        "aggregate_sha256"
+      ],
+      "properties": {
+        "surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED",
+            "UNKNOWN"
+          ]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "aggregate_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "adapterCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app",
+        "relation_count",
+        "aggregate_sha256"
+      ],
+      "properties": {
+        "app": {
+          "enum": [
+            "mazer",
+            "fitness",
+            "discordos"
+          ]
+        },
+        "relation_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "aggregate_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "observed_at",
+        "subject_sha256",
+        "run_correlation_sha256",
+        "complete_denominator",
+        "aggregate_sha256",
+        "evidence_receipt_sha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "S0",
+            "S1",
+            "S2"
+          ]
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "complete_denominator": {
+          "type": "boolean"
+        },
+        "aggregate_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "postimportRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_at",
+        "subject_sha256",
+        "run_correlation_sha256",
+        "reader_identity_sha256",
+        "execution_identity_sha256",
+        "query_model_sha256",
+        "evidence_receipt_sha256",
+        "aggregate_sha256",
+        "complete_denominator"
+      ],
+      "properties": {
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reader_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "execution_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "query_model_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "aggregate_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "complete_denominator": {
+          "type": "boolean"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "passed",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "subject_sha256",
+        "run_correlation_sha256",
+        "evidence_receipt_sha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "DISPOSABLE_TARGET_BOOTSTRAP",
+            "INDEPENDENT_BACKUP",
+            "MICRO_RECOVERY_CAPABILITY"
+          ]
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "validated_at",
+        "evidence_complete",
+        "execution_lifecycle",
+        "apply_admitted",
+        "source_contract_grants_provider_execution",
+        "subject_sha256",
+        "run_correlation_sha256",
+        "contract_binding_set_sha256",
+        "package",
+        "execution_authority",
+        "prerequisites",
+        "completed_actions",
+        "auth_surfaces",
+        "application_data",
+        "identity_ledger",
+        "snapshots",
+        "write_barrier",
+        "postimport_reads",
+        "negative_probes",
+        "membership_activation",
+        "external_effects",
+        "rollback",
+        "terminal_receipt_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "CURRENT",
+            "BLOCKED"
+          ]
+        },
+        "validated_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "evidence_complete": {
+          "type": "boolean"
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "source_contract_grants_provider_execution": {
+          "const": false
+        },
+        "subject_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_correlation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "contract_binding_set_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "migration_count",
+            "standard_migration_sql_count",
+            "migration_package_sha256",
+            "governance_manifest_sha256"
+          ],
+          "properties": {
+            "migration_count": {
+              "const": 122
+            },
+            "standard_migration_sql_count": {
+              "const": 0
+            },
+            "migration_package_sha256": {
+              "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
+            },
+            "governance_manifest_sha256": {
+              "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+            }
+          }
+        },
+        "execution_authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "authorized_operation",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "contract_binding_set_sha256",
+            "migration_package_sha256",
+            "governance_manifest_sha256",
+            "prerequisite_set_sha256",
+            "authority_identity_sha256",
+            "executor_identity_sha256",
+            "executor_capability_sha256",
+            "authority_receipt_sha256",
+            "executor_receipt_sha256",
+            "authority_authentication",
+            "executor_authentication"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "authorized_operation": {
+              "const": "AUTH_APP_DATA_REHEARSAL"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "contract_binding_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "migration_package_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "governance_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "prerequisite_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executor_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executor_capability_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executor_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_authentication": {
+              "$ref": "#/$defs/executionAuthenticationResult"
+            },
+            "executor_authentication": {
+              "$ref": "#/$defs/executionAuthenticationResult"
+            }
+          }
+        },
+        "prerequisites": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/prerequisite"
+          }
+        },
+        "completed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "auth_surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/aggregateSurface"
+          }
+        },
+        "application_data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "relation_total",
+            "adapter_counts",
+            "nonrow_surfaces"
+          ],
+          "properties": {
+            "relation_total": {
+              "const": 41
+            },
+            "adapter_counts": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "$ref": "#/$defs/adapterCount"
+              }
+            },
+            "nonrow_surfaces": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/aggregateSurface"
+              }
+            }
+          }
+        },
+        "identity_ledger": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "complete_owner_fk_coverage",
+            "accepted_mapping_count",
+            "quarantined_mapping_count",
+            "aggregate_sha256",
+            "pending_membership_count",
+            "suspended_membership_count"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "complete_owner_fk_coverage": {
+              "type": "boolean"
+            },
+            "accepted_mapping_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "quarantined_mapping_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "aggregate_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "pending_membership_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "suspended_membership_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "snapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          }
+        },
+        "write_barrier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "authorized_operation",
+            "contract_version",
+            "subject_sha256",
+            "run_correlation_sha256",
+            "contract_binding_set_sha256",
+            "migration_package_sha256",
+            "governance_manifest_sha256",
+            "prerequisite_set_sha256",
+            "source_scope_sha256",
+            "authority_identity_sha256",
+            "authority_event_id",
+            "authority_event_payload_sha256",
+            "authority_issued_at",
+            "authority_authorized_at",
+            "authority_observed_at",
+            "authority_expires_at",
+            "authority_maximum_age_seconds",
+            "authority_receipt_sha256",
+            "authority_authentication",
+            "entered_at",
+            "released_at"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "authorized_operation": {
+              "const": "SOURCE_WRITE_BARRIER"
+            },
+            "contract_version": {
+              "const": "1.0.0"
+            },
+            "subject_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "run_correlation_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "contract_binding_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "migration_package_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "governance_manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "prerequisite_set_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "source_scope_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_identity_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_event_id": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^onv1_[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "authority_event_payload_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_issued_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_authorized_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_observed_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_expires_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "authority_maximum_age_seconds": {
+              "const": 900
+            },
+            "authority_receipt_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "authority_authentication": {
+              "$ref": "#/$defs/executionAuthenticationResult"
+            },
+            "entered_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "released_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            }
+          }
+        },
+        "postimport_reads": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "query_model_sha256",
+            "expected_aggregate_sha256",
+            "read_a",
+            "read_b",
+            "observation_window_seconds",
+            "identical"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "query_model_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "expected_aggregate_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "read_a": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/postimportRead"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "read_b": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/postimportRead"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "observation_window_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "identical": {
+              "type": "boolean"
+            }
+          }
+        },
+        "negative_probes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "completed_at",
+            "results"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "completed_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/probe"
+              }
+            }
+          }
+        },
+        "membership_activation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "activated_at",
+            "activated_mapping_count",
+            "remaining_pending_count",
+            "evidence_sha256"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "activated_at": {
+              "$ref": "#/$defs/timestampOrNull"
+            },
+            "activated_mapping_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "remaining_pending_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "evidence_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "external_effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "outbound_network_requests",
+            "auth_messages_sent",
+            "storage_object_writes",
+            "realtime_broadcasts",
+            "edge_function_invocations",
+            "cron_jobs_enabled",
+            "webhooks_enabled"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "outbound_network_requests": {
+              "const": 0
+            },
+            "auth_messages_sent": {
+              "const": 0
+            },
+            "storage_object_writes": {
+              "const": 0
+            },
+            "realtime_broadcasts": {
+              "const": 0
+            },
+            "edge_function_invocations": {
+              "const": 0
+            },
+            "cron_jobs_enabled": {
+              "const": 0
+            },
+            "webhooks_enabled": {
+              "const": 0
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "terminal_disposition",
+            "reverse_evidence_complete",
+            "source_projects_active",
+            "source_mutation_count",
+            "external_effect_count",
+            "target_disposal_authorized",
+            "credential_revocation_authorized",
+            "evidence_sha256"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "CURRENT",
+                "BLOCKED"
+              ]
+            },
+            "terminal_disposition": {
+              "const": "QUARANTINED_RETAINED"
+            },
+            "reverse_evidence_complete": {
+              "type": "boolean"
+            },
+            "source_projects_active": {
+              "const": true
+            },
+            "source_mutation_count": {
+              "const": 0
+            },
+            "external_effect_count": {
+              "const": 0
+            },
+            "target_disposal_authorized": {
+              "const": false
+            },
+            "credential_revocation_authorized": {
+              "const": false
+            },
+            "evidence_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "terminal_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@
   "schemas": [
     {
       "name": "public",
-      "data_api": "exposed",
+      "data_api": "not_exposed",
       "product_tables_allowed": false
     },
     {
@@ -23,12 +23,12 @@
       "product_tables_allowed": true
     },
     {
-      "name": "fitness",
+      "name": "mazer",
       "data_api": "exposed",
       "product_tables_allowed": true
     },
     {
-      "name": "mazer",
+      "name": "fitness",
       "data_api": "exposed",
       "product_tables_allowed": true
     }
