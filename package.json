@@ -10,9 +10,11 @@
   "scripts": {
     "bootstrap:generate": "node scripts/generate-target-bootstrap.mjs",
     "bootstrap:verify": "node scripts/verify-target-bootstrap.mjs",
+    "executable-bundle:generate": "node scripts/generate-executable-bundle.mjs",
+    "executable-bundle:verify": "node scripts/verify-executable-bundle.mjs",
     "test": "node --test --test-concurrency=1",
     "validate": "node scripts/validate-contracts.mjs",
-    "verify": "node scripts/verify-repository.mjs && node scripts/verify-target-bootstrap.mjs"
+    "verify": "node scripts/verify-repository.mjs && node scripts/verify-target-bootstrap.mjs && node scripts/verify-executable-bundle.mjs"
   },
   "devDependencies": {
     "ajv": "8.17.1"

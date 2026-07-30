@@ -71,6 +71,7 @@ function allowedPath(relativePath) {
   return allowedRootFiles.has(relativePath)
     || /^\.github\/workflows\/[a-z0-9-]+\.yml$/.test(relativePath)
     || /^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)
+    || /^bootstrap\/artifacts\/executable-sql\/(?:00000000000001_mazer_schema|00000000000002_fitness_schema|00000000000003_discordos_schema|00000000000004_platform_security_overlay)\.sql$/.test(relativePath)
     || /^bootstrap\/(?:generator\/config\.v1\.json|manifests\/[a-z0-9-]+\.v1\.json)$/.test(relativePath)
     || /^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
     || /^contracts\/v1\/[a-z0-9_./-]+\.json$/.test(relativePath)
@@ -112,7 +113,8 @@ export function validateRepositoryEntries(entries) {
     if (!allowedPath(relativePath)) failures.push(`${relativePath}: path is outside the repository allowlist`);
     if (relativePath.endsWith('.sql')
       && !/^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
-      && !/^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)) {
+      && !/^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)
+      && !/^bootstrap\/artifacts\/executable-sql\/(?:00000000000001_mazer_schema|00000000000002_fitness_schema|00000000000003_discordos_schema|00000000000004_platform_security_overlay)\.sql$/.test(relativePath)) {
       failures.push(`${relativePath}: SQL is outside the inert source and review-artifact boundary`);
     }
     if (/(^|\/)\.env(?:\.|$)/.test(relativePath)) failures.push(`${relativePath}: environment files are forbidden`);

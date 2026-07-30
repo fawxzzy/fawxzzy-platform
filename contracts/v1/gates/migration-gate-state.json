@@ -1,7 +1,7 @@
 {
   "version": "1.6.0",
   "status": "BLOCKED",
-  "sql_generation": "next_separately_authorized_packet",
+  "sql_generation": "deterministic_promoted_byte_set_current_execution_blocked",
   "semantic_cross_product_merges": "forbidden",
   "data_api_decision_binding": {
     "status": "CURRENT",
@@ -46,6 +46,20 @@
     "persisted_provider_mutations": 0,
     "provider_execution_status": "BLOCKED",
     "apply_admitted": false
+  },
+  "executable_bundle": {
+    "status": "CURRENT",
+    "source_contract_lifecycle": "SOURCE_READY",
+    "execution_lifecycle": "EXECUTION_BLOCKED",
+    "review_state": "SOURCE_REVIEW_REQUIRED",
+    "apply_admitted": false,
+    "contract_path": "contracts/v1/execution/executable-bundle-manifest.json",
+    "bundle_model": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1",
+    "artifact_count": 4,
+    "executable_statement_count": 721,
+    "standard_migration_sql_count": 0,
+    "executor_included": false,
+    "provider_connectivity_included": false
   },
   "shared_auth_import_reauth_rehearsal": {
     "status": "CURRENT",
@@ -504,6 +518,10 @@
     },
     {
       "name": "Storage/Edge/Realtime execution denominator source contract: contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json",
+      "status": "CURRENT"
+    },
+    {
+      "name": "executable bundle source contract: contracts/v1/execution/executable-bundle-manifest.json",
       "status": "CURRENT"
     },
     {

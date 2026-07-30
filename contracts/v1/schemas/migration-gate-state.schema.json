@@ -10,6 +10,7 @@
     "sql_generation",
     "semantic_cross_product_merges",
     "data_api_decision_binding",
+    "executable_bundle",
     "operation_gates",
     "required_evidence",
     "provider_canonical_provenance",
@@ -25,7 +26,7 @@
       "const": "BLOCKED"
     },
     "sql_generation": {
-      "const": "next_separately_authorized_packet"
+      "const": "deterministic_promoted_byte_set_current_execution_blocked"
     },
     "semantic_cross_product_merges": {
       "const": "forbidden"
@@ -202,6 +203,62 @@
           "const": "BLOCKED"
         },
         "apply_admitted": {
+          "const": false
+        }
+      }
+    },
+    "executable_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source_contract_lifecycle",
+        "execution_lifecycle",
+        "review_state",
+        "apply_admitted",
+        "contract_path",
+        "bundle_model",
+        "artifact_count",
+        "executable_statement_count",
+        "standard_migration_sql_count",
+        "executor_included",
+        "provider_connectivity_included"
+      ],
+      "properties": {
+        "status": {
+          "const": "CURRENT"
+        },
+        "source_contract_lifecycle": {
+          "const": "SOURCE_READY"
+        },
+        "execution_lifecycle": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "review_state": {
+          "const": "SOURCE_REVIEW_REQUIRED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "contract_path": {
+          "const": "contracts/v1/execution/executable-bundle-manifest.json"
+        },
+        "bundle_model": {
+          "const": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1"
+        },
+        "artifact_count": {
+          "const": 4
+        },
+        "executable_statement_count": {
+          "const": 721
+        },
+        "standard_migration_sql_count": {
+          "const": 0
+        },
+        "executor_included": {
+          "const": false
+        },
+        "provider_connectivity_included": {
           "const": false
         }
       }
