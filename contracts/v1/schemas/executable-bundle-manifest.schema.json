@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:executable-bundle-manifest",
+  "title": "Executable bundle manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "bundle_model",
+    "promotion_rule",
+    "lifecycle",
+    "authority_boundary",
+    "immutable_package",
+    "statement_denominator",
+    "artifacts",
+    "ordered_artifact_set_sha256",
+    "contract_bindings",
+    "contract_binding_set_sha256",
+    "expected_effects_and_rollback_bindings",
+    "expected_effects_and_rollback_set_sha256",
+    "toolchain",
+    "toolchain_set_sha256",
+    "upstream_reviewed_inert_manifest_sha256",
+    "redaction",
+    "action_time_placeholders"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "bundle_model": {
+      "const": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1"
+    },
+    "promotion_rule": {
+      "const": "BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT"
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "execution",
+        "review",
+        "apply_admitted"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "review": {
+          "const": "SOURCE_REVIEW_REQUIRED"
+        },
+        "apply_admitted": {
+          "const": false
+        }
+      }
+    },
+    "authority_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executor_state",
+        "provider_connectivity_included",
+        "credentials_included",
+        "sql_execution_authorized",
+        "deployment_authorized",
+        "production_authorized"
+      ],
+      "properties": {
+        "executor_state": {
+          "const": "BLOCKED_NOT_INCLUDED"
+        },
+        "provider_connectivity_included": {
+          "const": false
+        },
+        "credentials_included": {
+          "const": false
+        },
+        "sql_execution_authorized": {
+          "const": false
+        },
+        "deployment_authorized": {
+          "const": false
+        },
+        "production_authorized": {
+          "const": false
+        }
+      }
+    },
+    "immutable_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_count",
+        "source_counts",
+        "migration_package_sha256",
+        "governance_manifest_sha256",
+        "standard_migration_sql_count"
+      ],
+      "properties": {
+        "migration_count": {
+          "const": 122
+        },
+        "source_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "discordos",
+            "fitness",
+            "mazer"
+          ],
+          "properties": {
+            "discordos": {
+              "const": 17
+            },
+            "fitness": {
+              "const": 101
+            },
+            "mazer": {
+              "const": 4
+            }
+          }
+        },
+        "migration_package_sha256": {
+          "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
+        },
+        "governance_manifest_sha256": {
+          "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+        },
+        "standard_migration_sql_count": {
+          "const": 0
+        }
+      }
+    },
+    "statement_denominator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_statement_count",
+        "executable_statement_count",
+        "held_statement_count",
+        "promoted_statement_count"
+      ],
+      "properties": {
+        "source_statement_count": {
+          "const": 1253
+        },
+        "executable_statement_count": {
+          "const": 721
+        },
+        "held_statement_count": {
+          "const": 532
+        },
+        "promoted_statement_count": {
+          "const": 721
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "ordered_artifact_set_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "contract_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "contract_binding_set_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "expected_effects_and_rollback_bindings": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "expected_effects_and_rollback_set_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "toolchain": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "toolchain_set_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "upstream_reviewed_inert_manifest_sha256": {
+      "const": "ce85de2e32fca8497d7bb6380e51e3bc9d5717f1a07b25151414da5552075849"
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aggregate_and_digest_only",
+        "sql_bytes_in_receipts_forbidden",
+        "raw_provider_payloads_forbidden",
+        "credentials_and_secrets_forbidden",
+        "machine_paths_forbidden"
+      ],
+      "properties": {
+        "aggregate_and_digest_only": {
+          "const": true
+        },
+        "sql_bytes_in_receipts_forbidden": {
+          "const": true
+        },
+        "raw_provider_payloads_forbidden": {
+          "const": true
+        },
+        "credentials_and_secrets_forbidden": {
+          "const": true
+        },
+        "machine_paths_forbidden": {
+          "const": true
+        }
+      }
+    },
+    "action_time_placeholders": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_project_ref",
+        "execution_run_id",
+        "authority_event_id",
+        "values_present"
+      ],
+      "properties": {
+        "target_project_ref": {
+          "const": "REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED"
+        },
+        "execution_run_id": {
+          "const": "REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED"
+        },
+        "authority_event_id": {
+          "const": "REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED"
+        },
+        "values_present": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "source_path",
+        "promoted_path",
+        "bytes",
+        "source_sha256",
+        "promoted_sha256",
+        "byte_identical"
+      ],
+      "properties": {
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "source_path": {
+          "type": "string",
+          "pattern": "^bootstrap/artifacts/inert-sql/[a-z0-9_]+\\.sql$"
+        },
+        "promoted_path": {
+          "type": "string",
+          "pattern": "^bootstrap/artifacts/executable-sql/[a-z0-9_]+\\.sql$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "promoted_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byte_identical": {
+          "const": true
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "sha256",
+        "bytes",
+        "observed_sha256"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[a-z0-9_./-]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

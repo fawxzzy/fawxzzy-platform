@@ -5,9 +5,60 @@ import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { validateRecoveryDocuments } from './recovery.mjs';
 import { independentBackupContractPath, validateIndependentBackupContract } from './independent-backup-contract.mjs';
+import {
+  buildExecutableBundleManifest,
+  canonicalCompactSha256,
+  executableBundleArtifacts
+} from '../generate-executable-bundle.mjs';
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(moduleDirectory, '..', '..');
+
+const executableBundlePinnedContractBindings = Object.freeze([
+  Object.freeze({
+    role: 'DISPOSABLE_TARGET_BOOTSTRAP',
+    path: 'contracts/v1/bootstrap/disposable-target-bootstrap-contract.json',
+    sha256: 'd217f31885f995e939d8e37c07ef5201bef43934227564a9083b662b2054c869'
+  }),
+  Object.freeze({
+    role: 'AUTH_APP_DATA_REHEARSAL',
+    path: 'contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json',
+    sha256: '47db976f08e98e8d7821e1007e942355f912af86a3ef6c229b3b7772e91b6402'
+  }),
+  Object.freeze({
+    role: 'STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR',
+    path: 'contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json',
+    sha256: '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97'
+  }),
+  Object.freeze({
+    role: 'INDEPENDENT_BACKUP',
+    path: 'contracts/v1/recovery/independent-backup-contract.json',
+    sha256: 'a627535f8f48d0c14b81a6bb611bf4f36935af96a66beb1d6a23096df4c2fd10'
+  }),
+  Object.freeze({
+    role: 'RLS_GRANT_FUNCTION_MATRIX',
+    path: 'contracts/v1/security/rls-grant-function-matrix.json',
+    sha256: 'c309ab9e1c4c5313e4817f8b6eccaaeb186886141cb3d65da9b8a5dc4740856e'
+  })
+]);
+
+const executableBundlePinnedEvidenceBindings = Object.freeze([
+  Object.freeze({
+    role: 'EXPECTED_DATA_EFFECTS',
+    path: 'bootstrap/manifests/data-effects.v1.json',
+    sha256: '1d28080e416eb59f639c9db4514d9c9e4e978d8650c2137f0a170440eba25d85'
+  }),
+  Object.freeze({
+    role: 'STATEMENT_DISPOSITIONS',
+    path: 'bootstrap/manifests/dispositions.v1.json',
+    sha256: '129ff967d9333c38c5356a1c5309361c368c6ee0552bfc9f2c84624defbc396c'
+  }),
+  Object.freeze({
+    role: 'EXPECTED_SOURCE_OBJECTS',
+    path: 'bootstrap/manifests/source-objects.v1.json',
+    sha256: '1e26a2c50f5415ced0a5100556d85c5f0f66e12baede0b705771e570906d369e'
+  })
+]);
 
 export const documentSpecs = Object.freeze([
   ['contracts/v1/registry/project-registry.json', 'urn:fawxzzy:platform:schemas:v1:project-registry'],
@@ -26,6 +77,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json', 'urn:fawxzzy:platform:schemas:v1:disposable-target-bootstrap-contract'],
   ['contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json', 'urn:fawxzzy:platform:schemas:v1:storage-edge-realtime-execution-denominator-contract'],
   ['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json', 'urn:fawxzzy:platform:schemas:v1:auth-app-data-rehearsal-contract'],
+  ['contracts/v1/execution/executable-bundle-manifest.json', 'urn:fawxzzy:platform:schemas:v1:executable-bundle-manifest'],
   ['contracts/v1/gates/migration-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:migration-gate-state'],
   ['contracts/v1/gates/cutover-retirement-gate-state.json', 'urn:fawxzzy:platform:schemas:v1:cutover-retirement-gate-state'],
   ['contracts/v1/gates/fitness-pr108-replay-gate.json', 'urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate'],
@@ -2371,6 +2423,140 @@ export function validateFitnessDiscordMemberLinkOwnerRekeyEvidence(policy, evide
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+export function validateExecutableBundleManifest(contract) {
+  const failures = [];
+  const requireBundle = (condition, message) => {
+    if (!condition) failures.push(message);
+  };
+  const validatePinnedBindings = (candidateBindings, pinnedBindings, label) => {
+    requireBundle(
+      canonicalCompactSha256(
+        (candidateBindings ?? []).map(({ role, path: relativePath, sha256 }) => ({
+          role,
+          path: relativePath,
+          sha256
+        }))
+      ) === canonicalCompactSha256(pinnedBindings),
+      `executable bundle ${label} ordered pinned denominator drift`
+    );
+    for (const binding of pinnedBindings) {
+      const candidate = candidateBindings?.find((entry) => entry.role === binding.role);
+      requireBundle(
+        candidate?.path === binding.path
+          && candidate?.sha256 === binding.sha256
+          && candidate?.observed_sha256 === binding.sha256,
+        `${binding.path}: executable bundle ${label} expected and observed digest drift`
+      );
+      let observedSha256 = null;
+      try {
+        const bytes = fs.readFileSync(path.join(repositoryRoot, ...binding.path.split('/')));
+        observedSha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+      } catch {
+        // The equality check below supplies the stable semantic failure.
+      }
+      requireBundle(
+        observedSha256 === binding.sha256,
+        `${binding.path}: executable bundle ${label} source prerequisite digest drift`
+      );
+    }
+  };
+  validatePinnedBindings(
+    contract?.contract_bindings,
+    executableBundlePinnedContractBindings,
+    'contract binding'
+  );
+  validatePinnedBindings(
+    contract?.expected_effects_and_rollback_bindings,
+    executableBundlePinnedEvidenceBindings,
+    'expected-effects and rollback binding'
+  );
+  let expected = null;
+  try {
+    expected = buildExecutableBundleManifest(repositoryRoot);
+  } catch (error) {
+    failures.push(`executable bundle source evidence unavailable: ${error.message}`);
+  }
+  if (expected !== null) {
+    requireBundle(
+      canonicalCompactSha256(contract) === canonicalCompactSha256(expected),
+      'executable bundle manifest exact content or coherent digest binding drift'
+    );
+  }
+  requireBundle(contract?.version === '1.0.0' && contract?.status === 'CURRENT', 'executable bundle contract identity drift');
+  requireBundle(contract?.bundle_model === 'REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1', 'executable bundle model drift');
+  requireBundle(contract?.promotion_rule === 'BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT', 'executable bundle promotion rule drift');
+  requireBundle(
+    contract?.lifecycle?.source_contract === 'SOURCE_READY'
+      && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED'
+      && contract?.lifecycle?.review === 'SOURCE_REVIEW_REQUIRED'
+      && contract?.lifecycle?.apply_admitted === false,
+    'executable bundle lifecycle must remain source-ready, review-required, execution-blocked, and non-executable'
+  );
+  requireBundle(
+    contract?.authority_boundary?.executor_state === 'BLOCKED_NOT_INCLUDED'
+      && contract?.authority_boundary?.provider_connectivity_included === false
+      && contract?.authority_boundary?.credentials_included === false
+      && contract?.authority_boundary?.sql_execution_authorized === false
+      && contract?.authority_boundary?.deployment_authorized === false
+      && contract?.authority_boundary?.production_authorized === false,
+    'executable bundle authority boundary drift'
+  );
+  requireBundle(
+    contract?.immutable_package?.migration_count === 122
+      && contract?.immutable_package?.source_counts?.discordos === 17
+      && contract?.immutable_package?.source_counts?.fitness === 101
+      && contract?.immutable_package?.source_counts?.mazer === 4
+      && contract?.immutable_package?.migration_package_sha256 === 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db'
+      && contract?.immutable_package?.governance_manifest_sha256 === '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec'
+      && contract?.immutable_package?.standard_migration_sql_count === 0,
+    'executable bundle immutable package or governance binding drift'
+  );
+  requireBundle(
+    contract?.statement_denominator?.source_statement_count === 1253
+      && contract?.statement_denominator?.executable_statement_count === 721
+      && contract?.statement_denominator?.held_statement_count === 532
+      && contract?.statement_denominator?.promoted_statement_count === 721,
+    'executable bundle statement denominator drift'
+  );
+  requireBundle(
+    exactOrderedValues(
+      contract?.artifacts?.map((artifact) => artifact.source_path),
+      executableBundleArtifacts.map((artifact) => artifact.source_path)
+    ),
+    'executable bundle source artifact order or path drift'
+  );
+  requireBundle(
+    exactOrderedValues(
+      contract?.artifacts?.map((artifact) => artifact.promoted_path),
+      executableBundleArtifacts.map((artifact) => artifact.promoted_path)
+    ),
+    'executable bundle promoted artifact order or path drift'
+  );
+  requireBundle(
+    Array.isArray(contract?.artifacts)
+      && contract.artifacts.length === 4
+      && new Set(contract.artifacts.map((artifact) => artifact.promoted_path)).size === 4
+      && contract.artifacts.every((artifact) => artifact.byte_identical === true && artifact.source_sha256 === artifact.promoted_sha256),
+    'executable bundle artifact byte-equivalence or uniqueness drift'
+  );
+  requireBundle(
+    contract?.action_time_placeholders?.target_project_ref === 'REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED'
+      && contract?.action_time_placeholders?.execution_run_id === 'REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED'
+      && contract?.action_time_placeholders?.authority_event_id === 'REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED'
+      && contract?.action_time_placeholders?.values_present === false,
+    'executable bundle target/run placeholders must remain unpopulated'
+  );
+  requireBundle(
+    contract?.redaction?.aggregate_and_digest_only === true
+      && contract?.redaction?.sql_bytes_in_receipts_forbidden === true
+      && contract?.redaction?.raw_provider_payloads_forbidden === true
+      && contract?.redaction?.credentials_and_secrets_forbidden === true
+      && contract?.redaction?.machine_paths_forbidden === true,
+    'executable bundle redaction boundary drift'
+  );
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateSemantics(documents) {
   const failures = [];
   const requireCondition = (condition, message) => {
@@ -2441,6 +2627,31 @@ export function validateSemantics(documents) {
   }
 
   const migrationGate = documents['contracts/v1/gates/migration-gate-state.json'];
+  const executableBundleManifest = documents['contracts/v1/execution/executable-bundle-manifest.json'] ?? {};
+  failures.push(...validateExecutableBundleManifest(executableBundleManifest));
+  const executableBundleGate = migrationGate.executable_bundle ?? {};
+  requireCondition(
+    executableBundleGate.status === 'CURRENT'
+      && executableBundleGate.source_contract_lifecycle === 'SOURCE_READY'
+      && executableBundleGate.execution_lifecycle === 'EXECUTION_BLOCKED'
+      && executableBundleGate.review_state === 'SOURCE_REVIEW_REQUIRED'
+      && executableBundleGate.apply_admitted === false,
+    'migration gate executable bundle must remain source-ready, review-required, execution-blocked, and non-executable'
+  );
+  requireCondition(
+    executableBundleGate.contract_path === 'contracts/v1/execution/executable-bundle-manifest.json'
+      && executableBundleGate.bundle_model === 'REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1'
+      && executableBundleGate.artifact_count === 4
+      && executableBundleGate.executable_statement_count === 721
+      && executableBundleGate.standard_migration_sql_count === 0
+      && executableBundleGate.executor_included === false
+      && executableBundleGate.provider_connectivity_included === false,
+    'migration gate executable bundle identity or authority boundary drift'
+  );
+  requireCondition(
+    migrationGate.required_evidence?.some((evidence) => evidence.name === 'executable bundle source contract: contracts/v1/execution/executable-bundle-manifest.json' && evidence.status === 'CURRENT') === true,
+    'migration gate executable bundle source-contract evidence binding must remain CURRENT'
+  );
   const targetBootstrapContract = documents['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json'] ?? {};
   failures.push(...validateDisposableTargetBootstrapContract(targetBootstrapContract));
   requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
@@ -2638,6 +2849,7 @@ export function validateSemantics(documents) {
   requireCondition(canonicalDigest(discordosAppDataAdapter.dependency_gates) === canonicalDigest(expectedDiscordosDependencyGates), 'DiscordOS dependency gate promotion or status-vocabulary drift');
   const provenance = migrationGate.provider_canonical_provenance;
   requireCondition(migrationGate.version === '1.6.0', 'migration gate version must remain 1.6.0');
+  requireCondition(migrationGate.status === 'BLOCKED' && migrationGate.sql_generation === 'deterministic_promoted_byte_set_current_execution_blocked', 'migration gate must remain BLOCKED after deterministic byte-set generation');
   requireCondition(fitnessSource.accepted_package_migration_count === provenance?.accepted_package?.migration_count && fitnessSource.accepted_migration_package_sha256 === provenance?.accepted_package?.migration_package_sha256 && provenance?.accepted_package?.source_counts?.fitness === 101 && provenance?.accepted_package?.apply_admitted === false, 'Fitness accepted migration package provenance binding drift');
   requireCondition(provenance?.status === 'CURRENT' && provenance?.apply_admitted === false, 'provider-canonical provenance must remain CURRENT and non-executable');
   requireCondition(provenance?.combined_provenance_sha256 === providerCanonicalProvenance.combined_provenance_sha256, 'provider-canonical combined provenance digest drift');
@@ -2993,7 +3205,7 @@ export function validateContracts() {
     ok: failures.length === 0,
     schema_count: schemaPaths().length,
     document_count: documentSpecs.length,
-    semantic_check_groups: 26,
+    semantic_check_groups: 27,
     failures
   };
 }
