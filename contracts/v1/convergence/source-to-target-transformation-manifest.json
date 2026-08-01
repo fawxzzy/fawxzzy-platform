@@ -1,0 +1,175 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "live_inventory": "UNKNOWN",
+  "mappings": [
+    {
+      "id": "discord_board_to_work_projects_cards",
+      "source_domain": "discordos",
+      "source_surface": "BOARD_PROJECT_CARD_RECORDS",
+      "target_domain": "work",
+      "target_entities": [
+        "projects",
+        "cards"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "IMMUTABLE_SOURCE_RECORD_MAPPING",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "discord_feedback_to_work_events",
+      "source_domain": "discordos",
+      "source_surface": "FEEDBACK_AND_ACTIVITY_RECORDS",
+      "target_domain": "work",
+      "target_entities": [
+        "events"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "IMMUTABLE_SOURCE_RECORD_MAPPING",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "discord_identifiers_to_optional_external_refs",
+      "source_domain": "discordos",
+      "source_surface": "DISCORD_IDENTIFIERS",
+      "target_domain": "work",
+      "target_entities": [
+        "external_refs"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "OPTIONAL_EXTERNAL_REFERENCE_NEVER_OWNERSHIP",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "work_relationships_to_dependencies",
+      "source_domain": "discordos",
+      "source_surface": "BOARD_RELATIONSHIPS",
+      "target_domain": "work",
+      "target_entities": [
+        "dependencies"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "MAPPED_PROJECT_AND_CARD_KEYS",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "source_identities_to_shared_identity",
+      "source_domain": "identity_sources",
+      "source_surface": "ADJUDICATED_HUMAN_AND_EXTERNAL_IDENTITIES",
+      "target_domain": "platform_shared",
+      "target_entities": [
+        "global_profile",
+        "service_membership",
+        "external_identity_mapping"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "EXPLICIT_EVIDENCE_MAPPING_WITH_CONFLICT_QUARANTINE",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "fitness_stats_rebuild",
+      "source_domain": "fitness",
+      "source_surface": "AUTHORITATIVE_FACTS",
+      "target_domain": "fitness",
+      "target_entities": [
+        "derived_stats"
+      ],
+      "classification": "DERIVE",
+      "identity_binding": "AUTHORITATIVE_FACT_KEYS",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "fitness_pending_jobs_regeneration",
+      "source_domain": "fitness",
+      "source_surface": "PENDING_JOBS",
+      "target_domain": "fitness",
+      "target_entities": [
+        "regenerated_jobs"
+      ],
+      "classification": "DERIVE",
+      "identity_binding": "IDEMPOTENCY_KEY_AND_SOURCE_DIGEST",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "fitness_alias_canonicalization",
+      "source_domain": "fitness",
+      "source_surface": "EXERCISE_ALIASES",
+      "target_domain": "fitness",
+      "target_entities": [
+        "canonical_exercise_aliases"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "REFERENTIALLY_PROVEN_EXERCISE_MAPPING",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "REQUIRED",
+      "executable_sql": false
+    },
+    {
+      "id": "mazer_progression_convergence",
+      "source_domain": "mazer",
+      "source_surface": "JSON_AND_INDEXED_PROGRESSION",
+      "target_domain": "mazer",
+      "target_entities": [
+        "authoritative_progression"
+      ],
+      "classification": "TRANSFORM",
+      "identity_binding": "OWNER_SELECTED_AUTHORITATIVE_REPRESENTATION",
+      "provenance_required": true,
+      "rehearsal_required": true,
+      "rollback_required": true,
+      "action_time_gate": "OWNER_DECISION_REQUIRED",
+      "executable_sql": false
+    }
+  ],
+  "identity_rules": {
+    "explicit_source_to_target_mapping": true,
+    "conflict_quarantine": true,
+    "email_equality_sufficient": false,
+    "username_equality_sufficient": false,
+    "uuid_equality_sufficient": false,
+    "password_hash_equality_sufficient": false
+  },
+  "domain_rules": {
+    "music_sesh_mappings": 0,
+    "music_sesh_independent": true,
+    "fitness_and_mazer_app_owned": true,
+    "billing_and_entitlements_shared": false
+  },
+  "execution": {
+    "status": "BLOCKED",
+    "apply_admitted": false,
+    "migration_sql_generated": false,
+    "provider_access": false,
+    "live_data_access": false
+  }
+}

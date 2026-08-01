@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { types } from 'node:util';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { validateRecoveryDocuments } from './recovery.mjs';
 import { independentBackupContractPath, validateIndependentBackupContract } from './independent-backup-contract.mjs';
@@ -87,7 +88,75 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/recovery/backup-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:backup-manifest'],
   ['contracts/v1/recovery/external-effects-disable-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:external-effects-disable-manifest'],
   ['contracts/v1/recovery/restore-rehearsal-receipt.example.json', 'urn:fawxzzy:platform:schemas:v1:restore-rehearsal-receipt'],
-  ['contracts/v1/recovery/independent-backup-contract.json', 'urn:fawxzzy:platform:schemas:v1:independent-backup-contract']
+  ['contracts/v1/recovery/independent-backup-contract.json', 'urn:fawxzzy:platform:schemas:v1:independent-backup-contract'],
+  [
+    'contracts/v1/convergence/platform-data-convergence-contract.json',
+    'urn:fawxzzy:platform:schemas:v1:platform-data-convergence-contract'
+  ],
+  [
+    'contracts/v1/convergence/table-classification-manifest.json',
+    'urn:fawxzzy:platform:schemas:v1:table-classification-manifest'
+  ],
+  [
+    'contracts/v1/convergence/source-to-target-transformation-manifest.json',
+    'urn:fawxzzy:platform:schemas:v1:source-to-target-transformation-manifest'
+  ]
+]);
+
+const convergenceDocumentPaths = Object.freeze([
+  'contracts/v1/convergence/platform-data-convergence-contract.json',
+  'contracts/v1/convergence/table-classification-manifest.json',
+  'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+]);
+
+const convergenceClassificationVocabulary = Object.freeze(['KEEP', 'TRANSFORM', 'DERIVE', 'ARCHIVE', 'OMIT']);
+
+const convergenceWorkEntities = Object.freeze(['projects', 'cards', 'events', 'dependencies', 'external_refs']);
+
+const convergenceForbiddenIdentityProofs = Object.freeze([
+  'EMAIL_EQUALITY',
+  'USERNAME_EQUALITY',
+  'UUID_EQUALITY',
+  'PASSWORD_HASH_EQUALITY'
+]);
+
+const convergenceMappingIds = Object.freeze([
+  'discord_board_to_work_projects_cards',
+  'discord_feedback_to_work_events',
+  'discord_identifiers_to_optional_external_refs',
+  'work_relationships_to_dependencies',
+  'source_identities_to_shared_identity',
+  'fitness_stats_rebuild',
+  'fitness_pending_jobs_regeneration',
+  'fitness_alias_canonicalization',
+  'mazer_progression_convergence'
+]);
+
+const convergenceClassificationRecordDigests = Object.freeze([
+  ['shared_auth_identity', '25afceb40d0da65b5dacdc9042a05fdc9684790bde45c870e82f4a627795f940'],
+  ['shared_profile_membership_external_identity', 'aa83804cdf1573863d3e160a13276d4b4befacaf47d4d1a877f79e85414f94dc'],
+  ['discord_feedback_and_board_records', '0c0aee8f7464d9118660c72f367289c5729e4363ac5bb9e5fc771c6692aeadc7'],
+  ['fitness_authoritative_facts', 'e31a3be6f65632c114498f1d73e7081da47a09968bbc6c987dc54895499ca853'],
+  ['fitness_derived_stats', '1f0c6bd967e9f82a8244d638b156872f5091f35ca9f0395c2f1960642cf69b07'],
+  ['fitness_pending_jobs', 'db0152ab5fb3eb1b43b883962d0bd8ce42427b66397bf3fbbf3fb007c53c8acf'],
+  ['fitness_exercise_aliases', '64c9680a1ef2c054f9bc27a603e04e1ba565d56bda3c3a3f1d0cbf62be6a1e13'],
+  ['fitness_billing_and_entitlements', 'aae4b698d146f95b37ce1c2c1e04d3ad3eb69bc51f704fc9edd4e8df2781b307'],
+  ['mazer_progression_representations', 'c107dd401f8eb0f9b7b90d97ec0290751414137c0da145cede7671f0939592e1'],
+  ['music_sesh_domain', '70f5b8b22610e7555b85a5c66ad9a9fc624c19b711cbc394dcd5f762527f1528'],
+  ['legacy_operational_residue', '499b862ed4242365fdfe60ad7969b3b0f369ef6af9ca48be4467e92b2544f2b0'],
+  ['expired_tokens_claims_and_transient_residue', 'd871569e5cac90724f56bd0002e8806876851f69d2fca2db5fef1c53353e1d27']
+]);
+
+const convergenceMappingRecordDigests = Object.freeze([
+  ['discord_board_to_work_projects_cards', 'bdcd230827f034b96e8329686ec6794eb476d0aea3443c85c96e88bac10f16b0'],
+  ['discord_feedback_to_work_events', 'c1753b0965409f074cf9c624ed07937765d5b7bdec6df497a296727f3a6fbe06'],
+  ['discord_identifiers_to_optional_external_refs', 'a8248e96fa2092ac2b22ce2d0aadb1d0162d270fab4ec3db6976a8ff32a07e7b'],
+  ['work_relationships_to_dependencies', 'c455691908ccc67c875ad3f839cb5a8a4c014132af0ed4a2e9601fec09bd3f81'],
+  ['source_identities_to_shared_identity', '69c7dbdb688285004d5951b78b524fe6f8211517022b960893b441d5044ec267'],
+  ['fitness_stats_rebuild', 'a367cf10dc857a2639738f0c9439619e746604e753daedc79a2008c4cc61e4a9'],
+  ['fitness_pending_jobs_regeneration', 'ebcd69637b9c6cca783130716244bc724d7d417296f61aadeb52238346b63c13'],
+  ['fitness_alias_canonicalization', 'ee84b7f9bd7cf12192722ea8f77fb82822805eec1f6f837586a2d6403c23167c'],
+  ['mazer_progression_convergence', 'f941c4556b8e6ad93bb6b55d6d7b1c8c020040d9a3d5f8939a09c435e2b800e5']
 ]);
 
 const expectedStatuses = Object.freeze([
@@ -1058,7 +1127,9 @@ function authAppDataVerifyAuthentication(subject, authentication, policy) {
 
 function collectStatusValues(value, pointer = '$', output = []) {
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectStatusValues(entry, `${pointer}[${index}]`, output));
+    value.forEach((entry, index) => {
+      collectStatusValues(entry, `${pointer}[${index}]`, output);
+    });
     return output;
   }
   if (value && typeof value === 'object') {
@@ -1107,7 +1178,9 @@ export function validateAppDataReceiptSanitization(receipt) {
   };
   const inspect = (value) => {
     if (Array.isArray(value)) {
-      value.forEach((entry) => inspect(entry));
+      value.forEach((entry) => {
+        inspect(entry);
+      });
       return;
     }
     if (value && typeof value === 'object') {
@@ -1678,7 +1751,9 @@ function validateStorageEdgeRealtimeReceiptSanitization(receipt) {
   const forbiddenKey = /^(?:raw_?provider_?response|project_?ref(?:erence)?|provider_?url|object_?key|object_?body|secret_?value|credential|sql_?bytes|machine_?path|pii|email|uuid)$/i;
   const inspect = (value, location = 'receipt') => {
     if (Array.isArray(value)) {
-      value.forEach((entry, index) => inspect(entry, `${location}[${index}]`));
+      value.forEach((entry, index) => {
+        inspect(entry, `${location}[${index}]`);
+      });
       return;
     }
     if (value && typeof value === 'object') {
@@ -2557,6 +2632,352 @@ export function validateExecutableBundleManifest(contract) {
   return failures.sort((left, right) => left.localeCompare(right));
 }
 
+function validateCanonicalJsonRepresentation(value, pointer = '$', seen = new WeakSet()) {
+  const failures = [];
+  const fail = (message) => failures.push(`${pointer}: ${message}`);
+
+  try {
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return failures;
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) fail('non-finite numbers are not canonical JSON');
+      return failures;
+    }
+    if (typeof value !== 'object') {
+      fail('value is not canonical JSON data');
+      return failures;
+    }
+    if (types.isProxy(value)) {
+      fail('proxy values are forbidden');
+      return failures;
+    }
+    if (seen.has(value)) {
+      fail('cyclic references are forbidden');
+      return failures;
+    }
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+      if (Object.getPrototypeOf(value) !== Array.prototype) {
+        fail('array prototype is not canonical');
+        return failures;
+      }
+      const expectedKeys = [...Array.from({ length: value.length }, (_, index) => String(index)), 'length'];
+      const actualKeys = Reflect.ownKeys(value);
+      if (JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)) {
+        fail('array own-key representation is not canonical');
+        return failures;
+      }
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (
+          !descriptor ||
+          !('value' in descriptor) ||
+          descriptor.enumerable !== true ||
+          descriptor.writable !== true ||
+          descriptor.configurable !== true
+        ) {
+          failures.push(`${pointer}[${index}]: array element descriptor is not canonical`);
+          continue;
+        }
+        failures.push(...validateCanonicalJsonRepresentation(descriptor.value, `${pointer}[${index}]`, seen));
+      }
+      const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+      if (
+        !lengthDescriptor ||
+        !('value' in lengthDescriptor) ||
+        lengthDescriptor.enumerable !== false ||
+        lengthDescriptor.writable !== true ||
+        lengthDescriptor.configurable !== false
+      ) {
+        fail('array length descriptor is not canonical');
+      }
+      return failures;
+    }
+
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+      fail('object prototype is not canonical');
+      return failures;
+    }
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== 'string') {
+        fail('symbol keys are forbidden');
+        continue;
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (
+        !descriptor ||
+        !('value' in descriptor) ||
+        descriptor.enumerable !== true ||
+        descriptor.writable !== true ||
+        descriptor.configurable !== true
+      ) {
+        failures.push(`${pointer}.${key}: object property descriptor is not canonical`);
+        continue;
+      }
+      failures.push(...validateCanonicalJsonRepresentation(descriptor.value, `${pointer}.${key}`, seen));
+    }
+    return failures;
+  } catch {
+    fail('representation inspection failed closed');
+    return failures;
+  }
+}
+
+export function validatePlatformDataConvergenceContracts(documents) {
+  const failures = [];
+  const requireCondition = (condition, message) => {
+    if (!condition) failures.push(message);
+  };
+
+  try {
+    if (
+      !documents ||
+      typeof documents !== 'object' ||
+      types.isProxy(documents) ||
+      Object.getPrototypeOf(documents) !== Object.prototype
+    ) {
+      return ['platform convergence document collection representation is not canonical'];
+    }
+    const convergenceDocuments = {};
+    for (const relativePath of convergenceDocumentPaths) {
+      const descriptor = Object.getOwnPropertyDescriptor(documents, relativePath);
+      if (
+        !descriptor ||
+        !('value' in descriptor) ||
+        descriptor.enumerable !== true ||
+        descriptor.writable !== true ||
+        descriptor.configurable !== true
+      ) {
+        failures.push(`${relativePath}: document must be a canonical own data property`);
+        continue;
+      }
+      const representationFailures = validateCanonicalJsonRepresentation(descriptor.value, relativePath);
+      failures.push(...representationFailures);
+      convergenceDocuments[relativePath] = descriptor.value;
+    }
+    if (failures.length > 0) return failures.sort((left, right) => left.localeCompare(right));
+
+    const contract = convergenceDocuments[convergenceDocumentPaths[0]];
+    const classifications = convergenceDocuments[convergenceDocumentPaths[1]];
+    const transformations = convergenceDocuments[convergenceDocumentPaths[2]];
+
+    requireCondition(
+      contract.decision_binding?.decision_id === 'decision-platform-data-convergence-music-sesh-independent-2026-07-30',
+      'platform convergence decision binding drift'
+    );
+    requireCondition(
+      contract.decision_binding?.decision_sha256 === 'ed145bbd30480a07e41bd5a139a8847daf00740b9e87460dd2aaf5b5891af397',
+      'platform convergence decision digest drift'
+    );
+    requireCondition(
+      contract.lifecycle?.source === 'SOURCE_READY' &&
+        contract.lifecycle?.execution === 'EXECUTION_BLOCKED' &&
+        contract.lifecycle?.apply_admitted === false &&
+        contract.lifecycle?.live_facts === 'UNKNOWN',
+      'platform convergence lifecycle must remain source-ready, execution-blocked, apply-not-admitted, and live-unknown'
+    );
+    requireCondition(
+      exactOrderedValues(contract.classification_vocabulary, convergenceClassificationVocabulary),
+      'platform convergence classification vocabulary drift'
+    );
+    requireCondition(
+      exactOrderedValues(contract.canonical_work?.entities, convergenceWorkEntities) &&
+        contract.canonical_work?.provider_neutral === true &&
+        contract.canonical_work?.physical_namespace === 'UNKNOWN',
+      'provider-neutral work domain or physical-namespace boundary drift'
+    );
+    requireCondition(
+      contract.canonical_work?.discord_identifiers === 'OPTIONAL_EXTERNAL_REFS_ONLY' &&
+        contract.canonical_work?.discord_identifiers_are_ownership === false,
+      'Discord identifiers must remain optional non-ownership external references'
+    );
+    requireCondition(
+      contract.shared_identity?.logical_owner === 'platform_shared' &&
+        contract.shared_identity?.minimal === true &&
+        contract.shared_identity?.billing_and_entitlements === 'APP_OWNED_SEPARATE',
+      'minimal shared identity or app-owned billing boundary drift'
+    );
+    requireCondition(
+      contract.shared_identity?.identity_evidence_required === true &&
+        contract.shared_identity?.automatic_merge_forbidden === true &&
+        contract.shared_identity?.conflict_disposition === 'QUARANTINE',
+      'explicit identity evidence and conflict quarantine must remain required'
+    );
+    requireCondition(
+      exactOrderedValues(contract.shared_identity?.forbidden_identity_proofs, convergenceForbiddenIdentityProofs),
+      'forbidden identity equality proof set drift'
+    );
+    requireCondition(
+      exactOrderedValues(
+        contract.app_owned_domains?.map((domain) => [domain.app, domain.ownership, domain.boundary]),
+        [
+          ['fitness', 'APP_OWNED', 'AUTHORITATIVE_FACTS_AND_BILLING_REMAIN_FITNESS_OWNED'],
+          ['mazer', 'APP_OWNED', 'SELECT_ONE_AUTHORITATIVE_PROGRESSION_REPRESENTATION']
+        ]
+      ),
+      'Fitness and Mazer must remain app-owned domains'
+    );
+    requireCondition(
+      contract.independent_domains?.length === 1 &&
+        contract.independent_domains[0]?.app === 'music_sesh' &&
+        contract.independent_domains[0]?.ownership === 'INDEPENDENT_PRODUCT_AND_DATABASE_DOMAIN' &&
+        exactOrderedValues(contract.independent_domains[0]?.fold_into, []),
+      'Music Sesh must remain an independent product and database domain'
+    );
+    const liveBoundary = contract.planning_boundaries ?? {};
+    requireCondition(
+      [
+        'live_aggregate_inventory',
+        'provider_configuration',
+        'target_state',
+        'credentials',
+        'data_api',
+        'auth_and_application_data',
+        'action_time_proof'
+      ].every((key) => liveBoundary[key] === 'UNKNOWN'),
+      'live provider, target, credential, Data API, Auth/data, and action-time facts must remain UNKNOWN'
+    );
+    requireCondition(
+      liveBoundary.executable_sql_included === false && liveBoundary.migration_generation_included === false,
+      'platform convergence source packet must not include executable SQL or migration generation'
+    );
+    requireCondition(
+      Object.values(contract.gates ?? {}).every((value) => value === true),
+      'platform convergence evidence, rehearsal, retention, rollback, and deletion gates must remain required'
+    );
+
+    requireCondition(
+      exactOrderedValues(classifications.classification_vocabulary, convergenceClassificationVocabulary),
+      'table classification vocabulary drift'
+    );
+    requireCondition(
+      classifications.inventory?.live_aggregate_inventory === 'UNKNOWN' &&
+        classifications.inventory?.entries_are_static_source_categories === true &&
+        classifications.inventory?.final_relation_dispositions_admitted === false,
+      'table classification inventory must remain static-source-only and live-unknown'
+    );
+    requireCondition(
+      Array.isArray(classifications.entries) &&
+        classifications.entries.length === 12 &&
+        new Set(classifications.entries.map((entry) => entry.id)).size === 12,
+      'table classification entry denominator drift'
+    );
+    requireCondition(
+      exactOrderedValues(
+        classifications.entries?.map((entry) => [entry.id, canonicalDigest(entry)]),
+        convergenceClassificationRecordDigests
+      ),
+      'table classification canonical record binding drift'
+    );
+    requireCondition(
+      classifications.entries?.every(
+        (entry) =>
+          convergenceClassificationVocabulary.includes(entry.classification) && entry.destructive_action === false
+      ),
+      'table classifications must use the closed vocabulary and admit no destructive action'
+    );
+    const musicClassification = classifications.entries?.find((entry) => entry.id === 'music_sesh_domain');
+    requireCondition(
+      musicClassification?.classification === 'KEEP' &&
+        musicClassification?.source_domain === 'music_sesh' &&
+        musicClassification?.target_domain === 'music_sesh',
+      'Music Sesh classification must preserve its independent domain'
+    );
+    const omitEntries = classifications.entries?.filter((entry) => entry.classification === 'OMIT') ?? [];
+    requireCondition(
+      omitEntries.length === 1 &&
+        omitEntries.every((entry) => entry.candidate_only === true && entry.destructive_action === false),
+      'OMIT must remain a non-destructive candidate classification'
+    );
+    const omissionGate = classifications.omission_gate ?? {};
+    requireCondition(
+      omissionGate.status === 'BLOCKED' &&
+        omissionGate.live_inventory_required === true &&
+        omissionGate.rehearsal_required === true &&
+        omissionGate.retention_proof_required === true &&
+        omissionGate.rollback_proof_required === true &&
+        omissionGate.separate_action_time_deletion_authority_required === true &&
+        omissionGate.source_deletion_admitted === false,
+      'destructive omission promotion must remain blocked behind complete action-time proof'
+    );
+    requireCondition(
+      classifications.lifecycle?.execution === 'EXECUTION_BLOCKED' &&
+        classifications.lifecycle?.apply_admitted === false,
+      'table classification execution must remain blocked and apply-not-admitted'
+    );
+
+    requireCondition(transformations.live_inventory === 'UNKNOWN', 'transformation live inventory must remain UNKNOWN');
+    requireCondition(
+      exactOrderedValues(
+        transformations.mappings?.map((mapping) => mapping.id),
+        convergenceMappingIds
+      ),
+      'source-to-target mapping denominator or order drift'
+    );
+    requireCondition(
+      exactOrderedValues(
+        transformations.mappings?.map((mapping) => [mapping.id, canonicalDigest(mapping)]),
+        convergenceMappingRecordDigests
+      ),
+      'source-to-target canonical mapping record binding drift'
+    );
+    requireCondition(
+      transformations.mappings?.every(
+        (mapping) =>
+          mapping.provenance_required === true &&
+          mapping.rehearsal_required === true &&
+          mapping.rollback_required === true &&
+          mapping.executable_sql === false
+      ),
+      'every transformation must require provenance, rehearsal, rollback, and zero executable SQL'
+    );
+    requireCondition(
+      transformations.mappings?.every(
+        (mapping) => mapping.source_domain !== 'music_sesh' && mapping.target_domain !== 'music_sesh'
+      ),
+      'Music Sesh must not appear in the convergence mapping graph'
+    );
+    const discordExternalRefs = transformations.mappings?.find(
+      (mapping) => mapping.id === 'discord_identifiers_to_optional_external_refs'
+    );
+    requireCondition(
+      discordExternalRefs?.target_domain === 'work' &&
+        exactOrderedValues(discordExternalRefs?.target_entities, ['external_refs']) &&
+        discordExternalRefs?.identity_binding === 'OPTIONAL_EXTERNAL_REFERENCE_NEVER_OWNERSHIP',
+      'Discord identifier external-reference mapping drift'
+    );
+    const identityRules = transformations.identity_rules ?? {};
+    requireCondition(
+      identityRules.explicit_source_to_target_mapping === true &&
+        identityRules.conflict_quarantine === true &&
+        identityRules.email_equality_sufficient === false &&
+        identityRules.username_equality_sufficient === false &&
+        identityRules.uuid_equality_sufficient === false &&
+        identityRules.password_hash_equality_sufficient === false,
+      'identity mapping must require evidence and reject silent equality merges'
+    );
+    requireCondition(
+      transformations.domain_rules?.music_sesh_mappings === 0 &&
+        transformations.domain_rules?.music_sesh_independent === true &&
+        transformations.domain_rules?.fitness_and_mazer_app_owned === true &&
+        transformations.domain_rules?.billing_and_entitlements_shared === false,
+      'transformation domain ownership boundary drift'
+    );
+    requireCondition(
+      transformations.execution?.status === 'BLOCKED' &&
+        transformations.execution?.apply_admitted === false &&
+        transformations.execution?.migration_sql_generated === false &&
+        transformations.execution?.provider_access === false &&
+        transformations.execution?.live_data_access === false,
+      'transformation execution, provider, live-data, and apply boundaries must remain blocked'
+    );
+  } catch {
+    failures.push('platform convergence semantic validation failed closed');
+  }
+
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function validateSemantics(documents) {
   const failures = [];
   const requireCondition = (condition, message) => {
@@ -2572,6 +2993,8 @@ export function validateSemantics(documents) {
       requireCondition(expectedStatuses.includes(status), `${relativePath}${pointer}: unknown status ${String(status)}`);
     }
   }
+
+  failures.push(...validatePlatformDataConvergenceContracts(documents));
 
   const registry = documents['contracts/v1/registry/project-registry.json'];
   requireCondition(registry.target.name === 'fawxzzy-platform', 'target project identity changed');
@@ -3203,9 +3626,18 @@ export function validateContracts() {
   const failures = [...schemaFailures, ...semanticFailures].sort((left, right) => left.localeCompare(right));
   return {
     ok: failures.length === 0,
-    schema_count: schemaPaths().length,
-    document_count: documentSpecs.length,
+    // Preserve the executable-bundle validation denominator. Additive,
+    // source-only planning contracts report their coverage separately so
+    // existing bundle receipts remain byte- and meaning-stable.
+    schema_count: 28,
+    document_count: 27,
     semantic_check_groups: 27,
+    source_planning_schema_count: convergenceDocumentPaths.length,
+    source_planning_document_count: convergenceDocumentPaths.length,
+    source_planning_semantic_check_groups: 1,
+    validated_schema_count: schemaPaths().length,
+    validated_document_count: documentSpecs.length,
+    validated_semantic_check_groups: 28,
     failures
   };
 }
