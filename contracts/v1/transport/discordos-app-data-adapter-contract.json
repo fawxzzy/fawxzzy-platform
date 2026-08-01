@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "contract_id": "discordos-app-data-adapter-contract",
   "status": "CURRENT",
   "lifecycle": {
@@ -51,6 +51,9 @@
     "emitted_data_effect_count": 0,
     "emitted_cron_effect_count": 0,
     "emitted_network_effect_count": 0,
+    "music_sesh_relation_count": 3,
+    "music_sesh_artifact_status": "INCOMPATIBLE_UNADMITTED",
+    "music_sesh_artifact_regeneration": "REQUIRED_SEPARATE_AUTHORITY",
     "generated_artifact_changes_admitted": false
   },
   "identity_boundary": {
@@ -89,11 +92,12 @@
     "raw_values_in_public_receipts": false
   },
   "classification_counts": {
-    "authoritative_state": 5,
+    "authoritative_state": 2,
     "authoritative_append_only_history": 4,
     "held_operational_external_effect": 1,
-    "transported": 9,
-    "held": 1,
+    "held_independent_domain": 3,
+    "transported": 6,
+    "held": 4,
     "total": 10
   },
   "relations": [
@@ -193,53 +197,48 @@
     },
     {
       "source_relation": "discordos.discordos_music_sesh_sessions",
-      "target_relation": "discordos.discordos_music_sesh_sessions",
-      "classification": "AUTHORITATIVE_STATE",
+      "target_relation": null,
+      "classification": "HELD_INDEPENDENT_DOMAIN",
       "primary_key": [
         "session_id"
       ],
       "owner_key": null,
-      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
+      "transport_mode": "HOLD_INDEPENDENT_DOMAIN",
       "dependency_parents": [],
       "external_effects": false,
       "synthetic_rows_action": "EXCLUDE",
       "fitness_semantic_overlap_action": "NOT_APPLICABLE",
-      "hold_reason": null
+      "hold_reason": "MUSIC_SESH_INDEPENDENT_PRODUCT_DATABASE_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT"
     },
     {
       "source_relation": "discordos.discordos_music_sesh_queue_items",
-      "target_relation": "discordos.discordos_music_sesh_queue_items",
-      "classification": "AUTHORITATIVE_STATE",
+      "target_relation": null,
+      "classification": "HELD_INDEPENDENT_DOMAIN",
       "primary_key": [
         "queue_item_id"
       ],
       "owner_key": null,
-      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
-      "dependency_parents": [
-        "discordos.discordos_music_sesh_sessions"
-      ],
+      "transport_mode": "HOLD_INDEPENDENT_DOMAIN",
+      "dependency_parents": [],
       "external_effects": false,
       "synthetic_rows_action": "EXCLUDE",
       "fitness_semantic_overlap_action": "NOT_APPLICABLE",
-      "hold_reason": null
+      "hold_reason": "MUSIC_SESH_INDEPENDENT_PRODUCT_DATABASE_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT"
     },
     {
       "source_relation": "discordos.discordos_music_sesh_votes",
-      "target_relation": "discordos.discordos_music_sesh_votes",
-      "classification": "AUTHORITATIVE_STATE",
+      "target_relation": null,
+      "classification": "HELD_INDEPENDENT_DOMAIN",
       "primary_key": [
         "vote_id"
       ],
       "owner_key": null,
-      "transport_mode": "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
-      "dependency_parents": [
-        "discordos.discordos_music_sesh_sessions",
-        "discordos.discordos_music_sesh_queue_items"
-      ],
+      "transport_mode": "HOLD_INDEPENDENT_DOMAIN",
+      "dependency_parents": [],
       "external_effects": false,
       "synthetic_rows_action": "EXCLUDE",
       "fitness_semantic_overlap_action": "NOT_APPLICABLE",
-      "hold_reason": null
+      "hold_reason": "MUSIC_SESH_INDEPENDENT_PRODUCT_DATABASE_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT"
     },
     {
       "source_relation": "discordos.discord_update_drafts",
@@ -264,15 +263,9 @@
       "discordos.discord_feedback_completion_reviews",
       "discordos.runtime_health_cron_runs",
       "discordos.discordos_board_cards",
-      "discordos.discordos_moderation_audit_log",
-      "discordos.discordos_music_sesh_sessions",
-      "discordos.discordos_music_sesh_queue_items",
-      "discordos.discordos_music_sesh_votes"
+      "discordos.discordos_moderation_audit_log"
     ],
     "delete_order": [
-      "discordos.discordos_music_sesh_votes",
-      "discordos.discordos_music_sesh_queue_items",
-      "discordos.discordos_music_sesh_sessions",
       "discordos.discord_feedback_completion_reviews",
       "discordos.discord_feedback_audit_events",
       "discordos.discord_feedback_reports",
@@ -282,6 +275,9 @@
     ],
     "foreign_key_cycles": "NONE",
     "held_relations_excluded_from_order": [
+      "discordos.discordos_music_sesh_sessions",
+      "discordos.discordos_music_sesh_queue_items",
+      "discordos.discordos_music_sesh_votes",
       "discordos.discord_update_drafts"
     ],
     "external_effects": "QUARANTINED"
@@ -373,6 +369,8 @@
     "service_membership_readiness": "NOT_APPLICABLE",
     "mazer_adapter_source_contract": "CURRENT",
     "fitness_adapter_source_contract": "CURRENT",
+    "music_sesh_independent_domain": "BLOCKED",
+    "generated_artifact_regeneration": "BLOCKED",
     "discordos_external_effect_quarantine": "BLOCKED",
     "target_apply": "BLOCKED"
   }
