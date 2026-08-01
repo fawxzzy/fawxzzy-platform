@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:platform-data-convergence-contract",
+  "title": "Provider-neutral platform data convergence contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "decision_binding",
+    "lifecycle",
+    "classification_vocabulary",
+    "shared_identity",
+    "canonical_work",
+    "app_owned_domains",
+    "independent_domains",
+    "planning_boundaries",
+    "gates"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "decision_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "decision_sha256",
+        "music_sesh_boundary"
+      ],
+      "properties": {
+        "decision_id": {
+          "const": "decision-platform-data-convergence-music-sesh-independent-2026-07-30"
+        },
+        "decision_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "music_sesh_boundary": {
+          "const": "INDEPENDENT_PRODUCT_AND_DATABASE_DOMAIN"
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "execution",
+        "apply_admitted",
+        "live_facts"
+      ],
+      "properties": {
+        "source": {
+          "const": "SOURCE_READY"
+        },
+        "execution": {
+          "const": "EXECUTION_BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "live_facts": {
+          "const": "UNKNOWN"
+        }
+      }
+    },
+    "classification_vocabulary": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "KEEP"
+        },
+        {
+          "const": "TRANSFORM"
+        },
+        {
+          "const": "DERIVE"
+        },
+        {
+          "const": "ARCHIVE"
+        },
+        {
+          "const": "OMIT"
+        }
+      ],
+      "items": false,
+      "minItems": 5,
+      "maxItems": 5
+    },
+    "shared_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_owner",
+        "surfaces",
+        "minimal",
+        "identity_evidence_required",
+        "automatic_merge_forbidden",
+        "forbidden_identity_proofs",
+        "conflict_disposition",
+        "billing_and_entitlements"
+      ],
+      "properties": {
+        "logical_owner": {
+          "const": "platform_shared"
+        },
+        "surfaces": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "global_profile"
+            },
+            {
+              "const": "service_membership"
+            },
+            {
+              "const": "external_identity_mapping"
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "minimal": {
+          "const": true
+        },
+        "identity_evidence_required": {
+          "const": true
+        },
+        "automatic_merge_forbidden": {
+          "const": true
+        },
+        "forbidden_identity_proofs": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "EMAIL_EQUALITY"
+            },
+            {
+              "const": "USERNAME_EQUALITY"
+            },
+            {
+              "const": "UUID_EQUALITY"
+            },
+            {
+              "const": "PASSWORD_HASH_EQUALITY"
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "conflict_disposition": {
+          "const": "QUARANTINE"
+        },
+        "billing_and_entitlements": {
+          "const": "APP_OWNED_SEPARATE"
+        }
+      }
+    },
+    "canonical_work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_domain",
+        "physical_namespace",
+        "entities",
+        "provider_neutral",
+        "discord_identifiers",
+        "discord_identifiers_are_ownership"
+      ],
+      "properties": {
+        "logical_domain": {
+          "const": "work"
+        },
+        "physical_namespace": {
+          "const": "UNKNOWN"
+        },
+        "entities": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "projects"
+            },
+            {
+              "const": "cards"
+            },
+            {
+              "const": "events"
+            },
+            {
+              "const": "dependencies"
+            },
+            {
+              "const": "external_refs"
+            }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "provider_neutral": {
+          "const": true
+        },
+        "discord_identifiers": {
+          "const": "OPTIONAL_EXTERNAL_REFS_ONLY"
+        },
+        "discord_identifiers_are_ownership": {
+          "const": false
+        }
+      }
+    },
+    "app_owned_domains": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/domain_boundary"
+      }
+    },
+    "independent_domains": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "app",
+          "ownership",
+          "fold_into"
+        ],
+        "properties": {
+          "app": {
+            "const": "music_sesh"
+          },
+          "ownership": {
+            "const": "INDEPENDENT_PRODUCT_AND_DATABASE_DOMAIN"
+          },
+          "fold_into": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    "planning_boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_aggregate_inventory",
+        "provider_configuration",
+        "target_state",
+        "credentials",
+        "data_api",
+        "auth_and_application_data",
+        "action_time_proof",
+        "executable_sql_included",
+        "migration_generation_included"
+      ],
+      "properties": {
+        "live_aggregate_inventory": {
+          "const": "UNKNOWN"
+        },
+        "provider_configuration": {
+          "const": "UNKNOWN"
+        },
+        "target_state": {
+          "const": "UNKNOWN"
+        },
+        "credentials": {
+          "const": "UNKNOWN"
+        },
+        "data_api": {
+          "const": "UNKNOWN"
+        },
+        "auth_and_application_data": {
+          "const": "UNKNOWN"
+        },
+        "action_time_proof": {
+          "const": "UNKNOWN"
+        },
+        "executable_sql_included": {
+          "const": false
+        },
+        "migration_generation_included": {
+          "const": false
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_before_final_classification",
+        "rehearsal_before_mutation",
+        "provenance_required",
+        "retention_proof_required",
+        "rollback_proof_required",
+        "separate_action_time_deletion_authority_required"
+      ],
+      "properties": {
+        "inventory_before_final_classification": {
+          "const": true
+        },
+        "rehearsal_before_mutation": {
+          "const": true
+        },
+        "provenance_required": {
+          "const": true
+        },
+        "retention_proof_required": {
+          "const": true
+        },
+        "rollback_proof_required": {
+          "const": true
+        },
+        "separate_action_time_deletion_authority_required": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "domain_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app",
+        "ownership",
+        "boundary"
+      ],
+      "properties": {
+        "app": {
+          "enum": [
+            "fitness",
+            "mazer"
+          ]
+        },
+        "ownership": {
+          "const": "APP_OWNED"
+        },
+        "boundary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

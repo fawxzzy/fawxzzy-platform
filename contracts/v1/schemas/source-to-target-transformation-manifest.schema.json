@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:source-to-target-transformation-manifest",
+  "title": "Provider-neutral source-to-target transformation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "live_inventory",
+    "mappings",
+    "identity_rules",
+    "domain_rules",
+    "execution"
+  ],
+  "properties": {
+    "version": {
+      "$ref": "urn:fawxzzy:platform:schemas:v1:common#/$defs/version"
+    },
+    "status": {
+      "const": "CURRENT"
+    },
+    "live_inventory": {
+      "const": "UNKNOWN"
+    },
+    "mappings": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "$ref": "#/$defs/mapping"
+      }
+    },
+    "identity_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_source_to_target_mapping",
+        "conflict_quarantine",
+        "email_equality_sufficient",
+        "username_equality_sufficient",
+        "uuid_equality_sufficient",
+        "password_hash_equality_sufficient"
+      ],
+      "properties": {
+        "explicit_source_to_target_mapping": {
+          "const": true
+        },
+        "conflict_quarantine": {
+          "const": true
+        },
+        "email_equality_sufficient": {
+          "const": false
+        },
+        "username_equality_sufficient": {
+          "const": false
+        },
+        "uuid_equality_sufficient": {
+          "const": false
+        },
+        "password_hash_equality_sufficient": {
+          "const": false
+        }
+      }
+    },
+    "domain_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "music_sesh_mappings",
+        "music_sesh_independent",
+        "fitness_and_mazer_app_owned",
+        "billing_and_entitlements_shared"
+      ],
+      "properties": {
+        "music_sesh_mappings": {
+          "const": 0
+        },
+        "music_sesh_independent": {
+          "const": true
+        },
+        "fitness_and_mazer_app_owned": {
+          "const": true
+        },
+        "billing_and_entitlements_shared": {
+          "const": false
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "apply_admitted",
+        "migration_sql_generated",
+        "provider_access",
+        "live_data_access"
+      ],
+      "properties": {
+        "status": {
+          "const": "BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        },
+        "migration_sql_generated": {
+          "const": false
+        },
+        "provider_access": {
+          "const": false
+        },
+        "live_data_access": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_domain",
+        "source_surface",
+        "target_domain",
+        "target_entities",
+        "classification",
+        "identity_binding",
+        "provenance_required",
+        "rehearsal_required",
+        "rollback_required",
+        "action_time_gate",
+        "executable_sql"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "source_domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "source_surface": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]+$"
+        },
+        "target_domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "target_entities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "classification": {
+          "enum": [
+            "KEEP",
+            "TRANSFORM",
+            "DERIVE",
+            "ARCHIVE",
+            "OMIT"
+          ]
+        },
+        "identity_binding": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]+$"
+        },
+        "provenance_required": {
+          "const": true
+        },
+        "rehearsal_required": {
+          "const": true
+        },
+        "rollback_required": {
+          "const": true
+        },
+        "action_time_gate": {
+          "enum": [
+            "REQUIRED",
+            "OWNER_DECISION_REQUIRED"
+          ]
+        },
+        "executable_sql": {
+          "const": false
+        }
+      }
+    }
+  }
+}

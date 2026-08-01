@@ -7,6 +7,7 @@ import {
   validateAppDataReceiptSanitization,
   validateContracts,
   validateFitnessDiscordMemberLinkOwnerRekeyEvidence,
+  validatePlatformDataConvergenceContracts,
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
@@ -36,11 +37,309 @@ test('all versioned contract instances satisfy their schemas and semantics', () 
   const report = validateContracts();
   assert.deepEqual(report.failures, []);
   assert.equal(report.ok, true);
+  assert.deepEqual(
+    {
+      schema_count: report.schema_count,
+      document_count: report.document_count,
+      semantic_check_groups: report.semantic_check_groups
+    },
+    {
+      schema_count: 28,
+      document_count: 27,
+      semantic_check_groups: 27
+    }
+  );
+  assert.deepEqual(
+    {
+      schema_count: report.source_planning_schema_count,
+      document_count: report.source_planning_document_count,
+      semantic_check_groups: report.source_planning_semantic_check_groups
+    },
+    {
+      schema_count: 3,
+      document_count: 3,
+      semantic_check_groups: 1
+    }
+  );
+  assert.deepEqual(
+    {
+      schema_count: report.validated_schema_count,
+      document_count: report.validated_document_count,
+      semantic_check_groups: report.validated_semantic_check_groups
+    },
+    {
+      schema_count: 31,
+      document_count: 30,
+      semantic_check_groups: 28
+    }
+  );
 });
 
 test('contract validation output is deterministic', () => {
   assert.deepEqual(validateContracts(), validateContracts());
   assert.equal(JSON.stringify(validateContracts()), JSON.stringify(validateContracts()));
+});
+
+test('provider-neutral convergence contracts preserve exact product, identity, and execution boundaries', () => {
+  const documents = loadDocuments();
+  assert.deepEqual(validatePlatformDataConvergenceContracts(documents), []);
+  assert.deepEqual(
+    validateSchemaInstances(documents, createValidator()).filter((failure) => failure.includes('/convergence/')),
+    []
+  );
+
+  const contract = documents['contracts/v1/convergence/platform-data-convergence-contract.json'];
+  const classifications = documents['contracts/v1/convergence/table-classification-manifest.json'];
+  const transformations = documents['contracts/v1/convergence/source-to-target-transformation-manifest.json'];
+  assert.deepEqual(contract.classification_vocabulary, ['KEEP', 'TRANSFORM', 'DERIVE', 'ARCHIVE', 'OMIT']);
+  assert.deepEqual(contract.canonical_work.entities, ['projects', 'cards', 'events', 'dependencies', 'external_refs']);
+  assert.equal(contract.independent_domains[0].app, 'music_sesh');
+  assert.deepEqual(contract.independent_domains[0].fold_into, []);
+  assert.equal(classifications.entries.find((entry) => entry.id === 'music_sesh_domain').target_domain, 'music_sesh');
+  assert.equal(classifications.omission_gate.status, 'BLOCKED');
+  assert.equal(
+    transformations.mappings.some(
+      (mapping) => mapping.source_domain === 'music_sesh' || mapping.target_domain === 'music_sesh'
+    ),
+    false
+  );
+  assert.equal(transformations.execution.apply_admitted, false);
+});
+
+test('provider-neutral convergence rejects domain collapse, silent identity merge, destructive omission, executable SQL, and live-fact promotion', () => {
+  const baseline = loadDocuments();
+  const cases = [
+    [
+      'music sesh fold',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/platform-data-convergence-contract.json'
+        ].independent_domains[0].fold_into.push('work');
+      }
+    ],
+    [
+      'music sesh mapping',
+      (documents) => {
+        documents['contracts/v1/convergence/source-to-target-transformation-manifest.json'].mappings[0].target_domain =
+          'music_sesh';
+      }
+    ],
+    [
+      'email merge',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].identity_rules.email_equality_sufficient = true;
+      }
+    ],
+    [
+      'username merge',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].identity_rules.username_equality_sufficient = true;
+      }
+    ],
+    [
+      'uuid merge',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].identity_rules.uuid_equality_sufficient = true;
+      }
+    ],
+    [
+      'password hash merge',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].identity_rules.password_hash_equality_sufficient = true;
+      }
+    ],
+    [
+      'omission promotion',
+      (documents) => {
+        documents['contracts/v1/convergence/table-classification-manifest.json'].omission_gate.status = 'CURRENT';
+      }
+    ],
+    [
+      'source deletion',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/table-classification-manifest.json'
+        ].omission_gate.source_deletion_admitted = true;
+      }
+    ],
+    [
+      'executable sql',
+      (documents) => {
+        documents['contracts/v1/convergence/source-to-target-transformation-manifest.json'].mappings[0].executable_sql =
+          true;
+      }
+    ],
+    [
+      'migration generation',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/platform-data-convergence-contract.json'
+        ].planning_boundaries.migration_generation_included = true;
+      }
+    ],
+    [
+      'live inventory promotion',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/platform-data-convergence-contract.json'
+        ].planning_boundaries.live_aggregate_inventory = 'CURRENT';
+      }
+    ],
+    [
+      'provider promotion',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/platform-data-convergence-contract.json'
+        ].planning_boundaries.provider_configuration = 'CURRENT';
+      }
+    ],
+    [
+      'apply promotion',
+      (documents) => {
+        documents['contracts/v1/convergence/source-to-target-transformation-manifest.json'].execution.apply_admitted =
+          true;
+      }
+    ],
+    [
+      'discord ownership',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/platform-data-convergence-contract.json'
+        ].canonical_work.discord_identifiers_are_ownership = true;
+      }
+    ],
+    [
+      'shared billing',
+      (documents) => {
+        documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].domain_rules.billing_and_entitlements_shared = true;
+      }
+    ],
+    [
+      'shared identity email binding substitution',
+      (documents) => {
+        documents['contracts/v1/convergence/source-to-target-transformation-manifest.json'].mappings.find(
+          (mapping) => mapping.id === 'source_identities_to_shared_identity'
+        ).identity_binding = 'EMAIL_EQUALITY';
+      }
+    ],
+    [
+      'fitness billing target rebinding',
+      (documents) => {
+        documents['contracts/v1/convergence/table-classification-manifest.json'].entries.find(
+          (entry) => entry.id === 'fitness_billing_and_entitlements'
+        ).target_domain = 'platform_shared';
+      }
+    ],
+    [
+      'discord board mapping semantic substitution',
+      (documents) => {
+        const mapping = documents[
+          'contracts/v1/convergence/source-to-target-transformation-manifest.json'
+        ].mappings.find((entry) => entry.id === 'discord_board_to_work_projects_cards');
+        mapping.target_domain = 'fitness';
+        mapping.target_entities = ['derived_stats'];
+        mapping.classification = 'KEEP';
+      }
+    ],
+    [
+      'legacy archive candidate promotion',
+      (documents) => {
+        documents['contracts/v1/convergence/table-classification-manifest.json'].entries.find(
+          (entry) => entry.id === 'legacy_operational_residue'
+        ).candidate_only = false;
+      }
+    ],
+    [
+      'fitness boundary shares billing with membership',
+      (documents) => {
+        documents['contracts/v1/convergence/platform-data-convergence-contract.json'].app_owned_domains.find(
+          (domain) => domain.app === 'fitness'
+        ).boundary = 'BILLING_AND_ENTITLEMENTS_SHARED_WITH_MEMBERSHIP';
+      }
+    ],
+    [
+      'unknown field',
+      (documents) => {
+        documents['contracts/v1/convergence/platform-data-convergence-contract.json'].unexpected = true;
+      }
+    ]
+  ];
+
+  for (const [name, mutate] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    const failures = [
+      ...validateSchemaInstances(documents, createValidator()),
+      ...validatePlatformDataConvergenceContracts(documents)
+    ];
+    assert.notEqual(failures.length, 0, name);
+  }
+});
+
+test('provider-neutral convergence rejects prototype and noncanonical representation drift without throwing or echoing values', () => {
+  const baseline = loadDocuments();
+  const contractPath = 'contracts/v1/convergence/platform-data-convergence-contract.json';
+  const variants = [
+    (documents) => {
+      Object.setPrototypeOf(documents[contractPath], {
+        inherited: 'secret-marker'
+      });
+    },
+    (documents) => {
+      Object.defineProperty(documents[contractPath], 'hidden', {
+        value: 'secret-marker',
+        enumerable: false
+      });
+    },
+    (documents) => {
+      Object.defineProperty(documents[contractPath], 'accessor', {
+        get() {
+          throw new Error('secret-marker');
+        },
+        enumerable: true
+      });
+    },
+    (documents) => {
+      documents[contractPath][Symbol('secret-marker')] = true;
+    },
+    (documents) => {
+      documents[contractPath].classification_vocabulary.extra = 'secret-marker';
+    },
+    (documents) => {
+      documents[contractPath] = new Proxy(documents[contractPath], {
+        ownKeys() {
+          throw new Error('secret-marker');
+        }
+      });
+    },
+    (documents) => {
+      documents[contractPath].canonical_work.entities = Object.assign(
+        Object.create(Array.prototype),
+        documents[contractPath].canonical_work.entities
+      );
+    }
+  ];
+
+  for (const mutate of variants) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    let failures;
+    assert.doesNotThrow(() => {
+      failures = validatePlatformDataConvergenceContracts(documents);
+    });
+    assert.notEqual(failures.length, 0);
+    assert.equal(failures.join('\n').includes('secret-marker'), false);
+  }
 });
 
 test('shared Auth import rehearsal rejects lifecycle promotion, collision weakening, and raw identity leakage', () => {

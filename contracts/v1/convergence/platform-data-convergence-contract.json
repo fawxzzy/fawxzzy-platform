@@ -1,0 +1,93 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "decision_binding": {
+    "decision_id": "decision-platform-data-convergence-music-sesh-independent-2026-07-30",
+    "decision_sha256": "ed145bbd30480a07e41bd5a139a8847daf00740b9e87460dd2aaf5b5891af397",
+    "music_sesh_boundary": "INDEPENDENT_PRODUCT_AND_DATABASE_DOMAIN"
+  },
+  "lifecycle": {
+    "source": "SOURCE_READY",
+    "execution": "EXECUTION_BLOCKED",
+    "apply_admitted": false,
+    "live_facts": "UNKNOWN"
+  },
+  "classification_vocabulary": [
+    "KEEP",
+    "TRANSFORM",
+    "DERIVE",
+    "ARCHIVE",
+    "OMIT"
+  ],
+  "shared_identity": {
+    "logical_owner": "platform_shared",
+    "surfaces": [
+      "global_profile",
+      "service_membership",
+      "external_identity_mapping"
+    ],
+    "minimal": true,
+    "identity_evidence_required": true,
+    "automatic_merge_forbidden": true,
+    "forbidden_identity_proofs": [
+      "EMAIL_EQUALITY",
+      "USERNAME_EQUALITY",
+      "UUID_EQUALITY",
+      "PASSWORD_HASH_EQUALITY"
+    ],
+    "conflict_disposition": "QUARANTINE",
+    "billing_and_entitlements": "APP_OWNED_SEPARATE"
+  },
+  "canonical_work": {
+    "logical_domain": "work",
+    "physical_namespace": "UNKNOWN",
+    "entities": [
+      "projects",
+      "cards",
+      "events",
+      "dependencies",
+      "external_refs"
+    ],
+    "provider_neutral": true,
+    "discord_identifiers": "OPTIONAL_EXTERNAL_REFS_ONLY",
+    "discord_identifiers_are_ownership": false
+  },
+  "app_owned_domains": [
+    {
+      "app": "fitness",
+      "ownership": "APP_OWNED",
+      "boundary": "AUTHORITATIVE_FACTS_AND_BILLING_REMAIN_FITNESS_OWNED"
+    },
+    {
+      "app": "mazer",
+      "ownership": "APP_OWNED",
+      "boundary": "SELECT_ONE_AUTHORITATIVE_PROGRESSION_REPRESENTATION"
+    }
+  ],
+  "independent_domains": [
+    {
+      "app": "music_sesh",
+      "ownership": "INDEPENDENT_PRODUCT_AND_DATABASE_DOMAIN",
+      "fold_into": []
+    }
+  ],
+  "planning_boundaries": {
+    "live_aggregate_inventory": "UNKNOWN",
+    "provider_configuration": "UNKNOWN",
+    "target_state": "UNKNOWN",
+    "credentials": "UNKNOWN",
+    "data_api": "UNKNOWN",
+    "auth_and_application_data": "UNKNOWN",
+    "action_time_proof": "UNKNOWN",
+    "executable_sql_included": false,
+    "migration_generation_included": false
+  },
+  "gates": {
+    "inventory_before_final_classification": true,
+    "rehearsal_before_mutation": true,
+    "provenance_required": true,
+    "retention_proof_required": true,
+    "rollback_proof_required": true,
+    "separate_action_time_deletion_authority_required": true
+  }
+}

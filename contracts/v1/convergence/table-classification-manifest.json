@@ -1,0 +1,192 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "classification_vocabulary": [
+    "KEEP",
+    "TRANSFORM",
+    "DERIVE",
+    "ARCHIVE",
+    "OMIT"
+  ],
+  "inventory": {
+    "live_aggregate_inventory": "UNKNOWN",
+    "entries_are_static_source_categories": true,
+    "final_relation_dispositions_admitted": false
+  },
+  "entries": [
+    {
+      "id": "shared_auth_identity",
+      "source_domain": "shared_identity",
+      "source_category": "ADJUDICATED_HUMAN_IDENTITY",
+      "classification": "KEEP",
+      "target_domain": "platform_shared",
+      "requirements": [
+        "EXPLICIT_SOURCE_TO_TARGET_MAPPING",
+        "CONFLICT_QUARANTINE",
+        "CONTROLLED_REAUTHENTICATION"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "shared_profile_membership_external_identity",
+      "source_domain": "shared_identity",
+      "source_category": "MINIMAL_SHARED_ACCOUNT_SURFACES",
+      "classification": "TRANSFORM",
+      "target_domain": "platform_shared",
+      "requirements": [
+        "MINIMAL_PROFILE",
+        "SERVICE_MEMBERSHIP_NOT_ENTITLEMENT",
+        "EXTERNAL_IDENTITY_PROVENANCE"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "discord_feedback_and_board_records",
+      "source_domain": "discordos",
+      "source_category": "FEEDBACK_BOARD_PROJECT_CARD_RECORDS",
+      "classification": "TRANSFORM",
+      "target_domain": "work",
+      "requirements": [
+        "EVIDENCE_BACKED_MAPPING",
+        "PROVIDER_NEUTRAL_ENTITY_KEYS",
+        "DISCORD_IDS_OPTIONAL_EXTERNAL_REFS"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "fitness_authoritative_facts",
+      "source_domain": "fitness",
+      "source_category": "AUTHORITATIVE_DOMAIN_FACTS",
+      "classification": "KEEP",
+      "target_domain": "fitness",
+      "requirements": [
+        "REFERENTIAL_PROOF",
+        "APP_OWNED_AUTHORITY"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "fitness_derived_stats",
+      "source_domain": "fitness",
+      "source_category": "REBUILDABLE_DERIVED_STATS",
+      "classification": "DERIVE",
+      "target_domain": "fitness",
+      "requirements": [
+        "AUTHORITATIVE_INPUT_PARITY",
+        "DETERMINISTIC_REBUILD"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "fitness_pending_jobs",
+      "source_domain": "fitness",
+      "source_category": "REGENERABLE_PENDING_JOBS",
+      "classification": "DERIVE",
+      "target_domain": "fitness",
+      "requirements": [
+        "DRAIN_OR_REGENERATE_PROOF",
+        "IDEMPOTENT_REPLAY"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "fitness_exercise_aliases",
+      "source_domain": "fitness",
+      "source_category": "EXERCISE_ALIAS_RECORDS",
+      "classification": "TRANSFORM",
+      "target_domain": "fitness",
+      "requirements": [
+        "REFERENTIAL_PROOF",
+        "CANONICAL_ALIAS_MAPPING"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "fitness_billing_and_entitlements",
+      "source_domain": "fitness",
+      "source_category": "BILLING_AND_ENTITLEMENTS",
+      "classification": "KEEP",
+      "target_domain": "fitness",
+      "requirements": [
+        "APP_OWNED_SEPARATE_FROM_MEMBERSHIP"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "mazer_progression_representations",
+      "source_domain": "mazer",
+      "source_category": "JSON_AND_INDEXED_PROGRESSION_REPRESENTATIONS",
+      "classification": "TRANSFORM",
+      "target_domain": "mazer",
+      "requirements": [
+        "SELECT_ONE_AUTHORITATIVE_REPRESENTATION",
+        "PREVENT_JSON_INDEXED_COLUMN_DRIFT"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "music_sesh_domain",
+      "source_domain": "music_sesh",
+      "source_category": "INDEPENDENT_PRODUCT_AND_DATABASE",
+      "classification": "KEEP",
+      "target_domain": "music_sesh",
+      "requirements": [
+        "NO_CROSS_PRODUCT_FOLDING"
+      ],
+      "candidate_only": false,
+      "destructive_action": false
+    },
+    {
+      "id": "legacy_operational_residue",
+      "source_domain": "discordos",
+      "source_category": "MEASURED_OPERATIONAL_RESIDUE",
+      "classification": "ARCHIVE",
+      "target_domain": "archive",
+      "requirements": [
+        "MEASURED_NEED",
+        "RETENTION_PROOF",
+        "RESTORE_REHEARSAL"
+      ],
+      "candidate_only": true,
+      "destructive_action": false
+    },
+    {
+      "id": "expired_tokens_claims_and_transient_residue",
+      "source_domain": "legacy",
+      "source_category": "EXPIRED_TOKENS_CLAIMS_STALE_PROVIDER_IDS_DISCONNECTED_CREDENTIALS_OBSOLETE_CRON_DETAIL",
+      "classification": "OMIT",
+      "target_domain": "none",
+      "requirements": [
+        "LIVE_AGGREGATE_INVENTORY",
+        "DISPOSABLE_REHEARSAL",
+        "RETENTION_PROOF",
+        "ROLLBACK_PROOF",
+        "SEPARATE_ACTION_TIME_DELETION_AUTHORITY"
+      ],
+      "candidate_only": true,
+      "destructive_action": false
+    }
+  ],
+  "omission_gate": {
+    "status": "BLOCKED",
+    "live_inventory_required": true,
+    "rehearsal_required": true,
+    "retention_proof_required": true,
+    "rollback_proof_required": true,
+    "separate_action_time_deletion_authority_required": true,
+    "source_deletion_admitted": false
+  },
+  "lifecycle": {
+    "execution": "EXECUTION_BLOCKED",
+    "apply_admitted": false
+  }
+}
