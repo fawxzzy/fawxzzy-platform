@@ -357,6 +357,8 @@
         "fitness_relation_count",
         "discordos_contract_path",
         "discordos_relation_count",
+        "discordos_transport_ready",
+        "discordos_block_reason",
         "all_adapters_ready",
         "execution_lifecycle",
         "apply_admitted"
@@ -396,6 +398,12 @@
         },
         "discordos_relation_count": {
           "const": 10
+        },
+        "discordos_transport_ready": {
+          "const": false
+        },
+        "discordos_block_reason": {
+          "const": "MUSIC_SESH_INDEPENDENT_DOMAIN_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT"
         },
         "all_adapters_ready": {
           "const": true

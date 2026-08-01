@@ -1342,6 +1342,8 @@ test('Mazer app data adapter gate rejects readiness and target-apply promotion',
   for (const mutate of [
     (gate) => { gate.source_ready = ['mazer', 'fitness']; },
     (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.discordos_transport_ready = true; },
+    (gate) => { gate.discordos_block_reason = 'CURRENT'; },
     (gate) => { gate.all_adapters_ready = false; },
     (gate) => { gate.execution_lifecycle = 'CURRENT'; },
     (gate) => { gate.apply_admitted = true; }
@@ -1701,6 +1703,8 @@ test('Fitness adapter gate rejects readiness or package-application promotion', 
   for (const mutate of [
     (gate) => { gate.source_ready = ['mazer', 'fitness']; },
     (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.discordos_transport_ready = true; },
+    (gate) => { gate.discordos_block_reason = 'CURRENT'; },
     (gate) => { gate.fitness_relation_count = 26; },
     (gate) => { gate.all_adapters_ready = false; },
     (gate) => { gate.execution_lifecycle = 'CURRENT'; },
@@ -1737,22 +1741,61 @@ test('DiscordOS app data adapter freezes ten provider-canonical relations withou
   const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyDiscordosAppDataAdapter({ adapter, gate }), []);
-  assert.equal(adapter.version, '1.1.0');
+  assert.equal(adapter.version, '1.2.0');
   assert.equal(adapter.relations.length, 10);
   assert.deepEqual(adapter.classification_counts, {
-    authoritative_state: 5,
+    authoritative_state: 2,
     authoritative_append_only_history: 4,
     held_operational_external_effect: 1,
-    transported: 9,
-    held: 1,
+    held_independent_domain: 3,
+    transported: 6,
+    held: 4,
     total: 10
   });
   assert.equal(adapter.inert_boundary.held_relation, 'discordos.discord_update_drafts');
+  assert.equal(adapter.inert_boundary.music_sesh_artifact_status, 'INCOMPATIBLE_UNADMITTED');
   assert.deepEqual(gate.app_data_adapters.source_ready, ['mazer', 'fitness', 'discordos']);
   assert.deepEqual(gate.app_data_adapters.blocked, []);
+  assert.equal(gate.app_data_adapters.discordos_transport_ready, false);
   assert.equal(gate.app_data_adapters.all_adapters_ready, true);
   assert.equal(gate.app_data_adapters.execution_lifecycle, 'EXECUTION_BLOCKED');
   assert.equal(gate.app_data_adapters.apply_admitted, false);
+});
+
+test('DiscordOS and Platform contracts keep Music Sesh independent and non-transportable', () => {
+  const baseline = loadDocuments();
+  const adapterPath = 'contracts/v1/transport/discordos-app-data-adapter-contract.json';
+  const gatePath = 'contracts/v1/gates/migration-gate-state.json';
+  const musicSources = [
+    'discordos.discordos_music_sesh_sessions',
+    'discordos.discordos_music_sesh_queue_items',
+    'discordos.discordos_music_sesh_votes'
+  ];
+  const adapter = baseline[adapterPath];
+  const musicRelations = adapter.relations.filter((relation) => musicSources.includes(relation.source_relation));
+  assert.equal(musicRelations.length, 3);
+  assert.ok(musicRelations.every((relation) => relation.target_relation === null));
+  assert.ok(musicRelations.every((relation) => relation.classification === 'HELD_INDEPENDENT_DOMAIN'));
+  assert.ok(musicRelations.every((relation) => relation.transport_mode === 'HOLD_INDEPENDENT_DOMAIN'));
+  assert.ok(musicRelations.every((relation) => relation.dependency_parents.length === 0));
+
+  const cases = [
+    ['target mapping', (documents) => { documents[adapterPath].relations[6].target_relation = 'discordos.discordos_music_sesh_sessions'; }],
+    ['classification promotion', (documents) => { documents[adapterPath].relations[7].classification = 'AUTHORITATIVE_STATE'; }],
+    ['transport promotion', (documents) => { documents[adapterPath].relations[8].transport_mode = 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'; }],
+    ['missing hold reason', (documents) => { documents[adapterPath].relations[6].hold_reason = null; }],
+    ['dependency ordering', (documents) => { documents[adapterPath].relations[7].dependency_parents = [musicSources[0]]; }],
+    ['gate-ready promotion', (documents) => {
+      documents[gatePath].app_data_adapters.discordos_transport_ready = true;
+    }]
+  ];
+  for (const [name, mutate] of cases) {
+    const documents = structuredClone(baseline);
+    mutate(documents);
+    const schemaFailures = validateSchemaInstances(documents, createValidator());
+    const semanticFailures = validateSemantics(documents);
+    assert.ok(schemaFailures.length > 0 || semanticFailures.length > 0, name);
+  }
 });
 
 test('DiscordOS adapter rejects provenance, relation, identity, quarantine, parity, and apply drift', () => {
@@ -1845,6 +1888,8 @@ test('DiscordOS aggregate adapter gate rejects denominator or execution promotio
   for (const mutate of [
     (gate) => { gate.source_ready = ['mazer', 'fitness']; },
     (gate) => { gate.blocked = ['discordos']; },
+    (gate) => { gate.discordos_transport_ready = true; },
+    (gate) => { gate.discordos_block_reason = 'CURRENT'; },
     (gate) => { gate.discordos_contract_path = 'contracts/v1/transport/fitness-app-data-adapter-contract.json'; },
     (gate) => { gate.discordos_relation_count = 9; },
     (gate) => { gate.all_adapters_ready = false; },

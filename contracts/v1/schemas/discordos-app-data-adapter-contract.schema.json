@@ -26,7 +26,7 @@
   ],
   "properties": {
     "version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "contract_id": {
       "const": "discordos-app-data-adapter-contract"
@@ -195,6 +195,9 @@
         "emitted_data_effect_count",
         "emitted_cron_effect_count",
         "emitted_network_effect_count",
+        "music_sesh_relation_count",
+        "music_sesh_artifact_status",
+        "music_sesh_artifact_regeneration",
         "generated_artifact_changes_admitted"
       ],
       "properties": {
@@ -234,6 +237,15 @@
         },
         "emitted_network_effect_count": {
           "$ref": "#/$defs/nonnegative_integer"
+        },
+        "music_sesh_relation_count": {
+          "const": 3
+        },
+        "music_sesh_artifact_status": {
+          "const": "INCOMPATIBLE_UNADMITTED"
+        },
+        "music_sesh_artifact_regeneration": {
+          "const": "REQUIRED_SEPARATE_AUTHORITY"
         },
         "generated_artifact_changes_admitted": {
           "type": "boolean"
@@ -387,6 +399,7 @@
         "authoritative_state",
         "authoritative_append_only_history",
         "held_operational_external_effect",
+        "held_independent_domain",
         "transported",
         "held",
         "total"
@@ -399,6 +412,9 @@
           "$ref": "#/$defs/nonnegative_integer"
         },
         "held_operational_external_effect": {
+          "$ref": "#/$defs/nonnegative_integer"
+        },
+        "held_independent_domain": {
           "$ref": "#/$defs/nonnegative_integer"
         },
         "transported": {
@@ -709,6 +725,8 @@
         "service_membership_readiness",
         "mazer_adapter_source_contract",
         "fitness_adapter_source_contract",
+        "music_sesh_independent_domain",
+        "generated_artifact_regeneration",
         "discordos_external_effect_quarantine",
         "target_apply"
       ],
@@ -735,6 +753,12 @@
           "$ref": "#/$defs/status"
         },
         "fitness_adapter_source_contract": {
+          "$ref": "#/$defs/status"
+        },
+        "music_sesh_independent_domain": {
+          "$ref": "#/$defs/status"
+        },
+        "generated_artifact_regeneration": {
           "$ref": "#/$defs/status"
         },
         "discordos_external_effect_quarantine": {
@@ -801,13 +825,21 @@
           "$ref": "#/$defs/relation"
         },
         "target_relation": {
-          "$ref": "#/$defs/relation"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/relation"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "classification": {
           "enum": [
             "AUTHORITATIVE_STATE",
             "AUTHORITATIVE_APPEND_ONLY_HISTORY",
-            "HELD_OPERATIONAL_EXTERNAL_EFFECT"
+            "HELD_OPERATIONAL_EXTERNAL_EFFECT",
+            "HELD_INDEPENDENT_DOMAIN"
           ]
         },
         "primary_key": {
@@ -829,7 +861,8 @@
             "PRESERVE_IDENTITY_APPEND_ONLY_WITH_SCHEDULER_HELD",
             "CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED",
             "PRESERVE_IDENTITY_APPEND_ONLY_WITH_EFFECTS_QUARANTINED",
-            "HOLD_NO_TRANSPORT"
+            "HOLD_NO_TRANSPORT",
+            "HOLD_INDEPENDENT_DOMAIN"
           ]
         },
         "dependency_parents": {

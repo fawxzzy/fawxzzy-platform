@@ -99,6 +99,8 @@
     "fitness_relation_count": 27,
     "discordos_contract_path": "contracts/v1/transport/discordos-app-data-adapter-contract.json",
     "discordos_relation_count": 10,
+    "discordos_transport_ready": false,
+    "discordos_block_reason": "MUSIC_SESH_INDEPENDENT_DOMAIN_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT",
     "all_adapters_ready": true,
     "execution_lifecycle": "EXECUTION_BLOCKED",
     "apply_admitted": false
