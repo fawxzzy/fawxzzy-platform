@@ -130,7 +130,7 @@ export const publicObjectBoundaryV1 = Object.freeze({
 });
 const dataApiDecisionBindingV1 = Object.freeze({
   status: 'CURRENT',
-  data_api_gate_version: '1.5.0',
+  data_api_gate_version: '1.6.0',
   decision_id: 'FP-MAN-047',
   question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
   question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -147,11 +147,24 @@ const dataApiDecisionBindingV1 = Object.freeze({
   successor_decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
   successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
   successor_attempt_limit: 1,
-  successor_attempts_executed: 0,
-  successor_consumed: false,
+  successor_attempts_executed: 1,
+  successor_consumed: true,
   successor_phase_1_read_only_preflight_authorized: true,
-  successor_provider_execution_authorized: false,
+  successor_phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+  successor_wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+  successor_action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+  successor_provider_execution_authorized: true,
   successor_action_time_confirmation_required: true,
+  successor_provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+  successor_ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44',
+  successor_terminal_result: 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS',
+  successor_dashboard_save_attempts: 1,
+  successor_settings_patch_status: 204,
+  successor_data_api_state: 'DISABLED',
+  successor_exposed_schemas: Object.freeze([]),
+  successor_extra_search_path: Object.freeze(['extensions']),
+  successor_automatic_exposure: 'OFF',
+  current_governance_manifest_sha256: 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f',
   support_evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
   support_evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
   management_api_contract_status: 'BLOCKED',
@@ -173,7 +186,7 @@ const dataApiDecisionBindingV1 = Object.freeze({
   apply_admitted: false
 });
 export const dataApiGateV1 = Object.freeze({
-  version: '1.5.0',
+  version: '1.6.0',
   status: 'BLOCKED',
   containment_classification: 'CONTAINABLE_WITH_HARD_GATES',
   observed_current_preimage: Object.freeze({
@@ -206,6 +219,19 @@ export const dataApiGateV1 = Object.freeze({
     extra_search_path: Object.freeze(['extensions']),
     automatic_exposure: 'OFF',
     independent_readback: 'REQUIRED'
+  }),
+  current_containment_postimage: Object.freeze({
+    status: 'CURRENT',
+    data_api_state: 'DISABLED',
+    exposed_schemas: Object.freeze([]),
+    extra_search_path: Object.freeze(['extensions']),
+    automatic_exposure: 'OFF',
+    exact_configuration_readback: 'CURRENT',
+    phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+    wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+    action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+    provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+    ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44'
   }),
   attempted_execution: Object.freeze({
     status: 'BLOCKED',
@@ -326,8 +352,8 @@ export const dataApiGateV1 = Object.freeze({
       policy_only: true,
       successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
       attempt_limit: 1,
-      attempts_executed: 0,
-      consumed: false,
+      attempts_executed: 1,
+      consumed: true,
       phase_1_read_only_preflight_authorized: true,
       management_api_write_authorized: false,
       provider_execution_authority_granted: false,
@@ -346,8 +372,8 @@ export const dataApiGateV1 = Object.freeze({
       status: 'BLOCKED',
       separate_packet_required: true,
       prior_packet_terminal: true,
-      successor_packet_admitted: false,
-      successor_attempt_consumed: false,
+      successor_packet_admitted: true,
+      successor_attempt_consumed: true,
       retry_permitted: false,
       management_api_request_authorized: false,
       dashboard_save_authorized: false,
@@ -369,6 +395,40 @@ export const dataApiGateV1 = Object.freeze({
       post_attempt_readbacks: 0,
       rollback_save_attempts: 0,
       persisted_provider_mutations: 0,
+      provider_payloads_serialized: false
+    }),
+    successor_terminal_outcome: Object.freeze({
+      status: 'CURRENT',
+      classification: 'EXACT_DASHBOARD_DATA_API_CONTAINMENT',
+      result: 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS',
+      attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
+      attempt_limit: 1,
+      attempts_consumed: 1,
+      attempts_remaining: 0,
+      retry_permitted: false,
+      phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+      wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+      action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+      provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+      ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44',
+      dashboard_save_attempts: 1,
+      settings_patch_attempts: 1,
+      settings_patch_status: 204,
+      post_attempt_readbacks: 1,
+      rollback_save_attempts: 0,
+      persisted_provider_mutations: 1,
+      preimage: Object.freeze({
+        data_api_state: 'ENABLED',
+        exposed_schemas: Object.freeze(['graphql_public', 'public']),
+        extra_search_path: Object.freeze(['public', 'extensions']),
+        automatic_exposure: 'OFF'
+      }),
+      postimage: Object.freeze({
+        data_api_state: 'DISABLED',
+        exposed_schemas: Object.freeze([]),
+        extra_search_path: Object.freeze(['extensions']),
+        automatic_exposure: 'OFF'
+      }),
       provider_payloads_serialized: false
     }),
     diagnostic_redaction: Object.freeze({
@@ -714,7 +774,8 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, migrat
   fail(failures, canonicalJson(accepted.migration_package_paths) === canonicalJson(packageDigestContractV1.migration_package_paths), 'provider-canonical migration package path denominator drift');
   fail(failures, canonicalJson(accepted.governance_manifest_paths) === canonicalJson(packageDigestContractV1.governance_manifest_paths), 'provider-canonical governance manifest path denominator drift');
   fail(failures, accepted.migration_package_sha256 === packageDigestContractV1.migration_package_sha256 && accepted.migration_package_sha256 === migrationPackageSha256, 'provider-canonical migration package digest drift');
-  fail(failures, accepted.governance_manifest_sha256 === packageDigestContractV1.governance_manifest_sha256 && accepted.governance_manifest_sha256 === governanceManifestSha256, 'provider-canonical governance manifest digest drift');
+  fail(failures, accepted.governance_manifest_sha256 === packageDigestContractV1.governance_manifest_sha256, 'provider-canonical historical governance manifest digest drift');
+  fail(failures, gate?.data_api_decision_binding?.current_governance_manifest_sha256 === governanceManifestSha256, 'current governance manifest digest drift');
   fail(failures, accepted.legacy_combined_package_sha256 === packageDigestContractV1.legacy_combined_package_sha256 && accepted.legacy_combined_package_recomputation_admitted === false, 'provider-canonical legacy combined digest boundary drift');
   fail(failures, Array.isArray(provenance.sources) && provenance.sources.length === 2, 'provider-canonical source evidence denominator drift');
   for (const [app, projectRef, acceptedCount, currentCount, catalogSha256] of expectedSources) {
@@ -1541,6 +1602,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const observedPreimage = dataApiGate.observed_current_preimage ?? {};
   const actionTimeBinding = observedPreimage.action_time_expected_state_binding ?? {};
   const desiredPostimage = dataApiGate.desired_containment_postimage ?? {};
+  const currentPostimage = dataApiGate.current_containment_postimage ?? {};
   const attemptedExecution = dataApiGate.attempted_execution ?? {};
   const supportEvidence = dataApiGate.support_evidence ?? {};
   const caseStatusEvidence = supportEvidence.case_status_evidence ?? {};
@@ -1557,11 +1619,12 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   const rejectedDecisionCollisions = retryAuthority.rejected_decision_collisions ?? [];
   const providerExecution = retryAuthority.provider_execution ?? {};
   const terminalAttemptOutcome = retryAuthority.guarded_reproduction_terminal_outcome ?? {};
+  const successorTerminalOutcome = retryAuthority.successor_terminal_outcome ?? {};
   const diagnosticRedaction = retryAuthority.diagnostic_redaction ?? {};
   const bootstrapAdmission = dataApiGate.bootstrap_admission ?? {};
   const activationGates = dataApiGate.future_activation_gates ?? {};
   const negativeProbes = activationGates.negative_probes ?? {};
-  fail(failures, dataApiGate.version === '1.5.0', 'Data API evidence gate version drift');
+  fail(failures, dataApiGate.version === '1.6.0', 'Data API evidence gate version drift');
   fail(failures, actionTimeBinding.status === 'REQUIRED', 'action-time target binding must remain REQUIRED');
   fail(failures, actionTimeBinding.identity_binding === 'ACTION_TIME_ONLY', 'target identity must remain action-time only');
   fail(failures, actionTimeBinding.source_artifact_contains_identity === false, 'portable source must not contain a target identity');
@@ -1575,6 +1638,19 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, observedPreimage.views?.available === 'UNKNOWN' && observedPreimage.views?.exposed === 'UNKNOWN', 'view evidence must remain UNKNOWN');
   fail(failures, desiredPostimage.data_api_state === 'DISABLED', 'desired Data API containment must remain DISABLED');
   fail(failures, Array.isArray(desiredPostimage.exposed_schemas) && desiredPostimage.exposed_schemas.length === 0, 'desired exposed-schema set must remain empty');
+  fail(failures, canonicalJson(currentPostimage) === canonicalJson({
+    status: 'CURRENT',
+    data_api_state: 'DISABLED',
+    exposed_schemas: [],
+    extra_search_path: ['extensions'],
+    automatic_exposure: 'OFF',
+    exact_configuration_readback: 'CURRENT',
+    phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+    wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+    action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+    provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+    ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44'
+  }), 'current Data API containment postimage or receipt lineage drift');
   fail(failures, attemptedExecution.persisted_provider_mutations === 0, 'persisted provider mutation count must remain zero');
   fail(failures, supportEvidence.case_id === 'SU-425819', 'Support case identity drift');
   fail(failures, supportEvidence.case_status === 'UNKNOWN', 'Support case status must remain UNKNOWN without authoritative lifecycle evidence');
@@ -1610,7 +1686,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
   fail(failures, successorDecision.question_event_id === dataApiDecisionBindingV1.successor_question_event_id && successorDecision.question_payload_sha256 === dataApiDecisionBindingV1.successor_question_payload_sha256, 'successor Data API question event or digest drift');
   fail(failures, successorDecision.answer_event_id === dataApiDecisionBindingV1.successor_answer_event_id && successorDecision.answer_payload_sha256 === dataApiDecisionBindingV1.successor_answer_payload_sha256, 'successor Data API answer event or digest drift');
   fail(failures, successorDecision.decision === dataApiDecisionBindingV1.successor_decision && successorDecision.policy_only === true, 'successor Data API policy decision drift');
-  fail(failures, successorDecision.successor_attempt_id === dataApiDecisionBindingV1.successor_attempt_id && successorDecision.attempt_limit === 1 && successorDecision.attempts_executed === 0 && successorDecision.consumed === false, 'successor attempt must remain unconsumed 0/1');
+  fail(failures, successorDecision.successor_attempt_id === dataApiDecisionBindingV1.successor_attempt_id && successorDecision.attempt_limit === 1 && successorDecision.attempts_executed === 1 && successorDecision.consumed === true, 'successor attempt must remain terminally consumed 1/1');
   fail(failures, successorDecision.phase_1_read_only_preflight_authorized === true && successorDecision.management_api_write_authorized === false && successorDecision.provider_execution_authority_granted === false && successorDecision.action_time_confirmation_required === true, 'successor decision must remain read-only and action-time gated');
   fail(failures, canonicalJson(rejectedDecisionCollisions) === canonicalJson([{
     decision_id: 'FP-MAN-037',
@@ -1619,7 +1695,7 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
     guarded_reproduction_attempts_executed: 0,
     reuse_for_data_api_forbidden: true
   }]), 'rejected Data API decision collision record drift');
-  fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.prior_packet_terminal === true && providerExecution.successor_packet_admitted === false && providerExecution.successor_attempt_consumed === false && providerExecution.retry_permitted === false, 'provider-execution packet lifecycle gate drift');
+  fail(failures, providerExecution.status === 'BLOCKED' && providerExecution.separate_packet_required === true && providerExecution.prior_packet_terminal === true && providerExecution.successor_packet_admitted === true && providerExecution.successor_attempt_consumed === true && providerExecution.retry_permitted === false, 'provider-execution packet lifecycle gate drift');
   fail(failures, providerExecution.management_api_request_authorized === false && providerExecution.dashboard_save_authorized === false && providerExecution.support_response_grants_execution_authority === false && providerExecution.source_contract_grants_execution_authority === false, 'Support response or source contract must not grant provider execution authority');
   fail(failures, canonicalJson(terminalAttemptOutcome) === canonicalJson({
     status: 'CURRENT',
@@ -1638,6 +1714,40 @@ export function verifyHeldControlPlaneContracts(config, namespacePlan) {
     persisted_provider_mutations: 0,
     provider_payloads_serialized: false
   }), 'guarded reproduction terminal outcome or zero-effect accounting drift');
+  fail(failures, canonicalJson(successorTerminalOutcome) === canonicalJson({
+    status: 'CURRENT',
+    classification: 'EXACT_DASHBOARD_DATA_API_CONTAINMENT',
+    result: 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS',
+    attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
+    attempt_limit: 1,
+    attempts_consumed: 1,
+    attempts_remaining: 0,
+    retry_permitted: false,
+    phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+    wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+    action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+    provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+    ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44',
+    dashboard_save_attempts: 1,
+    settings_patch_attempts: 1,
+    settings_patch_status: 204,
+    post_attempt_readbacks: 1,
+    rollback_save_attempts: 0,
+    persisted_provider_mutations: 1,
+    preimage: {
+      data_api_state: 'ENABLED',
+      exposed_schemas: ['graphql_public', 'public'],
+      extra_search_path: ['public', 'extensions'],
+      automatic_exposure: 'OFF'
+    },
+    postimage: {
+      data_api_state: 'DISABLED',
+      exposed_schemas: [],
+      extra_search_path: ['extensions'],
+      automatic_exposure: 'OFF'
+    },
+    provider_payloads_serialized: false
+  }), 'successor containment terminal outcome or receipt lineage drift');
   fail(failures, diagnosticRedaction.status === 'REQUIRED' && diagnosticRedaction.artifacts_serialized === false, 'diagnostic artifact redaction gate drift');
   fail(failures, canonicalJson(diagnosticRedaction.forbidden_serialized_classes) === canonicalJson([
     'SCREENSHOTS',

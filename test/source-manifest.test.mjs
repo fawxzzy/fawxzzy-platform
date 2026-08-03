@@ -38,7 +38,7 @@ test('immutable source manifest and accepted denominators verify', () => {
   const report = verifyTargetBootstrap({ checkDeterminism: false });
   assert.equal(report.ok, true, report.failures.join('\n'));
   assert.equal(report.migration_package_digest, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(report.governance_manifest_digest, '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec');
+  assert.equal(report.governance_manifest_digest, 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f');
   assert.deepEqual(report.counts, {
     migrations: 122, tables: 41, functions: 30, policies: 74, triggers: 10,
     index_identities: 134, constraint_units: 281, extension_dependencies: 3,
@@ -78,12 +78,12 @@ test('migration package and governance manifest identities are separate and fail
   }
 });
 
-test('governance manifest binds terminal FP-MAN-047, successor FP-MAN-048, sanitized Support evidence, and the rejected collision', () => {
+test('governance manifest binds terminal FP-MAN-047 and FP-MAN-048, sanitized Support evidence, and the rejected collision', () => {
   const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   const report = verifyTargetBootstrap({ checkDeterminism: false });
   const binding = gate.data_api_decision_binding;
-  assert.equal(binding.data_api_gate_version, '1.5.0');
+  assert.equal(binding.data_api_gate_version, '1.6.0');
   assert.equal(binding.decision_id, 'FP-MAN-047');
   assert.equal(binding.question_event_id, 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df');
   assert.equal(binding.question_payload_sha256, 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df');
@@ -97,9 +97,22 @@ test('governance manifest binds terminal FP-MAN-047, successor FP-MAN-048, sanit
   assert.equal(binding.successor_answer_payload_sha256, '049d86e0094c7cbd6aadbb7bbb235fa857d404809428d427cf2c6657ca4d2cd8');
   assert.equal(binding.successor_attempt_id, 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001');
   assert.equal(binding.successor_attempt_limit, 1);
-  assert.equal(binding.successor_attempts_executed, 0);
-  assert.equal(binding.successor_consumed, false);
-  assert.equal(binding.successor_provider_execution_authorized, false);
+  assert.equal(binding.successor_attempts_executed, 1);
+  assert.equal(binding.successor_consumed, true);
+  assert.equal(binding.successor_phase_1_read_only_preflight_event_id, 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95');
+  assert.equal(binding.successor_wave_0_executor_proof_event_id, 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c');
+  assert.equal(binding.successor_action_time_authorization_event_id, 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0');
+  assert.equal(binding.successor_provider_execution_authorized, true);
+  assert.equal(binding.successor_provider_terminal_event_id, 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892');
+  assert.equal(binding.successor_ops_settlement_event_id, 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44');
+  assert.equal(binding.successor_terminal_result, 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS');
+  assert.equal(binding.successor_dashboard_save_attempts, 1);
+  assert.equal(binding.successor_settings_patch_status, 204);
+  assert.equal(binding.successor_data_api_state, 'DISABLED');
+  assert.deepEqual(binding.successor_exposed_schemas, []);
+  assert.deepEqual(binding.successor_extra_search_path, ['extensions']);
+  assert.equal(binding.successor_automatic_exposure, 'OFF');
+  assert.equal(binding.current_governance_manifest_sha256, report.governance_manifest_digest);
   assert.equal(binding.support_evidence_event_id, 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa');
   assert.equal(binding.support_evidence_payload_sha256, '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa');
   assert.equal(binding.management_api_contract_status, 'BLOCKED');
@@ -130,9 +143,22 @@ test('governance manifest binds terminal FP-MAN-047, successor FP-MAN-048, sanit
     (value) => { value.successor_decision_id = 'FP-MAN-047'; },
     (value) => { value.successor_question_event_id = value.question_event_id; },
     (value) => { value.successor_answer_payload_sha256 = value.answer_payload_sha256; },
-    (value) => { value.successor_attempts_executed = 1; },
-    (value) => { value.successor_consumed = true; },
-    (value) => { value.successor_provider_execution_authorized = true; },
+    (value) => { value.successor_attempts_executed = 0; },
+    (value) => { value.successor_consumed = false; },
+    (value) => { value.successor_phase_1_read_only_preflight_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.successor_wave_0_executor_proof_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.successor_action_time_authorization_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.successor_provider_execution_authorized = false; },
+    (value) => { value.successor_provider_terminal_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.successor_ops_settlement_event_id = 'onv1_' + '0'.repeat(64); },
+    (value) => { value.successor_terminal_result = 'NO_SAVE_CONFIRMED'; },
+    (value) => { value.successor_dashboard_save_attempts = 0; },
+    (value) => { value.successor_settings_patch_status = 200; },
+    (value) => { value.successor_data_api_state = 'ENABLED'; },
+    (value) => { value.successor_exposed_schemas = ['public']; },
+    (value) => { value.successor_extra_search_path = ['public', 'extensions']; },
+    (value) => { value.successor_automatic_exposure = 'ON'; },
+    (value) => { value.current_governance_manifest_sha256 = '0'.repeat(64); },
     (value) => { value.support_evidence_payload_sha256 = '0'.repeat(64); },
     (value) => { value.management_api_requests_authorized = true; },
     (value) => { value.unexpected_envelope_field = true; },
