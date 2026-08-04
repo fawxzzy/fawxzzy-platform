@@ -207,7 +207,7 @@ test('held public and Data API contracts reject public vocabulary and object dri
   }
 });
 
-test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, support, Management API, terminal-attempt, and admission drift classes in config and manifest', () => {
+test('Data API gate v1.6.0 rejects the exact 27 preimage, current postimage, execution, support, Management API, terminal-attempt, and admission drift classes in config and manifest', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -218,7 +218,7 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
     data_api_gate: dataApiGateV1
   };
   const cases = [
-    ['01 current state replaced by desired state', [
+    ['01 action-time preimage replaced by desired state', [
       (gate) => { gate.observed_current_preimage = structuredClone(gate.desired_containment_postimage); },
       (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.identity_binding = 'EMBEDDED'; },
       (gate) => { gate.observed_current_preimage.action_time_expected_state_binding.source_artifact_contains_identity = true; },
@@ -253,14 +253,19 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
       (gate) => { gate.observed_current_preimage.views.exposed = 0; }
     ]],
     ['10 desired API containment changed', [
-      (gate) => { gate.desired_containment_postimage.data_api_state = 'ENABLED'; }
+      (gate) => { gate.desired_containment_postimage.data_api_state = 'ENABLED'; },
+      (gate) => { gate.current_containment_postimage.data_api_state = 'ENABLED'; },
+      (gate) => { gate.current_containment_postimage.exact_configuration_readback = 'REQUIRED'; },
+      (gate) => { gate.current_containment_postimage.provider_terminal_event_id = 'onv1_' + '0'.repeat(64); }
     ]],
     ['11 desired exposed-schema set made nonempty', [
-      (gate) => gate.desired_containment_postimage.exposed_schemas.push('public')
+      (gate) => gate.desired_containment_postimage.exposed_schemas.push('public'),
+      (gate) => gate.current_containment_postimage.exposed_schemas.push('public')
     ]],
     ['12 desired search path weakened', [
       (gate) => { gate.desired_containment_postimage.extra_search_path = ['public', 'extensions']; },
-      (gate) => { gate.desired_containment_postimage.extra_search_path = []; }
+      (gate) => { gate.desired_containment_postimage.extra_search_path = []; },
+      (gate) => { gate.current_containment_postimage.extra_search_path = ['public', 'extensions']; }
     ]],
     ['13 future maximum allowlist reordered or widened', [
       (gate) => gate.future_activation_gates.maximum_exposed_schemas.reverse(),
@@ -329,8 +334,8 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
       (gate) => { gate.retry_authority.successor_manual_decision.decision_id = 'FP-MAN-047'; },
       (gate) => { gate.retry_authority.successor_manual_decision.question_event_id = gate.retry_authority.manual_decision.question_event_id; },
       (gate) => { gate.retry_authority.successor_manual_decision.answer_payload_sha256 = gate.retry_authority.manual_decision.answer_payload_sha256; },
-      (gate) => { gate.retry_authority.successor_manual_decision.attempts_executed = 1; },
-      (gate) => { gate.retry_authority.successor_manual_decision.consumed = true; },
+      (gate) => { gate.retry_authority.successor_manual_decision.attempts_executed = 0; },
+      (gate) => { gate.retry_authority.successor_manual_decision.consumed = false; },
       (gate) => { gate.retry_authority.successor_manual_decision.management_api_write_authorized = true; },
       (gate) => { gate.retry_authority.successor_manual_decision.provider_execution_authority_granted = true; },
       (gate) => { gate.retry_authority.successor_manual_decision.action_time_confirmation_required = false; },
@@ -341,8 +346,8 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
       (gate) => { gate.retry_authority.rejected_decision_collisions[0].reuse_for_data_api_forbidden = false; },
       (gate) => { gate.retry_authority.provider_execution.separate_packet_required = false; },
       (gate) => { gate.retry_authority.provider_execution.prior_packet_terminal = false; },
-      (gate) => { gate.retry_authority.provider_execution.successor_packet_admitted = true; },
-      (gate) => { gate.retry_authority.provider_execution.successor_attempt_consumed = true; },
+      (gate) => { gate.retry_authority.provider_execution.successor_packet_admitted = false; },
+      (gate) => { gate.retry_authority.provider_execution.successor_attempt_consumed = false; },
       (gate) => { gate.retry_authority.provider_execution.retry_permitted = true; },
       (gate) => { gate.retry_authority.provider_execution.management_api_request_authorized = true; },
       (gate) => { gate.retry_authority.provider_execution.dashboard_save_authorized = true; },
@@ -405,7 +410,7 @@ test('Data API gate v1.5.0 rejects the exact 27 current, desired, execution, sup
   }
 });
 
-test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management API, terminal authority, collision, redaction, admission, and package drift classes', () => {
+test('Data API gate v1.6.0 rejects the exact 20 Support, successor, Management API, terminal authority, collision, redaction, admission, and package drift classes', () => {
   const config = {
     schemas: { application: [...creatorDefaultAclContractV1.schemas] },
     public_object_boundary: publicObjectBoundaryV1,
@@ -455,7 +460,7 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
     ]],
     ['09 successor attempt count above one', [
       (gate) => { gate.retry_authority.successor_manual_decision.attempt_limit = 2; },
-      (gate) => { gate.retry_authority.successor_manual_decision.attempts_executed = 1; }
+      (gate) => { gate.retry_authority.successor_manual_decision.attempts_executed = 2; }
     ]],
     ['10 terminal authority ledger erased or broadened', [
       (gate) => { gate.retry_authority.manual_decision.guarded_reproduction_attempts_executed = 0; },
@@ -471,7 +476,7 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
       (gate) => { gate.retry_authority.manual_decision.unexpected_envelope_field = true; },
       (gate) => { gate.retry_authority.manual_decision.policy_only = false; },
       (gate) => { gate.retry_authority.manual_decision.provider_execution_authority_granted = true; },
-      (gate) => { gate.retry_authority.successor_manual_decision.consumed = true; },
+      (gate) => { gate.retry_authority.successor_manual_decision.consumed = false; },
       (gate) => { gate.retry_authority.prior_authority_consumed = false; },
       (gate) => { gate.retry_authority.status = 'CURRENT'; }
     ]],
@@ -486,8 +491,8 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
     ['12 Support response treated as provider execution authority', [
       (gate) => { gate.retry_authority.provider_execution.support_response_grants_execution_authority = true; },
       (gate) => { gate.retry_authority.provider_execution.source_contract_grants_execution_authority = true; },
-      (gate) => { gate.retry_authority.provider_execution.successor_packet_admitted = true; },
-      (gate) => { gate.retry_authority.provider_execution.successor_attempt_consumed = true; },
+      (gate) => { gate.retry_authority.provider_execution.successor_packet_admitted = false; },
+      (gate) => { gate.retry_authority.provider_execution.successor_attempt_consumed = false; },
       (gate) => { gate.retry_authority.provider_execution.retry_permitted = true; },
       (gate) => { gate.retry_authority.provider_execution.management_api_request_authorized = true; }
     ]],
@@ -496,7 +501,7 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
       (gate) => { gate.bootstrap_admission.target_apply_admitted = true; }
     ]],
     ['14 config and manifest gate divergence', [
-      (gate) => { gate.version = '1.5.1'; }
+      (gate) => { gate.version = '1.6.1'; }
     ]],
     ['15 documented GET or PATCH contract drift', [
       (gate) => { gate.management_api_workaround.read_contract.oauth_scope = 'rest:write'; },
@@ -516,10 +521,22 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
       (gate) => { gate.retry_authority.successor_manual_decision.answer_event_id = gate.retry_authority.manual_decision.answer_event_id; },
       (gate) => { gate.retry_authority.successor_manual_decision.management_api_write_authorized = true; },
       (gate) => { gate.management_api_workaround.execution_boundary.action_time_confirmation_required = false; }
+    ]],
+    ['19 successor terminal containment or receipt lineage drift', [
+      (gate) => { gate.current_containment_postimage.data_api_state = 'ENABLED'; },
+      (gate) => { gate.current_containment_postimage.exposed_schemas = ['public']; },
+      (gate) => { gate.current_containment_postimage.extra_search_path = ['public', 'extensions']; },
+      (gate) => { gate.current_containment_postimage.provider_terminal_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { gate.retry_authority.successor_terminal_outcome.attempts_consumed = 0; },
+      (gate) => { gate.retry_authority.successor_terminal_outcome.dashboard_save_attempts = 0; },
+      (gate) => { gate.retry_authority.successor_terminal_outcome.settings_patch_status = 200; },
+      (gate) => { gate.retry_authority.successor_terminal_outcome.postimage.data_api_state = 'ENABLED'; },
+      (gate) => { gate.retry_authority.successor_terminal_outcome.ops_settlement_event_id = 'onv1_' + '0'.repeat(64); },
+      (gate) => { delete gate.retry_authority.successor_terminal_outcome; }
     ]]
   ];
 
-  assert.equal(gateCases.length, 18);
+  assert.equal(gateCases.length, 19);
   for (const [name, variants] of gateCases) {
     for (const [variantIndex, mutate] of variants.entries()) {
       const configDrift = structuredClone(config);
@@ -554,7 +571,7 @@ test('Data API gate v1.5.0 rejects the exact 19 Support, successor, Management A
     .map((name) => `bootstrap/artifacts/inert-sql/${name}`);
   assert.deepEqual(verifyGeneratedArtifactPathBoundary(generatedSqlPaths), []);
   assert.notEqual(verifyGeneratedArtifactPathBoundary([...generatedSqlPaths, 'bootstrap/artifacts/inert-sql/unexpected.sql']).length, 0, '19 generated SQL drift');
-  assert.equal(gateCases.length + 1, 19);
+  assert.equal(gateCases.length + 1, 20);
 });
 
 test('portable bootstrap identity inspection rejects quoted and nested keys, project-ref-shaped values, and malformed inputs without throwing', () => {

@@ -869,7 +869,7 @@
     }
   },
   "data_api_gate": {
-    "version": "1.6.0",
+    "version": "1.5.0",
     "status": "BLOCKED",
     "containment_classification": "CONTAINABLE_WITH_HARD_GATES",
     "observed_current_preimage": {
@@ -919,21 +919,6 @@
       ],
       "automatic_exposure": "OFF",
       "independent_readback": "REQUIRED"
-    },
-    "current_containment_postimage": {
-      "status": "CURRENT",
-      "data_api_state": "DISABLED",
-      "exposed_schemas": [],
-      "extra_search_path": [
-        "extensions"
-      ],
-      "automatic_exposure": "OFF",
-      "exact_configuration_readback": "CURRENT",
-      "phase_1_read_only_preflight_event_id": "onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95",
-      "wave_0_executor_proof_event_id": "onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c",
-      "action_time_authorization_event_id": "onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0",
-      "provider_terminal_event_id": "onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892",
-      "ops_settlement_event_id": "onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44"
     },
     "attempted_execution": {
       "status": "BLOCKED",
@@ -1054,8 +1039,8 @@
         "policy_only": true,
         "successor_attempt_id": "FP-DATA-API-CONTAINMENT-RETRY-20260722-001",
         "attempt_limit": 1,
-        "attempts_executed": 1,
-        "consumed": true,
+        "attempts_executed": 0,
+        "consumed": false,
         "phase_1_read_only_preflight_authorized": true,
         "management_api_write_authorized": false,
         "provider_execution_authority_granted": false,
@@ -1074,8 +1059,8 @@
         "status": "BLOCKED",
         "separate_packet_required": true,
         "prior_packet_terminal": true,
-        "successor_packet_admitted": true,
-        "successor_attempt_consumed": true,
+        "successor_packet_admitted": false,
+        "successor_attempt_consumed": false,
         "retry_permitted": false,
         "management_api_request_authorized": false,
         "dashboard_save_authorized": false,
@@ -1097,48 +1082,6 @@
         "post_attempt_readbacks": 0,
         "rollback_save_attempts": 0,
         "persisted_provider_mutations": 0,
-        "provider_payloads_serialized": false
-      },
-      "successor_terminal_outcome": {
-        "status": "CURRENT",
-        "classification": "EXACT_DASHBOARD_DATA_API_CONTAINMENT",
-        "result": "TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS",
-        "attempt_id": "FP-DATA-API-CONTAINMENT-RETRY-20260722-001",
-        "attempt_limit": 1,
-        "attempts_consumed": 1,
-        "attempts_remaining": 0,
-        "retry_permitted": false,
-        "phase_1_read_only_preflight_event_id": "onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95",
-        "wave_0_executor_proof_event_id": "onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c",
-        "action_time_authorization_event_id": "onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0",
-        "provider_terminal_event_id": "onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892",
-        "ops_settlement_event_id": "onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44",
-        "dashboard_save_attempts": 1,
-        "settings_patch_attempts": 1,
-        "settings_patch_status": 204,
-        "post_attempt_readbacks": 1,
-        "rollback_save_attempts": 0,
-        "persisted_provider_mutations": 1,
-        "preimage": {
-          "data_api_state": "ENABLED",
-          "exposed_schemas": [
-            "graphql_public",
-            "public"
-          ],
-          "extra_search_path": [
-            "public",
-            "extensions"
-          ],
-          "automatic_exposure": "OFF"
-        },
-        "postimage": {
-          "data_api_state": "DISABLED",
-          "exposed_schemas": [],
-          "extra_search_path": [
-            "extensions"
-          ],
-          "automatic_exposure": "OFF"
-        },
         "provider_payloads_serialized": false
       },
       "diagnostic_redaction": {

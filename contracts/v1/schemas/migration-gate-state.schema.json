@@ -56,8 +56,21 @@
         "successor_attempts_executed",
         "successor_consumed",
         "successor_phase_1_read_only_preflight_authorized",
+        "successor_phase_1_read_only_preflight_event_id",
+        "successor_wave_0_executor_proof_event_id",
+        "successor_action_time_authorization_event_id",
         "successor_provider_execution_authorized",
         "successor_action_time_confirmation_required",
+        "successor_provider_terminal_event_id",
+        "successor_ops_settlement_event_id",
+        "successor_terminal_result",
+        "successor_dashboard_save_attempts",
+        "successor_settings_patch_status",
+        "successor_data_api_state",
+        "successor_exposed_schemas",
+        "successor_extra_search_path",
+        "successor_automatic_exposure",
+        "current_governance_manifest_sha256",
         "support_evidence_event_id",
         "support_evidence_payload_sha256",
         "management_api_contract_status",
@@ -83,7 +96,7 @@
           "const": "CURRENT"
         },
         "data_api_gate_version": {
-          "const": "1.5.0"
+          "const": "1.6.0"
         },
         "decision_id": {
           "const": "FP-MAN-047"
@@ -134,19 +147,60 @@
           "const": 1
         },
         "successor_attempts_executed": {
-          "const": 0
+          "const": 1
         },
         "successor_consumed": {
-          "const": false
+          "const": true
         },
         "successor_phase_1_read_only_preflight_authorized": {
           "const": true
         },
+        "successor_phase_1_read_only_preflight_event_id": {
+          "const": "onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95"
+        },
+        "successor_wave_0_executor_proof_event_id": {
+          "const": "onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c"
+        },
+        "successor_action_time_authorization_event_id": {
+          "const": "onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0"
+        },
         "successor_provider_execution_authorized": {
-          "const": false
+          "const": true
         },
         "successor_action_time_confirmation_required": {
           "const": true
+        },
+        "successor_provider_terminal_event_id": {
+          "const": "onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892"
+        },
+        "successor_ops_settlement_event_id": {
+          "const": "onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44"
+        },
+        "successor_terminal_result": {
+          "const": "TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS"
+        },
+        "successor_dashboard_save_attempts": {
+          "const": 1
+        },
+        "successor_settings_patch_status": {
+          "const": 204
+        },
+        "successor_data_api_state": {
+          "const": "DISABLED"
+        },
+        "successor_exposed_schemas": {
+          "const": []
+        },
+        "successor_extra_search_path": {
+          "const": [
+            "extensions"
+          ]
+        },
+        "successor_automatic_exposure": {
+          "const": "OFF"
+        },
+        "current_governance_manifest_sha256": {
+          "const": "c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f"
         },
         "support_evidence_event_id": {
           "const": "onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa"
@@ -478,8 +532,8 @@
             "source_counts",
             "migration_package_paths",
             "migration_package_sha256",
-            "governance_manifest_paths",
-            "governance_manifest_sha256",
+            "historical_governance_manifest_binding",
+            "current_governance_manifest_binding",
             "legacy_combined_package_sha256",
             "legacy_combined_package_recomputation_admitted",
             "apply_admitted",
@@ -530,13 +584,101 @@
             "migration_package_sha256": {
               "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
             },
-            "governance_manifest_paths": {
-              "const": [
-                "bootstrap/manifests/namespace-plan.v1.json"
-              ]
+            "historical_governance_manifest_binding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "archive_path_contract",
+                "original_logical_path",
+                "source_commit_segments",
+                "git_blob",
+                "raw_sha256",
+                "byte_count",
+                "governance_manifest_sha256"
+              ],
+              "properties": {
+                "archive_path_contract": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "directory",
+                    "stem",
+                    "segment_separator",
+                    "extension"
+                  ],
+                  "properties": {
+                    "directory": {
+                      "const": "bootstrap/history/provider-canonical"
+                    },
+                    "stem": {
+                      "const": "namespace-plan.v1"
+                    },
+                    "segment_separator": {
+                      "const": "-"
+                    },
+                    "extension": {
+                      "const": ".json"
+                    }
+                  }
+                },
+                "original_logical_path": {
+                  "const": "bootstrap/manifests/namespace-plan.v1.json"
+                },
+                "source_commit_segments": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "const": "248733dc"
+                    },
+                    {
+                      "const": "661581368ef7807a77a7f8265354fde2"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": false
+                },
+                "git_blob": {
+                  "const": "906556312e4f5cbdfa5607ab70a74b300f27265a"
+                },
+                "raw_sha256": {
+                  "const": "440cd15c21463f5d0eec40d9c093576c4aa02bccb42fd2e40fa307488d015238"
+                },
+                "byte_count": {
+                  "const": 35479
+                },
+                "governance_manifest_sha256": {
+                  "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+                }
+              }
             },
-            "governance_manifest_sha256": {
-              "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+            "current_governance_manifest_binding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "git_blob",
+                "raw_sha256",
+                "byte_count",
+                "governance_manifest_sha256"
+              ],
+              "properties": {
+                "path": {
+                  "const": "bootstrap/manifests/namespace-plan.v1.json"
+                },
+                "git_blob": {
+                  "const": "6b34b9becc214564bb276c5b36e1de5ac08357a8"
+                },
+                "raw_sha256": {
+                  "const": "6fe92138428c5ae196a982c86822ed7ea88a2958e113ae8736b08eebdd625519"
+                },
+                "byte_count": {
+                  "const": 38087
+                },
+                "governance_manifest_sha256": {
+                  "const": "c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f"
+                }
+              }
             },
             "legacy_combined_package_sha256": {
               "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"

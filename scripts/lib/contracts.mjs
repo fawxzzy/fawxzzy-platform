@@ -609,7 +609,7 @@ const productProfileOwnerPredicates = Object.freeze({
 
 const dataApiDecisionBindingV1 = Object.freeze({
   status: 'CURRENT',
-  data_api_gate_version: '1.5.0',
+  data_api_gate_version: '1.6.0',
   decision_id: 'FP-MAN-047',
   question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
   question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -626,11 +626,24 @@ const dataApiDecisionBindingV1 = Object.freeze({
   successor_decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
   successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
   successor_attempt_limit: 1,
-  successor_attempts_executed: 0,
-  successor_consumed: false,
+  successor_attempts_executed: 1,
+  successor_consumed: true,
   successor_phase_1_read_only_preflight_authorized: true,
-  successor_provider_execution_authorized: false,
+  successor_phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+  successor_wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+  successor_action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+  successor_provider_execution_authorized: true,
   successor_action_time_confirmation_required: true,
+  successor_provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+  successor_ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44',
+  successor_terminal_result: 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS',
+  successor_dashboard_save_attempts: 1,
+  successor_settings_patch_status: 204,
+  successor_data_api_state: 'DISABLED',
+  successor_exposed_schemas: Object.freeze([]),
+  successor_extra_search_path: Object.freeze(['extensions']),
+  successor_automatic_exposure: 'OFF',
+  current_governance_manifest_sha256: 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f',
   support_evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
   support_evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
   management_api_contract_status: 'BLOCKED',
@@ -668,8 +681,30 @@ const providerCanonicalProvenance = Object.freeze({
     'bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql'
   ]),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
-  governance_manifest_paths: Object.freeze(['bootstrap/manifests/namespace-plan.v1.json']),
-  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec',
+  historical_governance_manifest_binding: Object.freeze({
+    archive_path_contract: Object.freeze({
+      directory: 'bootstrap/history/provider-canonical',
+      stem: 'namespace-plan.v1',
+      segment_separator: '-',
+      extension: '.json'
+    }),
+    original_logical_path: 'bootstrap/manifests/namespace-plan.v1.json',
+    source_commit_segments: Object.freeze([
+      '248733dc',
+      '661581368ef7807a77a7f8265354fde2'
+    ]),
+    git_blob: '906556312e4f5cbdfa5607ab70a74b300f27265a',
+    raw_sha256: '440cd15c21463f5d0eec40d9c093576c4aa02bccb42fd2e40fa307488d015238',
+    byte_count: 35479,
+    governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec'
+  }),
+  current_governance_manifest_binding: Object.freeze({
+    path: 'bootstrap/manifests/namespace-plan.v1.json',
+    git_blob: '6b34b9becc214564bb276c5b36e1de5ac08357a8',
+    raw_sha256: '6fe92138428c5ae196a982c86822ed7ea88a2958e113ae8736b08eebdd625519',
+    byte_count: 38087,
+    governance_manifest_sha256: 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f'
+  }),
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83',
   effect_mappings_sha256: 'b5273c803e8e747e4486defdc6331c00e08b7f9938aea3ae9a8775bf47dfd491',
   sources: Object.freeze([
@@ -3082,7 +3117,7 @@ export function validateSemantics(documents) {
   );
   const targetBootstrapContract = documents['contracts/v1/bootstrap/disposable-target-bootstrap-contract.json'] ?? {};
   failures.push(...validateDisposableTargetBootstrapContract(targetBootstrapContract));
-  requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
+  requireCondition(targetBootstrapContract.immutable_bindings?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256 && targetBootstrapContract.immutable_bindings?.governance_manifest_sha256 === providerCanonicalProvenance.historical_governance_manifest_binding.governance_manifest_sha256, 'target bootstrap immutable package/governance binding drift');
   requireCondition(migrationGate.required_evidence?.some((evidence) => evidence.name === 'disposable target bootstrap source contract: contracts/v1/bootstrap/disposable-target-bootstrap-contract.json' && evidence.status === 'CURRENT') === true, 'migration gate target_bootstrap source-contract binding must remain CURRENT');
   const storageEdgeRealtimeContract = documents[storageEdgeRealtimeContractPath] ?? {};
   failures.push(...validateStorageEdgeRealtimeExecutionDenominatorContract(storageEdgeRealtimeContract));
@@ -3288,8 +3323,9 @@ export function validateSemantics(documents) {
   requireCondition(provenance?.accepted_package?.digest_model === providerCanonicalProvenance.digest_model, 'provider-canonical digest model drift');
   requireCondition(exactOrderedValues(provenance?.accepted_package?.migration_package_paths, providerCanonicalProvenance.migration_package_paths), 'provider-canonical migration package path denominator drift');
   requireCondition(provenance?.accepted_package?.migration_package_sha256 === providerCanonicalProvenance.migration_package_sha256, 'provider-canonical migration package digest drift');
-  requireCondition(exactOrderedValues(provenance?.accepted_package?.governance_manifest_paths, providerCanonicalProvenance.governance_manifest_paths), 'provider-canonical governance manifest path denominator drift');
-  requireCondition(provenance?.accepted_package?.governance_manifest_sha256 === providerCanonicalProvenance.governance_manifest_sha256, 'provider-canonical governance manifest digest drift');
+  requireCondition(canonicalDigest(provenance?.accepted_package?.historical_governance_manifest_binding) === canonicalDigest(providerCanonicalProvenance.historical_governance_manifest_binding), 'provider-canonical historical governance manifest binding drift');
+  requireCondition(canonicalDigest(provenance?.accepted_package?.current_governance_manifest_binding) === canonicalDigest(providerCanonicalProvenance.current_governance_manifest_binding), 'provider-canonical current governance manifest binding drift');
+  requireCondition(!Object.hasOwn(provenance?.accepted_package ?? {}, 'governance_manifest_paths') && !Object.hasOwn(provenance?.accepted_package ?? {}, 'governance_manifest_sha256'), 'provider-canonical ambiguous governance manifest representation must remain absent');
   requireCondition(provenance?.accepted_package?.legacy_combined_package_sha256 === providerCanonicalProvenance.legacy_combined_package_sha256 && provenance?.accepted_package?.legacy_combined_package_recomputation_admitted === false, 'provider-canonical legacy combined digest boundary drift');
   requireCondition(provenance?.accepted_package?.apply_admitted === false && provenance?.accepted_package?.historical_path_rewrite_forbidden === true && provenance?.accepted_package?.current_source_substitution_forbidden === true, 'provider-canonical package protections must remain fail-closed');
   requireCondition(exactOrderedValues(provenance?.sources?.map((source) => source.app), ['discordos', 'mazer']), 'provider-canonical source denominator order drift');

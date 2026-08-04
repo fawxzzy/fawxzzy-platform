@@ -925,18 +925,59 @@ test('provider-canonical package schema separates migration and governance ident
   const accepted = baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package;
   assert.equal(accepted.digest_model, 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1');
   assert.equal(accepted.migration_package_sha256, acceptedMigrationPackageSha256);
-  assert.equal(accepted.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(accepted.historical_governance_manifest_binding.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(accepted.current_governance_manifest_binding.governance_manifest_sha256, 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f');
   assert.equal(accepted.legacy_combined_package_sha256, legacyCombinedPackageSha256);
   assert.equal(accepted.legacy_combined_package_recomputation_admitted, false);
   assert.ok(!accepted.migration_package_paths.includes('bootstrap/manifests/namespace-plan.v1.json'));
-  assert.deepEqual(accepted.governance_manifest_paths, ['bootstrap/manifests/namespace-plan.v1.json']);
+  const historical = accepted.historical_governance_manifest_binding;
+  const archiveContract = historical.archive_path_contract;
+  const archiveFilename = `${archiveContract.stem}.${historical.source_commit_segments.join(archiveContract.segment_separator)}${archiveContract.extension}`;
+  const archivePath = `${archiveContract.directory}/${archiveFilename}`;
+  assert.deepEqual(historical.source_commit_segments, [
+    '248733dc',
+    '661581368ef7807a77a7f8265354fde2'
+  ]);
+  assert.deepEqual(archiveContract, {
+    directory: 'bootstrap/history/provider-canonical',
+    stem: 'namespace-plan.v1',
+    segment_separator: '-',
+    extension: '.json'
+  });
+  assert.deepEqual(archiveFilename.match(/namespace-plan\.v1\.([0-9a-f]{8})-([0-9a-f]{32})\.json$/)?.slice(1), historical.source_commit_segments);
+  assert.equal(historical.source_commit_segments.join('').length, 40);
+  assert.equal(historical.original_logical_path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.equal(accepted.current_governance_manifest_binding.path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.notEqual(archivePath, accepted.current_governance_manifest_binding.path);
+  assert.equal(Object.hasOwn(historical, 'archive_path'), false);
+  assert.equal(Object.hasOwn(historical, 'source_commit'), false);
 
   for (const mutate of [
     (value) => { value.digest_model = 'COMBINED'; },
     (value) => { value.migration_package_paths.push('bootstrap/manifests/namespace-plan.v1.json'); },
-    (value) => { value.governance_manifest_paths = ['bootstrap/manifests/source-migrations.v1.json']; },
     (value) => { value.migration_package_sha256 = acceptedGovernanceManifestSha256; },
-    (value) => { value.governance_manifest_sha256 = acceptedMigrationPackageSha256; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.directory = 'bootstrap/manifests'; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.stem = 'namespace-plan.v2'; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.segment_separator = ''; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.extension = '.json.bak'; },
+    (value) => { value.historical_governance_manifest_binding.original_logical_path = archivePath; },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments = ['0'.repeat(8), '0'.repeat(32)]; },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments = [...value.historical_governance_manifest_binding.source_commit_segments].reverse(); },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments.pop(); },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments[0] = value.historical_governance_manifest_binding.source_commit_segments[0].toUpperCase(); },
+    (value) => { value.historical_governance_manifest_binding.archive_path = archivePath; },
+    (value) => { value.historical_governance_manifest_binding.source_commit = value.historical_governance_manifest_binding.source_commit_segments.join(''); },
+    (value) => { value.historical_governance_manifest_binding.git_blob = '0'.repeat(40); },
+    (value) => { value.historical_governance_manifest_binding.raw_sha256 = '0'.repeat(64); },
+    (value) => { value.historical_governance_manifest_binding.byte_count += 1; },
+    (value) => { value.historical_governance_manifest_binding.governance_manifest_sha256 = acceptedMigrationPackageSha256; },
+    (value) => { value.current_governance_manifest_binding.path = archivePath; },
+    (value) => { value.current_governance_manifest_binding.git_blob = '0'.repeat(40); },
+    (value) => { value.current_governance_manifest_binding.raw_sha256 = '0'.repeat(64); },
+    (value) => { value.current_governance_manifest_binding.byte_count += 1; },
+    (value) => { value.current_governance_manifest_binding.governance_manifest_sha256 = acceptedGovernanceManifestSha256; },
+    (value) => { value.governance_manifest_paths = ['bootstrap/manifests/namespace-plan.v1.json']; },
+    (value) => { value.governance_manifest_sha256 = acceptedGovernanceManifestSha256; },
     (value) => { value.legacy_combined_package_recomputation_admitted = true; }
   ]) {
     const documents = structuredClone(baseline);
@@ -946,12 +987,12 @@ test('provider-canonical package schema separates migration and governance ident
   }
 });
 
-test('Data API decision binding preserves terminal FP-MAN-047, accepts unconsumed FP-MAN-048, and rejects the FP-MAN-037 collision', () => {
+test('Data API decision binding preserves terminal FP-MAN-047, binds terminal FP-MAN-048 containment, and rejects the FP-MAN-037 collision', () => {
   const baseline = loadDocuments();
   const binding = baseline['contracts/v1/gates/migration-gate-state.json'].data_api_decision_binding;
   assert.deepEqual(binding, {
     status: 'CURRENT',
-    data_api_gate_version: '1.5.0',
+    data_api_gate_version: '1.6.0',
     decision_id: 'FP-MAN-047',
     question_event_id: 'onv1_ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
     question_payload_sha256: 'ed934a7382f5e52e6ceea9ea73011f9ff70a46d31bd6061a3dc7645946cad0df',
@@ -968,11 +1009,24 @@ test('Data API decision binding preserves terminal FP-MAN-047, accepts unconsume
     successor_decision: 'APPROVE_FP_DATA_API_CONTAINMENT_RETRY_20260722_001_PHASE_1',
     successor_attempt_id: 'FP-DATA-API-CONTAINMENT-RETRY-20260722-001',
     successor_attempt_limit: 1,
-    successor_attempts_executed: 0,
-    successor_consumed: false,
+    successor_attempts_executed: 1,
+    successor_consumed: true,
     successor_phase_1_read_only_preflight_authorized: true,
-    successor_provider_execution_authorized: false,
+    successor_phase_1_read_only_preflight_event_id: 'onv1_91bc84da2b5f35266806a86254324c909c2304d091ee7e1c1115e0be7b6a8a95',
+    successor_wave_0_executor_proof_event_id: 'onv1_9f8145b6028efce6263294084eb0efe12348a83ad1e3f8a0ec6d8ab1f304de8c',
+    successor_action_time_authorization_event_id: 'onv1_132038502d473bd0a6ff6f8715bb4df297044c22f5d4820c2d5e9e43cb4f71c0',
+    successor_provider_execution_authorized: true,
     successor_action_time_confirmation_required: true,
+    successor_provider_terminal_event_id: 'onv1_a5e6091818d5278c2c99e22f0fa0a72547972ab2fcdf0512510ff85cbe6e1892',
+    successor_ops_settlement_event_id: 'onv1_7276afe9f3c4caf8ea8ddea9f8f3f839b0974ea9371647f3073a5816e8fe1f44',
+    successor_terminal_result: 'TERMINAL_EXACT_DATA_API_CONTAINMENT_SUCCESS',
+    successor_dashboard_save_attempts: 1,
+    successor_settings_patch_status: 204,
+    successor_data_api_state: 'DISABLED',
+    successor_exposed_schemas: [],
+    successor_extra_search_path: ['extensions'],
+    successor_automatic_exposure: 'OFF',
+    current_governance_manifest_sha256: 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f',
     support_evidence_event_id: 'onv1_55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
     support_evidence_payload_sha256: '55591cb81248118dcfeda1db7e9fde7f713373eb6c059f8aada78789e1f5e4fa',
     management_api_contract_status: 'BLOCKED',
@@ -1011,10 +1065,23 @@ test('Data API decision binding preserves terminal FP-MAN-047, accepts unconsume
     ['successor answer digest', (value) => { value.successor_answer_payload_sha256 = value.answer_payload_sha256; }],
     ['successor attempt identity', (value) => { value.successor_attempt_id = 'FP-MAN-047'; }],
     ['successor attempt limit', (value) => { value.successor_attempt_limit = 2; }],
-    ['successor attempt ledger', (value) => { value.successor_attempts_executed = 1; }],
-    ['successor attempt consumed', (value) => { value.successor_consumed = true; }],
-    ['successor provider execution', (value) => { value.successor_provider_execution_authorized = true; }],
+    ['successor attempt ledger', (value) => { value.successor_attempts_executed = 0; }],
+    ['successor attempt consumed', (value) => { value.successor_consumed = false; }],
+    ['successor phase-1 receipt', (value) => { value.successor_phase_1_read_only_preflight_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['successor Wave 0 receipt', (value) => { value.successor_wave_0_executor_proof_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['successor action-time authority', (value) => { value.successor_action_time_authorization_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['successor provider execution', (value) => { value.successor_provider_execution_authorized = false; }],
     ['successor action-time gate', (value) => { value.successor_action_time_confirmation_required = false; }],
+    ['successor provider terminal receipt', (value) => { value.successor_provider_terminal_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['successor Ops settlement', (value) => { value.successor_ops_settlement_event_id = 'onv1_' + '0'.repeat(64); }],
+    ['successor terminal result', (value) => { value.successor_terminal_result = 'NO_SAVE_CONFIRMED'; }],
+    ['successor save accounting', (value) => { value.successor_dashboard_save_attempts = 0; }],
+    ['successor PATCH status', (value) => { value.successor_settings_patch_status = 200; }],
+    ['successor Data API state', (value) => { value.successor_data_api_state = 'ENABLED'; }],
+    ['successor exposed schema set', (value) => { value.successor_exposed_schemas = ['public']; }],
+    ['successor search path', (value) => { value.successor_extra_search_path = ['public', 'extensions']; }],
+    ['successor automatic exposure', (value) => { value.successor_automatic_exposure = 'ON'; }],
+    ['current governance manifest digest', (value) => { value.current_governance_manifest_sha256 = '0'.repeat(64); }],
     ['sanitized Support evidence identity', (value) => { value.support_evidence_payload_sha256 = '0'.repeat(64); }],
     ['Management API request authority', (value) => { value.management_api_requests_authorized = true; }],
     ['rejected collision authority', (value) => { value.rejected_collision_data_api_authority_granted = true; }],
@@ -1241,7 +1308,7 @@ test('app data migration gate cannot promote execution or package application', 
   }
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_count, 122);
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_package_sha256, acceptedMigrationPackageSha256);
-  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.historical_governance_manifest_binding.governance_manifest_sha256, acceptedGovernanceManifestSha256);
 });
 
 test('Mazer app data adapter is closed, provider-canonical, and execution-blocked', () => {
