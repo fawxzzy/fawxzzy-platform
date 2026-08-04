@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { splitSqlStatements } from './generate-target-bootstrap.mjs';
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultRepositoryRoot = path.resolve(moduleDirectory, '..');
@@ -31,6 +32,25 @@ export const executableBundleArtifacts = Object.freeze([
 
 export const executableBundleManifestPath = 'contracts/v1/execution/executable-bundle-manifest.json';
 
+export const musicSeshExecutableExclusion = Object.freeze({
+  artifact_ordinal: 3,
+  source_migration_path: 'supabase/migrations/20260615034751_discordos_music_sesh_storage.sql',
+  repository_source_path: 'bootstrap/sources/discordos/supabase/migrations/20260615034751_discordos_music_sesh_storage.sql',
+  source_blob: '871cd8e76673828aae04f223f1e0049d69a629a2',
+  source_bytes: 4664,
+  source_sha256: 'b8f32e82f494c7b970b2b8afddb94f9525cd8d9da88344e6c14d235247738cbd',
+  statement_count: 28,
+  statement_set_sha256: 'a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482',
+  executable_bytes: 15796,
+  executable_sha256: '236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6',
+  relation_names: Object.freeze([
+    'discordos.discordos_music_sesh_sessions',
+    'discordos.discordos_music_sesh_queue_items',
+    'discordos.discordos_music_sesh_votes'
+  ]),
+  gate_blocker: 'MUSIC_SESH_INDEPENDENT_DOMAIN_REQUIRES_SEPARATE_TARGET_AND_REGENERATED_ARTIFACT'
+});
+
 export const executableBundleContractBindings = Object.freeze([
   {
     role: 'DISPOSABLE_TARGET_BOOTSTRAP',
@@ -40,12 +60,12 @@ export const executableBundleContractBindings = Object.freeze([
   {
     role: 'AUTH_APP_DATA_REHEARSAL',
     path: 'contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json',
-    sha256: '47db976f08e98e8d7821e1007e942355f912af86a3ef6c229b3b7772e91b6402'
+    sha256: 'a5fbad0463bd7f5d7813b3d559d661567308a457db54617bec866b6ff83d8aa5'
   },
   {
     role: 'STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR',
     path: 'contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json',
-    sha256: '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97'
+    sha256: '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a'
   },
   {
     role: 'INDEPENDENT_BACKUP',
@@ -103,6 +123,14 @@ export function canonicalCompactSha256(value) {
   return sha256Bytes(Buffer.from(JSON.stringify(canonicalValue(value)), 'utf8'));
 }
 
+export function musicSeshStatementIdentity(sourceBytes) {
+  const statements = splitSqlStatements(sourceBytes.toString('utf8'));
+  return statements.map((statement, index) => ({
+    ordinal: index + 1,
+    sha256: sha256Bytes(Buffer.from(statement, 'utf8'))
+  }));
+}
+
 function readBytes(repositoryRoot, relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, ...relativePath.split('/')));
 }
@@ -123,19 +151,84 @@ function rawIdentity(repositoryRoot, binding) {
   };
 }
 
+function assertMusicSeshExclusionContract(repositoryRoot) {
+  const sourceBytes = readBytes(repositoryRoot, musicSeshExecutableExclusion.repository_source_path);
+  if (sourceBytes.length !== musicSeshExecutableExclusion.source_bytes
+      || sha256Bytes(sourceBytes) !== musicSeshExecutableExclusion.source_sha256) {
+    throw new Error('Music Sesh exclusion source bytes or digest drift');
+  }
+  const statementIdentity = musicSeshStatementIdentity(sourceBytes);
+  if (statementIdentity.length !== musicSeshExecutableExclusion.statement_count
+      || canonicalCompactSha256(statementIdentity) !== musicSeshExecutableExclusion.statement_set_sha256) {
+    throw new Error('Music Sesh exclusion statement identity drift');
+  }
+  const adapter = JSON.parse(readBytes(repositoryRoot, 'contracts/v1/transport/discordos-app-data-adapter-contract.json'));
+  const gate = JSON.parse(readBytes(repositoryRoot, 'contracts/v1/gates/migration-gate-state.json'));
+  const exclusion = adapter.executable_bundle_exclusion ?? {};
+  const relations = (adapter.relations ?? []).filter((relation) => musicSeshExecutableExclusion.relation_names.includes(relation.source_relation));
+  if (exclusion.source_migration_path !== musicSeshExecutableExclusion.source_migration_path
+      || exclusion.repository_source_path !== musicSeshExecutableExclusion.repository_source_path
+      || exclusion.source_blob !== musicSeshExecutableExclusion.source_blob
+      || exclusion.source_bytes !== musicSeshExecutableExclusion.source_bytes
+      || exclusion.source_sha256 !== musicSeshExecutableExclusion.source_sha256
+      || exclusion.statement_count !== musicSeshExecutableExclusion.statement_count
+      || exclusion.statement_set_sha256 !== musicSeshExecutableExclusion.statement_set_sha256
+      || exclusion.projection_rule !== 'EXCLUDE_COMPLETE_IMMUTABLE_SOURCE_BLOCK'
+      || exclusion.historical_dispositions_mutated !== false
+      || relations.length !== 3
+      || relations.some((relation) => relation.classification !== 'HELD_INDEPENDENT_DOMAIN' || relation.target_relation !== null)
+      || gate.app_data_adapters?.discordos_block_reason !== musicSeshExecutableExclusion.gate_blocker) {
+    throw new Error('Music Sesh adapter, gate, or exclusion contract drift');
+  }
+  return sourceBytes;
+}
+
+export function buildExecutableArtifactBytes(repositoryRoot, artifact) {
+  const sourceBytes = readBytes(repositoryRoot, artifact.source_path);
+  if (artifact.ordinal !== musicSeshExecutableExclusion.artifact_ordinal) return sourceBytes;
+  assertMusicSeshExclusionContract(repositoryRoot);
+  const header = Buffer.from(
+    `-- source ${musicSeshExecutableExclusion.source_migration_path} blob ${musicSeshExecutableExclusion.source_blob} raw_sha256 ${musicSeshExecutableExclusion.source_sha256}\n`,
+    'utf8'
+  );
+  const start = sourceBytes.indexOf(header);
+  const next = start < 0 ? -1 : sourceBytes.indexOf(Buffer.from('-- source ', 'utf8'), start + header.length);
+  if (start < 0 || next < 0 || sourceBytes.indexOf(header, start + header.length) >= 0) {
+    throw new Error('Music Sesh exclusion source block boundary drift');
+  }
+  const projected = Buffer.concat([sourceBytes.subarray(0, start), sourceBytes.subarray(next)]);
+  if (projected.length !== musicSeshExecutableExclusion.executable_bytes
+      || sha256Bytes(projected) !== musicSeshExecutableExclusion.executable_sha256
+      || musicSeshExecutableExclusion.relation_names.some((relation) => projected.includes(Buffer.from(relation, 'utf8')))) {
+    throw new Error('Music Sesh executable projection drift or leakage');
+  }
+  return projected;
+}
+
 export function buildExecutableBundleManifest(repositoryRoot = defaultRepositoryRoot) {
   const artifacts = executableBundleArtifacts.map((artifact) => {
     const sourceBytes = readBytes(repositoryRoot, artifact.source_path);
+    const expectedPromotedBytes = buildExecutableArtifactBytes(repositoryRoot, artifact);
     const promotedFile = path.join(repositoryRoot, ...artifact.promoted_path.split('/'));
-    const promotedBytes = fs.existsSync(promotedFile) ? fs.readFileSync(promotedFile) : sourceBytes;
+    const promotedBytes = fs.existsSync(promotedFile) ? fs.readFileSync(promotedFile) : expectedPromotedBytes;
     return {
       ordinal: artifact.ordinal,
       source_path: artifact.source_path,
       promoted_path: artifact.promoted_path,
-      bytes: sourceBytes.length,
+      source_bytes: sourceBytes.length,
+      bytes: expectedPromotedBytes.length,
       source_sha256: sha256Bytes(sourceBytes),
       promoted_sha256: sha256Bytes(promotedBytes),
-      byte_identical: sourceBytes.equals(promotedBytes)
+      expected_promoted_sha256: sha256Bytes(expectedPromotedBytes),
+      byte_identical: sourceBytes.equals(promotedBytes),
+      projection: artifact.ordinal === musicSeshExecutableExclusion.artifact_ordinal
+        ? {
+            mode: 'EXACT_SOURCE_BLOCK_EXCLUSION',
+            source_migration_path: musicSeshExecutableExclusion.source_migration_path,
+            excluded_statement_count: musicSeshExecutableExclusion.statement_count,
+            excluded_statement_set_sha256: musicSeshExecutableExclusion.statement_set_sha256
+          }
+        : { mode: 'BYTE_COPY' }
     };
   });
   const contracts = executableBundleContractBindings.map((binding) => rawIdentity(repositoryRoot, binding));
@@ -151,16 +244,16 @@ export function buildExecutableBundleManifest(repositoryRoot = defaultRepository
     source_path: artifact.source_path,
     promoted_path: artifact.promoted_path,
     bytes: artifact.bytes,
-    sha256: artifact.source_sha256
+    sha256: artifact.expected_promoted_sha256
   }));
   const contractAggregateSubject = contracts.map(({ role, path: relativePath, sha256 }) => ({ role, path: relativePath, sha256 }));
   const evidenceAggregateSubject = evidence.map(({ role, path: relativePath, sha256 }) => ({ role, path: relativePath, sha256 }));
   const toolchainAggregateSubject = toolchain.map(({ role, path: relativePath, sha256 }) => ({ role, path: relativePath, sha256 }));
   return {
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'CURRENT',
-    bundle_model: 'REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1',
-    promotion_rule: 'BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT',
+    bundle_model: 'REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2',
+    promotion_rule: 'BYTE_COPY_EXCEPT_EXACT_CROSS_CONTRACT_HELD_SOURCE_BLOCK_EXCLUSION',
     lifecycle: {
       source_contract: 'SOURCE_READY',
       execution: 'EXECUTION_BLOCKED',
@@ -184,9 +277,12 @@ export function buildExecutableBundleManifest(repositoryRoot = defaultRepository
     },
     statement_denominator: {
       source_statement_count: statementDisposition.derived_counts.source_statement_count,
-      executable_statement_count: statementDisposition.derived_counts.executable_statement_count,
-      held_statement_count: statementDisposition.derived_counts.held_statement_count,
-      promoted_statement_count: statementDisposition.derived_counts.executable_statement_count
+      historical_executable_statement_count: statementDisposition.derived_counts.executable_statement_count,
+      historical_held_statement_count: statementDisposition.derived_counts.held_statement_count,
+      execution_exclusion_statement_count: musicSeshExecutableExclusion.statement_count,
+      executable_statement_count: statementDisposition.derived_counts.executable_statement_count - musicSeshExecutableExclusion.statement_count,
+      held_statement_count: statementDisposition.derived_counts.held_statement_count + musicSeshExecutableExclusion.statement_count,
+      promoted_statement_count: statementDisposition.derived_counts.executable_statement_count - musicSeshExecutableExclusion.statement_count
     },
     artifacts,
     ordered_artifact_set_sha256: canonicalCompactSha256(artifactAggregateSubject),
@@ -223,7 +319,7 @@ function writeIfChanged(filePath, bytes) {
 export function generateExecutableBundle(repositoryRoot = defaultRepositoryRoot) {
   const changed = [];
   for (const artifact of executableBundleArtifacts) {
-    const source = readBytes(repositoryRoot, artifact.source_path);
+    const source = buildExecutableArtifactBytes(repositoryRoot, artifact);
     const output = path.join(repositoryRoot, ...artifact.promoted_path.split('/'));
     if (writeIfChanged(output, source)) changed.push(artifact.promoted_path);
   }

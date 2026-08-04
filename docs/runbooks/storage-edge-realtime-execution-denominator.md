@@ -23,8 +23,9 @@ The contract binds:
   discovery path;
 - the separate migration-package and governance-manifest identities;
 - the four ordered inert SQL review artifacts, their byte lengths and digests,
-  the generator/config/verifier identities, and the 721 executable-statement
-  denominator;
+  the generator/config/verifier identities, the immutable historical 721
+  executable-statement denominator, and the effective 693-statement execution
+  projection after the exact 28-statement Music Sesh independent-domain exclusion;
 - a reviewed promoted-byte manifest digest and a closed expected-state query
   model.
 

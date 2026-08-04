@@ -69,9 +69,11 @@
     "review_state": "SOURCE_REVIEW_REQUIRED",
     "apply_admitted": false,
     "contract_path": "contracts/v1/execution/executable-bundle-manifest.json",
-    "bundle_model": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1",
+    "bundle_model": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2",
     "artifact_count": 4,
-    "executable_statement_count": 721,
+    "historical_executable_statement_count": 721,
+    "execution_exclusion_statement_count": 28,
+    "executable_statement_count": 693,
     "standard_migration_sql_count": 0,
     "executor_included": false,
     "provider_connectivity_included": false

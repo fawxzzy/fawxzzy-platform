@@ -1808,7 +1808,7 @@ test('DiscordOS app data adapter freezes ten provider-canonical relations withou
   const adapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'];
   const gate = documents['contracts/v1/gates/migration-gate-state.json'];
   assert.deepEqual(verifyDiscordosAppDataAdapter({ adapter, gate }), []);
-  assert.equal(adapter.version, '1.2.0');
+  assert.equal(adapter.version, '1.3.0');
   assert.equal(adapter.relations.length, 10);
   assert.deepEqual(adapter.classification_counts, {
     authoritative_state: 2,
@@ -1821,6 +1821,9 @@ test('DiscordOS app data adapter freezes ten provider-canonical relations withou
   });
   assert.equal(adapter.inert_boundary.held_relation, 'discordos.discord_update_drafts');
   assert.equal(adapter.inert_boundary.music_sesh_artifact_status, 'INCOMPATIBLE_UNADMITTED');
+  assert.equal(adapter.executable_bundle_exclusion.statement_count, 28);
+  assert.equal(adapter.executable_bundle_exclusion.statement_set_sha256, 'a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482');
+  assert.equal(adapter.executable_bundle_exclusion.historical_dispositions_mutated, false);
   assert.deepEqual(gate.app_data_adapters.source_ready, ['mazer', 'fitness', 'discordos']);
   assert.deepEqual(gate.app_data_adapters.blocked, []);
   assert.equal(gate.app_data_adapters.discordos_transport_ready, false);
@@ -1852,6 +1855,10 @@ test('DiscordOS and Platform contracts keep Music Sesh independent and non-trans
     ['transport promotion', (documents) => { documents[adapterPath].relations[8].transport_mode = 'CAS_WITH_EXTERNAL_EFFECTS_QUARANTINED'; }],
     ['missing hold reason', (documents) => { documents[adapterPath].relations[6].hold_reason = null; }],
     ['dependency ordering', (documents) => { documents[adapterPath].relations[7].dependency_parents = [musicSources[0]]; }],
+    ['exclusion source substitution', (documents) => { documents[adapterPath].executable_bundle_exclusion.source_migration_path = 'supabase/migrations/substituted.sql'; }],
+    ['exclusion statement-set substitution', (documents) => { documents[adapterPath].executable_bundle_exclusion.statement_set_sha256 = '0'.repeat(64); }],
+    ['historical disposition rewrite', (documents) => { documents[adapterPath].executable_bundle_exclusion.historical_dispositions_mutated = true; }],
+    ['gate blocker substitution', (documents) => { documents[gatePath].app_data_adapters.discordos_block_reason = 'REBOUND_BUT_UNSAFE'; }],
     ['gate-ready promotion', (documents) => {
       documents[gatePath].app_data_adapters.discordos_transport_ready = true;
     }]

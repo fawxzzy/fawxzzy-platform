@@ -8,7 +8,9 @@ The word executable describes the future input representation only. It does not 
 
 ## Deterministic promotion
 
-`npm run executable-bundle:generate` copies exactly four merged inert SQL artifacts, in their frozen order, to `bootstrap/artifacts/executable-sql/`. Each output must be byte-for-byte identical to its source. The generator can write only those four outputs and the manifest.
+`npm run executable-bundle:generate` projects exactly four merged inert SQL artifacts, in their frozen order, to `bootstrap/artifacts/executable-sql/`. Three outputs remain byte-for-byte copies. The DiscordOS output deterministically excludes the complete immutable Music Sesh storage source block because all three relations are `HELD_INDEPENDENT_DOMAIN`, have null targets, and remain blocked by the migration gate. The generator can write only those four outputs and the manifest.
+
+Historical package evidence remains `1253/721/532` source/executable/held. The effective execution projection is `1253/693/560`: exactly 28 Music Sesh statements move from executable to held without rewriting the immutable dispositions or inert SQL package.
 
 The manifest binds:
 

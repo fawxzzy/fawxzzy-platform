@@ -273,6 +273,8 @@
         "contract_path",
         "bundle_model",
         "artifact_count",
+        "historical_executable_statement_count",
+        "execution_exclusion_statement_count",
         "executable_statement_count",
         "standard_migration_sql_count",
         "executor_included",
@@ -298,13 +300,19 @@
           "const": "contracts/v1/execution/executable-bundle-manifest.json"
         },
         "bundle_model": {
-          "const": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1"
+          "const": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2"
         },
         "artifact_count": {
           "const": 4
         },
-        "executable_statement_count": {
+        "historical_executable_statement_count": {
           "const": 721
+        },
+        "execution_exclusion_statement_count": {
+          "const": 28
+        },
+        "executable_statement_count": {
+          "const": 693
         },
         "standard_migration_sql_count": {
           "const": 0

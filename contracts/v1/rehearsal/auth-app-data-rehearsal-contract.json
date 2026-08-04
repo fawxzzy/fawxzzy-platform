@@ -21,7 +21,7 @@
   },
   "contract_bindings": {
     "digest_model": "CANONICAL_JSON_BYTES_SHA256_V1",
-    "binding_set_sha256": "9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a",
+    "binding_set_sha256": "51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f",
     "documents": [
       {
         "path": "contracts/v1/auth/import-rehearsal-contract.json",
@@ -81,7 +81,7 @@
       {
         "path": "contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json",
         "version": "1.0.0",
-        "sha256": "6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97"
+        "sha256": "713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a"
       },
       {
         "path": "contracts/v1/recovery/independent-backup-contract.json",
@@ -99,7 +99,7 @@
     "status": "CURRENT",
     "contract_path": "contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json",
     "contract_version": "1.0.0",
-    "contract_sha256": "6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97",
+    "contract_sha256": "713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a",
     "source_contract": "SOURCE_READY",
     "execution": "EXECUTION_BLOCKED",
     "apply_admitted": false,
@@ -472,7 +472,7 @@
     "source_contract_grants_provider_execution": false,
     "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "contract_binding_set_sha256": "9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a",
+    "contract_binding_set_sha256": "51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f",
     "package": {
       "migration_count": 122,
       "standard_migration_sql_count": 0,
@@ -484,7 +484,7 @@
       "authorized_operation": "AUTH_APP_DATA_REHEARSAL",
       "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "contract_binding_set_sha256": "9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a",
+      "contract_binding_set_sha256": "51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f",
       "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
       "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
       "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -570,7 +570,7 @@
       "contract_version": "1.0.0",
       "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "run_correlation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "contract_binding_set_sha256": "9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a",
+      "contract_binding_set_sha256": "51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f",
       "migration_package_sha256": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db",
       "governance_manifest_sha256": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec",
       "prerequisite_set_sha256": "0000000000000000000000000000000000000000000000000000000000000000",

@@ -27,16 +27,16 @@
   ],
   "properties": {
     "version": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "status": {
       "const": "CURRENT"
     },
     "bundle_model": {
-      "const": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1"
+      "const": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2"
     },
     "promotion_rule": {
-      "const": "BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT"
+      "const": "BYTE_COPY_EXCEPT_EXACT_CROSS_CONTRACT_HELD_SOURCE_BLOCK_EXCLUSION"
     },
     "lifecycle": {
       "type": "object",
@@ -144,6 +144,9 @@
       "additionalProperties": false,
       "required": [
         "source_statement_count",
+        "historical_executable_statement_count",
+        "historical_held_statement_count",
+        "execution_exclusion_statement_count",
         "executable_statement_count",
         "held_statement_count",
         "promoted_statement_count"
@@ -152,14 +155,23 @@
         "source_statement_count": {
           "const": 1253
         },
-        "executable_statement_count": {
+        "historical_executable_statement_count": {
           "const": 721
         },
-        "held_statement_count": {
+        "historical_held_statement_count": {
           "const": 532
         },
+        "execution_exclusion_statement_count": {
+          "const": 28
+        },
+        "executable_statement_count": {
+          "const": 693
+        },
+        "held_statement_count": {
+          "const": 560
+        },
         "promoted_statement_count": {
-          "const": 721
+          "const": 693
         }
       }
     },
@@ -275,10 +287,13 @@
         "ordinal",
         "source_path",
         "promoted_path",
+        "source_bytes",
         "bytes",
         "source_sha256",
         "promoted_sha256",
-        "byte_identical"
+        "expected_promoted_sha256",
+        "byte_identical",
+        "projection"
       ],
       "properties": {
         "ordinal": {
@@ -298,14 +313,61 @@
           "type": "integer",
           "minimum": 1
         },
+        "source_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
         "source_sha256": {
           "$ref": "#/$defs/sha256"
         },
         "promoted_sha256": {
           "$ref": "#/$defs/sha256"
         },
+        "expected_promoted_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
         "byte_identical": {
-          "const": true
+          "type": "boolean"
+        },
+        "projection": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode"
+              ],
+              "properties": {
+                "mode": {
+                  "const": "BYTE_COPY"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "source_migration_path",
+                "excluded_statement_count",
+                "excluded_statement_set_sha256"
+              ],
+              "properties": {
+                "mode": {
+                  "const": "EXACT_SOURCE_BLOCK_EXCLUSION"
+                },
+                "source_migration_path": {
+                  "const": "supabase/migrations/20260615034751_discordos_music_sesh_storage.sql"
+                },
+                "excluded_statement_count": {
+                  "const": 28
+                },
+                "excluded_statement_set_sha256": {
+                  "const": "a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482"
+                }
+              }
+            }
+          ]
         }
       }
     },

@@ -8,13 +8,16 @@ The source contract is `SOURCE_READY`. Execution remains `EXECUTION_BLOCKED`, `a
 
 ## Immutable source bindings
 
-The contract binds 13 current source documents by path, version, and canonical JSON byte digest. Any path, version, content, ordering, or binding-set digest drift fails closed. The binding includes:
+The contract binds 14 current source documents by path, version, and canonical JSON byte digest. Any path, version, content, ordering, or binding-set digest drift fails closed. The binding includes:
 
 - shared Auth import and domain/session policy;
 - generic application-data transport, mutation journal, and aggregate receipt;
 - Mazer, Fitness, and DiscordOS adapter contracts;
 - private identity-map and membership lifecycle contracts;
+- the current Storage/Edge/Realtime execution-denominator contract;
 - disposable-target bootstrap, independent-backup, and micro-recovery contracts.
+
+The bound Storage/Edge/Realtime document and `execution_denominator` use the same current canonical digest. The root receipt, execution authority, and write barrier bind the resulting complete set; stale, substituted, collapsed, or partially updated storage identities fail closed.
 
 The gate binding in `contracts/v1/gates/migration-gate-state.json` marks only this source contract `CURRENT`. It does not promote execution, provider access, target apply, backup, recovery, or disposal.
 

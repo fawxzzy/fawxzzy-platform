@@ -9,7 +9,8 @@ import { independentBackupContractPath, validateIndependentBackupContract } from
 import {
   buildExecutableBundleManifest,
   canonicalCompactSha256,
-  executableBundleArtifacts
+  executableBundleArtifacts,
+  musicSeshExecutableExclusion
 } from '../generate-executable-bundle.mjs';
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -24,12 +25,12 @@ const executableBundlePinnedContractBindings = Object.freeze([
   Object.freeze({
     role: 'AUTH_APP_DATA_REHEARSAL',
     path: 'contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json',
-    sha256: '47db976f08e98e8d7821e1007e942355f912af86a3ef6c229b3b7772e91b6402'
+    sha256: 'a5fbad0463bd7f5d7813b3d559d661567308a457db54617bec866b6ff83d8aa5'
   }),
   Object.freeze({
     role: 'STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR',
     path: 'contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json',
-    sha256: '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97'
+    sha256: '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a'
   }),
   Object.freeze({
     role: 'INDEPENDENT_BACKUP',
@@ -317,7 +318,7 @@ const storageEdgeRealtimeForwardEvidenceClasses = Object.freeze([
   'ZERO_EFFECT'
 ]);
 
-const storageEdgeRealtimeContractSha256 = '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97';
+const storageEdgeRealtimeContractSha256 = '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a';
 
 const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
@@ -336,7 +337,7 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = '9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a';
+const authAppDataBindingSetSha256 = '51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -2045,6 +2046,21 @@ export function validateStorageEdgeRealtimeExecutionDenominatorContract(contract
   requireContract(contract?.immutable_bindings?.migration_count === 122 && contract?.immutable_bindings?.standard_migration_sql_count === 0, 'migration denominator drift');
   requireContract(contract?.immutable_bindings?.migration_package_sha256 === 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db' && contract?.immutable_bindings?.governance_manifest_sha256 === '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec', 'package identities drift');
   requireContract(contract?.immutable_bindings?.promoted_bundle?.manifest_sha256 === 'ce85de2e32fca8497d7bb6380e51e3bc9d5717f1a07b25151414da5552075849' && contract?.immutable_bindings?.promoted_bundle?.artifact_count === 4 && contract?.immutable_bindings?.promoted_bundle?.executable_statement_count === 721, 'reviewed promoted-byte manifest drift');
+  const executionProjection = contract?.immutable_bindings?.execution_projection ?? {};
+  requireContract(
+    executionProjection.manifest_path === 'contracts/v1/execution/executable-bundle-manifest.json'
+      && executionProjection.model === 'REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2'
+      && executionProjection.historical_executable_statement_count === 721
+      && executionProjection.execution_exclusion_statement_count === 28
+      && executionProjection.effective_executable_statement_count === 693
+      && executionProjection.effective_held_statement_count === 560
+      && executionProjection.excluded_source_path === musicSeshExecutableExclusion.source_migration_path
+      && executionProjection.excluded_statement_set_sha256 === musicSeshExecutableExclusion.statement_set_sha256
+      && executionProjection.discordos_executable_path === 'bootstrap/artifacts/executable-sql/00000000000003_discordos_schema.sql'
+      && executionProjection.discordos_executable_bytes === musicSeshExecutableExclusion.executable_bytes
+      && executionProjection.discordos_executable_sha256 === musicSeshExecutableExclusion.executable_sha256,
+    'effective executable projection binding drift'
+  );
   for (const artifact of contract?.immutable_bindings?.promoted_bundle?.artifacts ?? []) {
     const absolute = path.join(repositoryRoot, artifact.path);
     requireContract(fs.existsSync(absolute), `${artifact.path} missing`);
@@ -2408,7 +2424,7 @@ export function validateAuthAppDataRehearsalContract(contract, documents = loadD
   for (const binding of authAppDataBindingDocuments) {
     const document = documents?.[binding.path];
     if (binding.path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json') {
-      requireContract(document?.version === '1.2.0' && canonicalDigest(document) === '9545be65b9a0144b5381610dcf473871f896554128e64ee7d137c64774976cb0', `${binding.path} corrected current-contract digest drift`);
+      requireContract(document?.version === '1.3.0' && canonicalDigest(document) === 'b48eee5b6ddf85de90e448e9ff1bb0583a7395b29b8b6da8b2ad0be86575792e', `${binding.path} corrected current-contract digest drift`);
       requireContract(document?.inert_boundary?.music_sesh_artifact_status === 'INCOMPATIBLE_UNADMITTED' && document?.inert_boundary?.music_sesh_artifact_regeneration === 'REQUIRED_SEPARATE_AUTHORITY' && document?.inert_boundary?.generated_artifact_changes_admitted === false, `${binding.path} historical rehearsal-artifact hold drift`);
       continue;
     }
@@ -2597,9 +2613,9 @@ export function validateExecutableBundleManifest(contract) {
       'executable bundle manifest exact content or coherent digest binding drift'
     );
   }
-  requireBundle(contract?.version === '1.0.0' && contract?.status === 'CURRENT', 'executable bundle contract identity drift');
-  requireBundle(contract?.bundle_model === 'REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1', 'executable bundle model drift');
-  requireBundle(contract?.promotion_rule === 'BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT', 'executable bundle promotion rule drift');
+  requireBundle(contract?.version === '2.0.0' && contract?.status === 'CURRENT', 'executable bundle contract identity drift');
+  requireBundle(contract?.bundle_model === 'REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2', 'executable bundle model drift');
+  requireBundle(contract?.promotion_rule === 'BYTE_COPY_EXCEPT_EXACT_CROSS_CONTRACT_HELD_SOURCE_BLOCK_EXCLUSION', 'executable bundle promotion rule drift');
   requireBundle(
     contract?.lifecycle?.source_contract === 'SOURCE_READY'
       && contract?.lifecycle?.execution === 'EXECUTION_BLOCKED'
@@ -2628,9 +2644,12 @@ export function validateExecutableBundleManifest(contract) {
   );
   requireBundle(
     contract?.statement_denominator?.source_statement_count === 1253
-      && contract?.statement_denominator?.executable_statement_count === 721
-      && contract?.statement_denominator?.held_statement_count === 532
-      && contract?.statement_denominator?.promoted_statement_count === 721,
+      && contract?.statement_denominator?.historical_executable_statement_count === 721
+      && contract?.statement_denominator?.historical_held_statement_count === 532
+      && contract?.statement_denominator?.execution_exclusion_statement_count === 28
+      && contract?.statement_denominator?.executable_statement_count === 693
+      && contract?.statement_denominator?.held_statement_count === 560
+      && contract?.statement_denominator?.promoted_statement_count === 693,
     'executable bundle statement denominator drift'
   );
   requireBundle(
@@ -2651,8 +2670,15 @@ export function validateExecutableBundleManifest(contract) {
     Array.isArray(contract?.artifacts)
       && contract.artifacts.length === 4
       && new Set(contract.artifacts.map((artifact) => artifact.promoted_path)).size === 4
-      && contract.artifacts.every((artifact) => artifact.byte_identical === true && artifact.source_sha256 === artifact.promoted_sha256),
-    'executable bundle artifact byte-equivalence or uniqueness drift'
+      && contract.artifacts.every((artifact, index) => index === 2
+        ? artifact.byte_identical === false
+          && artifact.projection?.mode === 'EXACT_SOURCE_BLOCK_EXCLUSION'
+          && artifact.projection?.excluded_statement_count === 28
+          && artifact.projection?.excluded_statement_set_sha256 === musicSeshExecutableExclusion.statement_set_sha256
+        : artifact.byte_identical === true
+          && artifact.source_sha256 === artifact.promoted_sha256
+          && artifact.projection?.mode === 'BYTE_COPY'),
+    'executable bundle artifact projection, byte-equivalence, or uniqueness drift'
   );
   requireBundle(
     contract?.action_time_placeholders?.target_project_ref === 'REQUIRED_AT_ACTION_TIME_NOT_SERIALIZED'
@@ -3103,9 +3129,11 @@ export function validateSemantics(documents) {
   );
   requireCondition(
     executableBundleGate.contract_path === 'contracts/v1/execution/executable-bundle-manifest.json'
-      && executableBundleGate.bundle_model === 'REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1'
+      && executableBundleGate.bundle_model === 'REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2'
       && executableBundleGate.artifact_count === 4
-      && executableBundleGate.executable_statement_count === 721
+      && executableBundleGate.historical_executable_statement_count === 721
+      && executableBundleGate.execution_exclusion_statement_count === 28
+      && executableBundleGate.executable_statement_count === 693
       && executableBundleGate.standard_migration_sql_count === 0
       && executableBundleGate.executor_included === false
       && executableBundleGate.provider_connectivity_included === false,
@@ -3133,6 +3161,7 @@ export function validateSemantics(documents) {
   const mazerAppDataAdapter = documents['contracts/v1/transport/mazer-app-data-adapter-contract.json'] ?? {};
   const fitnessAppDataAdapter = documents['contracts/v1/transport/fitness-app-data-adapter-contract.json'] ?? {};
   const discordosAppDataAdapter = documents['contracts/v1/transport/discordos-app-data-adapter-contract.json'] ?? {};
+  const discordosExecutableExclusion = discordosAppDataAdapter.executable_bundle_exclusion ?? {};
   const appDataReceipt = documents['contracts/v1/transport/app-data-receipt.example.json'] ?? {};
   const appDataJournal = documents['contracts/v1/transport/app-data-mutation-journal-contract.json'] ?? {};
   const appDataGate = migrationGate.app_data_transport ?? {};
@@ -3268,6 +3297,22 @@ export function validateSemantics(documents) {
   requireCondition(discordosInert.declared_relation_count === 10 && discordosInert.emitted_relation_count === 9 && discordosInert.held_relation_count === 1 && discordosInert.held_relation === 'discordos.discord_update_drafts', 'DiscordOS inert relation denominator drift');
   requireCondition(discordosInert.emitted_function_count === 1 && discordosInert.emitted_function === 'discordos.set_updated_at' && discordosInert.emitted_trigger_count === 5 && discordosInert.emitted_index_count === 22, 'DiscordOS inert function, trigger, or index denominator drift');
   requireCondition(discordosInert.emitted_extension_count === 0 && discordosInert.emitted_data_effect_count === 0 && discordosInert.emitted_cron_effect_count === 0 && discordosInert.emitted_network_effect_count === 0 && discordosInert.music_sesh_relation_count === 3 && discordosInert.music_sesh_artifact_status === 'INCOMPATIBLE_UNADMITTED' && discordosInert.music_sesh_artifact_regeneration === 'REQUIRED_SEPARATE_AUTHORITY' && discordosInert.generated_artifact_changes_admitted === false, 'DiscordOS inert external-effect or generated-artifact boundary drift');
+  requireCondition(
+    discordosExecutableExclusion.status === 'CURRENT'
+      && discordosExecutableExclusion.source_migration_path === musicSeshExecutableExclusion.source_migration_path
+      && discordosExecutableExclusion.repository_source_path === musicSeshExecutableExclusion.repository_source_path
+      && discordosExecutableExclusion.source_blob === musicSeshExecutableExclusion.source_blob
+      && discordosExecutableExclusion.source_bytes === musicSeshExecutableExclusion.source_bytes
+      && discordosExecutableExclusion.source_sha256 === musicSeshExecutableExclusion.source_sha256
+      && discordosExecutableExclusion.statement_count === musicSeshExecutableExclusion.statement_count
+      && discordosExecutableExclusion.statement_set_sha256 === musicSeshExecutableExclusion.statement_set_sha256
+      && exactOrderedValues(discordosExecutableExclusion.relations, musicSeshExecutableExclusion.relation_names)
+      && discordosExecutableExclusion.required_relation_classification === 'HELD_INDEPENDENT_DOMAIN'
+      && discordosExecutableExclusion.required_target_relation === null
+      && discordosExecutableExclusion.projection_rule === 'EXCLUDE_COMPLETE_IMMUTABLE_SOURCE_BLOCK'
+      && discordosExecutableExclusion.historical_dispositions_mutated === false,
+    'DiscordOS Music Sesh executable exclusion contract drift'
+  );
   requireCondition(discordosIdentity.service_mode === 'OPERATIONAL_ONLY' && discordosIdentity.human_activation === 'NOT_APPLICABLE' && discordosIdentity.human_profile_relation === null && discordosIdentity.human_entitlement_relation === null && discordosIdentity.membership_creation_allowed === false, 'DiscordOS operational-only service boundary drift');
   requireCondition(discordosIdentity.canonical_human_key === 'auth.users.id' && discordosIdentity.source_identity_ledger === 'platform_private.source_identity_ledger' && discordosIdentity.rekey_authority === 'ACCEPTED_IDENTITY_LEDGER_MAPPING_ONLY' && discordosIdentity.accepted_mapping_cardinality === 'EXACTLY_ONE', 'DiscordOS accepted identity-ledger mapping boundary drift');
   requireCondition(discordosIdentity.missing_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordosIdentity.contradictory_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordosIdentity.duplicate_mapping_outcome === 'QUARANTINE_PENDING_VERIFIED_EVIDENCE' && discordosIdentity.membership_if_present_without_mapping === 'PRESERVE_PENDING', 'DiscordOS fail-closed identity mapping outcome drift');
