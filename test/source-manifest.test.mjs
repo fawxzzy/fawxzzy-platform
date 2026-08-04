@@ -12,6 +12,7 @@ import {
   verifyFitnessAppDataAdapter,
   verifyMazerAppDataAdapter,
   verifyFitnessPr108ReplayGate,
+  verifyGovernanceManifestBindings,
   verifyProviderCanonicalProvenance,
   verifySharedAuthImportRehearsal,
   verifyTargetBootstrap
@@ -53,15 +54,29 @@ test('migration package and governance manifest identities are separate and fail
   const accepted = baseline.provider_canonical_provenance.accepted_package;
   assert.equal(accepted.digest_model, 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1');
   assert.ok(!accepted.migration_package_paths.includes('bootstrap/manifests/namespace-plan.v1.json'));
-  assert.deepEqual(accepted.governance_manifest_paths, ['bootstrap/manifests/namespace-plan.v1.json']);
+  const historical = accepted.historical_governance_manifest_binding;
+  const archiveContract = historical.archive_path_contract;
+  const historicalPath = `${archiveContract.directory}/${archiveContract.stem}.${historical.source_commit_segments.join(archiveContract.segment_separator)}${archiveContract.extension}`;
+  assert.deepEqual(historical.source_commit_segments, [
+    '248733dc',
+    '661581368ef7807a77a7f8265354fde2'
+  ]);
+  assert.equal(historical.source_commit_segments.join('').length, 40);
+  assert.equal(historical.original_logical_path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.equal(accepted.current_governance_manifest_binding.path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.notEqual(historicalPath, accepted.current_governance_manifest_binding.path);
+  assert.equal(Object.hasOwn(historical, 'archive_path'), false);
+  assert.equal(Object.hasOwn(historical, 'source_commit'), false);
+  assert.deepEqual(verifyGovernanceManifestBindings({ acceptedPackage: accepted }), []);
   assert.equal(accepted.legacy_combined_package_recomputation_admitted, false);
 
   const cases = [
     ['digest model', (gate) => { gate.provider_canonical_provenance.accepted_package.digest_model = 'COMBINED'; }],
     ['migration package path denominator', (gate) => { gate.provider_canonical_provenance.accepted_package.migration_package_paths.push('bootstrap/manifests/namespace-plan.v1.json'); }],
-    ['governance manifest path denominator', (gate) => { gate.provider_canonical_provenance.accepted_package.governance_manifest_paths = ['bootstrap/manifests/source-migrations.v1.json']; }],
     ['migration package digest', (gate) => { gate.provider_canonical_provenance.accepted_package.migration_package_sha256 = report.governance_manifest_digest; }],
-    ['governance manifest digest', (gate) => { gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256 = report.migration_package_digest; }],
+    ['historical governance manifest binding', (gate) => { gate.provider_canonical_provenance.accepted_package.historical_governance_manifest_binding.source_commit_segments = ['0'.repeat(8), '0'.repeat(32)]; }],
+    ['current governance manifest binding', (gate) => { gate.provider_canonical_provenance.accepted_package.current_governance_manifest_binding.raw_sha256 = '0'.repeat(64); }],
+    ['ambiguous governance manifest binding', (gate) => { gate.provider_canonical_provenance.accepted_package.governance_manifest_paths = ['bootstrap/manifests/namespace-plan.v1.json']; }],
     ['legacy combined digest boundary', (gate) => { gate.provider_canonical_provenance.accepted_package.legacy_combined_package_recomputation_admitted = true; }]
   ];
   for (const [label, mutate] of cases) {
@@ -76,6 +91,62 @@ test('migration package and governance manifest identities are separate and fail
     assert.deepEqual(failures, [...failures].sort((left, right) => left.localeCompare(right)), `${label} ordering`);
     assert.ok(failures.some((failure) => failure.includes(label)), label);
   }
+});
+
+test('governance manifest bindings reject substitution, collapse, missing archives, and byte drift', () => {
+  const gate = JSON.parse(fs.readFileSync(`${root}/contracts/v1/gates/migration-gate-state.json`, 'utf8'));
+  const accepted = gate.provider_canonical_provenance.accepted_package;
+  const historical = accepted.historical_governance_manifest_binding;
+  const archiveContract = historical.archive_path_contract;
+  const historicalPath = `${archiveContract.directory}/${archiveContract.stem}.${historical.source_commit_segments.join(archiveContract.segment_separator)}${archiveContract.extension}`;
+  const currentPath = accepted.current_governance_manifest_binding.path;
+  const actual = new Map([
+    [historicalPath, fs.readFileSync(path.join(root, ...historicalPath.split('/')))],
+    [currentPath, fs.readFileSync(path.join(root, ...currentPath.split('/')))]
+  ]);
+  const mutations = [
+    ['historical governance manifest binding', (value) => { value.archive_path_contract.directory = 'bootstrap/manifests'; }],
+    ['historical governance manifest binding', (value) => { value.archive_path_contract.stem = 'namespace-plan.v2'; }],
+    ['historical governance manifest binding', (value) => { value.archive_path_contract.segment_separator = ''; }],
+    ['historical governance manifest binding', (value) => { value.archive_path_contract.extension = '.json.bak'; }],
+    ['historical governance manifest binding', (value) => { value.original_logical_path = historicalPath; }],
+    ['historical governance manifest binding', (value) => { value.source_commit_segments = ['0'.repeat(8), '0'.repeat(32)]; }],
+    ['historical governance manifest binding', (value) => { value.source_commit_segments = [...value.source_commit_segments].reverse(); }],
+    ['historical governance manifest binding', (value) => { value.source_commit_segments.pop(); }],
+    ['historical governance manifest binding', (value) => { value.source_commit_segments[0] = value.source_commit_segments[0].toUpperCase(); }],
+    ['historical governance manifest binding', (value) => { value.archive_path = currentPath; }],
+    ['historical governance manifest binding', (value) => { value.source_commit = value.source_commit_segments.join(''); }],
+    ['historical governance manifest binding', (value) => { value.git_blob = '0'.repeat(40); }],
+    ['historical governance manifest binding', (value) => { value.raw_sha256 = '0'.repeat(64); }],
+    ['historical governance manifest binding', (value) => { value.byte_count += 1; }],
+    ['historical governance manifest binding', (value) => { value.governance_manifest_sha256 = '0'.repeat(64); }],
+    ['current governance manifest binding', (value) => { value.path = historicalPath; }],
+    ['current governance manifest binding', (value) => { value.git_blob = '0'.repeat(40); }],
+    ['current governance manifest binding', (value) => { value.raw_sha256 = '0'.repeat(64); }],
+    ['current governance manifest binding', (value) => { value.byte_count += 1; }],
+    ['current governance manifest binding', (value) => { value.governance_manifest_sha256 = '0'.repeat(64); }]
+  ];
+  for (const [label, mutate] of mutations) {
+    const candidate = structuredClone(accepted);
+    const binding = label.startsWith('historical')
+      ? candidate.historical_governance_manifest_binding
+      : candidate.current_governance_manifest_binding;
+    mutate(binding);
+    assert.ok(verifyGovernanceManifestBindings({ acceptedPackage: candidate }).some((failure) => failure.includes(label)), label);
+  }
+  assert.ok(verifyGovernanceManifestBindings({
+    acceptedPackage: accepted,
+    readBytes: (relativePath) => {
+      if (relativePath === historicalPath) throw new Error('missing');
+      return actual.get(relativePath);
+    }
+  }).some((failure) => failure.includes('historical governance manifest artifact missing')));
+  assert.ok(verifyGovernanceManifestBindings({
+    acceptedPackage: accepted,
+    readBytes: (relativePath) => relativePath === historicalPath
+      ? Buffer.concat([actual.get(relativePath), Buffer.from('\n')])
+      : actual.get(relativePath)
+  }).some((failure) => failure.includes('historical governance manifest byte count drift')));
 });
 
 test('governance manifest binds terminal FP-MAN-047 and FP-MAN-048, sanitized Support evidence, and the rejected collision', () => {
@@ -239,7 +310,7 @@ test('app data transport remains source-ready, execution-blocked, and package-ne
   const sourceManifest = JSON.parse(fs.readFileSync(`${root}/bootstrap/manifests/source-migrations.v1.json`, 'utf8'));
   assert.equal(sourceManifest.migrations.length, 122);
   assert.equal(gate.provider_canonical_provenance.accepted_package.migration_package_sha256, 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db');
-  assert.equal(gate.provider_canonical_provenance.accepted_package.governance_manifest_sha256, '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec');
+  assert.equal(gate.provider_canonical_provenance.accepted_package.historical_governance_manifest_binding.governance_manifest_sha256, '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec');
   assert.equal(gate.app_data_transport.apply_admitted, false);
 });
 

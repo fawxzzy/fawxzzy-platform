@@ -81,6 +81,39 @@ test('blocked bootstrap SQL is admitted only in the exact non-executable artifac
   }
 });
 
+test('provider-canonical governance history admits only an exact versioned namespace-plan archive', () => {
+  const commitSegments = [
+    '248733dc',
+    '661581368ef7807a77a7f8265354fde2'
+  ];
+  const commit = commitSegments.join('');
+  const segmentedCommit = commitSegments.join('-');
+  const content = '{}\n';
+  assert.deepEqual(validateRepositoryEntries([{
+    relativePath: `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit}.json`,
+    content
+  }]), []);
+
+  for (const relativePath of [
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${commit}.json`,
+    `bootstrap/history/provider-canonical/other.v1.${segmentedCommit}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v2.${segmentedCommit}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit.toUpperCase()}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${commit.slice(0, 7)}-${commit.slice(7)}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${commit.slice(0, 9)}-${commit.slice(9)}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit.slice(0, -1)}.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit}0.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit.slice(0, -1)}g.json`,
+    `bootstrap/history/provider-canonical/namespace-plan.v1.${segmentedCommit}.json.bak`,
+    `bootstrap/history/provider-canonical/nested/namespace-plan.v1.${segmentedCommit}.json`,
+    `bootstrap/history/namespace-plan.v1.${segmentedCommit}.json`,
+    `bootstrap/history/provider-canonical/arbitrary.json`
+  ]) {
+    const failures = validateRepositoryEntries([{ relativePath, content }]);
+    assert.ok(failures.some((failure) => failure.includes('path is outside the repository allowlist')), relativePath);
+  }
+});
+
 test('root local exclusions apply only to directories while same-named files stay visible', () => {
   for (const name of ['node_modules', 'outputs', 'work']) {
     withTemporaryDirectory((directory) => {

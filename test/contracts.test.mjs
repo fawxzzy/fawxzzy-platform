@@ -925,18 +925,59 @@ test('provider-canonical package schema separates migration and governance ident
   const accepted = baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package;
   assert.equal(accepted.digest_model, 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1');
   assert.equal(accepted.migration_package_sha256, acceptedMigrationPackageSha256);
-  assert.equal(accepted.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(accepted.historical_governance_manifest_binding.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(accepted.current_governance_manifest_binding.governance_manifest_sha256, 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f');
   assert.equal(accepted.legacy_combined_package_sha256, legacyCombinedPackageSha256);
   assert.equal(accepted.legacy_combined_package_recomputation_admitted, false);
   assert.ok(!accepted.migration_package_paths.includes('bootstrap/manifests/namespace-plan.v1.json'));
-  assert.deepEqual(accepted.governance_manifest_paths, ['bootstrap/manifests/namespace-plan.v1.json']);
+  const historical = accepted.historical_governance_manifest_binding;
+  const archiveContract = historical.archive_path_contract;
+  const archiveFilename = `${archiveContract.stem}.${historical.source_commit_segments.join(archiveContract.segment_separator)}${archiveContract.extension}`;
+  const archivePath = `${archiveContract.directory}/${archiveFilename}`;
+  assert.deepEqual(historical.source_commit_segments, [
+    '248733dc',
+    '661581368ef7807a77a7f8265354fde2'
+  ]);
+  assert.deepEqual(archiveContract, {
+    directory: 'bootstrap/history/provider-canonical',
+    stem: 'namespace-plan.v1',
+    segment_separator: '-',
+    extension: '.json'
+  });
+  assert.deepEqual(archiveFilename.match(/namespace-plan\.v1\.([0-9a-f]{8})-([0-9a-f]{32})\.json$/)?.slice(1), historical.source_commit_segments);
+  assert.equal(historical.source_commit_segments.join('').length, 40);
+  assert.equal(historical.original_logical_path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.equal(accepted.current_governance_manifest_binding.path, 'bootstrap/manifests/namespace-plan.v1.json');
+  assert.notEqual(archivePath, accepted.current_governance_manifest_binding.path);
+  assert.equal(Object.hasOwn(historical, 'archive_path'), false);
+  assert.equal(Object.hasOwn(historical, 'source_commit'), false);
 
   for (const mutate of [
     (value) => { value.digest_model = 'COMBINED'; },
     (value) => { value.migration_package_paths.push('bootstrap/manifests/namespace-plan.v1.json'); },
-    (value) => { value.governance_manifest_paths = ['bootstrap/manifests/source-migrations.v1.json']; },
     (value) => { value.migration_package_sha256 = acceptedGovernanceManifestSha256; },
-    (value) => { value.governance_manifest_sha256 = acceptedMigrationPackageSha256; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.directory = 'bootstrap/manifests'; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.stem = 'namespace-plan.v2'; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.segment_separator = ''; },
+    (value) => { value.historical_governance_manifest_binding.archive_path_contract.extension = '.json.bak'; },
+    (value) => { value.historical_governance_manifest_binding.original_logical_path = archivePath; },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments = ['0'.repeat(8), '0'.repeat(32)]; },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments = [...value.historical_governance_manifest_binding.source_commit_segments].reverse(); },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments.pop(); },
+    (value) => { value.historical_governance_manifest_binding.source_commit_segments[0] = value.historical_governance_manifest_binding.source_commit_segments[0].toUpperCase(); },
+    (value) => { value.historical_governance_manifest_binding.archive_path = archivePath; },
+    (value) => { value.historical_governance_manifest_binding.source_commit = value.historical_governance_manifest_binding.source_commit_segments.join(''); },
+    (value) => { value.historical_governance_manifest_binding.git_blob = '0'.repeat(40); },
+    (value) => { value.historical_governance_manifest_binding.raw_sha256 = '0'.repeat(64); },
+    (value) => { value.historical_governance_manifest_binding.byte_count += 1; },
+    (value) => { value.historical_governance_manifest_binding.governance_manifest_sha256 = acceptedMigrationPackageSha256; },
+    (value) => { value.current_governance_manifest_binding.path = archivePath; },
+    (value) => { value.current_governance_manifest_binding.git_blob = '0'.repeat(40); },
+    (value) => { value.current_governance_manifest_binding.raw_sha256 = '0'.repeat(64); },
+    (value) => { value.current_governance_manifest_binding.byte_count += 1; },
+    (value) => { value.current_governance_manifest_binding.governance_manifest_sha256 = acceptedGovernanceManifestSha256; },
+    (value) => { value.governance_manifest_paths = ['bootstrap/manifests/namespace-plan.v1.json']; },
+    (value) => { value.governance_manifest_sha256 = acceptedGovernanceManifestSha256; },
     (value) => { value.legacy_combined_package_recomputation_admitted = true; }
   ]) {
     const documents = structuredClone(baseline);
@@ -1267,7 +1308,7 @@ test('app data migration gate cannot promote execution or package application', 
   }
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_count, 122);
   assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.migration_package_sha256, acceptedMigrationPackageSha256);
-  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.governance_manifest_sha256, acceptedGovernanceManifestSha256);
+  assert.equal(baseline['contracts/v1/gates/migration-gate-state.json'].provider_canonical_provenance.accepted_package.historical_governance_manifest_binding.governance_manifest_sha256, acceptedGovernanceManifestSha256);
 });
 
 test('Mazer app data adapter is closed, provider-canonical, and execution-blocked', () => {

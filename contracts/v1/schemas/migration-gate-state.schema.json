@@ -532,8 +532,8 @@
             "source_counts",
             "migration_package_paths",
             "migration_package_sha256",
-            "governance_manifest_paths",
-            "governance_manifest_sha256",
+            "historical_governance_manifest_binding",
+            "current_governance_manifest_binding",
             "legacy_combined_package_sha256",
             "legacy_combined_package_recomputation_admitted",
             "apply_admitted",
@@ -584,13 +584,101 @@
             "migration_package_sha256": {
               "const": "b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db"
             },
-            "governance_manifest_paths": {
-              "const": [
-                "bootstrap/manifests/namespace-plan.v1.json"
-              ]
+            "historical_governance_manifest_binding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "archive_path_contract",
+                "original_logical_path",
+                "source_commit_segments",
+                "git_blob",
+                "raw_sha256",
+                "byte_count",
+                "governance_manifest_sha256"
+              ],
+              "properties": {
+                "archive_path_contract": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "directory",
+                    "stem",
+                    "segment_separator",
+                    "extension"
+                  ],
+                  "properties": {
+                    "directory": {
+                      "const": "bootstrap/history/provider-canonical"
+                    },
+                    "stem": {
+                      "const": "namespace-plan.v1"
+                    },
+                    "segment_separator": {
+                      "const": "-"
+                    },
+                    "extension": {
+                      "const": ".json"
+                    }
+                  }
+                },
+                "original_logical_path": {
+                  "const": "bootstrap/manifests/namespace-plan.v1.json"
+                },
+                "source_commit_segments": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "const": "248733dc"
+                    },
+                    {
+                      "const": "661581368ef7807a77a7f8265354fde2"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": false
+                },
+                "git_blob": {
+                  "const": "906556312e4f5cbdfa5607ab70a74b300f27265a"
+                },
+                "raw_sha256": {
+                  "const": "440cd15c21463f5d0eec40d9c093576c4aa02bccb42fd2e40fa307488d015238"
+                },
+                "byte_count": {
+                  "const": 35479
+                },
+                "governance_manifest_sha256": {
+                  "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+                }
+              }
             },
-            "governance_manifest_sha256": {
-              "const": "82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec"
+            "current_governance_manifest_binding": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "git_blob",
+                "raw_sha256",
+                "byte_count",
+                "governance_manifest_sha256"
+              ],
+              "properties": {
+                "path": {
+                  "const": "bootstrap/manifests/namespace-plan.v1.json"
+                },
+                "git_blob": {
+                  "const": "6b34b9becc214564bb276c5b36e1de5ac08357a8"
+                },
+                "raw_sha256": {
+                  "const": "6fe92138428c5ae196a982c86822ed7ea88a2958e113ae8736b08eebdd625519"
+                },
+                "byte_count": {
+                  "const": 38087
+                },
+                "governance_manifest_sha256": {
+                  "const": "c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f"
+                }
+              }
             },
             "legacy_combined_package_sha256": {
               "const": "80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83"

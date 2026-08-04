@@ -52,12 +52,38 @@ const expectedMigrationPackagePaths = [
 const expectedGovernanceManifestPaths = [
   'bootstrap/manifests/namespace-plan.v1.json'
 ];
+const historicalGovernanceArchivePathContractV1 = Object.freeze({
+  directory: 'bootstrap/history/provider-canonical',
+  stem: 'namespace-plan.v1',
+  segment_separator: '-',
+  extension: '.json'
+});
+const historicalGovernanceSourceCommitSegmentsV1 = Object.freeze([
+  '248733dc',
+  '661581368ef7807a77a7f8265354fde2'
+]);
+const historicalGovernanceManifestBindingV1 = Object.freeze({
+  archive_path_contract: historicalGovernanceArchivePathContractV1,
+  original_logical_path: 'bootstrap/manifests/namespace-plan.v1.json',
+  source_commit_segments: historicalGovernanceSourceCommitSegmentsV1,
+  git_blob: '906556312e4f5cbdfa5607ab70a74b300f27265a',
+  raw_sha256: '440cd15c21463f5d0eec40d9c093576c4aa02bccb42fd2e40fa307488d015238',
+  byte_count: 35479,
+  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec'
+});
+const currentGovernanceManifestBindingV1 = Object.freeze({
+  path: 'bootstrap/manifests/namespace-plan.v1.json',
+  git_blob: '6b34b9becc214564bb276c5b36e1de5ac08357a8',
+  raw_sha256: '6fe92138428c5ae196a982c86822ed7ea88a2958e113ae8736b08eebdd625519',
+  byte_count: 38087,
+  governance_manifest_sha256: 'c5b77a350fbe49a13e46bf2d8452364a9f0bc1ab3d116c7e9b4432d5542d5c0f'
+});
 const packageDigestContractV1 = Object.freeze({
   model: 'SEPARATE_MIGRATION_AND_GOVERNANCE_V1',
   migration_package_paths: Object.freeze(expectedMigrationPackagePaths),
   migration_package_sha256: 'b65d1c0b73607218cc37826d9bb77c25704ea18f957abba7b5667a79d0a2c8db',
-  governance_manifest_paths: Object.freeze(expectedGovernanceManifestPaths),
-  governance_manifest_sha256: '82e7ecad9a68addff14c43c3bc237c54af2dd5d48cda454c0e1c121a3e4536ec',
+  historical_governance_manifest_binding: historicalGovernanceManifestBindingV1,
+  current_governance_manifest_binding: currentGovernanceManifestBindingV1,
   legacy_combined_package_sha256: '80482b9bbfaf70b5980dd290b78def12d0af898cc10ee12f402b46d378fdbf83'
 });
 const exactGeneratedFunctionRoles = Object.freeze(['anon', 'authenticated', 'public', 'service_role']);
@@ -690,6 +716,61 @@ function fail(failures, condition, message) {
   if (!condition) failures.push(message);
 }
 
+function readRepositoryBytes(relativePath) {
+  return fs.readFileSync(path.join(root, ...relativePath.split('/')));
+}
+
+function deriveHistoricalGovernanceIdentity(binding) {
+  const contract = binding?.archive_path_contract ?? {};
+  const segments = Array.isArray(binding?.source_commit_segments)
+    ? binding.source_commit_segments
+    : [];
+  const sourceCommit = segments.join('');
+  const filename = `${contract.stem}.${segments.join(contract.segment_separator)}${contract.extension}`;
+  const archivePath = `${contract.directory}/${filename}`;
+  const parsed = /^namespace-plan\.v1\.([0-9a-f]{8})-([0-9a-f]{32})\.json$/.exec(filename);
+  return {
+    archivePath,
+    filenameSegments: parsed?.slice(1) ?? [],
+    sourceCommit
+  };
+}
+
+export function verifyGovernanceManifestBindings({ acceptedPackage, readBytes = readRepositoryBytes }) {
+  const failures = [];
+  const accepted = acceptedPackage ?? {};
+  const historical = accepted.historical_governance_manifest_binding ?? {};
+  const current = accepted.current_governance_manifest_binding ?? {};
+  fail(failures, canonicalJson(historical) === canonicalJson(historicalGovernanceManifestBindingV1), 'historical governance manifest binding drift');
+  fail(failures, canonicalJson(current) === canonicalJson(currentGovernanceManifestBindingV1), 'current governance manifest binding drift');
+  fail(failures, !Object.hasOwn(accepted, 'governance_manifest_paths') && !Object.hasOwn(accepted, 'governance_manifest_sha256'), 'ambiguous governance manifest binding fields are forbidden');
+  fail(failures, !Object.hasOwn(historical, 'archive_path') && !Object.hasOwn(historical, 'source_commit'), 'legacy historical governance identity fields are forbidden');
+  const historicalIdentity = deriveHistoricalGovernanceIdentity(historical);
+  fail(failures, historicalIdentity.archivePath !== current.path, 'historical and current governance manifest identities must remain distinct');
+  fail(failures, historicalIdentity.filenameSegments.length === 2, 'historical governance manifest archive path must use the segmented source-commit form');
+  fail(failures, canonicalJson(historicalIdentity.filenameSegments) === canonicalJson(historical.source_commit_segments), 'historical governance manifest archive path must bind exact source commit segments');
+  fail(failures, /^[0-9a-f]{40}$/.test(historicalIdentity.sourceCommit), 'historical governance source commit reconstruction drift');
+
+  for (const [label, binding, storagePath, logicalPath] of [
+    ['historical', historicalGovernanceManifestBindingV1, deriveHistoricalGovernanceIdentity(historicalGovernanceManifestBindingV1).archivePath, historicalGovernanceManifestBindingV1.original_logical_path],
+    ['current', currentGovernanceManifestBindingV1, currentGovernanceManifestBindingV1.path, currentGovernanceManifestBindingV1.path]
+  ]) {
+    try {
+      const bytes = readBytes(storagePath);
+      fail(failures, Buffer.isBuffer(bytes), `${label} governance manifest reader must return bytes`);
+      if (!Buffer.isBuffer(bytes)) continue;
+      fail(failures, bytes.length === binding.byte_count, `${label} governance manifest byte count drift`);
+      fail(failures, sha256(bytes) === binding.raw_sha256, `${label} governance manifest raw digest drift`);
+      fail(failures, gitBlobSha1(bytes) === binding.git_blob, `${label} governance manifest Git blob drift`);
+      const recomputed = sha256(canonicalJson([{ path: logicalPath, sha256: sha256(bytes) }]));
+      fail(failures, recomputed === binding.governance_manifest_sha256, `${label} governance manifest package digest drift`);
+    } catch {
+      failures.push(`${label} governance manifest artifact missing or unreadable`);
+    }
+  }
+  return failures.sort((left, right) => left.localeCompare(right));
+}
+
 export function verifyFitnessPr108ReplayGate({ config, gate, sourceManifest, migrationPackageSha256 }) {
   const failures = [];
   const dependency = config.blocked_dependencies?.find((candidate) => candidate.id === 'fitness-pr108-replay-provenance');
@@ -772,9 +853,8 @@ export function verifyProviderCanonicalProvenance({ gate, sourceManifest, migrat
   fail(failures, accepted.apply_admitted === false && accepted.historical_path_rewrite_forbidden === true && accepted.current_source_substitution_forbidden === true, 'provider-canonical package protections drift');
   fail(failures, accepted.digest_model === packageDigestContractV1.model, 'provider-canonical digest model drift');
   fail(failures, canonicalJson(accepted.migration_package_paths) === canonicalJson(packageDigestContractV1.migration_package_paths), 'provider-canonical migration package path denominator drift');
-  fail(failures, canonicalJson(accepted.governance_manifest_paths) === canonicalJson(packageDigestContractV1.governance_manifest_paths), 'provider-canonical governance manifest path denominator drift');
   fail(failures, accepted.migration_package_sha256 === packageDigestContractV1.migration_package_sha256 && accepted.migration_package_sha256 === migrationPackageSha256, 'provider-canonical migration package digest drift');
-  fail(failures, accepted.governance_manifest_sha256 === packageDigestContractV1.governance_manifest_sha256, 'provider-canonical historical governance manifest digest drift');
+  failures.push(...verifyGovernanceManifestBindings({ acceptedPackage: accepted }));
   fail(failures, gate?.data_api_decision_binding?.current_governance_manifest_sha256 === governanceManifestSha256, 'current governance manifest digest drift');
   fail(failures, accepted.legacy_combined_package_sha256 === packageDigestContractV1.legacy_combined_package_sha256 && accepted.legacy_combined_package_recomputation_admitted === false, 'provider-canonical legacy combined digest boundary drift');
   fail(failures, Array.isArray(provenance.sources) && provenance.sources.length === 2, 'provider-canonical source evidence denominator drift');
