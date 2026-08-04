@@ -25,7 +25,7 @@ const executableBundlePinnedContractBindings = Object.freeze([
   Object.freeze({
     role: 'AUTH_APP_DATA_REHEARSAL',
     path: 'contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json',
-    sha256: '47db976f08e98e8d7821e1007e942355f912af86a3ef6c229b3b7772e91b6402'
+    sha256: 'a5fbad0463bd7f5d7813b3d559d661567308a457db54617bec866b6ff83d8aa5'
   }),
   Object.freeze({
     role: 'STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR',
@@ -318,7 +318,7 @@ const storageEdgeRealtimeForwardEvidenceClasses = Object.freeze([
   'ZERO_EFFECT'
 ]);
 
-const storageEdgeRealtimeContractSha256 = '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97';
+const storageEdgeRealtimeContractSha256 = '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a';
 
 const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/auth/import-rehearsal-contract.json', version: '1.0.0', sha256: '57a1c2d0e68ce9dd948a6d595908aeeda376bfb86efe82a8a68520177a040b09' }),
@@ -337,7 +337,7 @@ const authAppDataBindingDocuments = Object.freeze([
   Object.freeze({ path: 'contracts/v1/recovery/micro-recovery-contract.json', version: '1.0.0', sha256: 'c8add3e5836b4153b74ee9f6e0918df6aed220918ab7e71e6943cc535553edd4' })
 ]);
 
-const authAppDataBindingSetSha256 = '9e70e28742e8614b4c6bac7f40791312fbeb62df6de3f80d0cca05cb547c551a';
+const authAppDataBindingSetSha256 = '51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f';
 
 const authAppDataAuthSurfaces = Object.freeze([
   'users',
@@ -2426,10 +2426,6 @@ export function validateAuthAppDataRehearsalContract(contract, documents = loadD
     if (binding.path === 'contracts/v1/transport/discordos-app-data-adapter-contract.json') {
       requireContract(document?.version === '1.3.0' && canonicalDigest(document) === 'b48eee5b6ddf85de90e448e9ff1bb0583a7395b29b8b6da8b2ad0be86575792e', `${binding.path} corrected current-contract digest drift`);
       requireContract(document?.inert_boundary?.music_sesh_artifact_status === 'INCOMPATIBLE_UNADMITTED' && document?.inert_boundary?.music_sesh_artifact_regeneration === 'REQUIRED_SEPARATE_AUTHORITY' && document?.inert_boundary?.generated_artifact_changes_admitted === false, `${binding.path} historical rehearsal-artifact hold drift`);
-      continue;
-    }
-    if (binding.path === storageEdgeRealtimeContractPath) {
-      requireContract(document?.version === '1.0.0' && canonicalDigest(document) === '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a', `${binding.path} corrected current-contract digest drift`);
       continue;
     }
     requireContract(document?.version === binding.version, `${binding.path} version drift`);

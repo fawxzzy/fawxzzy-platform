@@ -12,6 +12,11 @@ import {
   validateSchemaInstances,
   validateSemantics
 } from '../scripts/lib/contracts.mjs';
+import {
+  buildExecutableBundleManifest,
+  canonicalCompactSha256,
+  executableBundleManifestPath
+} from '../scripts/generate-executable-bundle.mjs';
 
 const contractPath = `${repositoryRoot}/contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json`;
 const schemaId = 'urn:fawxzzy:platform:schemas:v1:auth-app-data-rehearsal-contract';
@@ -19,6 +24,10 @@ const sha = (character) => character.repeat(64);
 const clone = (value) => structuredClone(value);
 const canonicalDigest = (value) => crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
 const expectedQueryModelSha256 = 'c4edb31be26650b35ad2bd9d4572077d92269aeda649a6ff1577411da342405f';
+const storageContractPath = 'contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json';
+const currentStorageContractSha256 = '713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a';
+const historicalStorageContractSha256 = '6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97';
+const currentBindingSetSha256 = '51e26c8ba053a623b879204fd96fae8bc2a0500b6670107719a3ffddd970193f';
 const authorityPublicSpki = Buffer.from(`302a300506032b6570032100${'d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a'}`, 'hex');
 const authorityPrivatePkcs8 = Buffer.from(`302e020100300506032b657004220420${'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'}`, 'hex');
 const executorPublicSpki = Buffer.from(`302a300506032b6570032100${'3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'}`, 'hex');
@@ -34,6 +43,17 @@ const consumptionPublicSpki = crypto.createPublicKey(consumptionPrivateKey).expo
 
 function loadContract() {
   return JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+}
+
+function storageBinding(contract) {
+  return contract.contract_bindings.documents.find((binding) => binding.path === storageContractPath);
+}
+
+function bindContractSet(contract, bindingSetSha256) {
+  contract.contract_bindings.binding_set_sha256 = bindingSetSha256;
+  contract.receipt_example.contract_binding_set_sha256 = bindingSetSha256;
+  contract.receipt_example.execution_authority.contract_binding_set_sha256 = bindingSetSha256;
+  contract.receipt_example.write_barrier.contract_binding_set_sha256 = bindingSetSha256;
 }
 
 function bindTerminalReceipt(receipt) {
@@ -596,6 +616,103 @@ test('contract bindings reject drift in every bound source document', () => {
     documents[binding.path].version = '99.0.0';
     const failures = validateAuthAppDataRehearsalContract(documents['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json'], documents);
     assert.ok(failures.some((failure) => failure.includes(binding.path)), binding.path);
+  }
+});
+
+test('Storage/Edge/Realtime rehearsal binding fails closed on stale, collapsed, missing, substituted, and partially updated identities', () => {
+  const baseline = loadDocuments();
+  const baselineContract = baseline['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json'];
+  assert.equal(storageBinding(baselineContract).sha256, currentStorageContractSha256);
+  assert.equal(baselineContract.execution_denominator.contract_sha256, currentStorageContractSha256);
+  assert.equal(canonicalDigest(baselineContract.contract_bindings.documents), currentBindingSetSha256);
+
+  const cases = [
+    {
+      name: 'stale storage binding digest',
+      mutate(documents, contract) {
+        storageBinding(contract).sha256 = historicalStorageContractSha256;
+      }
+    },
+    {
+      name: 'coherent binding-set rebind around stale storage bytes',
+      mutate(documents, contract) {
+        storageBinding(contract).sha256 = historicalStorageContractSha256;
+        bindContractSet(contract, canonicalDigest(contract.contract_bindings.documents));
+      }
+    },
+    {
+      name: 'current and historical storage identities collapsed',
+      mutate(documents, contract) {
+        storageBinding(contract).sha256 = historicalStorageContractSha256;
+        contract.execution_denominator.contract_sha256 = historicalStorageContractSha256;
+        bindContractSet(contract, canonicalDigest(contract.contract_bindings.documents));
+      }
+    },
+    {
+      name: 'missing current storage contract',
+      mutate(documents) {
+        delete documents[storageContractPath];
+      }
+    },
+    {
+      name: 'substituted current storage contract',
+      mutate(documents) {
+        documents[storageContractPath].contract_id = 'substituted-storage-contract';
+      }
+    },
+    {
+      name: 'binding updated without execution denominator',
+      mutate(documents, contract) {
+        storageBinding(contract).sha256 = historicalStorageContractSha256;
+        bindContractSet(contract, canonicalDigest(contract.contract_bindings.documents));
+      }
+    },
+    {
+      name: 'execution denominator updated without binding',
+      mutate(documents, contract) {
+        contract.execution_denominator.contract_sha256 = historicalStorageContractSha256;
+      }
+    },
+    {
+      name: 'binding set updated without receipt authority and barrier fields',
+      mutate(documents, contract) {
+        contract.contract_bindings.binding_set_sha256 = sha('f');
+      }
+    }
+  ];
+
+  for (const { name, mutate } of cases) {
+    const documents = clone(baseline);
+    const contract = documents['contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json'];
+    mutate(documents, contract);
+    const failures = [
+      ...validateAuthAppDataRehearsalContract(contract, documents),
+      ...validateAuthAppDataRehearsalReceiptRaw(contract, contract.receipt_example)
+    ];
+    assert.ok(failures.length > 0, name);
+  }
+
+  const contract = clone(baselineContract);
+  const receipt = clone(contract.receipt_example);
+  receipt.execution_authority.contract_binding_set_sha256 = sha('f');
+  assert.ok(validateAuthAppDataRehearsalReceiptRaw(contract, receipt).length > 0, 'receipt binding set drift');
+});
+
+test('executable manifest rejects partial rehearsal-binding and generator-toolchain updates', () => {
+  const checkedIn = JSON.parse(fs.readFileSync(`${repositoryRoot}/${executableBundleManifestPath}`, 'utf8'));
+  const expected = buildExecutableBundleManifest(repositoryRoot);
+  assert.equal(canonicalCompactSha256(checkedIn), canonicalCompactSha256(expected));
+
+  const cases = [
+    (manifest) => { manifest.contract_bindings.find((binding) => binding.role === 'AUTH_APP_DATA_REHEARSAL').sha256 = historicalStorageContractSha256; },
+    (manifest) => { manifest.contract_binding_set_sha256 = sha('f'); },
+    (manifest) => { manifest.toolchain.find((binding) => binding.role === 'GENERATOR').sha256 = sha('f'); },
+    (manifest) => { manifest.toolchain_set_sha256 = sha('f'); }
+  ];
+  for (const mutate of cases) {
+    const manifest = clone(checkedIn);
+    mutate(manifest);
+    assert.notEqual(canonicalCompactSha256(manifest), canonicalCompactSha256(expected));
   }
 });
 

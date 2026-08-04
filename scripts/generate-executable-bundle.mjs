@@ -60,7 +60,7 @@ export const executableBundleContractBindings = Object.freeze([
   {
     role: 'AUTH_APP_DATA_REHEARSAL',
     path: 'contracts/v1/rehearsal/auth-app-data-rehearsal-contract.json',
-    sha256: '47db976f08e98e8d7821e1007e942355f912af86a3ef6c229b3b7772e91b6402'
+    sha256: 'a5fbad0463bd7f5d7813b3d559d661567308a457db54617bec866b6ff83d8aa5'
   },
   {
     role: 'STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR',
