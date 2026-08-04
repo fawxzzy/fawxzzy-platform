@@ -6,7 +6,9 @@ import {
   canonicalCompactSha256,
   defaultRepositoryRoot,
   executableBundleArtifacts,
-  executableBundleManifestPath
+  executableBundleManifestPath,
+  buildExecutableArtifactBytes,
+  musicSeshExecutableExclusion
 } from './generate-executable-bundle.mjs';
 
 function fail(failures, condition, message) {
@@ -50,11 +52,16 @@ export function verifyExecutableBundle(repositoryRoot = defaultRepositoryRoot) {
   const actualFiles = listFilesRecursively(repositoryRoot, 'bootstrap/artifacts/executable-sql');
   failures.push(...validateExecutableBundleFileSet(actualFiles));
   for (const artifact of executableBundleArtifacts) {
-    const source = fs.readFileSync(path.join(repositoryRoot, ...artifact.source_path.split('/')));
+    const expected = buildExecutableArtifactBytes(repositoryRoot, artifact);
     const promotedFile = path.join(repositoryRoot, ...artifact.promoted_path.split('/'));
     fail(failures, fs.existsSync(promotedFile), `${artifact.promoted_path}: promoted artifact is missing`);
     if (fs.existsSync(promotedFile)) {
-      fail(failures, source.equals(fs.readFileSync(promotedFile)), `${artifact.promoted_path}: promoted bytes differ from inert source`);
+      const promoted = fs.readFileSync(promotedFile);
+      fail(failures, expected.equals(promoted), `${artifact.promoted_path}: promoted bytes differ from the governed execution projection`);
+      if (artifact.ordinal === musicSeshExecutableExclusion.artifact_ordinal) {
+        fail(failures, promoted.length === musicSeshExecutableExclusion.executable_bytes, 'DiscordOS executable byte count drift');
+        fail(failures, !promoted.includes(Buffer.from('music_sesh', 'utf8')), 'Music Sesh object leakage in executable bundle');
+      }
     }
   }
   const standardMigrationDirectory = path.join(repositoryRoot, 'supabase', 'migrations');

@@ -5,11 +5,13 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildExecutableBundleManifest,
+  buildExecutableArtifactBytes,
   canonicalCompactSha256,
   executableBundleArtifacts,
   executableBundleContractBindings,
   executableBundleEvidenceBindings,
-  generateExecutableBundle
+  generateExecutableBundle,
+  musicSeshExecutableExclusion
 } from '../scripts/generate-executable-bundle.mjs';
 import {
   loadDocuments,
@@ -31,6 +33,11 @@ const prerequisiteBindings = [
   ...executableBundleContractBindings,
   ...executableBundleEvidenceBindings
 ];
+const exclusionPrerequisites = [
+  'contracts/v1/transport/discordos-app-data-adapter-contract.json',
+  'contracts/v1/gates/migration-gate-state.json',
+  musicSeshExecutableExclusion.repository_source_path
+];
 
 function copyFileToFixture(fixtureRoot, relativePath) {
   const destination = path.join(fixtureRoot, ...relativePath.split('/'));
@@ -45,6 +52,7 @@ function createBundleFixture() {
     copyFileToFixture(fixtureRoot, artifact.promoted_path);
   }
   for (const binding of prerequisiteBindings) copyFileToFixture(fixtureRoot, binding.path);
+  for (const relativePath of exclusionPrerequisites) copyFileToFixture(fixtureRoot, relativePath);
   copyFileToFixture(fixtureRoot, 'scripts/generate-executable-bundle.mjs');
   copyFileToFixture(fixtureRoot, 'scripts/verify-executable-bundle.mjs');
   return fixtureRoot;
@@ -69,15 +77,21 @@ test('checked-in executable bundle is deterministic, exact, and source-only', ()
   assert.equal(validManifest.authority_boundary.executor_state, 'BLOCKED_NOT_INCLUDED');
 });
 
-test('four promoted artifacts are exact ordered byte copies', () => {
+test('four promoted artifacts are the exact ordered governed execution projection', () => {
   assert.equal(validManifest.artifacts.length, 4);
   for (const artifact of executableBundleArtifacts) {
     const source = fs.readFileSync(path.join(repositoryRoot, ...artifact.source_path.split('/')));
     const promoted = fs.readFileSync(path.join(repositoryRoot, ...artifact.promoted_path.split('/')));
-    assert.equal(source.equals(promoted), true, artifact.promoted_path);
+    const expected = buildExecutableArtifactBytes(repositoryRoot, artifact);
+    assert.equal(expected.equals(promoted), true, artifact.promoted_path);
+    assert.equal(source.equals(promoted), artifact.ordinal !== musicSeshExecutableExclusion.artifact_ordinal, artifact.promoted_path);
   }
-  assert.equal(validManifest.statement_denominator.executable_statement_count, 721);
-  assert.equal(validManifest.statement_denominator.promoted_statement_count, 721);
+  assert.equal(validManifest.statement_denominator.historical_executable_statement_count, 721);
+  assert.equal(validManifest.statement_denominator.historical_held_statement_count, 532);
+  assert.equal(validManifest.statement_denominator.execution_exclusion_statement_count, 28);
+  assert.equal(validManifest.statement_denominator.executable_statement_count, 693);
+  assert.equal(validManifest.statement_denominator.held_statement_count, 560);
+  assert.equal(validManifest.statement_denominator.promoted_statement_count, 693);
   assert.equal(validManifest.immutable_package.standard_migration_sql_count, 0);
 });
 
@@ -98,9 +112,46 @@ test('source or promoted byte substitution fails even after coherent digest rebi
       source_path: artifact.source_path,
       promoted_path: artifact.promoted_path,
       bytes: artifact.bytes,
-      sha256: artifact.source_sha256
+      sha256: artifact.expected_promoted_sha256
     })));
   });
+});
+
+test('Music Sesh independent-domain exclusion fails closed on adapter, gate, or source drift', () => {
+  const mutations = [
+    (root) => {
+      const file = path.join(root, 'contracts/v1/transport/discordos-app-data-adapter-contract.json');
+      const adapter = JSON.parse(fs.readFileSync(file, 'utf8'));
+      adapter.relations.find((relation) => relation.source_relation === musicSeshExecutableExclusion.relation_names[0]).target_relation = 'discordos.discordos_music_sesh_sessions';
+      fs.writeFileSync(file, `${JSON.stringify(adapter, null, 2)}\n`);
+    },
+    (root) => {
+      const file = path.join(root, 'contracts/v1/gates/migration-gate-state.json');
+      const gate = JSON.parse(fs.readFileSync(file, 'utf8'));
+      gate.app_data_adapters.discordos_block_reason = 'REBOUND_BUT_UNSAFE';
+      fs.writeFileSync(file, `${JSON.stringify(gate, null, 2)}\n`);
+    },
+    (root) => fs.appendFileSync(path.join(root, ...musicSeshExecutableExclusion.repository_source_path.split('/')), '\n')
+  ];
+  for (const mutate of mutations) {
+    const fixtureRoot = createBundleFixture();
+    try {
+      mutate(fixtureRoot);
+      assert.throws(() => buildExecutableBundleManifest(fixtureRoot), /Music Sesh/);
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  }
+});
+
+test('Music Sesh executable projection contains none of the held relations or source statements', () => {
+  const artifact = executableBundleArtifacts.find((candidate) => candidate.ordinal === musicSeshExecutableExclusion.artifact_ordinal);
+  const promoted = fs.readFileSync(path.join(repositoryRoot, ...artifact.promoted_path.split('/')));
+  assert.equal(promoted.length, musicSeshExecutableExclusion.executable_bytes);
+  assert.equal(promoted.includes(Buffer.from('music_sesh', 'utf8')), false);
+  for (const relation of musicSeshExecutableExclusion.relation_names) {
+    assert.equal(promoted.includes(Buffer.from(relation, 'utf8')), false, relation);
+  }
 });
 
 test('missing, extra, reordered, renamed, and duplicated artifact sets fail closed', () => {

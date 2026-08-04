@@ -321,6 +321,11 @@ test('Storage/Edge/Realtime contract validates as strict source-only evidence', 
   assert.equal(contract.lifecycle.apply_admitted, false);
   assert.equal(contract.immutable_bindings.migration_count, 122);
   assert.equal(contract.immutable_bindings.standard_migration_sql_count, 0);
+  assert.equal(contract.immutable_bindings.promoted_bundle.executable_statement_count, 721);
+  assert.equal(contract.immutable_bindings.execution_projection.execution_exclusion_statement_count, 28);
+  assert.equal(contract.immutable_bindings.execution_projection.effective_executable_statement_count, 693);
+  assert.equal(contract.immutable_bindings.execution_projection.effective_held_statement_count, 560);
+  assert.equal(contract.immutable_bindings.execution_projection.discordos_executable_sha256, '236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6');
 });
 
 test('contract and CURRENT aggregate-only receipt satisfy the schema', () => {

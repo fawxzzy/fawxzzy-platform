@@ -80,8 +80,11 @@ Generation requires the serialized local-writer contract. Tooling first builds t
 | Unresolved dynamic templates | 11 |
 | Held Cron units | 1 |
 | Source statements | 1253 |
-| Executable schema statements | 721 |
-| Held source statements | 532 |
+| Historical executable schema statements | 721 |
+| Historical held source statements | 532 |
+| Effective executable projection statements | 693 |
+| Effective held statements | 560 |
+| Music Sesh independent-domain exclusions | 28 |
 | Held function definition statements | 28 |
 | Unique held function identities | 24 |
 | Held function-dependent statements | 67 |

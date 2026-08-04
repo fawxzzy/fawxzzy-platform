@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "CURRENT",
-  "bundle_model": "REVIEWED_INERT_SQL_PROMOTED_BYTE_SET_V1",
-  "promotion_rule": "BYTE_FOR_BYTE_COPY_ONLY_NO_SQL_SEMANTIC_EDIT",
+  "bundle_model": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2",
+  "promotion_rule": "BYTE_COPY_EXCEPT_EXACT_CROSS_CONTRACT_HELD_SOURCE_BLOCK_EXCLUSION",
   "lifecycle": {
     "source_contract": "SOURCE_READY",
     "execution": "EXECUTION_BLOCKED",
@@ -30,49 +30,75 @@
   },
   "statement_denominator": {
     "source_statement_count": 1253,
-    "executable_statement_count": 721,
-    "held_statement_count": 532,
-    "promoted_statement_count": 721
+    "historical_executable_statement_count": 721,
+    "historical_held_statement_count": 532,
+    "execution_exclusion_statement_count": 28,
+    "executable_statement_count": 693,
+    "held_statement_count": 560,
+    "promoted_statement_count": 693
   },
   "artifacts": [
     {
       "ordinal": 1,
       "source_path": "bootstrap/artifacts/inert-sql/00000000000001_mazer_schema_inert.sql",
       "promoted_path": "bootstrap/artifacts/executable-sql/00000000000001_mazer_schema.sql",
+      "source_bytes": 16387,
       "bytes": 16387,
       "source_sha256": "fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313",
       "promoted_sha256": "fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313",
-      "byte_identical": true
+      "expected_promoted_sha256": "fbea0ff8306f0a0f2f577fa0c259649329a183644673ab1a3bc282e081755313",
+      "byte_identical": true,
+      "projection": {
+        "mode": "BYTE_COPY"
+      }
     },
     {
       "ordinal": 2,
       "source_path": "bootstrap/artifacts/inert-sql/00000000000002_fitness_schema_inert.sql",
       "promoted_path": "bootstrap/artifacts/executable-sql/00000000000002_fitness_schema.sql",
+      "source_bytes": 148809,
       "bytes": 148809,
       "source_sha256": "5fe4ef8fbd9a1e873cd0f8f385b4128d3450c01f6a4d0e6eaae1c6943a1c4c9b",
       "promoted_sha256": "5fe4ef8fbd9a1e873cd0f8f385b4128d3450c01f6a4d0e6eaae1c6943a1c4c9b",
-      "byte_identical": true
+      "expected_promoted_sha256": "5fe4ef8fbd9a1e873cd0f8f385b4128d3450c01f6a4d0e6eaae1c6943a1c4c9b",
+      "byte_identical": true,
+      "projection": {
+        "mode": "BYTE_COPY"
+      }
     },
     {
       "ordinal": 3,
       "source_path": "bootstrap/artifacts/inert-sql/00000000000003_discordos_schema_inert.sql",
       "promoted_path": "bootstrap/artifacts/executable-sql/00000000000003_discordos_schema.sql",
-      "bytes": 20670,
+      "source_bytes": 20670,
+      "bytes": 15796,
       "source_sha256": "5b2783d8f6a78a2a9898c94559b31c168dcb1b5deebc1546365c1c8f09ade79f",
-      "promoted_sha256": "5b2783d8f6a78a2a9898c94559b31c168dcb1b5deebc1546365c1c8f09ade79f",
-      "byte_identical": true
+      "promoted_sha256": "236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6",
+      "expected_promoted_sha256": "236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6",
+      "byte_identical": false,
+      "projection": {
+        "mode": "EXACT_SOURCE_BLOCK_EXCLUSION",
+        "source_migration_path": "supabase/migrations/20260615034751_discordos_music_sesh_storage.sql",
+        "excluded_statement_count": 28,
+        "excluded_statement_set_sha256": "a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482"
+      }
     },
     {
       "ordinal": 4,
       "source_path": "bootstrap/artifacts/inert-sql/00000000000004_platform_security_overlay_inert.sql",
       "promoted_path": "bootstrap/artifacts/executable-sql/00000000000004_platform_security_overlay.sql",
+      "source_bytes": 2507,
       "bytes": 2507,
       "source_sha256": "f3cf571b37a6aa756c72ec398fa0f24f26b3d93bff2a768a318ceb87aa9ece64",
       "promoted_sha256": "f3cf571b37a6aa756c72ec398fa0f24f26b3d93bff2a768a318ceb87aa9ece64",
-      "byte_identical": true
+      "expected_promoted_sha256": "f3cf571b37a6aa756c72ec398fa0f24f26b3d93bff2a768a318ceb87aa9ece64",
+      "byte_identical": true,
+      "projection": {
+        "mode": "BYTE_COPY"
+      }
     }
   ],
-  "ordered_artifact_set_sha256": "899adf8cab5d5e7a7ece1806022aefccc562e0c21513cdb009310985b399ccfc",
+  "ordered_artifact_set_sha256": "8a7c2a9ca2a85ec2ca59de503036ecfead19be4163acb43df020442f5c70c19c",
   "contract_bindings": [
     {
       "role": "DISPOSABLE_TARGET_BOOTSTRAP",
@@ -91,9 +117,9 @@
     {
       "role": "STORAGE_EDGE_REALTIME_EXECUTION_DENOMINATOR",
       "path": "contracts/v1/rehearsal/storage-edge-realtime-execution-denominator-contract.json",
-      "sha256": "6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97",
-      "bytes": 31498,
-      "observed_sha256": "6b49d8b06f80b7bd28f2ee446c73119e72ab78360e4346008b725cb561e67f97"
+      "sha256": "713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a",
+      "bytes": 32362,
+      "observed_sha256": "713e4911fcda8f222b35fa1746e8f46ea58247a273ac666bd5f10b7e0efbd65a"
     },
     {
       "role": "INDEPENDENT_BACKUP",
@@ -110,7 +136,7 @@
       "observed_sha256": "c309ab9e1c4c5313e4817f8b6eccaaeb186886141cb3d65da9b8a5dc4740856e"
     }
   ],
-  "contract_binding_set_sha256": "83ece73a522f1843616d781fdd99d595128c75a30d7267d1eab82cb0189da1b0",
+  "contract_binding_set_sha256": "ccdbb34684853b338bad6c893b9c5aecf8760ca91e514de295b9ed4d7cfca758",
   "expected_effects_and_rollback_bindings": [
     {
       "role": "EXPECTED_DATA_EFFECTS",
@@ -139,19 +165,19 @@
     {
       "role": "GENERATOR",
       "path": "scripts/generate-executable-bundle.mjs",
-      "sha256": "edb6ea206647e7649ff0ac1cf693ab409e9485ddd8c783ebbdd4ad575ffd128b",
-      "bytes": 10229,
-      "observed_sha256": "edb6ea206647e7649ff0ac1cf693ab409e9485ddd8c783ebbdd4ad575ffd128b"
+      "sha256": "1e5a22e8613f8cc29bf7a93c08ff7c2fecbc1637c53c4fcb1cbf393f4a8010f2",
+      "bytes": 16327,
+      "observed_sha256": "1e5a22e8613f8cc29bf7a93c08ff7c2fecbc1637c53c4fcb1cbf393f4a8010f2"
     },
     {
       "role": "VERIFIER",
       "path": "scripts/verify-executable-bundle.mjs",
-      "sha256": "6600b8a85d35529f73519247c00864a1d3281453a3eb64494ded5a216e0351a3",
-      "bytes": 4327,
-      "observed_sha256": "6600b8a85d35529f73519247c00864a1d3281453a3eb64494ded5a216e0351a3"
+      "sha256": "c15fdce779060ccdf70ededced9a4a1224718481f16247f9e1bc47166b8df08b",
+      "bytes": 4774,
+      "observed_sha256": "c15fdce779060ccdf70ededced9a4a1224718481f16247f9e1bc47166b8df08b"
     }
   ],
-  "toolchain_set_sha256": "0400f7536a3238c08c0d7c1c577ec67b983eeaf63ec177a50ad6e6f2bb9f2659",
+  "toolchain_set_sha256": "a03a94618bb42469d336ba9d8304b7644f45b88512c11287472de0b642dde02f",
   "upstream_reviewed_inert_manifest_sha256": "ce85de2e32fca8497d7bb6380e51e3bc9d5717f1a07b25151414da5552075849",
   "redaction": {
     "aggregate_and_digest_only": true,

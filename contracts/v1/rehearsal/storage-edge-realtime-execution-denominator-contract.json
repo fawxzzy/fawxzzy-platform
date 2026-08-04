@@ -71,6 +71,19 @@
       "sql_bytes_in_receipt_forbidden": true,
       "executor_in_source_forbidden": true
     },
+    "execution_projection": {
+      "manifest_path": "contracts/v1/execution/executable-bundle-manifest.json",
+      "model": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2",
+      "historical_executable_statement_count": 721,
+      "execution_exclusion_statement_count": 28,
+      "effective_executable_statement_count": 693,
+      "effective_held_statement_count": 560,
+      "excluded_source_path": "supabase/migrations/20260615034751_discordos_music_sesh_storage.sql",
+      "excluded_statement_set_sha256": "a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482",
+      "discordos_executable_path": "bootstrap/artifacts/executable-sql/00000000000003_discordos_schema.sql",
+      "discordos_executable_bytes": 15796,
+      "discordos_executable_sha256": "236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6"
+    },
     "expected_state_model": {
       "version": "STORAGE_EDGE_REALTIME_EXPECTED_STATE_V1",
       "components": [

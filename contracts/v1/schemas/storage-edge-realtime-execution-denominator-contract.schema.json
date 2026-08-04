@@ -102,6 +102,7 @@
         "migration_package_sha256",
         "governance_manifest_sha256",
         "promoted_bundle",
+        "execution_projection",
         "expected_state_model"
       ],
       "properties": {
@@ -122,6 +123,9 @@
         },
         "promoted_bundle": {
           "$ref": "#/$defs/promotedBundle"
+        },
+        "execution_projection": {
+          "$ref": "#/$defs/executionProjection"
         },
         "expected_state_model": {
           "$ref": "#/$defs/expectedStateModel"
@@ -794,6 +798,58 @@
         },
         "executor_in_source_forbidden": {
           "const": true
+        }
+      }
+    },
+    "executionProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_path",
+        "model",
+        "historical_executable_statement_count",
+        "execution_exclusion_statement_count",
+        "effective_executable_statement_count",
+        "effective_held_statement_count",
+        "excluded_source_path",
+        "excluded_statement_set_sha256",
+        "discordos_executable_path",
+        "discordos_executable_bytes",
+        "discordos_executable_sha256"
+      ],
+      "properties": {
+        "manifest_path": {
+          "const": "contracts/v1/execution/executable-bundle-manifest.json"
+        },
+        "model": {
+          "const": "REVIEWED_EXECUTION_PROJECTION_WITH_INDEPENDENT_DOMAIN_EXCLUSION_V2"
+        },
+        "historical_executable_statement_count": {
+          "const": 721
+        },
+        "execution_exclusion_statement_count": {
+          "const": 28
+        },
+        "effective_executable_statement_count": {
+          "const": 693
+        },
+        "effective_held_statement_count": {
+          "const": 560
+        },
+        "excluded_source_path": {
+          "const": "supabase/migrations/20260615034751_discordos_music_sesh_storage.sql"
+        },
+        "excluded_statement_set_sha256": {
+          "const": "a4ce7457186e84058645dc8366ce41e41a51641d8ae34b97c61b416692f0a482"
+        },
+        "discordos_executable_path": {
+          "const": "bootstrap/artifacts/executable-sql/00000000000003_discordos_schema.sql"
+        },
+        "discordos_executable_bytes": {
+          "const": 15796
+        },
+        "discordos_executable_sha256": {
+          "const": "236656c35f51fae81eb33aa887fd88d710559c169a6a1a7c466586fab949caf6"
         }
       }
     },

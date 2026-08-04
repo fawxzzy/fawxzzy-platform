@@ -7,7 +7,7 @@ Status: `CURRENT`
 The Platform needs a smaller, clearer data model without erasing product ownership or turning historical provider identifiers into canonical keys. The accepted operator decision `decision-platform-data-convergence-music-sesh-independent-2026-07-30` establishes two simultaneous constraints:
 
 1. Shared Auth identity, minimal shared profiles, service memberships, external identity mappings, and a provider-neutral work model may converge when evidence supports an explicit mapping.
-2. Music Sesh remains an independent product and database domain. It is not a DiscordOS residue category and is not part of the shared work, Fitness, or Mazer domains.
+2. Music Sesh remains an independent product and database domain. It is not a DiscordOS residue category and is not part of the shared work, Fitness, or Mazer domains. While its target and regenerated artifact are unadmitted, its complete storage source block is excluded from the Platform executable projection by exact statement-set identity.
 
 This packet freezes source contracts only. Live aggregate inventory, provider configuration, target state, credentials, Data API state, Auth and application data, and action-time proof remain `UNKNOWN`. It contains no executable SQL and grants no apply, deployment, production, deletion, or source-retirement authority.
 
@@ -61,4 +61,4 @@ Transformation mappings contain logical domains and entities, evidence requireme
 
 ## Verification boundary
 
-The repository validator checks all three convergence instances against closed schemas and semantic invariants. Negative tests cover domain collapse, Music Sesh folding, silent identity merging, destructive omission promotion, executable SQL inclusion, live-fact promotion, unknown fields, prototype drift, and noncanonical object representation.
+The repository validator checks all three convergence instances against closed schemas and semantic invariants. Negative tests cover domain collapse, Music Sesh folding, Music Sesh executable leakage, adapter/gate/statement-set drift, silent identity merging, destructive omission promotion, executable SQL inclusion, live-fact promotion, unknown fields, prototype drift, and noncanonical object representation.
