@@ -44,7 +44,7 @@ All of these remain held until a separately authorized packet proves them:
 
 1. exact export cadence and freshness threshold;
 2. exact retention interval;
-3. independently governed destination and immutable-version capability;
+3. an accepted encrypted backup destination version and immutable readback; Phase 1 currently establishes only the dedicated private recovery-vault identity and repository-level immutable-release capability;
 4. encryption algorithm and metadata-only key reference;
 5. secure key installation, custody, and rotation;
 6. alert channel and delivery proof;
@@ -114,4 +114,4 @@ The source contract requires these event classes:
 - incomplete manifest;
 - restore rehearsal failure.
 
-The destination channel and delivery mechanism remain `UNKNOWN` until installed and tested securely.
+The Phase 1 recovery-vault identity and repository-level immutable-release capability are `CURRENT`; the destination channel, credentials, and delivery mechanism remain `UNKNOWN` or `BLOCKED` until installed and tested securely.
