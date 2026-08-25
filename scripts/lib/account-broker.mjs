@@ -32,6 +32,53 @@ const exactNegativeProbes = Object.freeze([
   'PROVIDER_ERROR_NON_ECHOING'
 ]);
 
+const exactContextChanges = Object.freeze([
+  'product_title',
+  'product_theme',
+  'return_destination',
+  'policy_supplement_links'
+]);
+
+const exactContextMustNotChange = Object.freeze([
+  'credential_validation',
+  'username_rules',
+  'session_security',
+  'reset_flow',
+  'message_vocabulary'
+]);
+
+const exactSurfaces = Object.freeze([
+  Object.freeze({ surface: 'sign_in', path: '/sign-in' }),
+  Object.freeze({ surface: 'create_account', path: '/create-account' }),
+  Object.freeze({ surface: 'account', path: '/account' }),
+  Object.freeze({ surface: 'reset_password', path: '/reset-password' }),
+  Object.freeze({ surface: 'new_password', path: '/new-password' })
+]);
+
+const exactRequiredFunctions = Object.freeze([
+  Object.freeze({
+    name: 'platform_private.issue_account_session_exchange',
+    exposure: 'server_only',
+    subject_source: 'verified_account_session',
+    execute_grants: Object.freeze([])
+  }),
+  Object.freeze({
+    name: 'platform_private.consume_account_session_exchange',
+    exposure: 'server_only',
+    subject_source: 'stored_exchange_record',
+    execute_grants: Object.freeze([])
+  })
+]);
+
+const exactPositiveProbes = Object.freeze([
+  'ACCOUNT_SESSION_TO_WEB_SESSION',
+  'ACCOUNT_SESSION_TO_FITNESS_SESSION',
+  'ACCOUNT_SESSION_TO_MAZER_SESSION',
+  'RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT',
+  'PER_ORIGIN_SIGN_OUT',
+  'ACCOUNT_WIDE_REVOCATION'
+]);
+
 function canonicalDigest(value) {
   return JSON.stringify(value);
 }
@@ -75,7 +122,9 @@ export function validateAccountBrokerContract(contract) {
     requireCondition(canonicalDigest(contract.clients) === canonicalDigest(exactClients), 'account broker exact client registry changed');
     requireCondition(template.single_template_per_surface === true && template.context_source === 'validated_client_registry' && template.context_is_authorization === false, 'account template must remain single-source, registry-bound, and non-authorizing');
     requireCondition(canonicalDigest(template.contexts) === canonicalDigest(['fawxzzy_web', 'fitness', 'mazer']), 'account template context denominator changed');
-    requireCondition(new Set((template.surfaces ?? []).map((surface) => surface.surface)).size === 5 && (template.surfaces ?? []).some((surface) => surface.surface === 'new_password'), 'account template surface denominator changed');
+    requireCondition(canonicalDigest(template.context_changes) === canonicalDigest(exactContextChanges), 'account template context-change denominator changed');
+    requireCondition(canonicalDigest(template.context_must_not_change) === canonicalDigest(exactContextMustNotChange), 'account template invariant denominator changed');
+    requireCondition(canonicalDigest(template.surfaces) === canonicalDigest(exactSurfaces), 'account template surface/path mapping changed');
     requireCondition(contract.identifier_policy?.sign_in_identifier === 'email_or_canonical_username', 'sign-in identifier must remain email or canonical username');
     requireCondition(canonicalDigest(contract.identifier_policy?.sign_up_required_fields) === canonicalDigest(['email', 'username', 'password']), 'sign-up required fields changed');
     requireCondition(username.minimum_characters === 2 && username.maximum_characters === 15 && username.ascii_pattern === '^[A-Za-z0-9._-]{2,15}$', 'canonical username syntax changed');
@@ -92,10 +141,11 @@ export function validateAccountBrokerContract(contract) {
     requireCondition(signOut.product_action === 'clear_current_origin_session' && signOut.silent_cross_origin_cookie_deletion === false && signOut.user_confirmation_for_all_sessions === true, 'sign-out scope or confirmation boundary changed');
     requireCondition(database.executable_sql_included === false && relation.name === 'platform_private.account_session_exchanges', 'broker database contract must remain source-only and private');
     requireCondition(relation.data_api_exposed === false && relation.rls_enabled === true && relation.plaintext_code_stored === false && relation.plaintext_session_material_stored === false, 'broker private relation exposure or plaintext boundary weakened');
-    requireCondition((database.required_functions ?? []).length === 2 && database.required_functions.every((entry) => entry.exposure === 'server_only' && Array.isArray(entry.execute_grants) && entry.execute_grants.length === 0), 'broker functions must remain ungranted and server-only');
+    requireCondition(canonicalDigest(database.required_functions) === canonicalDigest(exactRequiredFunctions), 'broker function name, subject, order, or grant contract changed');
     requireCondition(privacy.provider_error_text_echoed === false && privacy.identifier_existence_disclosed === false && privacy.authorization_code_logged === false && privacy.session_material_logged === false, 'account broker privacy or non-echo boundary weakened');
     requireCondition(canonicalDigest(contract.activation_gates) === canonicalDigest(exactActivationGates), 'account broker activation gate order or status changed');
     requireCondition(contract.verification?.synthetic_users_only === true && canonicalDigest(contract.verification?.required_negative_probes) === canonicalDigest(exactNegativeProbes), 'account broker synthetic-only negative-proof denominator changed');
+    requireCondition(canonicalDigest(contract.verification?.required_positive_probes) === canonicalDigest(exactPositiveProbes), 'account broker positive-proof denominator changed');
   } catch {
     failures.push('account broker contract validation failed categorically');
   }

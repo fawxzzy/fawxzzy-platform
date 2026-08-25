@@ -184,57 +184,45 @@
           ]
         },
         "context_changes": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "product_title",
-              "product_theme",
-              "return_destination",
-              "policy_supplement_links"
-            ]
-          }
+          "const": [
+            "product_title",
+            "product_theme",
+            "return_destination",
+            "policy_supplement_links"
+          ]
         },
         "context_must_not_change": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "credential_validation",
-              "username_rules",
-              "session_security",
-              "reset_flow",
-              "message_vocabulary"
-            ]
-          }
+          "const": [
+            "credential_validation",
+            "username_rules",
+            "session_security",
+            "reset_flow",
+            "message_vocabulary"
+          ]
         },
         "surfaces": {
-          "type": "array",
-          "minItems": 5,
-          "maxItems": 5,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "surface",
-              "path"
-            ],
-            "properties": {
-              "surface": {
-                "enum": [
-                  "sign_in",
-                  "create_account",
-                  "account",
-                  "reset_password",
-                  "new_password"
-                ]
-              },
-              "path": {
-                "pattern": "^/(?:sign-in|create-account|account|reset-password|new-password)$",
-                "type": "string"
-              }
+          "const": [
+            {
+              "surface": "sign_in",
+              "path": "/sign-in"
+            },
+            {
+              "surface": "create_account",
+              "path": "/create-account"
+            },
+            {
+              "surface": "account",
+              "path": "/account"
+            },
+            {
+              "surface": "reset_password",
+              "path": "/reset-password"
+            },
+            {
+              "surface": "new_password",
+              "path": "/new-password"
             }
-          }
+          ]
         }
       }
     },
@@ -527,37 +515,20 @@
           }
         },
         "required_functions": {
-          "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "exposure",
-              "subject_source",
-              "execute_grants"
-            ],
-            "properties": {
-              "name": {
-                "pattern": "^platform_private\\.(?:issue|consume)_account_session_exchange$",
-                "type": "string"
-              },
-              "exposure": {
-                "const": "server_only"
-              },
-              "subject_source": {
-                "enum": [
-                  "verified_account_session",
-                  "stored_exchange_record"
-                ]
-              },
-              "execute_grants": {
-                "const": []
-              }
+          "const": [
+            {
+              "name": "platform_private.issue_account_session_exchange",
+              "exposure": "server_only",
+              "subject_source": "verified_account_session",
+              "execute_grants": []
+            },
+            {
+              "name": "platform_private.consume_account_session_exchange",
+              "exposure": "server_only",
+              "subject_source": "stored_exchange_record",
+              "execute_grants": []
             }
-          }
+          ]
         }
       }
     },
@@ -651,13 +622,14 @@
           }
         },
         "required_positive_probes": {
-          "type": "array",
-          "minItems": 6,
-          "uniqueItems": true,
-          "items": {
-            "pattern": "^[A-Z0-9_]+$",
-            "type": "string"
-          }
+          "const": [
+            "ACCOUNT_SESSION_TO_WEB_SESSION",
+            "ACCOUNT_SESSION_TO_FITNESS_SESSION",
+            "ACCOUNT_SESSION_TO_MAZER_SESSION",
+            "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
+            "PER_ORIGIN_SIGN_OUT",
+            "ACCOUNT_WIDE_REVOCATION"
+          ]
         }
       }
     }

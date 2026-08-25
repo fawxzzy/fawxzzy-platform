@@ -67,6 +67,34 @@ test('account broker locks platform-wide username and single-template behavior',
   }
 });
 
+test('account broker rejects exact-denominator and pair-substitution regressions in both validators', () => {
+  const cases = [
+    ['duplicate issue function removes consume', (contract) => {
+      contract.database_contract.required_functions[1] = structuredClone(contract.database_contract.required_functions[0]);
+    }],
+    ['function subjects swapped', (contract) => {
+      const issueSubject = contract.database_contract.required_functions[0].subject_source;
+      contract.database_contract.required_functions[0].subject_source = contract.database_contract.required_functions[1].subject_source;
+      contract.database_contract.required_functions[1].subject_source = issueSubject;
+    }],
+    ['surface paths swapped', (contract) => {
+      const signInPath = contract.account_template.surfaces[0].path;
+      contract.account_template.surfaces[0].path = contract.account_template.surfaces[1].path;
+      contract.account_template.surfaces[1].path = signInPath;
+    }],
+    ['context-change denominator truncated', (contract) => { contract.account_template.context_changes.pop(); }],
+    ['context invariant denominator truncated', (contract) => { contract.account_template.context_must_not_change.pop(); }],
+    ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }]
+  ];
+
+  for (const [name, mutate] of cases) {
+    const contract = loadJson(accountBrokerContractPath);
+    mutate(contract);
+    assert.ok(validateSchema(contract).length > 0, `${name}: schema must reject`);
+    assert.ok(validateAccountBrokerContract(contract).length > 0, `${name}: semantics must reject`);
+  }
+});
+
 test('account broker validation is deterministic and non-echoing for hostile representations', () => {
   const baseline = loadJson(accountBrokerContractPath);
   assert.deepEqual(validateAccountBrokerContract(baseline), validateAccountBrokerContract(baseline));
