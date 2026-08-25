@@ -9,6 +9,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - Shared-target Wave 4 has a complete, settled postimage.
 - The account shell, broker schema packet, and each product adapter have clean exact-head reviews.
 - One immutable provider preimage records Auth Site URL, exact redirect allowlist, session policy, target project selection, and rollback values without secret material.
+- Managed CAPTCHA is installed and read back for public signup and password reset; synthetic proof covers both flows without exposing configuration or credentials.
 - The account origin and each product origin have reproducible Preview builds.
 - Synthetic test identities and isolated product memberships are prepared; no live user is used.
 - Provider effects, email delivery, publication, analytics collection, and unrelated product writes are quarantined.
@@ -17,7 +18,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 
 1. The product creates a random state value and PKCE verifier, stores them in a secure short-lived same-origin transaction cookie, and sends only the state and S256 challenge to the account start route.
 2. The account start route resolves the client from the fixed registry and rejects any unlisted return destination before rendering a surface.
-3. The account origin authenticates or creates the canonical user, performs the atomic username claim when required, and verifies the requested service context without using that context as authorization.
+3. The account origin authenticates or creates the canonical user, atomically creates the required global profile and immutable user number with the username claim when required, and verifies the requested service context without using that context as authorization.
 4. The broker creates one encrypted, expiring server-side exchange record and redirects with only the opaque one-time code plus state.
 5. The product callback compares state, redeems the code server-to-server with the PKCE verifier, and rejects any mismatch, expiry, replay, wrong audience, wrong redirect, or source-project token.
 6. The product writes only its own origin-scoped session, removes callback parameters from browser history, and navigates to the exact validated return path.
@@ -33,6 +34,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - replayed exchange;
 - wrong client or redirect;
 - identifier responses that enumerate a known versus unknown email or username;
+- a pending exchange redeemed after account-wide revocation;
 - source-project token;
 - access, refresh, JWT, or recovery token in the URL;
 - provider exception containing credential-, URL-, control-, or instruction-shaped text.
@@ -46,10 +48,11 @@ Every case must fail before product session creation. Browser output and receipt
 - one account session establishes a Mazer session;
 - username and email sign-in resolve the same canonical identity without identifier disclosure;
 - signup atomically claims one canonical username and creates no duplicate identity;
+- signup atomically creates the required `platform_shared.global_profiles` row and immutable user number with the username claim;
 - a failed redemption leaves the exchange available for the one legitimate redemption with correct bindings;
 - reset request, callback, new password, and validated return context complete centrally;
 - product sign-out clears only that origin;
-- confirmed account-wide revocation invalidates selected or all server sessions.
+- confirmed account-wide revocation invalidates selected or all server sessions and rejects every pending exchange bound to a revoked account session.
 
 ## Serial Preview order
 

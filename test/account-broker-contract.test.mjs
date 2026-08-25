@@ -35,6 +35,7 @@ test('account broker rejects activation, shared-cookie, fallback, redirect, toke
     ['long-lived code', (contract) => { contract.exchange.authorization_code_ttl_seconds = 300; }],
     ['URL session material', (contract) => { contract.exchange.url_session_material_allowed = true; }],
     ['non-atomic consume', (contract) => { contract.exchange.consume = 'best_effort'; }],
+    ['pending exchange survives account-wide revocation', (contract) => { contract.exchange.account_wide_revocation_effect = 'preserve_pending_exchange'; }],
     ['missing wrong redirect proof', (contract) => { contract.verification.required_negative_probes[7] = 'SOURCE_TOKEN_REJECTED'; }],
     ['plaintext code', (contract) => { contract.database_contract.relation.plaintext_code_stored = true; }],
     ['Data API exposure', (contract) => { contract.database_contract.relation.data_api_exposed = true; }],
@@ -90,8 +91,10 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['identity resolution proof omitted', (contract) => { contract.verification.required_positive_probes[3] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['atomic username claim proof omitted', (contract) => { contract.verification.required_positive_probes[4] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['global profile and user number allocation proof omitted', (contract) => { contract.verification.required_positive_probes[5] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['PKCE method downgrade proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PKCE_METHOD_DOWNGRADE_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['identifier non-enumeration proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('IDENTIFIER_NON_ENUMERATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['pending exchange revocation proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['failed redemption preservation proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('FAILED_REDEMPTION_PRESERVES_EXCHANGE')] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 

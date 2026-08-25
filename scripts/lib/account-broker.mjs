@@ -13,6 +13,7 @@ const exactActivationGates = Object.freeze([
   Object.freeze({ gate: 'account_shell_exact_head_review', status: 'REQUIRED' }),
   Object.freeze({ gate: 'platform_private_exchange_schema_review', status: 'REQUIRED' }),
   Object.freeze({ gate: 'exact_auth_url_provider_preimage', status: 'REQUIRED' }),
+  Object.freeze({ gate: 'captcha_configuration_and_synthetic_proof', status: 'REQUIRED' }),
   Object.freeze({ gate: 'synthetic_preview_exchange_proof', status: 'BLOCKED' }),
   Object.freeze({ gate: 'source_token_rejection_proof', status: 'BLOCKED' }),
   Object.freeze({ gate: 'rollback_proof', status: 'BLOCKED' }),
@@ -30,6 +31,7 @@ const exactNegativeProbes = Object.freeze([
   'WRONG_CLIENT_REJECTED',
   'WRONG_REDIRECT_REJECTED',
   'IDENTIFIER_NON_ENUMERATION_REJECTED',
+  'PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED',
   'SOURCE_TOKEN_REJECTED',
   'URL_TOKEN_REJECTED',
   'PROVIDER_ERROR_NON_ECHOING'
@@ -79,6 +81,7 @@ const exactPositiveProbes = Object.freeze([
   'ACCOUNT_SESSION_TO_MAZER_SESSION',
   'USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION',
   'ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY',
+  'ATOMIC_GLOBAL_PROFILE_USER_NUMBER_ALLOCATION',
   'FAILED_REDEMPTION_PRESERVES_EXCHANGE',
   'RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT',
   'PER_ORIGIN_SIGN_OUT',
@@ -141,7 +144,7 @@ export function validateAccountBrokerContract(contract) {
     requireCondition(exchange.issue_endpoint === '/api/account-broker/exchanges' && exchange.redeem_endpoint === '/api/account-broker/exchanges/redeem' && exchange.method === 'POST', 'account broker exchange endpoint changed');
     requireCondition(exchange.authorization_code_entropy_bits_minimum >= 256 && exchange.authorization_code_ttl_seconds <= 60 && exchange.authorization_code_ttl_seconds > 0, 'authorization code entropy or lifetime weakened');
     requireCondition(exchange.authorization_code_storage === 'sha256_digest_only' && exchange.session_material_storage === 'ephemeral_server_side_encrypted_only' && exchange.session_material_transport === 'server_to_server_response_only', 'authorization code or session material handling weakened');
-    requireCondition(exchange.consume === 'atomic_exactly_once' && exchange.failed_consume_effect === 'none', 'account exchange atomic consumption boundary changed');
+    requireCondition(exchange.consume === 'atomic_exactly_once' && exchange.failed_consume_effect === 'none' && exchange.account_wide_revocation_effect === 'reject_pending_exchange', 'account exchange atomic consumption or revocation boundary changed');
     requireCondition(exchange.url_session_material_allowed === false && exchange.receipt_contains_session_material === false, 'session material must remain absent from URLs and receipts');
     requireCondition(recovery.owner_origin === 'https://account.fawxzzy.com' && recovery.request_path === '/reset-password' && recovery.redirect_path === '/reset-password?recovery=1' && recovery.new_password_path === '/new-password' && recovery.pkce_required === true && recovery.url_tokens_allowed === false, 'central recovery route, PKCE, or URL-token boundary changed');
     requireCondition(signOut.product_action === 'clear_current_origin_session' && signOut.silent_cross_origin_cookie_deletion === false && signOut.user_confirmation_for_all_sessions === true, 'sign-out scope or confirmation boundary changed');

@@ -354,6 +354,7 @@
         "bound_fields",
         "consume",
         "failed_consume_effect",
+        "account_wide_revocation_effect",
         "url_session_material_allowed",
         "receipt_contains_session_material"
       ],
@@ -401,6 +402,9 @@
         },
         "failed_consume_effect": {
           "const": "none"
+        },
+        "account_wide_revocation_effect": {
+          "const": "reject_pending_exchange"
         },
         "url_session_material_allowed": {
           "const": false
@@ -573,8 +577,8 @@
     },
     "activation_gates": {
       "type": "array",
-      "minItems": 8,
-      "maxItems": 8,
+      "minItems": 9,
+      "maxItems": 9,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -589,6 +593,7 @@
               "account_shell_exact_head_review",
               "platform_private_exchange_schema_review",
               "exact_auth_url_provider_preimage",
+              "captcha_configuration_and_synthetic_proof",
               "synthetic_preview_exchange_proof",
               "source_token_rejection_proof",
               "rollback_proof",
@@ -629,6 +634,7 @@
             "WRONG_CLIENT_REJECTED",
             "WRONG_REDIRECT_REJECTED",
             "IDENTIFIER_NON_ENUMERATION_REJECTED",
+            "PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED",
             "SOURCE_TOKEN_REJECTED",
             "URL_TOKEN_REJECTED",
             "PROVIDER_ERROR_NON_ECHOING"
@@ -641,6 +647,7 @@
             "ACCOUNT_SESSION_TO_MAZER_SESSION",
             "USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION",
             "ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY",
+            "ATOMIC_GLOBAL_PROFILE_USER_NUMBER_ALLOCATION",
             "FAILED_REDEMPTION_PRESERVES_EXCHANGE",
             "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
             "PER_ORIGIN_SIGN_OUT",
