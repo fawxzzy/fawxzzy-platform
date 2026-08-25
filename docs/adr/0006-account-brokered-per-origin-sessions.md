@@ -34,7 +34,7 @@ Sign-out is explicit. A product clears its own origin session. The account surfa
 
 ## Security boundary
 
-The broker relation belongs in `platform_private`, remains outside the Data API, enables and forces RLS as defense in depth, stores no plaintext code or session material, and exposes no function grants to `PUBLIC`, `anon`, or `authenticated`. This repository includes no executable migration, secret, credential, provider link, or runtime configuration.
+The broker relation belongs in `platform_private`, remains outside the Data API, enables and forces RLS as defense in depth, stores no plaintext code or session material, and exposes no function grants to `PUBLIC`, `anon`, or `authenticated`. Only the separately provisioned `platform_private_broker_runtime` server role receives helper `EXECUTE`; it is not a browser or Data API role. This repository includes no executable migration, secret, credential, provider link, or runtime configuration.
 
 Account context is presentation and navigation, never authorization. The verified Auth subject and server-owned membership state remain authoritative. Username, email, display name, member number, and product context are never sufficient identity or authorization evidence by themselves.
 

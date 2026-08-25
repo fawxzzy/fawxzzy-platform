@@ -18,7 +18,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 ## Browser flow
 
 1. The product creates a random state value and PKCE verifier, stores them in a secure short-lived same-origin transaction cookie, and sends only the state and S256 challenge to the account start route.
-2. The account start route resolves the client from the fixed registry and rejects any unlisted return destination before rendering a surface.
+2. The account start route requires and resolves the client and intent from the fixed registry, and rejects a missing or unlisted intent or return destination before rendering a surface.
 3. The account origin authenticates or creates the canonical user, atomically creates the required global profile and immutable user number with the username claim when required, and verifies the requested service context without using that context as authorization.
 4. The broker creates one encrypted, expiring server-side exchange record and redirects with only the opaque one-time code plus state.
 5. The product callback compares state, redeems the code server-to-server with the PKCE verifier, and rejects any mismatch, expiry, replay, wrong audience, wrong redirect, revoked bound session, or source-project token.
@@ -35,6 +35,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - replayed exchange;
 - wrong client or redirect;
 - identifier responses that enumerate a known versus unknown email or username;
+- a missing or unlisted account-start intent;
 - a pending exchange redeemed after selected-session or account-wide revocation;
 - a password shorter than the required minimum, a password-capacity truncation attempt, or a provider-native leaked-password rejection bypass;
 - source-project token;
@@ -56,7 +57,9 @@ Every case must fail before product session creation. Browser output and receipt
 - a failed redemption leaves the exchange available for the one legitimate redemption with correct bindings;
 - reset request, callback, new password, and validated return context complete centrally;
 - product sign-out clears only that origin;
-- selected-session or account-wide revocation invalidates the affected server sessions and rejects every pending exchange bound to a revoked account session.
+- selected-session revocation invalidates the selected established server session without revoking unrelated sessions, and selected-session or account-wide revocation rejects every pending exchange bound to a revoked account session.
+
+Only the separately provisioned `platform_private_broker_runtime` server role receives `EXECUTE` on the broker helpers. `PUBLIC`, `anon`, and `authenticated` remain explicitly revoked.
 
 ## Serial Preview order
 

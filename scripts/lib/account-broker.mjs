@@ -32,6 +32,7 @@ const exactNegativeProbes = Object.freeze([
   'WRONG_CLIENT_REJECTED',
   'WRONG_REDIRECT_REJECTED',
   'IDENTIFIER_NON_ENUMERATION_REJECTED',
+  'MISSING_OR_UNLISTED_INTENT_REJECTED',
   'PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED',
   'PASSWORD_SHORT_REJECTED',
   'PASSWORD_CAPACITY_TRUNCATION_REJECTED',
@@ -69,14 +70,14 @@ const exactRequiredFunctions = Object.freeze([
     name: 'platform_private.issue_account_session_exchange',
     exposure: 'server_only',
     subject_source: 'verified_account_session',
-    execute_grants: Object.freeze([]),
+    execute_grants: Object.freeze(['platform_private_broker_runtime']),
     execute_revoked_from: Object.freeze(['PUBLIC', 'anon', 'authenticated'])
   }),
   Object.freeze({
     name: 'platform_private.consume_account_session_exchange',
     exposure: 'server_only',
     subject_source: 'stored_exchange_record',
-    execute_grants: Object.freeze([]),
+    execute_grants: Object.freeze(['platform_private_broker_runtime']),
     execute_revoked_from: Object.freeze(['PUBLIC', 'anon', 'authenticated'])
   })
 ]);
@@ -90,6 +91,7 @@ const exactPositiveProbes = Object.freeze([
   'ATOMIC_GLOBAL_PROFILE_USER_NUMBER_ALLOCATION',
   'SIGNED_IN_PASSWORD_CHANGE_RECENT_AUTH_CURRENT_PASSWORD',
   'SIGNED_IN_EMAIL_CHANGE_CURRENT_PASSWORD_SECURE_SERVER_ENFORCED',
+  'SELECTED_SESSION_REVOCATION',
   'FAILED_REDEMPTION_PRESERVES_EXCHANGE',
   'RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT',
   'PER_ORIGIN_SIGN_OUT',
