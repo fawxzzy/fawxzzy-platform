@@ -1,4 +1,4 @@
-# ADR 0003: Account-brokered per-origin sessions
+# ADR 0006: Account-brokered per-origin sessions
 
 Status: source contract current; runtime, provider, Preview, and production activation blocked
 
