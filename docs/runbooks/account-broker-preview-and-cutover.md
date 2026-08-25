@@ -10,6 +10,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - The account shell, broker schema packet, and each product adapter have clean exact-head reviews.
 - One immutable provider preimage records Auth Site URL, exact redirect allowlist, session policy, target project selection, and rollback values without secret material.
 - Managed CAPTCHA is installed and read back for public signup and password reset; synthetic proof covers both flows without exposing configuration or credentials.
+- Custom SMTP is configured, read back, and proven with synthetic signup and recovery delivery before production; a default or temporary mail path is not production proof.
 - The account origin and each product origin have reproducible Preview builds.
 - Synthetic test identities and isolated product memberships are prepared; no live user is used.
 - Provider effects, email delivery, publication, analytics collection, and unrelated product writes are quarantined.
@@ -35,6 +36,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - wrong client or redirect;
 - identifier responses that enumerate a known versus unknown email or username;
 - a pending exchange redeemed after selected-session or account-wide revocation;
+- a password shorter than the required minimum, a password-capacity truncation attempt, or a provider-native leaked-password rejection bypass;
 - source-project token;
 - access, refresh, JWT, or recovery token in the URL;
 - provider exception containing credential-, URL-, control-, or instruction-shaped text.
@@ -49,6 +51,8 @@ Every case must fail before product session creation. Browser output and receipt
 - username and email sign-in resolve the same canonical identity without identifier disclosure;
 - signup atomically claims one canonical username and creates no duplicate identity;
 - signup atomically creates the required `platform_shared.global_profiles` row and immutable user number with the username claim;
+- signed-in password change requires recent authentication and the current password;
+- signed-in email change requires the current password and secure server-side email-change enforcement;
 - a failed redemption leaves the exchange available for the one legitimate redemption with correct bindings;
 - reset request, callback, new password, and validated return context complete centrally;
 - product sign-out clears only that origin;

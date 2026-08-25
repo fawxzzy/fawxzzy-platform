@@ -28,6 +28,8 @@ Username sign-in resolves email or the canonical global username server-side wit
 
 Recovery remains centralized. Reset links use the verified account reset route `https://account.fawxzzy.com/reset-password?recovery=1`; the account origin owns the new-password surface, and validated server state restores product context. Recovery tokens are forbidden in application-generated URLs.
 
+The account surface preserves the domain password and account-change controls: provider-native leaked-password protection, a ten-character minimum, at least 64-character capacity with no truncation, recent authentication and current-password proof for signed-in password changes, and current-password plus secure server-side enforcement for signed-in email changes. Production proof also requires separately admitted CAPTCHA and custom SMTP configuration/readback with synthetic signup and recovery delivery.
+
 Sign-out is explicit. A product clears its own origin session. The account surface may revoke selected or all server sessions after confirmation, but it cannot silently delete cookies belonging to other origins.
 
 ## Security boundary

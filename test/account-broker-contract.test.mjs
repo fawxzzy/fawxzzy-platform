@@ -43,6 +43,7 @@ test('account broker rejects activation, shared-cookie, fallback, redirect, toke
     ['recovery redirect drift', (contract) => { contract.recovery.redirect_path = '/auth/callback'; }],
     ['client function grant', (contract) => { contract.database_contract.required_functions[0].execute_grants.push('authenticated'); }],
     ['missing broker function revoke', (contract) => { contract.database_contract.required_functions[0].execute_revoked_from.pop(); }],
+    ['custom SMTP gate removed', (contract) => { contract.activation_gates = contract.activation_gates.filter((gate) => gate.gate !== 'custom_smtp_configuration_readback_and_synthetic_delivery_proof'); }],
     ['recovery URL token', (contract) => { contract.recovery.url_tokens_allowed = true; }],
     ['provider error echo', (contract) => { contract.privacy_and_errors.provider_error_text_echoed = true; }]
   ];
@@ -97,6 +98,11 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     ['PKCE method downgrade proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PKCE_METHOD_DOWNGRADE_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['identifier non-enumeration proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('IDENTIFIER_NON_ENUMERATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['pending exchange revocation proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['short password proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PASSWORD_SHORT_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['password capacity proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PASSWORD_CAPACITY_TRUNCATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['leaked password proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('LEAKED_PASSWORD_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['signed-in password change proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('SIGNED_IN_PASSWORD_CHANGE_RECENT_AUTH_CURRENT_PASSWORD')] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['signed-in email change proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('SIGNED_IN_EMAIL_CHANGE_CURRENT_PASSWORD_SECURE_SERVER_ENFORCED')] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['failed redemption preservation proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('FAILED_REDEMPTION_PRESERVES_EXCHANGE')] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 
