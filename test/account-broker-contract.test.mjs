@@ -100,11 +100,13 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     ['identifier non-enumeration proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('IDENTIFIER_NON_ENUMERATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['missing or unlisted intent proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('MISSING_OR_UNLISTED_INTENT_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['pending exchange revocation proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['session material log-sink proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('SESSION_MATERIAL_LOG_SINK_NON_ECHOING')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['short password proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PASSWORD_SHORT_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['password capacity proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PASSWORD_CAPACITY_TRUNCATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['leaked password proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('LEAKED_PASSWORD_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['signed-in password change proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('SIGNED_IN_PASSWORD_CHANGE_RECENT_AUTH_CURRENT_PASSWORD')] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['signed-in email change proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('SIGNED_IN_EMAIL_CHANGE_CURRENT_PASSWORD_SECURE_SERVER_ENFORCED')] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['64-character password acceptance proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('PASSWORD_64_CHARACTER_EXACT_VALUE_ACCEPTED')] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['failed redemption preservation proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('FAILED_REDEMPTION_PRESERVES_EXCHANGE')] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 
