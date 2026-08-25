@@ -20,7 +20,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 2. The account start route resolves the client from the fixed registry and rejects any unlisted return destination before rendering a surface.
 3. The account origin authenticates or creates the canonical user, atomically creates the required global profile and immutable user number with the username claim when required, and verifies the requested service context without using that context as authorization.
 4. The broker creates one encrypted, expiring server-side exchange record and redirects with only the opaque one-time code plus state.
-5. The product callback compares state, redeems the code server-to-server with the PKCE verifier, and rejects any mismatch, expiry, replay, wrong audience, wrong redirect, or source-project token.
+5. The product callback compares state, redeems the code server-to-server with the PKCE verifier, and rejects any mismatch, expiry, replay, wrong audience, wrong redirect, revoked bound session, or source-project token.
 6. The product writes only its own origin-scoped session, removes callback parameters from browser history, and navigates to the exact validated return path.
 
 ## Required negative proof
@@ -34,7 +34,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - replayed exchange;
 - wrong client or redirect;
 - identifier responses that enumerate a known versus unknown email or username;
-- a pending exchange redeemed after account-wide revocation;
+- a pending exchange redeemed after selected-session or account-wide revocation;
 - source-project token;
 - access, refresh, JWT, or recovery token in the URL;
 - provider exception containing credential-, URL-, control-, or instruction-shaped text.
@@ -52,7 +52,7 @@ Every case must fail before product session creation. Browser output and receipt
 - a failed redemption leaves the exchange available for the one legitimate redemption with correct bindings;
 - reset request, callback, new password, and validated return context complete centrally;
 - product sign-out clears only that origin;
-- confirmed account-wide revocation invalidates selected or all server sessions and rejects every pending exchange bound to a revoked account session.
+- selected-session or account-wide revocation invalidates the affected server sessions and rejects every pending exchange bound to a revoked account session.
 
 ## Serial Preview order
 

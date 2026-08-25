@@ -131,7 +131,8 @@
           "client_id",
           "origin",
           "callback_path",
-          "default_return_path"
+          "default_return_path",
+          "allowed_return_paths"
         ],
         "properties": {
           "client_id": {
@@ -150,6 +151,11 @@
           },
           "default_return_path": {
             "const": "/account"
+          },
+          "allowed_return_paths": {
+            "const": [
+              "/account"
+            ]
           }
         }
       }
@@ -354,7 +360,7 @@
         "bound_fields",
         "consume",
         "failed_consume_effect",
-        "account_wide_revocation_effect",
+        "revoked_session_effect",
         "url_session_material_allowed",
         "receipt_contains_session_material"
       ],
@@ -403,7 +409,7 @@
         "failed_consume_effect": {
           "const": "none"
         },
-        "account_wide_revocation_effect": {
+        "revoked_session_effect": {
           "const": "reject_pending_exchange"
         },
         "url_session_material_allowed": {
@@ -528,13 +534,23 @@
               "name": "platform_private.issue_account_session_exchange",
               "exposure": "server_only",
               "subject_source": "verified_account_session",
-              "execute_grants": []
+              "execute_grants": [],
+              "execute_revoked_from": [
+                "PUBLIC",
+                "anon",
+                "authenticated"
+              ]
             },
             {
               "name": "platform_private.consume_account_session_exchange",
               "exposure": "server_only",
               "subject_source": "stored_exchange_record",
-              "execute_grants": []
+              "execute_grants": [],
+              "execute_revoked_from": [
+                "PUBLIC",
+                "anon",
+                "authenticated"
+              ]
             }
           ]
         }
@@ -634,7 +650,7 @@
             "WRONG_CLIENT_REJECTED",
             "WRONG_REDIRECT_REJECTED",
             "IDENTIFIER_NON_ENUMERATION_REJECTED",
-            "PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED",
+            "PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED",
             "SOURCE_TOKEN_REJECTED",
             "URL_TOKEN_REJECTED",
             "PROVIDER_ERROR_NON_ECHOING"

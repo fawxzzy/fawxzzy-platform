@@ -35,13 +35,14 @@ test('account broker rejects activation, shared-cookie, fallback, redirect, toke
     ['long-lived code', (contract) => { contract.exchange.authorization_code_ttl_seconds = 300; }],
     ['URL session material', (contract) => { contract.exchange.url_session_material_allowed = true; }],
     ['non-atomic consume', (contract) => { contract.exchange.consume = 'best_effort'; }],
-    ['pending exchange survives account-wide revocation', (contract) => { contract.exchange.account_wide_revocation_effect = 'preserve_pending_exchange'; }],
+    ['pending exchange survives revoked session', (contract) => { contract.exchange.revoked_session_effect = 'preserve_pending_exchange'; }],
     ['missing wrong redirect proof', (contract) => { contract.verification.required_negative_probes[7] = 'SOURCE_TOKEN_REJECTED'; }],
     ['plaintext code', (contract) => { contract.database_contract.relation.plaintext_code_stored = true; }],
     ['Data API exposure', (contract) => { contract.database_contract.relation.data_api_exposed = true; }],
     ['RLS not forced', (contract) => { contract.database_contract.relation.rls_forced = false; }],
     ['recovery redirect drift', (contract) => { contract.recovery.redirect_path = '/auth/callback'; }],
     ['client function grant', (contract) => { contract.database_contract.required_functions[0].execute_grants.push('authenticated'); }],
+    ['missing broker function revoke', (contract) => { contract.database_contract.required_functions[0].execute_revoked_from.pop(); }],
     ['recovery URL token', (contract) => { contract.recovery.url_tokens_allowed = true; }],
     ['provider error echo', (contract) => { contract.privacy_and_errors.provider_error_text_echoed = true; }]
   ];
@@ -86,6 +87,7 @@ test('account broker rejects exact-denominator and pair-substitution regressions
       contract.account_template.surfaces[0].path = contract.account_template.surfaces[1].path;
       contract.account_template.surfaces[1].path = signInPath;
     }],
+    ['return-path allowlist widened', (contract) => { contract.clients[0].allowed_return_paths.push('/settings'); }],
     ['context-change denominator truncated', (contract) => { contract.account_template.context_changes.pop(); }],
     ['context invariant denominator truncated', (contract) => { contract.account_template.context_must_not_change.pop(); }],
     ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }],
@@ -94,7 +96,7 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     ['global profile and user number allocation proof omitted', (contract) => { contract.verification.required_positive_probes[5] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['PKCE method downgrade proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PKCE_METHOD_DOWNGRADE_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['identifier non-enumeration proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('IDENTIFIER_NON_ENUMERATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
-    ['pending exchange revocation proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['pending exchange revocation proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
     ['failed redemption preservation proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('FAILED_REDEMPTION_PRESERVES_EXCHANGE')] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 

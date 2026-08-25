@@ -31,19 +31,28 @@
       "client_id": "fawxzzy_web",
       "origin": "https://fawxzzy.com",
       "callback_path": "/auth/callback",
-      "default_return_path": "/account"
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
     },
     {
       "client_id": "fitness",
       "origin": "https://fitness.fawxzzy.com",
       "callback_path": "/auth/callback",
-      "default_return_path": "/account"
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
     },
     {
       "client_id": "mazer",
       "origin": "https://mazer.fawxzzy.com",
       "callback_path": "/auth/callback",
-      "default_return_path": "/account"
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
     }
   ],
   "account_template": {
@@ -150,7 +159,7 @@
     ],
     "consume": "atomic_exactly_once",
     "failed_consume_effect": "none",
-    "account_wide_revocation_effect": "reject_pending_exchange",
+    "revoked_session_effect": "reject_pending_exchange",
     "url_session_material_allowed": false,
     "receipt_contains_session_material": false
   },
@@ -185,13 +194,23 @@
         "name": "platform_private.issue_account_session_exchange",
         "exposure": "server_only",
         "subject_source": "verified_account_session",
-        "execute_grants": []
+        "execute_grants": [],
+        "execute_revoked_from": [
+          "PUBLIC",
+          "anon",
+          "authenticated"
+        ]
       },
       {
         "name": "platform_private.consume_account_session_exchange",
         "exposure": "server_only",
         "subject_source": "stored_exchange_record",
-        "execute_grants": []
+        "execute_grants": [],
+        "execute_revoked_from": [
+          "PUBLIC",
+          "anon",
+          "authenticated"
+        ]
       }
     ]
   },
@@ -260,7 +279,7 @@
       "WRONG_CLIENT_REJECTED",
       "WRONG_REDIRECT_REJECTED",
       "IDENTIFIER_NON_ENUMERATION_REJECTED",
-      "PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED",
+      "PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED",
       "SOURCE_TOKEN_REJECTED",
       "URL_TOKEN_REJECTED",
       "PROVIDER_ERROR_NON_ECHOING"

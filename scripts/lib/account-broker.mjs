@@ -3,9 +3,9 @@ import { types } from 'node:util';
 export const accountBrokerContractPath = 'contracts/v1/auth/account-broker-contract.json';
 
 const exactClients = Object.freeze([
-  Object.freeze({ client_id: 'fawxzzy_web', origin: 'https://fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account' }),
-  Object.freeze({ client_id: 'fitness', origin: 'https://fitness.fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account' }),
-  Object.freeze({ client_id: 'mazer', origin: 'https://mazer.fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account' })
+  Object.freeze({ client_id: 'fawxzzy_web', origin: 'https://fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account', allowed_return_paths: Object.freeze(['/account']) }),
+  Object.freeze({ client_id: 'fitness', origin: 'https://fitness.fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account', allowed_return_paths: Object.freeze(['/account']) }),
+  Object.freeze({ client_id: 'mazer', origin: 'https://mazer.fawxzzy.com', callback_path: '/auth/callback', default_return_path: '/account', allowed_return_paths: Object.freeze(['/account']) })
 ]);
 
 const exactActivationGates = Object.freeze([
@@ -31,7 +31,7 @@ const exactNegativeProbes = Object.freeze([
   'WRONG_CLIENT_REJECTED',
   'WRONG_REDIRECT_REJECTED',
   'IDENTIFIER_NON_ENUMERATION_REJECTED',
-  'PENDING_EXCHANGE_AFTER_ACCOUNT_WIDE_REVOCATION_REJECTED',
+  'PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED',
   'SOURCE_TOKEN_REJECTED',
   'URL_TOKEN_REJECTED',
   'PROVIDER_ERROR_NON_ECHOING'
@@ -65,13 +65,15 @@ const exactRequiredFunctions = Object.freeze([
     name: 'platform_private.issue_account_session_exchange',
     exposure: 'server_only',
     subject_source: 'verified_account_session',
-    execute_grants: Object.freeze([])
+    execute_grants: Object.freeze([]),
+    execute_revoked_from: Object.freeze(['PUBLIC', 'anon', 'authenticated'])
   }),
   Object.freeze({
     name: 'platform_private.consume_account_session_exchange',
     exposure: 'server_only',
     subject_source: 'stored_exchange_record',
-    execute_grants: Object.freeze([])
+    execute_grants: Object.freeze([]),
+    execute_revoked_from: Object.freeze(['PUBLIC', 'anon', 'authenticated'])
   })
 ]);
 
@@ -144,7 +146,7 @@ export function validateAccountBrokerContract(contract) {
     requireCondition(exchange.issue_endpoint === '/api/account-broker/exchanges' && exchange.redeem_endpoint === '/api/account-broker/exchanges/redeem' && exchange.method === 'POST', 'account broker exchange endpoint changed');
     requireCondition(exchange.authorization_code_entropy_bits_minimum >= 256 && exchange.authorization_code_ttl_seconds <= 60 && exchange.authorization_code_ttl_seconds > 0, 'authorization code entropy or lifetime weakened');
     requireCondition(exchange.authorization_code_storage === 'sha256_digest_only' && exchange.session_material_storage === 'ephemeral_server_side_encrypted_only' && exchange.session_material_transport === 'server_to_server_response_only', 'authorization code or session material handling weakened');
-    requireCondition(exchange.consume === 'atomic_exactly_once' && exchange.failed_consume_effect === 'none' && exchange.account_wide_revocation_effect === 'reject_pending_exchange', 'account exchange atomic consumption or revocation boundary changed');
+    requireCondition(exchange.consume === 'atomic_exactly_once' && exchange.failed_consume_effect === 'none' && exchange.revoked_session_effect === 'reject_pending_exchange', 'account exchange atomic consumption or revocation boundary changed');
     requireCondition(exchange.url_session_material_allowed === false && exchange.receipt_contains_session_material === false, 'session material must remain absent from URLs and receipts');
     requireCondition(recovery.owner_origin === 'https://account.fawxzzy.com' && recovery.request_path === '/reset-password' && recovery.redirect_path === '/reset-password?recovery=1' && recovery.new_password_path === '/new-password' && recovery.pkce_required === true && recovery.url_tokens_allowed === false, 'central recovery route, PKCE, or URL-token boundary changed');
     requireCondition(signOut.product_action === 'clear_current_origin_session' && signOut.silent_cross_origin_cookie_deletion === false && signOut.user_confirmation_for_all_sessions === true, 'sign-out scope or confirmation boundary changed');
