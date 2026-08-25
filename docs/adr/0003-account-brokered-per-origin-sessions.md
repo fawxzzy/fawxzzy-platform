@@ -26,13 +26,13 @@ Each product then creates or updates only its own origin-scoped session. Product
 
 Username sign-in resolves email or the canonical global username server-side without disclosing whether an identifier exists. Signup requires email, username, and password. The shared username syntax is 2-15 ASCII letters, numbers, periods, underscores, or hyphens; availability checks are advisory and final creation or rename uses one atomic server-side claim.
 
-Recovery remains centralized. Reset links return to the account callback using PKCE, the account origin owns the new-password surface, and validated server state restores product context. Recovery tokens are forbidden in application-generated URLs.
+Recovery remains centralized. Reset links use the verified account reset route `https://account.fawxzzy.com/reset-password?recovery=1`; the account origin owns the new-password surface, and validated server state restores product context. Recovery tokens are forbidden in application-generated URLs.
 
 Sign-out is explicit. A product clears its own origin session. The account surface may revoke selected or all server sessions after confirmation, but it cannot silently delete cookies belonging to other origins.
 
 ## Security boundary
 
-The broker relation belongs in `platform_private`, remains outside the Data API, uses RLS as defense in depth, stores no plaintext code or session material, and exposes no function grants to `PUBLIC`, `anon`, or `authenticated`. This repository includes no executable migration, secret, credential, provider link, or runtime configuration.
+The broker relation belongs in `platform_private`, remains outside the Data API, enables and forces RLS as defense in depth, stores no plaintext code or session material, and exposes no function grants to `PUBLIC`, `anon`, or `authenticated`. This repository includes no executable migration, secret, credential, provider link, or runtime configuration.
 
 Account context is presentation and navigation, never authorization. The verified Auth subject and server-owned membership state remain authoritative. Username, email, display name, member number, and product context are never sufficient identity or authorization evidence by themselves.
 

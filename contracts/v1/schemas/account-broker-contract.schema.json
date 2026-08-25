@@ -416,7 +416,7 @@
       "required": [
         "owner_origin",
         "request_path",
-        "callback_path",
+        "redirect_path",
         "new_password_path",
         "pkce_required",
         "return_context_preserved_by_validated_server_state",
@@ -429,8 +429,8 @@
         "request_path": {
           "const": "/reset-password"
         },
-        "callback_path": {
-          "const": "/auth/callback"
+        "redirect_path": {
+          "const": "/reset-password?recovery=1"
         },
         "new_password_path": {
           "const": "/new-password"
@@ -489,6 +489,7 @@
             "name",
             "data_api_exposed",
             "rls_enabled",
+            "rls_forced",
             "plaintext_code_stored",
             "plaintext_session_material_stored",
             "expired_record_cleanup"
@@ -501,6 +502,9 @@
               "const": false
             },
             "rls_enabled": {
+              "const": true
+            },
+            "rls_forced": {
               "const": true
             },
             "plaintext_code_stored": {
@@ -614,18 +618,27 @@
         },
         "required_negative_probes": {
           "type": "array",
-          "minItems": 10,
-          "uniqueItems": true,
-          "items": {
-            "pattern": "^[A-Z0-9_]+$",
-            "type": "string"
-          }
+          "const": [
+            "UNKNOWN_CLIENT_REJECTED",
+            "UNLISTED_RETURN_REJECTED",
+            "STATE_MISMATCH_REJECTED",
+            "PKCE_MISMATCH_REJECTED",
+            "EXPIRED_CODE_REJECTED",
+            "REPLAYED_CODE_REJECTED",
+            "WRONG_CLIENT_REJECTED",
+            "WRONG_REDIRECT_REJECTED",
+            "SOURCE_TOKEN_REJECTED",
+            "URL_TOKEN_REJECTED",
+            "PROVIDER_ERROR_NON_ECHOING"
+          ]
         },
         "required_positive_probes": {
           "const": [
             "ACCOUNT_SESSION_TO_WEB_SESSION",
             "ACCOUNT_SESSION_TO_FITNESS_SESSION",
             "ACCOUNT_SESSION_TO_MAZER_SESSION",
+            "USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION",
+            "ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY",
             "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
             "PER_ORIGIN_SIGN_OUT",
             "ACCOUNT_WIDE_REVOCATION"

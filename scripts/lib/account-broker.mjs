@@ -27,6 +27,7 @@ const exactNegativeProbes = Object.freeze([
   'EXPIRED_CODE_REJECTED',
   'REPLAYED_CODE_REJECTED',
   'WRONG_CLIENT_REJECTED',
+  'WRONG_REDIRECT_REJECTED',
   'SOURCE_TOKEN_REJECTED',
   'URL_TOKEN_REJECTED',
   'PROVIDER_ERROR_NON_ECHOING'
@@ -74,6 +75,8 @@ const exactPositiveProbes = Object.freeze([
   'ACCOUNT_SESSION_TO_WEB_SESSION',
   'ACCOUNT_SESSION_TO_FITNESS_SESSION',
   'ACCOUNT_SESSION_TO_MAZER_SESSION',
+  'USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION',
+  'ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY',
   'RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT',
   'PER_ORIGIN_SIGN_OUT',
   'ACCOUNT_WIDE_REVOCATION'
@@ -137,10 +140,10 @@ export function validateAccountBrokerContract(contract) {
     requireCondition(exchange.authorization_code_storage === 'sha256_digest_only' && exchange.session_material_storage === 'ephemeral_server_side_encrypted_only' && exchange.session_material_transport === 'server_to_server_response_only', 'authorization code or session material handling weakened');
     requireCondition(exchange.consume === 'atomic_exactly_once' && exchange.failed_consume_effect === 'none', 'account exchange atomic consumption boundary changed');
     requireCondition(exchange.url_session_material_allowed === false && exchange.receipt_contains_session_material === false, 'session material must remain absent from URLs and receipts');
-    requireCondition(recovery.owner_origin === 'https://account.fawxzzy.com' && recovery.pkce_required === true && recovery.url_tokens_allowed === false, 'central recovery PKCE or URL-token boundary changed');
+    requireCondition(recovery.owner_origin === 'https://account.fawxzzy.com' && recovery.request_path === '/reset-password' && recovery.redirect_path === '/reset-password?recovery=1' && recovery.new_password_path === '/new-password' && recovery.pkce_required === true && recovery.url_tokens_allowed === false, 'central recovery route, PKCE, or URL-token boundary changed');
     requireCondition(signOut.product_action === 'clear_current_origin_session' && signOut.silent_cross_origin_cookie_deletion === false && signOut.user_confirmation_for_all_sessions === true, 'sign-out scope or confirmation boundary changed');
     requireCondition(database.executable_sql_included === false && relation.name === 'platform_private.account_session_exchanges', 'broker database contract must remain source-only and private');
-    requireCondition(relation.data_api_exposed === false && relation.rls_enabled === true && relation.plaintext_code_stored === false && relation.plaintext_session_material_stored === false, 'broker private relation exposure or plaintext boundary weakened');
+    requireCondition(relation.data_api_exposed === false && relation.rls_enabled === true && relation.rls_forced === true && relation.plaintext_code_stored === false && relation.plaintext_session_material_stored === false, 'broker private relation exposure, RLS, or plaintext boundary weakened');
     requireCondition(canonicalDigest(database.required_functions) === canonicalDigest(exactRequiredFunctions), 'broker function name, subject, order, or grant contract changed');
     requireCondition(privacy.provider_error_text_echoed === false && privacy.identifier_existence_disclosed === false && privacy.authorization_code_logged === false && privacy.session_material_logged === false, 'account broker privacy or non-echo boundary weakened');
     requireCondition(canonicalDigest(contract.activation_gates) === canonicalDigest(exactActivationGates), 'account broker activation gate order or status changed');

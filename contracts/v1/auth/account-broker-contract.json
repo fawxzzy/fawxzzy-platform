@@ -156,7 +156,7 @@
   "recovery": {
     "owner_origin": "https://account.fawxzzy.com",
     "request_path": "/reset-password",
-    "callback_path": "/auth/callback",
+    "redirect_path": "/reset-password?recovery=1",
     "new_password_path": "/new-password",
     "pkce_required": true,
     "return_context_preserved_by_validated_server_state": true,
@@ -174,6 +174,7 @@
       "name": "platform_private.account_session_exchanges",
       "data_api_exposed": false,
       "rls_enabled": true,
+      "rls_forced": true,
       "plaintext_code_stored": false,
       "plaintext_session_material_stored": false,
       "expired_record_cleanup": "REQUIRED"
@@ -251,6 +252,7 @@
       "EXPIRED_CODE_REJECTED",
       "REPLAYED_CODE_REJECTED",
       "WRONG_CLIENT_REJECTED",
+      "WRONG_REDIRECT_REJECTED",
       "SOURCE_TOKEN_REJECTED",
       "URL_TOKEN_REJECTED",
       "PROVIDER_ERROR_NON_ECHOING"
@@ -259,6 +261,8 @@
       "ACCOUNT_SESSION_TO_WEB_SESSION",
       "ACCOUNT_SESSION_TO_FITNESS_SESSION",
       "ACCOUNT_SESSION_TO_MAZER_SESSION",
+      "USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION",
+      "ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY",
       "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
       "PER_ORIGIN_SIGN_OUT",
       "ACCOUNT_WIDE_REVOCATION"

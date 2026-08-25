@@ -35,8 +35,11 @@ test('account broker rejects activation, shared-cookie, fallback, redirect, toke
     ['long-lived code', (contract) => { contract.exchange.authorization_code_ttl_seconds = 300; }],
     ['URL session material', (contract) => { contract.exchange.url_session_material_allowed = true; }],
     ['non-atomic consume', (contract) => { contract.exchange.consume = 'best_effort'; }],
+    ['missing wrong redirect proof', (contract) => { contract.verification.required_negative_probes[7] = 'SOURCE_TOKEN_REJECTED'; }],
     ['plaintext code', (contract) => { contract.database_contract.relation.plaintext_code_stored = true; }],
     ['Data API exposure', (contract) => { contract.database_contract.relation.data_api_exposed = true; }],
+    ['RLS not forced', (contract) => { contract.database_contract.relation.rls_forced = false; }],
+    ['recovery redirect drift', (contract) => { contract.recovery.redirect_path = '/auth/callback'; }],
     ['client function grant', (contract) => { contract.database_contract.required_functions[0].execute_grants.push('authenticated'); }],
     ['recovery URL token', (contract) => { contract.recovery.url_tokens_allowed = true; }],
     ['provider error echo', (contract) => { contract.privacy_and_errors.provider_error_text_echoed = true; }]
@@ -84,7 +87,9 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     }],
     ['context-change denominator truncated', (contract) => { contract.account_template.context_changes.pop(); }],
     ['context invariant denominator truncated', (contract) => { contract.account_template.context_must_not_change.pop(); }],
-    ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }]
+    ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['identity resolution proof omitted', (contract) => { contract.verification.required_positive_probes[3] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['atomic username claim proof omitted', (contract) => { contract.verification.required_positive_probes[4] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 
   for (const [name, mutate] of cases) {
