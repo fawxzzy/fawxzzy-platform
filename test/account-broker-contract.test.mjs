@@ -89,7 +89,10 @@ test('account broker rejects exact-denominator and pair-substitution regressions
     ['context invariant denominator truncated', (contract) => { contract.account_template.context_must_not_change.pop(); }],
     ['positive probe substituted', (contract) => { contract.verification.required_positive_probes[0] = 'ARBITRARY_POSITIVE_PROBE'; }],
     ['identity resolution proof omitted', (contract) => { contract.verification.required_positive_probes[3] = 'ARBITRARY_POSITIVE_PROBE'; }],
-    ['atomic username claim proof omitted', (contract) => { contract.verification.required_positive_probes[4] = 'ARBITRARY_POSITIVE_PROBE'; }]
+    ['atomic username claim proof omitted', (contract) => { contract.verification.required_positive_probes[4] = 'ARBITRARY_POSITIVE_PROBE'; }],
+    ['PKCE method downgrade proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('PKCE_METHOD_DOWNGRADE_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['identifier non-enumeration proof omitted', (contract) => { contract.verification.required_negative_probes[contract.verification.required_negative_probes.indexOf('IDENTIFIER_NON_ENUMERATION_REJECTED')] = 'ARBITRARY_NEGATIVE_PROBE'; }],
+    ['failed redemption preservation proof omitted', (contract) => { contract.verification.required_positive_probes[contract.verification.required_positive_probes.indexOf('FAILED_REDEMPTION_PRESERVES_EXCHANGE')] = 'ARBITRARY_POSITIVE_PROBE'; }]
   ];
 
   for (const [name, mutate] of cases) {

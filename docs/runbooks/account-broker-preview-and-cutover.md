@@ -28,9 +28,11 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - unlisted or absolute return URL;
 - state mismatch;
 - PKCE mismatch;
+- omitted or downgraded PKCE method;
 - expired exchange;
 - replayed exchange;
 - wrong client or redirect;
+- identifier responses that enumerate a known versus unknown email or username;
 - source-project token;
 - access, refresh, JWT, or recovery token in the URL;
 - provider exception containing credential-, URL-, control-, or instruction-shaped text.
@@ -44,6 +46,7 @@ Every case must fail before product session creation. Browser output and receipt
 - one account session establishes a Mazer session;
 - username and email sign-in resolve the same canonical identity without identifier disclosure;
 - signup atomically claims one canonical username and creates no duplicate identity;
+- a failed redemption leaves the exchange available for the one legitimate redemption with correct bindings;
 - reset request, callback, new password, and validated return context complete centrally;
 - product sign-out clears only that origin;
 - confirmed account-wide revocation invalidates selected or all server sessions.
