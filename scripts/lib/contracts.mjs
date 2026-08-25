@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { types } from 'node:util';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { accountBrokerContractPath, validateAccountBrokerContract } from './account-broker.mjs';
 import { validateRecoveryDocuments } from './recovery.mjs';
 import { independentBackupContractPath, validateIndependentBackupContract } from './independent-backup-contract.mjs';
 import {
@@ -85,6 +86,7 @@ export const documentSpecs = Object.freeze([
   ['contracts/v1/gates/fitness-pr108-replay-gate.json', 'urn:fawxzzy:platform:schemas:v1:fitness-pr108-replay-gate'],
   ['contracts/v1/security/rls-grant-function-matrix.json', 'urn:fawxzzy:platform:schemas:v1:security-matrix'],
   ['contracts/v1/auth/domain-session-contract.json', 'urn:fawxzzy:platform:schemas:v1:domain-session-contract'],
+  [accountBrokerContractPath, 'urn:fawxzzy:platform:schemas:v1:account-broker-contract'],
   ['contracts/v1/recovery/micro-recovery-contract.json', 'urn:fawxzzy:platform:schemas:v1:micro-recovery-contract'],
   ['contracts/v1/recovery/backup-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:backup-manifest'],
   ['contracts/v1/recovery/external-effects-disable-manifest.example.json', 'urn:fawxzzy:platform:schemas:v1:external-effects-disable-manifest'],
@@ -3703,6 +3705,7 @@ export function validateSemantics(documents) {
 
   failures.push(...validateRecoveryDocuments(documents).failures);
   failures.push(...validateIndependentBackupContract(documents[independentBackupContractPath]).failures);
+  failures.push(...validateAccountBrokerContract(documents[accountBrokerContractPath]));
 
   return failures.sort((left, right) => left.localeCompare(right));
 }
@@ -3720,12 +3723,12 @@ export function validateContracts() {
     schema_count: 28,
     document_count: 27,
     semantic_check_groups: 27,
-    source_planning_schema_count: convergenceDocumentPaths.length,
-    source_planning_document_count: convergenceDocumentPaths.length,
-    source_planning_semantic_check_groups: 1,
+    source_planning_schema_count: convergenceDocumentPaths.length + 1,
+    source_planning_document_count: convergenceDocumentPaths.length + 1,
+    source_planning_semantic_check_groups: 2,
     validated_schema_count: schemaPaths().length,
     validated_document_count: documentSpecs.length,
-    validated_semantic_check_groups: 28,
+    validated_semantic_check_groups: 29,
     failures
   };
 }
