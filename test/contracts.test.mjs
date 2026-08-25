@@ -56,9 +56,9 @@ test('all versioned contract instances satisfy their schemas and semantics', () 
       semantic_check_groups: report.source_planning_semantic_check_groups
     },
     {
-      schema_count: 3,
-      document_count: 3,
-      semantic_check_groups: 1
+      schema_count: 4,
+      document_count: 4,
+      semantic_check_groups: 2
     }
   );
   assert.deepEqual(
@@ -68,9 +68,9 @@ test('all versioned contract instances satisfy their schemas and semantics', () 
       semantic_check_groups: report.validated_semantic_check_groups
     },
     {
-      schema_count: 31,
-      document_count: 30,
-      semantic_check_groups: 28
+      schema_count: 32,
+      document_count: 31,
+      semantic_check_groups: 29
     }
   );
 });

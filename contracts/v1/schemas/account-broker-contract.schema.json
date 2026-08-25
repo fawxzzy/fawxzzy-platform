@@ -1,0 +1,695 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:account-broker-contract",
+  "title": "Cross-origin account broker source contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "ownership",
+    "architecture",
+    "lifecycle",
+    "clients",
+    "account_template",
+    "identifier_policy",
+    "start_request",
+    "exchange",
+    "recovery",
+    "sign_out",
+    "database_contract",
+    "privacy_and_errors",
+    "activation_gates",
+    "verification"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0.0"
+    },
+    "status": {
+      "const": "REQUIRED"
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_repository",
+        "account_surface_repository",
+        "product_adapter_repositories"
+      ],
+      "properties": {
+        "contract_repository": {
+          "const": "fawxzzy/fawxzzy-platform"
+        },
+        "account_surface_repository": {
+          "const": "fawxzzy/FawxzzyWeb"
+        },
+        "product_adapter_repositories": {
+          "const": [
+            "fawxzzy/fawxzzy-fitness",
+            "fawxzzy/mazer"
+          ]
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "account_origin",
+        "target_project_ref",
+        "session_scope",
+        "exchange_mechanism",
+        "shared_refresh_cookies",
+        "source_project_fallback",
+        "source_only_contract"
+      ],
+      "properties": {
+        "account_origin": {
+          "const": "https://account.fawxzzy.com"
+        },
+        "target_project_ref": {
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "session_scope": {
+          "const": "per_origin"
+        },
+        "exchange_mechanism": {
+          "const": "one_time_backend_exchange_with_pkce_s256"
+        },
+        "shared_refresh_cookies": {
+          "const": false
+        },
+        "source_project_fallback": {
+          "const": false
+        },
+        "source_only_contract": {
+          "const": true
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_contract",
+        "runtime_implementation",
+        "provider_application",
+        "preview_activation",
+        "production_activation",
+        "apply_admitted"
+      ],
+      "properties": {
+        "source_contract": {
+          "const": "CURRENT"
+        },
+        "runtime_implementation": {
+          "const": "REQUIRED"
+        },
+        "provider_application": {
+          "const": "BLOCKED"
+        },
+        "preview_activation": {
+          "const": "BLOCKED"
+        },
+        "production_activation": {
+          "const": "BLOCKED"
+        },
+        "apply_admitted": {
+          "const": false
+        }
+      }
+    },
+    "clients": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "client_id",
+          "origin",
+          "callback_path",
+          "default_return_path",
+          "allowed_return_paths"
+        ],
+        "properties": {
+          "client_id": {
+            "enum": [
+              "fawxzzy_web",
+              "fitness",
+              "mazer"
+            ]
+          },
+          "origin": {
+            "pattern": "^https://(?:fitness\\.|mazer\\.)?fawxzzy\\.com$",
+            "type": "string"
+          },
+          "callback_path": {
+            "const": "/auth/callback"
+          },
+          "default_return_path": {
+            "const": "/account"
+          },
+          "allowed_return_paths": {
+            "const": [
+              "/account"
+            ]
+          }
+        }
+      }
+    },
+    "account_template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_template_per_surface",
+        "context_source",
+        "context_is_authorization",
+        "contexts",
+        "context_changes",
+        "context_must_not_change",
+        "surfaces"
+      ],
+      "properties": {
+        "single_template_per_surface": {
+          "const": true
+        },
+        "context_source": {
+          "const": "validated_client_registry"
+        },
+        "context_is_authorization": {
+          "const": false
+        },
+        "contexts": {
+          "const": [
+            "fawxzzy_web",
+            "fitness",
+            "mazer"
+          ]
+        },
+        "context_changes": {
+          "const": [
+            "product_title",
+            "product_theme",
+            "return_destination",
+            "policy_supplement_links"
+          ]
+        },
+        "context_must_not_change": {
+          "const": [
+            "credential_validation",
+            "username_rules",
+            "session_security",
+            "reset_flow",
+            "message_vocabulary"
+          ]
+        },
+        "surfaces": {
+          "const": [
+            {
+              "surface": "sign_in",
+              "path": "/sign-in"
+            },
+            {
+              "surface": "create_account",
+              "path": "/create-account"
+            },
+            {
+              "surface": "account",
+              "path": "/account"
+            },
+            {
+              "surface": "reset_password",
+              "path": "/reset-password"
+            },
+            {
+              "surface": "new_password",
+              "path": "/new-password"
+            }
+          ]
+        }
+      }
+    },
+    "identifier_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sign_in_identifier",
+        "sign_up_required_fields",
+        "username",
+        "username_resolution",
+        "password_policy_source"
+      ],
+      "properties": {
+        "sign_in_identifier": {
+          "const": "email_or_canonical_username"
+        },
+        "sign_up_required_fields": {
+          "const": [
+            "email",
+            "username",
+            "password"
+          ]
+        },
+        "username": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimum_characters",
+            "maximum_characters",
+            "ascii_pattern",
+            "availability_is_advisory",
+            "atomic_server_claim_required",
+            "username_only_identity_matching_forbidden"
+          ],
+          "properties": {
+            "minimum_characters": {
+              "const": 2
+            },
+            "maximum_characters": {
+              "const": 15
+            },
+            "ascii_pattern": {
+              "const": "^[A-Za-z0-9._-]{2,15}$"
+            },
+            "availability_is_advisory": {
+              "const": true
+            },
+            "atomic_server_claim_required": {
+              "const": true
+            },
+            "username_only_identity_matching_forbidden": {
+              "const": true
+            }
+          }
+        },
+        "username_resolution": {
+          "const": "server_only_non_disclosing"
+        },
+        "password_policy_source": {
+          "const": "contracts/v1/auth/domain-session-contract.json"
+        }
+      }
+    },
+    "start_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "method",
+        "required_parameters",
+        "allowed_intents",
+        "redirect_validation",
+        "state_entropy_bits_minimum",
+        "pkce_method",
+        "arbitrary_return_urls_allowed"
+      ],
+      "properties": {
+        "endpoint": {
+          "const": "/auth/start"
+        },
+        "method": {
+          "const": "GET"
+        },
+        "required_parameters": {
+          "const": [
+            "client_id",
+            "return_to",
+            "intent",
+            "state",
+            "code_challenge",
+            "code_challenge_method"
+          ]
+        },
+        "allowed_intents": {
+          "const": [
+            "sign_in",
+            "create_account",
+            "account",
+            "reset_password"
+          ]
+        },
+        "redirect_validation": {
+          "const": "exact_client_origin_and_path_allowlist"
+        },
+        "state_entropy_bits_minimum": {
+          "minimum": 128,
+          "type": "integer"
+        },
+        "pkce_method": {
+          "const": "S256"
+        },
+        "arbitrary_return_urls_allowed": {
+          "const": false
+        }
+      }
+    },
+    "exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_endpoint",
+        "redeem_endpoint",
+        "method",
+        "authorization_code_entropy_bits_minimum",
+        "authorization_code_ttl_seconds",
+        "authorization_code_storage",
+        "session_material_storage",
+        "session_material_transport",
+        "bound_fields",
+        "consume",
+        "failed_consume_effect",
+        "revoked_session_effect",
+        "url_session_material_allowed",
+        "receipt_contains_session_material"
+      ],
+      "properties": {
+        "issue_endpoint": {
+          "const": "/api/account-broker/exchanges"
+        },
+        "redeem_endpoint": {
+          "const": "/api/account-broker/exchanges/redeem"
+        },
+        "method": {
+          "const": "POST"
+        },
+        "authorization_code_entropy_bits_minimum": {
+          "minimum": 256,
+          "type": "integer"
+        },
+        "authorization_code_ttl_seconds": {
+          "maximum": 60,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "authorization_code_storage": {
+          "const": "sha256_digest_only"
+        },
+        "session_material_storage": {
+          "const": "ephemeral_server_side_encrypted_only"
+        },
+        "session_material_transport": {
+          "const": "server_to_server_response_only"
+        },
+        "bound_fields": {
+          "const": [
+            "auth_user_id",
+            "auth_session_id",
+            "client_id",
+            "redirect_uri",
+            "code_challenge",
+            "issued_at",
+            "expires_at"
+          ]
+        },
+        "consume": {
+          "const": "atomic_exactly_once"
+        },
+        "failed_consume_effect": {
+          "const": "none"
+        },
+        "revoked_session_effect": {
+          "const": "reject_pending_exchange"
+        },
+        "url_session_material_allowed": {
+          "const": false
+        },
+        "receipt_contains_session_material": {
+          "const": false
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_origin",
+        "request_path",
+        "redirect_path",
+        "new_password_path",
+        "pkce_required",
+        "return_context_preserved_by_validated_server_state",
+        "url_tokens_allowed"
+      ],
+      "properties": {
+        "owner_origin": {
+          "const": "https://account.fawxzzy.com"
+        },
+        "request_path": {
+          "const": "/reset-password"
+        },
+        "redirect_path": {
+          "const": "/reset-password?recovery=1"
+        },
+        "new_password_path": {
+          "const": "/new-password"
+        },
+        "pkce_required": {
+          "const": true
+        },
+        "return_context_preserved_by_validated_server_state": {
+          "const": true
+        },
+        "url_tokens_allowed": {
+          "const": false
+        }
+      }
+    },
+    "sign_out": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_action",
+        "account_action",
+        "silent_cross_origin_cookie_deletion",
+        "user_confirmation_for_all_sessions"
+      ],
+      "properties": {
+        "product_action": {
+          "const": "clear_current_origin_session"
+        },
+        "account_action": {
+          "const": "revoke_selected_or_all_sessions_then_clear_account_origin"
+        },
+        "silent_cross_origin_cookie_deletion": {
+          "const": false
+        },
+        "user_confirmation_for_all_sessions": {
+          "const": true
+        }
+      }
+    },
+    "database_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable_sql_included",
+        "relation",
+        "required_functions"
+      ],
+      "properties": {
+        "executable_sql_included": {
+          "const": false
+        },
+        "relation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "data_api_exposed",
+            "rls_enabled",
+            "rls_forced",
+            "plaintext_code_stored",
+            "plaintext_session_material_stored",
+            "expired_record_cleanup"
+          ],
+          "properties": {
+            "name": {
+              "const": "platform_private.account_session_exchanges"
+            },
+            "data_api_exposed": {
+              "const": false
+            },
+            "rls_enabled": {
+              "const": true
+            },
+            "rls_forced": {
+              "const": true
+            },
+            "plaintext_code_stored": {
+              "const": false
+            },
+            "plaintext_session_material_stored": {
+              "const": false
+            },
+            "expired_record_cleanup": {
+              "const": "REQUIRED"
+            }
+          }
+        },
+        "required_functions": {
+          "const": [
+            {
+              "name": "platform_private.issue_account_session_exchange",
+              "exposure": "server_only",
+              "subject_source": "verified_account_session",
+              "execute_grants": [
+                "platform_private_broker_runtime"
+              ],
+              "execute_revoked_from": [
+                "PUBLIC",
+                "anon",
+                "authenticated"
+              ]
+            },
+            {
+              "name": "platform_private.consume_account_session_exchange",
+              "exposure": "server_only",
+              "subject_source": "stored_exchange_record",
+              "execute_grants": [
+                "platform_private_broker_runtime"
+              ],
+              "execute_revoked_from": [
+                "PUBLIC",
+                "anon",
+                "authenticated"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "privacy_and_errors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_error_text_echoed",
+        "identifier_existence_disclosed",
+        "authorization_code_logged",
+        "session_material_logged",
+        "fixed_message_vocabulary"
+      ],
+      "properties": {
+        "provider_error_text_echoed": {
+          "const": false
+        },
+        "identifier_existence_disclosed": {
+          "const": false
+        },
+        "authorization_code_logged": {
+          "const": false
+        },
+        "session_material_logged": {
+          "const": false
+        },
+        "fixed_message_vocabulary": {
+          "const": [
+            "ACCOUNT_ACTION_REQUIRED",
+            "ACCOUNT_REQUEST_ACCEPTED",
+            "ACCOUNT_REQUEST_REJECTED",
+            "ACCOUNT_SESSION_ESTABLISHED",
+            "ACCOUNT_SESSION_EXPIRED",
+            "ACCOUNT_SERVICE_UNAVAILABLE"
+          ]
+        }
+      }
+    },
+    "activation_gates": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gate",
+          "status"
+        ],
+        "properties": {
+          "gate": {
+            "enum": [
+              "wave4_complete_postimage",
+              "account_shell_exact_head_review",
+              "platform_private_exchange_schema_review",
+              "exact_auth_url_provider_preimage",
+              "captcha_configuration_and_synthetic_proof",
+              "custom_smtp_configuration_readback_and_synthetic_delivery_proof",
+              "synthetic_preview_exchange_proof",
+              "source_token_rejection_proof",
+              "rollback_proof",
+              "serial_product_adapter_cutover"
+            ]
+          },
+          "status": {
+            "enum": [
+              "REQUIRED",
+              "BLOCKED"
+            ]
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "synthetic_users_only",
+        "required_negative_probes",
+        "required_positive_probes"
+      ],
+      "properties": {
+        "synthetic_users_only": {
+          "const": true
+        },
+        "required_negative_probes": {
+          "type": "array",
+          "const": [
+            "UNKNOWN_CLIENT_REJECTED",
+            "UNLISTED_RETURN_REJECTED",
+            "STATE_MISMATCH_REJECTED",
+            "PKCE_MISMATCH_REJECTED",
+            "PKCE_METHOD_DOWNGRADE_REJECTED",
+            "EXPIRED_CODE_REJECTED",
+            "REPLAYED_CODE_REJECTED",
+            "WRONG_CLIENT_REJECTED",
+            "WRONG_REDIRECT_REJECTED",
+            "IDENTIFIER_NON_ENUMERATION_REJECTED",
+            "MISSING_OR_UNLISTED_INTENT_REJECTED",
+            "UNAUTHENTICATED_EXCHANGE_ISSUANCE_REJECTED",
+            "CALLER_SELECTED_EXCHANGE_SUBJECT_REJECTED",
+            "PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED",
+            "SESSION_MATERIAL_LOG_SINK_NON_ECHOING",
+            "AUTHORIZATION_CODE_LOG_SINK_NON_ECHOING",
+            "PASSWORD_SHORT_REJECTED",
+            "PASSWORD_CAPACITY_TRUNCATION_REJECTED",
+            "LEAKED_PASSWORD_REJECTED",
+            "SOURCE_TOKEN_REJECTED",
+            "URL_TOKEN_REJECTED",
+            "PROVIDER_ERROR_NON_ECHOING"
+          ]
+        },
+        "required_positive_probes": {
+          "const": [
+            "ACCOUNT_SESSION_TO_WEB_SESSION",
+            "ACCOUNT_SESSION_TO_FITNESS_SESSION",
+            "ACCOUNT_SESSION_TO_MAZER_SESSION",
+            "USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION",
+            "ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY",
+            "ATOMIC_GLOBAL_PROFILE_USER_NUMBER_ALLOCATION",
+            "SIGNED_IN_PASSWORD_CHANGE_RECENT_AUTH_CURRENT_PASSWORD",
+            "SIGNED_IN_EMAIL_CHANGE_CURRENT_PASSWORD_SECURE_SERVER_ENFORCED",
+            "SELECTED_SESSION_REVOCATION",
+            "PASSWORD_64_CHARACTER_EXACT_VALUE_ACCEPTED",
+            "INHERITED_SESSION_SECURITY_READBACK_AND_RUNTIME_PROOF",
+            "FAILED_REDEMPTION_PRESERVES_EXCHANGE",
+            "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
+            "PER_ORIGIN_SIGN_OUT",
+            "ACCOUNT_WIDE_REVOCATION"
+          ]
+        }
+      }
+    }
+  }
+}

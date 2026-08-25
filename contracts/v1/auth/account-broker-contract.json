@@ -1,0 +1,322 @@
+{
+  "version": "1.0.0",
+  "status": "REQUIRED",
+  "ownership": {
+    "contract_repository": "fawxzzy/fawxzzy-platform",
+    "account_surface_repository": "fawxzzy/FawxzzyWeb",
+    "product_adapter_repositories": [
+      "fawxzzy/fawxzzy-fitness",
+      "fawxzzy/mazer"
+    ]
+  },
+  "architecture": {
+    "account_origin": "https://account.fawxzzy.com",
+    "target_project_ref": "bxtcuhkotumitoqtrcej",
+    "session_scope": "per_origin",
+    "exchange_mechanism": "one_time_backend_exchange_with_pkce_s256",
+    "shared_refresh_cookies": false,
+    "source_project_fallback": false,
+    "source_only_contract": true
+  },
+  "lifecycle": {
+    "source_contract": "CURRENT",
+    "runtime_implementation": "REQUIRED",
+    "provider_application": "BLOCKED",
+    "preview_activation": "BLOCKED",
+    "production_activation": "BLOCKED",
+    "apply_admitted": false
+  },
+  "clients": [
+    {
+      "client_id": "fawxzzy_web",
+      "origin": "https://fawxzzy.com",
+      "callback_path": "/auth/callback",
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
+    },
+    {
+      "client_id": "fitness",
+      "origin": "https://fitness.fawxzzy.com",
+      "callback_path": "/auth/callback",
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
+    },
+    {
+      "client_id": "mazer",
+      "origin": "https://mazer.fawxzzy.com",
+      "callback_path": "/auth/callback",
+      "default_return_path": "/account",
+      "allowed_return_paths": [
+        "/account"
+      ]
+    }
+  ],
+  "account_template": {
+    "single_template_per_surface": true,
+    "context_source": "validated_client_registry",
+    "context_is_authorization": false,
+    "contexts": [
+      "fawxzzy_web",
+      "fitness",
+      "mazer"
+    ],
+    "context_changes": [
+      "product_title",
+      "product_theme",
+      "return_destination",
+      "policy_supplement_links"
+    ],
+    "context_must_not_change": [
+      "credential_validation",
+      "username_rules",
+      "session_security",
+      "reset_flow",
+      "message_vocabulary"
+    ],
+    "surfaces": [
+      {
+        "surface": "sign_in",
+        "path": "/sign-in"
+      },
+      {
+        "surface": "create_account",
+        "path": "/create-account"
+      },
+      {
+        "surface": "account",
+        "path": "/account"
+      },
+      {
+        "surface": "reset_password",
+        "path": "/reset-password"
+      },
+      {
+        "surface": "new_password",
+        "path": "/new-password"
+      }
+    ]
+  },
+  "identifier_policy": {
+    "sign_in_identifier": "email_or_canonical_username",
+    "sign_up_required_fields": [
+      "email",
+      "username",
+      "password"
+    ],
+    "username": {
+      "minimum_characters": 2,
+      "maximum_characters": 15,
+      "ascii_pattern": "^[A-Za-z0-9._-]{2,15}$",
+      "availability_is_advisory": true,
+      "atomic_server_claim_required": true,
+      "username_only_identity_matching_forbidden": true
+    },
+    "username_resolution": "server_only_non_disclosing",
+    "password_policy_source": "contracts/v1/auth/domain-session-contract.json"
+  },
+  "start_request": {
+    "endpoint": "/auth/start",
+    "method": "GET",
+    "required_parameters": [
+      "client_id",
+      "return_to",
+      "intent",
+      "state",
+      "code_challenge",
+      "code_challenge_method"
+    ],
+    "allowed_intents": [
+      "sign_in",
+      "create_account",
+      "account",
+      "reset_password"
+    ],
+    "redirect_validation": "exact_client_origin_and_path_allowlist",
+    "state_entropy_bits_minimum": 128,
+    "pkce_method": "S256",
+    "arbitrary_return_urls_allowed": false
+  },
+  "exchange": {
+    "issue_endpoint": "/api/account-broker/exchanges",
+    "redeem_endpoint": "/api/account-broker/exchanges/redeem",
+    "method": "POST",
+    "authorization_code_entropy_bits_minimum": 256,
+    "authorization_code_ttl_seconds": 60,
+    "authorization_code_storage": "sha256_digest_only",
+    "session_material_storage": "ephemeral_server_side_encrypted_only",
+    "session_material_transport": "server_to_server_response_only",
+    "bound_fields": [
+      "auth_user_id",
+      "auth_session_id",
+      "client_id",
+      "redirect_uri",
+      "code_challenge",
+      "issued_at",
+      "expires_at"
+    ],
+    "consume": "atomic_exactly_once",
+    "failed_consume_effect": "none",
+    "revoked_session_effect": "reject_pending_exchange",
+    "url_session_material_allowed": false,
+    "receipt_contains_session_material": false
+  },
+  "recovery": {
+    "owner_origin": "https://account.fawxzzy.com",
+    "request_path": "/reset-password",
+    "redirect_path": "/reset-password?recovery=1",
+    "new_password_path": "/new-password",
+    "pkce_required": true,
+    "return_context_preserved_by_validated_server_state": true,
+    "url_tokens_allowed": false
+  },
+  "sign_out": {
+    "product_action": "clear_current_origin_session",
+    "account_action": "revoke_selected_or_all_sessions_then_clear_account_origin",
+    "silent_cross_origin_cookie_deletion": false,
+    "user_confirmation_for_all_sessions": true
+  },
+  "database_contract": {
+    "executable_sql_included": false,
+    "relation": {
+      "name": "platform_private.account_session_exchanges",
+      "data_api_exposed": false,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "plaintext_code_stored": false,
+      "plaintext_session_material_stored": false,
+      "expired_record_cleanup": "REQUIRED"
+    },
+    "required_functions": [
+      {
+        "name": "platform_private.issue_account_session_exchange",
+        "exposure": "server_only",
+        "subject_source": "verified_account_session",
+        "execute_grants": [
+          "platform_private_broker_runtime"
+        ],
+        "execute_revoked_from": [
+          "PUBLIC",
+          "anon",
+          "authenticated"
+        ]
+      },
+      {
+        "name": "platform_private.consume_account_session_exchange",
+        "exposure": "server_only",
+        "subject_source": "stored_exchange_record",
+        "execute_grants": [
+          "platform_private_broker_runtime"
+        ],
+        "execute_revoked_from": [
+          "PUBLIC",
+          "anon",
+          "authenticated"
+        ]
+      }
+    ]
+  },
+  "privacy_and_errors": {
+    "provider_error_text_echoed": false,
+    "identifier_existence_disclosed": false,
+    "authorization_code_logged": false,
+    "session_material_logged": false,
+    "fixed_message_vocabulary": [
+      "ACCOUNT_ACTION_REQUIRED",
+      "ACCOUNT_REQUEST_ACCEPTED",
+      "ACCOUNT_REQUEST_REJECTED",
+      "ACCOUNT_SESSION_ESTABLISHED",
+      "ACCOUNT_SESSION_EXPIRED",
+      "ACCOUNT_SERVICE_UNAVAILABLE"
+    ]
+  },
+  "activation_gates": [
+    {
+      "gate": "wave4_complete_postimage",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "account_shell_exact_head_review",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "platform_private_exchange_schema_review",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "exact_auth_url_provider_preimage",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "captcha_configuration_and_synthetic_proof",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "custom_smtp_configuration_readback_and_synthetic_delivery_proof",
+      "status": "REQUIRED"
+    },
+    {
+      "gate": "synthetic_preview_exchange_proof",
+      "status": "BLOCKED"
+    },
+    {
+      "gate": "source_token_rejection_proof",
+      "status": "BLOCKED"
+    },
+    {
+      "gate": "rollback_proof",
+      "status": "BLOCKED"
+    },
+    {
+      "gate": "serial_product_adapter_cutover",
+      "status": "BLOCKED"
+    }
+  ],
+  "verification": {
+    "synthetic_users_only": true,
+    "required_negative_probes": [
+      "UNKNOWN_CLIENT_REJECTED",
+      "UNLISTED_RETURN_REJECTED",
+      "STATE_MISMATCH_REJECTED",
+      "PKCE_MISMATCH_REJECTED",
+      "PKCE_METHOD_DOWNGRADE_REJECTED",
+      "EXPIRED_CODE_REJECTED",
+      "REPLAYED_CODE_REJECTED",
+      "WRONG_CLIENT_REJECTED",
+      "WRONG_REDIRECT_REJECTED",
+      "IDENTIFIER_NON_ENUMERATION_REJECTED",
+      "MISSING_OR_UNLISTED_INTENT_REJECTED",
+      "UNAUTHENTICATED_EXCHANGE_ISSUANCE_REJECTED",
+      "CALLER_SELECTED_EXCHANGE_SUBJECT_REJECTED",
+      "PENDING_EXCHANGE_AFTER_REVOKED_SESSION_REJECTED",
+      "SESSION_MATERIAL_LOG_SINK_NON_ECHOING",
+      "AUTHORIZATION_CODE_LOG_SINK_NON_ECHOING",
+      "PASSWORD_SHORT_REJECTED",
+      "PASSWORD_CAPACITY_TRUNCATION_REJECTED",
+      "LEAKED_PASSWORD_REJECTED",
+      "SOURCE_TOKEN_REJECTED",
+      "URL_TOKEN_REJECTED",
+      "PROVIDER_ERROR_NON_ECHOING"
+    ],
+    "required_positive_probes": [
+      "ACCOUNT_SESSION_TO_WEB_SESSION",
+      "ACCOUNT_SESSION_TO_FITNESS_SESSION",
+      "ACCOUNT_SESSION_TO_MAZER_SESSION",
+      "USERNAME_EMAIL_CANONICAL_IDENTITY_RESOLUTION",
+      "ATOMIC_USERNAME_CLAIM_NO_DUPLICATE_IDENTITY",
+      "ATOMIC_GLOBAL_PROFILE_USER_NUMBER_ALLOCATION",
+      "SIGNED_IN_PASSWORD_CHANGE_RECENT_AUTH_CURRENT_PASSWORD",
+      "SIGNED_IN_EMAIL_CHANGE_CURRENT_PASSWORD_SECURE_SERVER_ENFORCED",
+      "SELECTED_SESSION_REVOCATION",
+      "PASSWORD_64_CHARACTER_EXACT_VALUE_ACCEPTED",
+      "INHERITED_SESSION_SECURITY_READBACK_AND_RUNTIME_PROOF",
+      "FAILED_REDEMPTION_PRESERVES_EXCHANGE",
+      "RESET_TO_NEW_PASSWORD_TO_RETURN_CONTEXT",
+      "PER_ORIGIN_SIGN_OUT",
+      "ACCOUNT_WIDE_REVOCATION"
+    ]
+  }
+}
