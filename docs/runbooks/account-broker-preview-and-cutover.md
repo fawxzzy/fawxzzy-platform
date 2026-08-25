@@ -20,7 +20,7 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 1. The product creates a random state value and PKCE verifier, stores them in a secure short-lived same-origin transaction cookie, and sends only the state and S256 challenge to the account start route.
 2. The account start route requires and resolves the client and intent from the fixed registry, and rejects a missing or unlisted intent or return destination before rendering a surface.
 3. The account origin authenticates or creates the canonical user, atomically creates the required global profile and immutable user number with the username claim when required, and verifies the requested service context without using that context as authorization.
-4. The broker creates one encrypted, expiring server-side exchange record and redirects with only the opaque one-time code plus state.
+4. The broker derives the exchange subject only from the verified account session, creates one encrypted, expiring server-side exchange record, and redirects with only the opaque one-time code plus state.
 5. The product callback compares state, redeems the code server-to-server with the PKCE verifier, and rejects any mismatch, expiry, replay, wrong audience, wrong redirect, revoked bound session, or source-project token.
 6. The product writes only its own origin-scoped session, removes callback parameters from browser history, and navigates to the exact validated return path.
 
@@ -36,8 +36,10 @@ This runbook prepares the serial account-broker rollout. It does not apply a dat
 - wrong client or redirect;
 - identifier responses that enumerate a known versus unknown email or username;
 - a missing or unlisted account-start intent;
+- unauthenticated exchange issuance or exchange issuance with caller-selected user or session identifiers;
 - a pending exchange redeemed after selected-session or account-wide revocation;
 - a credential-shaped synthetic canary reaching an issuer, redemption, platform, analytics, or application log sink;
+- an authorization-code-shaped synthetic canary reaching an issuer, callback, proxy, platform, analytics, or application log sink;
 - a password shorter than the required minimum, a password-capacity truncation attempt, or a provider-native leaked-password rejection bypass;
 - source-project token;
 - access, refresh, JWT, or recovery token in the URL;
@@ -60,6 +62,7 @@ Every case must fail before product session creation. Browser output and receipt
 - product sign-out clears only that origin;
 - selected-session revocation invalidates the selected established server session without revoking unrelated sessions, and selected-session or account-wide revocation rejects every pending exchange bound to a revoked account session.
 - a 64-character password completes signup or reset and subsequent authentication with the exact original value, without truncation.
+- configuration readback and synthetic runtime proof enforce the inherited 30-day absolute lifetime, seven-day inactivity timeout, refresh-token rotation, and reuse detection for every product session.
 
 Only the separately provisioned `platform_private_broker_runtime` server role receives `EXECUTE` on the broker helpers. `PUBLIC`, `anon`, and `authenticated` remain explicitly revoked.
 
