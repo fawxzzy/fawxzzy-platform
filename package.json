@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "topology:show": "node scripts/show-observed-topology.mjs",
     "bootstrap:generate": "node scripts/generate-target-bootstrap.mjs",
     "bootstrap:verify": "node scripts/verify-target-bootstrap.mjs",
     "executable-bundle:generate": "node scripts/generate-executable-bundle.mjs",

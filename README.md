@@ -4,6 +4,13 @@ Durable, public, secret-free contracts for consolidating DiscordOS, Fitness, and
 
 ## Frozen platform boundary
 
+The registry below is the historical migration preimage. It does not report
+current provider availability. Run `npm run topology:show` to read the separately
+validated October 11 settled observation: one retained master and three deleted
+legacy projects, with execution and replay still denied. See
+[the topology runbook](docs/runbooks/observed-project-topology.md). This is a
+retained evidence snapshot, not a fresh provider read or owner adoption.
+
 - Target project ref: `bxtcuhkotumitoqtrcej`
 - Source refs: DiscordOS `nwexsktuuenfdegzrbut`, Fitness `lpswxoyfniocuhljgzbc`, Mazer `geknvnrmktchljnyddwp`
 - Shared objects: `platform_shared`
