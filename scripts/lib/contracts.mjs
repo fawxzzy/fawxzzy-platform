@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { types } from 'node:util';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { validateRecoveryDocuments } from './recovery.mjs';
+import { operationsContractPath, operationsExamplesPath, operationsSchemaId, validateDevelopmentOperationsDocuments } from './development-operations-contract.mjs';
 import { independentBackupContractPath, validateIndependentBackupContract } from './independent-backup-contract.mjs';
 import {
   buildExecutableBundleManifest,
@@ -63,6 +64,8 @@ const executableBundlePinnedEvidenceBindings = Object.freeze([
 ]);
 
 export const documentSpecs = Object.freeze([
+  [operationsContractPath, `${operationsSchemaId}#/$defs/contract`],
+  [operationsExamplesPath, `${operationsSchemaId}#/$defs/examples`],
   ['contracts/v1/registry/project-registry.json', 'urn:fawxzzy:platform:schemas:v1:project-registry'],
   ['contracts/v1/catalog/service-catalog.json', 'urn:fawxzzy:platform:schemas:v1:service-catalog'],
   ['contracts/v1/identity/identity-map.json', 'urn:fawxzzy:platform:schemas:v1:identity-map'],
@@ -3061,6 +3064,7 @@ export function validateSemantics(documents) {
   }
 
   failures.push(...validatePlatformDataConvergenceContracts(documents));
+  failures.push(...validateDevelopmentOperationsDocuments(documents));
 
   const registry = documents['contracts/v1/registry/project-registry.json'];
   requireCondition(registry.target.name === 'fawxzzy-platform', 'target project identity changed');
@@ -3723,9 +3727,12 @@ export function validateContracts() {
     source_planning_schema_count: convergenceDocumentPaths.length,
     source_planning_document_count: convergenceDocumentPaths.length,
     source_planning_semantic_check_groups: 1,
+    private_operations_schema_count: 1,
+    private_operations_document_count: 2,
+    private_operations_semantic_check_groups: 1,
     validated_schema_count: schemaPaths().length,
     validated_document_count: documentSpecs.length,
-    validated_semantic_check_groups: 28,
+    validated_semantic_check_groups: 29,
     failures
   };
 }
