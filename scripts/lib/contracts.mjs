@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { types } from 'node:util';
+import { observedTopologyPath, validateObservedProjectTopology } from './observed-topology.mjs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { validateRecoveryDocuments } from './recovery.mjs';
 import { operationsContractPath, operationsExamplesPath, operationsSchemaId, validateDevelopmentOperationsDocuments } from './development-operations-contract.mjs';
@@ -66,6 +67,7 @@ const executableBundlePinnedEvidenceBindings = Object.freeze([
 export const documentSpecs = Object.freeze([
   [operationsContractPath, `${operationsSchemaId}#/$defs/contract`],
   [operationsExamplesPath, `${operationsSchemaId}#/$defs/examples`],
+  [observedTopologyPath, 'urn:fawxzzy:platform:schemas:v1:observed-project-topology'],
   ['contracts/v1/registry/project-registry.json', 'urn:fawxzzy:platform:schemas:v1:project-registry'],
   ['contracts/v1/catalog/service-catalog.json', 'urn:fawxzzy:platform:schemas:v1:service-catalog'],
   ['contracts/v1/identity/identity-map.json', 'urn:fawxzzy:platform:schemas:v1:identity-map'],
@@ -3065,6 +3067,7 @@ export function validateSemantics(documents) {
 
   failures.push(...validatePlatformDataConvergenceContracts(documents));
   failures.push(...validateDevelopmentOperationsDocuments(documents));
+  failures.push(...validateObservedProjectTopology(documents));
 
   const registry = documents['contracts/v1/registry/project-registry.json'];
   requireCondition(registry.target.name === 'fawxzzy-platform', 'target project identity changed');
@@ -3730,9 +3733,12 @@ export function validateContracts() {
     private_operations_schema_count: 1,
     private_operations_document_count: 2,
     private_operations_semantic_check_groups: 1,
+    observation_schema_count: 1,
+    observation_document_count: 1,
+    observation_semantic_check_groups: 1,
     validated_schema_count: schemaPaths().length,
     validated_document_count: documentSpecs.length,
-    validated_semantic_check_groups: 29,
+    validated_semantic_check_groups: 30,
     failures
   };
 }

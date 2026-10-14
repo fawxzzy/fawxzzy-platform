@@ -1,4 +1,4 @@
-# ADR 0006: Private development operations contract proposal
+# ADR 0007: Private development operations contract proposal
 
 Status: `OWNER_DECISION`
 

@@ -68,9 +68,9 @@ test('all versioned contract instances satisfy their schemas and semantics', () 
       semantic_check_groups: report.validated_semantic_check_groups
     },
     {
-      schema_count: 32,
-      document_count: 32,
-      semantic_check_groups: 29
+      schema_count: 33,
+      document_count: 33,
+      semantic_check_groups: 30
     }
   );
 });
