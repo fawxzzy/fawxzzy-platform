@@ -41,6 +41,26 @@ submitted digest, validate a contribution schema, verify producer/revision ident
 authorize an operator, or make the proposal adopted. A caller must complete each
 of those gates before accepting data, even when computed hashes match.
 
+Expected integrity evidence is detached from both that envelope and its source
+payload: `detached_source_proof.digest` must be bound to an independently verified
+immutable source and the exact envelope. All five contribution schemas require
+this evidence under the candidate policy. The carrier rules are:
+
+| Source schema | Payload digest rule |
+| --- | --- |
+| Card v1 | Forbidden by the unchanged source schema |
+| Board v1 | Forbidden by the unchanged source schema |
+| Event v1 | Forbidden by the unchanged source schema |
+| Board v2 | Forbidden by the unchanged source schema |
+| Event v2 | Existing required field must match the detached digest |
+
+Both supplied digests use `sha256:` followed by 64 lowercase hexadecimal digits;
+the hash helper returns only the 64 digits. Never add or replace a payload field
+to satisfy integrity validation. Unknown schemas, missing proof, unverified source
+binding or a mismatch must prevent acceptance and current-truth claims. A detached
+digest submitted by an untrusted caller is not verified source evidence. Its
+transport, source verification and runtime comparison remain adoption prerequisites.
+
 Inputs are plain JSON values represented as local JavaScript objects. Proxies,
 accessors, custom prototypes, non-enumerable fields, symbol keys, sparse arrays,
 cycles, invalid Unicode and non-finite numbers are rejected without invoking

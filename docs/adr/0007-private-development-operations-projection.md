@@ -11,7 +11,7 @@ Socials OS architecture at `6662045aaedb20b0da657ebd982faf9729004afc` accepts an
 The closed contract instance under `contracts/v1/operations/` captures seven proposed boundaries. All remain pending owner adoption:
 
 1. A trusted source envelope declares the exact schema and binds server-verified immutable producer identity, source revision, mapping version and unchanged payload. V2 body identity must match. V1 remains non-self-identifying with its original vocabulary; no implicit conversion.
-2. SHA-256 covers an RFC8785 canonical object containing schema identity, producer identity, source revision, mapping version and payload with its own `digest` field omitted. This defines proposed bytes, not an implemented digest verifier. The later implementation must supply independent canonicalization vectors, timestamp/Unicode edge cases and exact source binding.
+2. SHA-256 covers an RFC8785 canonical object containing schema identity, producer identity, source revision, mapping version and payload with its own `digest` field omitted when present. The expected digest travels separately in `detached_source_proof.digest`, bound to the server-verified immutable source and exact envelope. All five schemas require this detached evidence; a client-supplied claim is not authority. Card v1, board v1, event v1 and board v2 forbid a payload digest. Event v2 requires its existing `payload.digest` to match the detached digest. Both use `sha256:` followed by 64 lowercase hexadecimal characters; the candidate hash helper returns the hexadecimal portion. Never insert or replace a field in the retained source to make a check pass. Missing, unknown or mismatched evidence rejects acceptance and current-truth claims. The candidate serializer and bounded parser now have source proofs, but supplied-digest validation, trusted source binding and detached-proof transport remain unimplemented adoption prerequisites.
 3. `(producer_identity,event_id)` is the global event key. An exact producer/event/revision/digest repeat is a no-op. Conflicting reuse is quarantined, never overwritten; a supersession uses a new event ID with explicit predecessor. The producer's immutable identity must not be inferred from its submitted name.
 4. State events require an exact validated card or board snapshot bound to ID, schema, source revision, snapshot digest and mapping version. Other events append history only. Prose cannot mutate lifecycle. The snapshot transport and mapping remain a separate implementation prerequisite; this document does not add fields to published Socials schemas.
 5. Ordering uses occurrence instants without precision loss, then producer identity, event ID and digest in UTF-8 byte order. Late events rebuild atomically from accepted history. A watermark covers the complete sorted producer/revision set, not one convenient latest event. Each producer requires an explicit maximum observation-age policy; unknown thresholds or missing producers prevent healthy truth. Source commit age is not freshness of the latest verified observation.
@@ -19,6 +19,15 @@ The closed contract instance under `contracts/v1/operations/` captures seven pro
 7. The response uses a closed field allowlist with opaque evidence handles, mandatory redaction before serialization and no restricted summaries, raw references or source objects. No public/static operational payload or shared cache. A sanitized flag and noindex are not security proofs.
 
 ## Health and synthetic examples
+
+The carrier distinction follows the five closed contribution schemas at the
+accepted Socials commit above. Four use `additionalProperties: false` without a
+`digest` property; only event v2 declares and requires it. A universal
+`payload.digest` requirement would make valid older contributions impossible to
+accept without rewriting them. The detached proof is outside the five-field
+canonical envelope and outside the source payload; its transport and verification
+must be accepted separately. A matching SHA-256 proves neither producer identity
+nor permission. No contribution schema is changed by this proposal.
 
 Only `healthy` exposes authoritative current truth. `stale` and `reconciling` may show a previous accepted redacted projection with a visible marker and watermark. `unavailable` exposes no cards. `incompatible` quarantines affected records; the conservative synthetic examples withhold the whole payload. All states are read-only.
 

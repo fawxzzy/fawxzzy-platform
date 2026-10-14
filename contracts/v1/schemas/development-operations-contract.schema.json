@@ -211,6 +211,11 @@
                 "canonicalization",
                 "covered_fields",
                 "digest_location",
+                "digest_format",
+                "detached_source_proof",
+                "payload_digest_by_schema",
+                "source_payload_mutation",
+                "missing_unknown_or_mismatch",
                 "self_field_excluded",
                 "format_alone_proves_integrity"
               ],
@@ -231,7 +236,33 @@
                   ]
                 },
                 "digest_location": {
-                  "const": "payload.digest"
+                  "const": "detached_source_proof.digest"
+                },
+                "digest_format": {
+                  "const": "sha256:<64-lowercase-hex>"
+                },
+                "detached_source_proof": {
+                  "const": {
+                    "required": true,
+                    "source_binding": "SERVER_VERIFIED_IMMUTABLE_SOURCE_AND_EXACT_ENVELOPE",
+                    "caller_supplied_claim_is_authority": false,
+                    "transport": "OWNER_DECISION"
+                  }
+                },
+                "payload_digest_by_schema": {
+                  "const": {
+                    "socials-os.development-card.v1.schema.json": "FORBIDDEN_BY_SOURCE_SCHEMA",
+                    "socials-os.development-board.v1.schema.json": "FORBIDDEN_BY_SOURCE_SCHEMA",
+                    "socials-os.development-event.v1.schema.json": "FORBIDDEN_BY_SOURCE_SCHEMA",
+                    "socials-os.development-board.v2.schema.json": "FORBIDDEN_BY_SOURCE_SCHEMA",
+                    "socials-os.development-event.v2.schema.json": "REQUIRED_MATCH_DETACHED_DIGEST"
+                  }
+                },
+                "source_payload_mutation": {
+                  "const": false
+                },
+                "missing_unknown_or_mismatch": {
+                  "const": "REJECT_NO_CURRENT_TRUTH"
                 },
                 "self_field_excluded": {
                   "const": true
