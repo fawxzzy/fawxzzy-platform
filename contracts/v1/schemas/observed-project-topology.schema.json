@@ -1,0 +1,426 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:observed-project-topology",
+  "title": "Receipt-bound observed project topology snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "evidence_recorded_at",
+    "observation_kind",
+    "fresh_provider_observation",
+    "historical_registry",
+    "target",
+    "retired_sources",
+    "historical_operation_gates",
+    "authority"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "status": {
+      "type": "string",
+      "const": "CURRENT"
+    },
+    "evidence_recorded_at": {
+      "type": "string",
+      "const": "2026-10-11T05:11:28.612260+00:00"
+    },
+    "observation_kind": {
+      "type": "string",
+      "const": "SETTLED_HISTORICAL_PROVIDER_POSTIMAGE"
+    },
+    "fresh_provider_observation": {
+      "type": "boolean",
+      "const": false
+    },
+    "historical_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "commit",
+        "sha256",
+        "interpretation",
+        "preserve_original_bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "const": "contracts/v1/registry/project-registry.json"
+        },
+        "commit": {
+          "type": "string",
+          "const": "b67db435cea754cab14a3560af0799937e7053f6"
+        },
+        "sha256": {
+          "type": "string",
+          "const": "16a7b668f2a4c165b73ff62a9bf142337121c3b43415a2c32f52393d553ecab9"
+        },
+        "interpretation": {
+          "type": "string",
+          "const": "HISTORICAL_MIGRATION_PREIMAGE_NOT_CURRENT_PROVIDER_INVENTORY"
+        },
+        "preserve_original_bytes": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "ref",
+        "availability",
+        "disposition",
+        "evidence_ref"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "Fawxzzy"
+        },
+        "ref": {
+          "type": "string",
+          "const": "bxtcuhkotumitoqtrcej"
+        },
+        "availability": {
+          "type": "string",
+          "const": "active"
+        },
+        "disposition": {
+          "type": "string",
+          "const": "RETAIN"
+        },
+        "evidence_ref": {
+          "type": "string",
+          "const": "runtime/atlas/continuity/platform-supabase-discordos-retirement-r001-20261011-completion-receipt.json#sha256=2d9332330512e4c7b94f592e6a8cb43be87cd325c7f9337f836c9a3ec014576e"
+        }
+      }
+    },
+    "retired_sources": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref",
+            "availability",
+            "disposition",
+            "evidence_ref",
+            "recreate_to_satisfy_historical_contract"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "DiscordOS"
+            },
+            "ref": {
+              "type": "string",
+              "const": "nwexsktuuenfdegzrbut"
+            },
+            "availability": {
+              "type": "string",
+              "const": "deleted"
+            },
+            "disposition": {
+              "type": "string",
+              "const": "ARCHIVAL_PROVENANCE_ONLY"
+            },
+            "evidence_ref": {
+              "type": "string",
+              "const": "runtime/atlas/continuity/platform-supabase-discordos-retirement-r001-20261011-completion-receipt.json#sha256=2d9332330512e4c7b94f592e6a8cb43be87cd325c7f9337f836c9a3ec014576e"
+            },
+            "recreate_to_satisfy_historical_contract": {
+              "type": "boolean",
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref",
+            "availability",
+            "disposition",
+            "evidence_ref",
+            "recreate_to_satisfy_historical_contract"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "Fitness"
+            },
+            "ref": {
+              "type": "string",
+              "const": "lpswxoyfniocuhljgzbc"
+            },
+            "availability": {
+              "type": "string",
+              "const": "deleted"
+            },
+            "disposition": {
+              "type": "string",
+              "const": "ARCHIVAL_PROVENANCE_ONLY"
+            },
+            "evidence_ref": {
+              "type": "string",
+              "const": "runtime/atlas/continuity/platform-supabase-fitness-retirement-r001-20261011-completion-receipt.json#sha256=35d4100210d49c520c6bb9044913747fa6861de81c35f27f347dfc894e5e6405"
+            },
+            "recreate_to_satisfy_historical_contract": {
+              "type": "boolean",
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "ref",
+            "availability",
+            "disposition",
+            "evidence_ref",
+            "recreate_to_satisfy_historical_contract"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "Mazer"
+            },
+            "ref": {
+              "type": "string",
+              "const": "geknvnrmktchljnyddwp"
+            },
+            "availability": {
+              "type": "string",
+              "const": "deleted"
+            },
+            "disposition": {
+              "type": "string",
+              "const": "ARCHIVAL_PROVENANCE_ONLY"
+            },
+            "evidence_ref": {
+              "type": "string",
+              "const": "runtime/atlas/continuity/platform-supabase-mazer-retirement-r002-20261010-completion-receipt.json#sha256=16341e05dc48c0d7106968bff2bacbb342d6fe28121112fa9c58dbaa13ff81cb"
+            },
+            "recreate_to_satisfy_historical_contract": {
+              "type": "boolean",
+              "const": false
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "historical_operation_gates": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "target_writes"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "contract-only packet"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "data_import"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "transport plan and rehearsal proof required"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "auth_import"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "identity adjudication and controlled reauthentication required"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "vercel_env_cutover"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "target parity and action-time approval required"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "production_deploy"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "production deployment is outside this packet"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "source_pause"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "source projects must remain active"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "operation": {
+              "type": "string",
+              "const": "source_deletion"
+            },
+            "status": {
+              "type": "string",
+              "const": "BLOCKED"
+            },
+            "reason": {
+              "type": "string",
+              "const": "separate destructive approval and retirement proof required"
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_status",
+        "execution_authorized",
+        "replay_authorized",
+        "owner_adoption"
+      ],
+      "properties": {
+        "execution_status": {
+          "type": "string",
+          "const": "BLOCKED"
+        },
+        "execution_authorized": {
+          "type": "boolean",
+          "const": false
+        },
+        "replay_authorized": {
+          "type": "boolean",
+          "const": false
+        },
+        "owner_adoption": {
+          "type": "string",
+          "const": "OWNER_DECISION"
+        }
+      }
+    }
+  }
+}

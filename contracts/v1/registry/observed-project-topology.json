@@ -1,0 +1,90 @@
+{
+  "version": "1.0.0",
+  "status": "CURRENT",
+  "evidence_recorded_at": "2026-10-11T05:11:28.612260+00:00",
+  "observation_kind": "SETTLED_HISTORICAL_PROVIDER_POSTIMAGE",
+  "fresh_provider_observation": false,
+  "historical_registry": {
+    "path": "contracts/v1/registry/project-registry.json",
+    "commit": "b67db435cea754cab14a3560af0799937e7053f6",
+    "sha256": "16a7b668f2a4c165b73ff62a9bf142337121c3b43415a2c32f52393d553ecab9",
+    "interpretation": "HISTORICAL_MIGRATION_PREIMAGE_NOT_CURRENT_PROVIDER_INVENTORY",
+    "preserve_original_bytes": true
+  },
+  "target": {
+    "name": "Fawxzzy",
+    "ref": "bxtcuhkotumitoqtrcej",
+    "availability": "active",
+    "disposition": "RETAIN",
+    "evidence_ref": "runtime/atlas/continuity/platform-supabase-discordos-retirement-r001-20261011-completion-receipt.json#sha256=2d9332330512e4c7b94f592e6a8cb43be87cd325c7f9337f836c9a3ec014576e"
+  },
+  "retired_sources": [
+    {
+      "name": "DiscordOS",
+      "ref": "nwexsktuuenfdegzrbut",
+      "availability": "deleted",
+      "disposition": "ARCHIVAL_PROVENANCE_ONLY",
+      "evidence_ref": "runtime/atlas/continuity/platform-supabase-discordos-retirement-r001-20261011-completion-receipt.json#sha256=2d9332330512e4c7b94f592e6a8cb43be87cd325c7f9337f836c9a3ec014576e",
+      "recreate_to_satisfy_historical_contract": false
+    },
+    {
+      "name": "Fitness",
+      "ref": "lpswxoyfniocuhljgzbc",
+      "availability": "deleted",
+      "disposition": "ARCHIVAL_PROVENANCE_ONLY",
+      "evidence_ref": "runtime/atlas/continuity/platform-supabase-fitness-retirement-r001-20261011-completion-receipt.json#sha256=35d4100210d49c520c6bb9044913747fa6861de81c35f27f347dfc894e5e6405",
+      "recreate_to_satisfy_historical_contract": false
+    },
+    {
+      "name": "Mazer",
+      "ref": "geknvnrmktchljnyddwp",
+      "availability": "deleted",
+      "disposition": "ARCHIVAL_PROVENANCE_ONLY",
+      "evidence_ref": "runtime/atlas/continuity/platform-supabase-mazer-retirement-r002-20261010-completion-receipt.json#sha256=16341e05dc48c0d7106968bff2bacbb342d6fe28121112fa9c58dbaa13ff81cb",
+      "recreate_to_satisfy_historical_contract": false
+    }
+  ],
+  "historical_operation_gates": [
+    {
+      "operation": "target_writes",
+      "status": "BLOCKED",
+      "reason": "contract-only packet"
+    },
+    {
+      "operation": "data_import",
+      "status": "BLOCKED",
+      "reason": "transport plan and rehearsal proof required"
+    },
+    {
+      "operation": "auth_import",
+      "status": "BLOCKED",
+      "reason": "identity adjudication and controlled reauthentication required"
+    },
+    {
+      "operation": "vercel_env_cutover",
+      "status": "BLOCKED",
+      "reason": "target parity and action-time approval required"
+    },
+    {
+      "operation": "production_deploy",
+      "status": "BLOCKED",
+      "reason": "production deployment is outside this packet"
+    },
+    {
+      "operation": "source_pause",
+      "status": "BLOCKED",
+      "reason": "source projects must remain active"
+    },
+    {
+      "operation": "source_deletion",
+      "status": "BLOCKED",
+      "reason": "separate destructive approval and retirement proof required"
+    }
+  ],
+  "authority": {
+    "execution_status": "BLOCKED",
+    "execution_authorized": false,
+    "replay_authorized": false,
+    "owner_adoption": "OWNER_DECISION"
+  }
+}

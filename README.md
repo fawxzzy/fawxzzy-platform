@@ -4,6 +4,13 @@ Durable, public, secret-free contracts for consolidating DiscordOS, Fitness, and
 
 ## Frozen platform boundary
 
+The registry below is the historical migration preimage. It does not report
+current provider availability. Run `npm run topology:show` to read the separately
+validated October 11 settled observation: one retained master and three deleted
+legacy projects, with execution and replay still denied. See
+[the topology runbook](docs/runbooks/observed-project-topology.md). This is a
+retained evidence snapshot, not a fresh provider read or owner adoption.
+
 - Target project ref: `bxtcuhkotumitoqtrcej`
 - Source refs: DiscordOS `nwexsktuuenfdegzrbut`, Fitness `lpswxoyfniocuhljgzbc`, Mazer `geknvnrmktchljnyddwp`
 - Shared objects: `platform_shared`
@@ -65,6 +72,6 @@ Validation covers schemas, cross-contract semantics, deterministic output, LF an
 
 ## Lifecycle truth
 
-`target_writes`, `data_import`, `auth_import`, `vercel_env_cutover`, `production_deploy`, `source_pause`, and `source_deletion` are all `BLOCKED`. Source and target projects remain active. Recovery execution and migration SQL generation are separately authorized packets, not part of this repository bootstrap.
+`target_writes`, `data_import`, `auth_import`, `vercel_env_cutover`, `production_deploy`, `source_pause`, and `source_deletion` remain `BLOCKED` in this repository's execution gates. The historical migration preimage records source and target projects as active; the separately validated October 11 settled observation records one retained master and three deleted legacy projects. Neither record grants execution or replay authority. Recovery execution and migration SQL generation require separately authorized packets, not this repository bootstrap.
 
 Status values are closed to `CURRENT`, `REQUIRED`, `OWNER_DECISION`, `BLOCKED`, `UNKNOWN`, and `NOT_APPLICABLE`.
