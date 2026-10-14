@@ -60,6 +60,36 @@ and UTF-8 vectors, envelope binding, mutation preservation and adversarial input
 Only synthetic fixtures are used; live intake, storage, authorization, redaction,
 mapping, rollback and consumer acceptance remain separate prerequisites.
 
+## Candidate bounded JSON parser
+
+`scripts/lib/development-operations-json.mjs` exports
+`parseCandidateOperationsJson` for the prerequisite above. It accepts a primitive
+string or a genuine Uint8Array (including Buffer), checks UTF-8 bytes with fatal
+decoding, and rejects a leading BOM. For strings already decoded by the caller,
+the caller must have rejected invalid original UTF-8; replacement characters
+cannot reveal bytes lost by an earlier permissive decoder.
+
+Following [RFC 7493](https://www.rfc-editor.org/rfc/rfc7493.html), decoded object
+names must be unique within each object, and strings and names cannot contain
+unpaired surrogates or Unicode noncharacters. Escaped names participate in the
+same duplicate check. Unicode normalization and timestamp strings are preserved.
+Numbers use ordinary finite IEEE754 binary64 semantics, including rounding and
+underflow; precision-bearing identifiers and exact decimals must be schema-approved
+strings. The parser is not an arbitrary-precision numeric transport.
+
+Raw input is limited to 1048576 UTF-8 bytes (including whitespace), depth 64 and
+100000 values, matching the candidate digest limits. Shared byte buffers,
+unsupported input objects and proxies are rejected. Input coercion, getters,
+iterators and revivers are never called. Errors contain a fixed code, never
+source data or field names. Prototype-like names remain ordinary own data fields;
+later consumers must not copy them into prototype-sensitive destinations.
+
+Run `node --test test/development-operations-json.test.mjs` for duplicate-name,
+encoding, grammar, size, depth, count and digest-composition proofs. This local
+candidate is not wired to an intake endpoint. Schema/version validation, supplied
+digest comparison, trusted producer/revision binding, quarantine and private
+consumer authorization remain separate acceptance gates.
+
 ## Failure prevention
 
 Before working from a retained draft, compare immutable current owner visibility, writer, source and lifecycle contracts. A newer unpublished local receipt does not supersede accepted architecture. An old export whose command was deliberately retired must not be silently restored as a current feed.
