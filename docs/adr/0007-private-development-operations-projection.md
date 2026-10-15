@@ -29,6 +29,15 @@ canonical envelope and outside the source payload; its transport and verificatio
 must be accepted separately. A matching SHA-256 proves neither producer identity
 nor permission. No contribution schema is changed by this proposal.
 
+The candidate `verifyCandidateOperationsContribution` wrapper now composes
+bounded parsing and integrity comparison with complete validation against those
+five pinned schemas. It checks v2 body identity and source revision against the
+envelope without rewriting v1 records. Canonical local schema copies retain
+upstream and local byte hashes; Ajv and a pinned full date-time format validator
+enforce the schema without coercion, defaults or property removal. Only the
+matching digest is returned. Source authenticity, approved mapping, redaction,
+operator access and live intake remain separate adoption prerequisites.
+
 Only `healthy` exposes authoritative current truth. `stale` and `reconciling` may show a previous accepted redacted projection with a visible marker and watermark. `unavailable` exposes no cards. `incompatible` quarantines affected records; the conservative synthetic examples withhold the whole payload. All states are read-only.
 
 The 72 examples exhaust three hypothetical access results, six hypothetical health inputs, projection presence and schema-identity validity. They validate the proposed policy, not credentials, operator grants, redaction, source integrity or a running service. The evaluator is named `evaluateSyntheticOperationsFixture` to preserve that distinction; it must not be imported as a production authorization gate.

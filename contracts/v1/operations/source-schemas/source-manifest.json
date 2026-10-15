@@ -1,0 +1,49 @@
+{
+  "status": "OWNER_DECISION",
+  "repository": "fawxzzy/socials-os",
+  "commit": "6662045aaedb20b0da657ebd982faf9729004afc",
+  "representation": "Exact parsed schema; canonical two-space JSON with LF, no semantic changes",
+  "producer_authentication": false,
+  "schemas": [
+    {
+      "identity": "socials-os.development-card.v1.schema.json",
+      "upstream_path": "contracts/development-card.v1.schema.json",
+      "upstream_sha256": "aadb3ba3ba7f8e397f9d9dd4be54e557145cacc8119bf7c44f07cdb1b3d9739e",
+      "upstream_bytes": 1607,
+      "local_path": "contracts/v1/operations/source-schemas/development-card.v1.schema.json",
+      "local_sha256": "2b1f0e69cc5fce7ab484b01ae215317c4cff3a5c7466e149b1c9ca13fb3ae6f8"
+    },
+    {
+      "identity": "socials-os.development-board.v1.schema.json",
+      "upstream_path": "contracts/development-board.v1.schema.json",
+      "upstream_sha256": "fcab29797a2f03c50b74f62174002d7cea983e9e321efd1f962d5dd776f2a3ea",
+      "upstream_bytes": 1022,
+      "local_path": "contracts/v1/operations/source-schemas/development-board.v1.schema.json",
+      "local_sha256": "d3d090a5ea4da52f17f10b048d81d1397676ff98e29ef6a6c1ffc557a5e8eb28"
+    },
+    {
+      "identity": "socials-os.development-event.v1.schema.json",
+      "upstream_path": "contracts/development-event.v1.schema.json",
+      "upstream_sha256": "104512b570d2b751f0ef67ca7a646a5588bae9a8d9842ade94b40391778eb465",
+      "upstream_bytes": 1638,
+      "local_path": "contracts/v1/operations/source-schemas/development-event.v1.schema.json",
+      "local_sha256": "ef2f6cf081bcbbb1098482add1cd1e3b7ebc62a34e698be6cf8e14b018d4f41e"
+    },
+    {
+      "identity": "socials-os.development-board.v2.schema.json",
+      "upstream_path": "contracts/development-board.v2.schema.json",
+      "upstream_sha256": "b233c5d2cf6e0f7d804525cd4e45e1a775e7043724abdc72eadc147fedabfe1c",
+      "upstream_bytes": 1311,
+      "local_path": "contracts/v1/operations/source-schemas/development-board.v2.schema.json",
+      "local_sha256": "3e2dc041aa726196adc0eb482f29ea00c246b2df4501892efa0de11266ed2aed"
+    },
+    {
+      "identity": "socials-os.development-event.v2.schema.json",
+      "upstream_path": "contracts/development-event.v2.schema.json",
+      "upstream_sha256": "1f5dc8efd348c5ecc258473ba0f81e4aedd309a8b60cc42a2579221f79ac1c54",
+      "upstream_bytes": 1901,
+      "local_path": "contracts/v1/operations/source-schemas/development-event.v2.schema.json",
+      "local_sha256": "8f82f40ce944f570b3fcdacb3c4a9e3a866b4e5905f7f4fa7e57e4936b4cfe40"
+    }
+  ]
+}

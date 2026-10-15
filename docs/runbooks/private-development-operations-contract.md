@@ -4,7 +4,7 @@ Status: `OWNER_DECISION`
 
 ## Scope
 
-This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, database schema, SQL, network client or consumer route. The candidate helpers below implement bounded parsing, proposed covered-byte computation and supplied-digest/carrier comparison. They do not authenticate source or authorize access.
+This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, database schema, SQL, network client or consumer route. The candidate helpers below implement bounded parsing, proposed covered-byte computation, supplied-digest/carrier comparison and complete contribution-schema validation. They do not authenticate source or authorize access.
 
 ## Verify local source
 
@@ -107,9 +107,9 @@ later consumers must not copy them into prototype-sensitive destinations.
 
 Run `node --test test/development-operations-json.test.mjs` for duplicate-name,
 encoding, grammar, size, depth, count and digest-composition proofs. This local
-candidate is not wired to an intake endpoint. Full contribution-schema/version
-validation, trusted producer/revision binding, quarantine and private consumer
-authorization remain separate acceptance gates.
+candidate is not wired to an intake endpoint. The contribution helper below
+adds schema/version validation. Trusted producer/revision binding, quarantine
+and private consumer authorization remain separate acceptance gates.
 
 ## Candidate detached integrity comparison
 
@@ -136,13 +136,58 @@ that a caller's producer/revision claims or detached evidence are authentic.
 A caller able to alter both payload and proof can compute a matching pair.
 Full contribution-schema validation (including v2 body/envelope identity),
 trusted immutable source binding, mapping and operator authorization must still
-succeed before data is accepted. No acceptance/current-truth/access flag is
+succeed before data is accepted. The contribution wrapper below supplies the
+first of those checks. No acceptance/current-truth/access flag is
 returned, and this candidate is not wired to an intake or production gate.
 
 Run `node --test test/development-operations-integrity.test.mjs` for all five
 carrier rules, independent expected hash bytes, tampering, malformed/duplicate
 proof, raw-input bounds and immutability. Minimal carrier fixtures deliberately
 do not assert full source-schema validity.
+
+## Candidate complete contribution validation
+
+`scripts/lib/development-operations-contribution.mjs` exports
+`verifyCandidateOperationsContribution(envelopeInput, proofInput)`. It composes
+the bounded raw parser and detached-integrity comparison with Ajv 8.17.1 checks
+against all five complete Socials contribution schemas. Only the exact declared
+identity dispatches a validator. Required fields, closed properties, types,
+enums, patterns, array constraints and event target requirements are enforced.
+V2 `contract_version` must match the envelope schema and `source_revision` must
+match the envelope revision byte for byte. V1 records retain their original
+schemas and vocabulary; there is no implicit migration or revision rewriting.
+
+The schema copies under `contracts/v1/operations/source-schemas/` preserve the
+parsed definitions from Socials commit
+`6662045aaedb20b0da657ebd982faf9729004afc`. Only JSON formatting changes to meet
+this repository's canonical two-space/LF rule. `source-manifest.json` records
+both upstream-byte and local-byte SHA-256 hashes. The module checks the five
+fixed local hashes before compiling; input cannot choose a file or supply a
+schema. There is no remote schema fetch. These pins establish source custody,
+not the authenticity of an incoming producer or contribution.
+
+Date-time validation uses pinned `ajv-formats` 3.0.1 in full mode, preceded by
+the [RFC3339](https://www.rfc-editor.org/rfc/rfc3339#section-5.6) grammar's explicit
+time separator, zone shape and local clock/offset ranges. The grammar guard
+also applies during leap-second validation, when the library alone can accept
+out-of-range local components. Calendar dates and leap-second position are
+checked by the library. Fractional precision, case and offset strings are retained;
+timestamps are never converted to Date values. This is not a historical
+leap-second bulletin, chronological ordering or observation-freshness check.
+Coercion, defaults and unknown-property removal are disabled. Ajv's detailed
+errors are cleared after each validation; rejection exposes a fixed error code
+and no caller field names or values.
+
+Each raw input retains the parser's byte/depth/value ceilings; the helper
+returns only the matching prefixed digest and never modifies either input.
+A fully valid schema and matching digest still do not prove trusted immutable
+source identity, approved mapping, snapshot relations, private operator access,
+redaction or owner adoption. This helper remains unwired to live intake.
+
+Run `node --test test/development-operations-contribution.test.mjs` for all five
+full positive fixtures, every required field, closed properties, types, version
+and revision mismatches, malformed dates, legacy vocabulary, event targeting,
+duplicate keys, UTF-8/bounds, digest tampering and input preservation.
 
 ## Failure prevention
 
