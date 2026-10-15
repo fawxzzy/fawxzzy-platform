@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "status": "OWNER_DECISION",
+  "lifecycle": {
+    "source": "PROPOSAL_ONLY",
+    "owner_adopted": false,
+    "execution": "BLOCKED",
+    "apply_admitted": false
+  },
+  "source_decisions": {
+    "socials_commit": "6662045aaedb20b0da657ebd982faf9729004afc",
+    "socials_architecture": "planning/programs/FAWXZZYWEB_DEVELOPMENT_OPERATIONS_PAGE.md",
+    "platform_contract": "contracts/v1/convergence/platform-data-convergence-contract.json"
+  },
+  "domain": {
+    "logical": "work",
+    "physical_namespace": "UNKNOWN",
+    "entities": [
+      "projects",
+      "cards",
+      "events",
+      "dependencies",
+      "external_refs"
+    ],
+    "canonical_writer": "FawxzzyPlatform",
+    "owner_direct_projection_writes": false,
+    "discord_ids": "OPTIONAL_EXTERNAL_REFS_ONLY",
+    "music_sesh": "EXCLUDED_INDEPENDENT_DOMAIN"
+  },
+  "version_dispatch": {
+    "mode": "EXACT_DECLARED_IDENTITY_ONLY",
+    "legacy_card": "socials-os.development-card.v1.schema.json",
+    "legacy_board": "socials-os.development-board.v1.schema.json",
+    "legacy_event": "socials-os.development-event.v1.schema.json",
+    "new_board": "socials-os.development-board.v2.schema.json",
+    "new_event": "socials-os.development-event.v2.schema.json",
+    "v1_identity": "TRUSTED_ENVELOPE_WITH_UNCHANGED_PAYLOAD",
+    "v2_identity": "BODY_AND_ENVELOPE_MUST_MATCH",
+    "missing_unknown_mismatch": "RECONCILING_NO_CURRENT_TRUTH",
+    "v1_fresh_to_v2_healthy": false
+  },
+  "candidate_wire_decisions": {
+    "adoption": "OWNER_DECISION",
+    "envelope": {
+      "fields": [
+        "schema_identity",
+        "producer_identity",
+        "source_revision",
+        "mapping_version",
+        "payload"
+      ],
+      "producer_binding": "SERVER_VERIFIED_IMMUTABLE_REPOSITORY_IDENTITY",
+      "role_string_is_authority": false
+    },
+    "digest": {
+      "algorithm": "SHA256",
+      "canonicalization": "RFC8785",
+      "covered_fields": [
+        "schema_identity",
+        "producer_identity",
+        "source_revision",
+        "mapping_version",
+        "payload_without_digest"
+      ],
+      "digest_location": "payload.digest",
+      "self_field_excluded": true,
+      "format_alone_proves_integrity": false
+    },
+    "idempotency": {
+      "global_identity": [
+        "producer_identity",
+        "event_id"
+      ],
+      "exact_repeat": [
+        "producer_identity",
+        "event_id",
+        "source_revision",
+        "digest"
+      ],
+      "exact_repeat_effect": "NO_OP",
+      "conflicting_reuse": "QUARANTINE_NO_OVERWRITE",
+      "supersession": "NEW_EVENT_ID_WITH_EXPLICIT_PREDECESSOR",
+      "history": "APPEND_ONLY"
+    },
+    "state_mapping": {
+      "kind": "VERSIONED_EXACT_VALIDATED_SNAPSHOT",
+      "state_event_requires": [
+        "matching_card_or_board_id",
+        "exact_snapshot_schema",
+        "snapshot_digest",
+        "verified_source_revision",
+        "accepted_mapping_version"
+      ],
+      "non_state_events": "HISTORY_ONLY",
+      "prose_drives_lifecycle": false,
+      "implicit_delete": false
+    },
+    "ordering": {
+      "primary": "NORMALIZED_OCCURRENCE_INSTANT_WITHOUT_PRECISION_LOSS",
+      "ties": [
+        "producer_identity",
+        "event_id",
+        "digest"
+      ],
+      "tie_encoding": "UTF8_BYTE_ORDER",
+      "late_event": "ATOMIC_REBUILD_FROM_ACCEPTED_HISTORY",
+      "mixed_projection_revision_reads": false
+    },
+    "watermark": {
+      "representation": "COMPLETE_SORTED_PRODUCER_REVISION_SET",
+      "observation_age_policy": "REQUIRED_PER_PRODUCER_NO_DEFAULT",
+      "missing_producer_or_freshness": "RECONCILING_NO_CURRENT_TRUTH",
+      "unknown_threshold_is_healthy": false,
+      "commit_age_is_observation_age": false
+    },
+    "operator_access": {
+      "subject": "SERVER_VERIFIED_CANONICAL_SUBJECT",
+      "grant": "SERVER_OWNED_OPERATOR_ENTITLEMENT_WITH_REVOCATION_CHECK",
+      "grant_storage": "UNKNOWN",
+      "ordinary_auth_sufficient": false,
+      "user_metadata_authorizes": false,
+      "client_assertion_authorizes": false
+    },
+    "response": {
+      "visibility": "PRIVATE_OPERATOR_ONLY",
+      "fields": [
+        "stable_id",
+        "title",
+        "lifecycle",
+        "owner_role",
+        "created_at",
+        "updated_at",
+        "dependency_ids",
+        "blocker_codes",
+        "evidence_handles",
+        "supersedes_id"
+      ],
+      "raw_evidence_references": false,
+      "restricted_summaries": false,
+      "source_object_serialization": false,
+      "sanitized_flag_sufficient": false,
+      "unproven_redaction": "WITHHOLD_BEFORE_SERIALIZATION",
+      "public_static_payload": false,
+      "shared_cache": "FORBIDDEN",
+      "indexing": "FORBIDDEN"
+    }
+  },
+  "health": {
+    "states": [
+      "healthy",
+      "stale",
+      "unavailable",
+      "reconciling",
+      "incompatible"
+    ],
+    "authoritative": [
+      "healthy"
+    ],
+    "last_accepted_only": [
+      "stale",
+      "reconciling"
+    ],
+    "last_accepted_requires": [
+      "visible_non_authoritative_marker",
+      "source_watermark",
+      "prior_redaction_acceptance"
+    ],
+    "unavailable_cards": "NONE",
+    "incompatible": "QUARANTINE_AFFECTED_NO_CURRENT_TRUTH",
+    "actions_enabled": false,
+    "freshness_unknown": "NO_CURRENT_TRUTH"
+  },
+  "runtime_prerequisites": [
+    "owner_contract_adoption",
+    "exact_source_denominator",
+    "physical_namespace_decision",
+    "verified_source_producer_binding",
+    "typed_snapshot_mapping",
+    "digest_implementation_and_vectors",
+    "per_producer_freshness_policy",
+    "operator_grant_and_revocation_implementation",
+    "redaction_acceptance",
+    "transactional_single_writer",
+    "separate_sql_rehearsal_and_apply",
+    "private_consumer_and_release_acceptance"
+  ],
+  "effects": {
+    "provider_access": false,
+    "live_data_access": false,
+    "sql_generated": false,
+    "database_mutation": false,
+    "auth_changes": false,
+    "deployment": false,
+    "source_retirement": false
+  }
+}

@@ -63,12 +63,16 @@ Requires Node.js 22 or newer.
 
 ```text
 npm ci
-npm run validate
-npm test
 npm run verify
 ```
 
 Validation covers schemas, cross-contract semantics, deterministic output, LF and canonical JSON, the path allowlist, and secret/machine-path scans.
+
+`npm run verify` also runs the complete Node test suite, target-bootstrap checks,
+and executable-bundle checks. CI invokes this full entrypoint once with a bounded
+20-minute job timeout. Do not precede it with `npm test`: that repeats the entire
+suite and previously exhausted the job limit despite the first suite passing.
+Use `npm run validate` or `npm test` separately for focused local feedback.
 
 ## Lifecycle truth
 

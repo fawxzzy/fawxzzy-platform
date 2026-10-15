@@ -1,0 +1,707 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fawxzzy:platform:schemas:v1:development-operations-contract",
+  "title": "Unadopted private development operations contract proposal",
+  "$defs": {
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "lifecycle",
+        "source_decisions",
+        "domain",
+        "version_dispatch",
+        "candidate_wire_decisions",
+        "health",
+        "runtime_prerequisites",
+        "effects"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "OWNER_DECISION"
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "owner_adopted",
+            "execution",
+            "apply_admitted"
+          ],
+          "properties": {
+            "source": {
+              "const": "PROPOSAL_ONLY"
+            },
+            "owner_adopted": {
+              "const": false
+            },
+            "execution": {
+              "const": "BLOCKED"
+            },
+            "apply_admitted": {
+              "const": false
+            }
+          }
+        },
+        "source_decisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "socials_commit",
+            "socials_architecture",
+            "platform_contract"
+          ],
+          "properties": {
+            "socials_commit": {
+              "const": "6662045aaedb20b0da657ebd982faf9729004afc"
+            },
+            "socials_architecture": {
+              "const": "planning/programs/FAWXZZYWEB_DEVELOPMENT_OPERATIONS_PAGE.md"
+            },
+            "platform_contract": {
+              "const": "contracts/v1/convergence/platform-data-convergence-contract.json"
+            }
+          }
+        },
+        "domain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "logical",
+            "physical_namespace",
+            "entities",
+            "canonical_writer",
+            "owner_direct_projection_writes",
+            "discord_ids",
+            "music_sesh"
+          ],
+          "properties": {
+            "logical": {
+              "const": "work"
+            },
+            "physical_namespace": {
+              "const": "UNKNOWN"
+            },
+            "entities": {
+              "const": [
+                "projects",
+                "cards",
+                "events",
+                "dependencies",
+                "external_refs"
+              ]
+            },
+            "canonical_writer": {
+              "const": "FawxzzyPlatform"
+            },
+            "owner_direct_projection_writes": {
+              "const": false
+            },
+            "discord_ids": {
+              "const": "OPTIONAL_EXTERNAL_REFS_ONLY"
+            },
+            "music_sesh": {
+              "const": "EXCLUDED_INDEPENDENT_DOMAIN"
+            }
+          }
+        },
+        "version_dispatch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "legacy_card",
+            "legacy_board",
+            "legacy_event",
+            "new_board",
+            "new_event",
+            "v1_identity",
+            "v2_identity",
+            "missing_unknown_mismatch",
+            "v1_fresh_to_v2_healthy"
+          ],
+          "properties": {
+            "mode": {
+              "const": "EXACT_DECLARED_IDENTITY_ONLY"
+            },
+            "legacy_card": {
+              "const": "socials-os.development-card.v1.schema.json"
+            },
+            "legacy_board": {
+              "const": "socials-os.development-board.v1.schema.json"
+            },
+            "legacy_event": {
+              "const": "socials-os.development-event.v1.schema.json"
+            },
+            "new_board": {
+              "const": "socials-os.development-board.v2.schema.json"
+            },
+            "new_event": {
+              "const": "socials-os.development-event.v2.schema.json"
+            },
+            "v1_identity": {
+              "const": "TRUSTED_ENVELOPE_WITH_UNCHANGED_PAYLOAD"
+            },
+            "v2_identity": {
+              "const": "BODY_AND_ENVELOPE_MUST_MATCH"
+            },
+            "missing_unknown_mismatch": {
+              "const": "RECONCILING_NO_CURRENT_TRUTH"
+            },
+            "v1_fresh_to_v2_healthy": {
+              "const": false
+            }
+          }
+        },
+        "candidate_wire_decisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adoption",
+            "envelope",
+            "digest",
+            "idempotency",
+            "state_mapping",
+            "ordering",
+            "watermark",
+            "operator_access",
+            "response"
+          ],
+          "properties": {
+            "adoption": {
+              "const": "OWNER_DECISION"
+            },
+            "envelope": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "fields",
+                "producer_binding",
+                "role_string_is_authority"
+              ],
+              "properties": {
+                "fields": {
+                  "const": [
+                    "schema_identity",
+                    "producer_identity",
+                    "source_revision",
+                    "mapping_version",
+                    "payload"
+                  ]
+                },
+                "producer_binding": {
+                  "const": "SERVER_VERIFIED_IMMUTABLE_REPOSITORY_IDENTITY"
+                },
+                "role_string_is_authority": {
+                  "const": false
+                }
+              }
+            },
+            "digest": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "algorithm",
+                "canonicalization",
+                "covered_fields",
+                "digest_location",
+                "self_field_excluded",
+                "format_alone_proves_integrity"
+              ],
+              "properties": {
+                "algorithm": {
+                  "const": "SHA256"
+                },
+                "canonicalization": {
+                  "const": "RFC8785"
+                },
+                "covered_fields": {
+                  "const": [
+                    "schema_identity",
+                    "producer_identity",
+                    "source_revision",
+                    "mapping_version",
+                    "payload_without_digest"
+                  ]
+                },
+                "digest_location": {
+                  "const": "payload.digest"
+                },
+                "self_field_excluded": {
+                  "const": true
+                },
+                "format_alone_proves_integrity": {
+                  "const": false
+                }
+              }
+            },
+            "idempotency": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "global_identity",
+                "exact_repeat",
+                "exact_repeat_effect",
+                "conflicting_reuse",
+                "supersession",
+                "history"
+              ],
+              "properties": {
+                "global_identity": {
+                  "const": [
+                    "producer_identity",
+                    "event_id"
+                  ]
+                },
+                "exact_repeat": {
+                  "const": [
+                    "producer_identity",
+                    "event_id",
+                    "source_revision",
+                    "digest"
+                  ]
+                },
+                "exact_repeat_effect": {
+                  "const": "NO_OP"
+                },
+                "conflicting_reuse": {
+                  "const": "QUARANTINE_NO_OVERWRITE"
+                },
+                "supersession": {
+                  "const": "NEW_EVENT_ID_WITH_EXPLICIT_PREDECESSOR"
+                },
+                "history": {
+                  "const": "APPEND_ONLY"
+                }
+              }
+            },
+            "state_mapping": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "state_event_requires",
+                "non_state_events",
+                "prose_drives_lifecycle",
+                "implicit_delete"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "VERSIONED_EXACT_VALIDATED_SNAPSHOT"
+                },
+                "state_event_requires": {
+                  "const": [
+                    "matching_card_or_board_id",
+                    "exact_snapshot_schema",
+                    "snapshot_digest",
+                    "verified_source_revision",
+                    "accepted_mapping_version"
+                  ]
+                },
+                "non_state_events": {
+                  "const": "HISTORY_ONLY"
+                },
+                "prose_drives_lifecycle": {
+                  "const": false
+                },
+                "implicit_delete": {
+                  "const": false
+                }
+              }
+            },
+            "ordering": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "primary",
+                "ties",
+                "tie_encoding",
+                "late_event",
+                "mixed_projection_revision_reads"
+              ],
+              "properties": {
+                "primary": {
+                  "const": "NORMALIZED_OCCURRENCE_INSTANT_WITHOUT_PRECISION_LOSS"
+                },
+                "ties": {
+                  "const": [
+                    "producer_identity",
+                    "event_id",
+                    "digest"
+                  ]
+                },
+                "tie_encoding": {
+                  "const": "UTF8_BYTE_ORDER"
+                },
+                "late_event": {
+                  "const": "ATOMIC_REBUILD_FROM_ACCEPTED_HISTORY"
+                },
+                "mixed_projection_revision_reads": {
+                  "const": false
+                }
+              }
+            },
+            "watermark": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "representation",
+                "observation_age_policy",
+                "missing_producer_or_freshness",
+                "unknown_threshold_is_healthy",
+                "commit_age_is_observation_age"
+              ],
+              "properties": {
+                "representation": {
+                  "const": "COMPLETE_SORTED_PRODUCER_REVISION_SET"
+                },
+                "observation_age_policy": {
+                  "const": "REQUIRED_PER_PRODUCER_NO_DEFAULT"
+                },
+                "missing_producer_or_freshness": {
+                  "const": "RECONCILING_NO_CURRENT_TRUTH"
+                },
+                "unknown_threshold_is_healthy": {
+                  "const": false
+                },
+                "commit_age_is_observation_age": {
+                  "const": false
+                }
+              }
+            },
+            "operator_access": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "subject",
+                "grant",
+                "grant_storage",
+                "ordinary_auth_sufficient",
+                "user_metadata_authorizes",
+                "client_assertion_authorizes"
+              ],
+              "properties": {
+                "subject": {
+                  "const": "SERVER_VERIFIED_CANONICAL_SUBJECT"
+                },
+                "grant": {
+                  "const": "SERVER_OWNED_OPERATOR_ENTITLEMENT_WITH_REVOCATION_CHECK"
+                },
+                "grant_storage": {
+                  "const": "UNKNOWN"
+                },
+                "ordinary_auth_sufficient": {
+                  "const": false
+                },
+                "user_metadata_authorizes": {
+                  "const": false
+                },
+                "client_assertion_authorizes": {
+                  "const": false
+                }
+              }
+            },
+            "response": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "visibility",
+                "fields",
+                "raw_evidence_references",
+                "restricted_summaries",
+                "source_object_serialization",
+                "sanitized_flag_sufficient",
+                "unproven_redaction",
+                "public_static_payload",
+                "shared_cache",
+                "indexing"
+              ],
+              "properties": {
+                "visibility": {
+                  "const": "PRIVATE_OPERATOR_ONLY"
+                },
+                "fields": {
+                  "const": [
+                    "stable_id",
+                    "title",
+                    "lifecycle",
+                    "owner_role",
+                    "created_at",
+                    "updated_at",
+                    "dependency_ids",
+                    "blocker_codes",
+                    "evidence_handles",
+                    "supersedes_id"
+                  ]
+                },
+                "raw_evidence_references": {
+                  "const": false
+                },
+                "restricted_summaries": {
+                  "const": false
+                },
+                "source_object_serialization": {
+                  "const": false
+                },
+                "sanitized_flag_sufficient": {
+                  "const": false
+                },
+                "unproven_redaction": {
+                  "const": "WITHHOLD_BEFORE_SERIALIZATION"
+                },
+                "public_static_payload": {
+                  "const": false
+                },
+                "shared_cache": {
+                  "const": "FORBIDDEN"
+                },
+                "indexing": {
+                  "const": "FORBIDDEN"
+                }
+              }
+            }
+          }
+        },
+        "health": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "states",
+            "authoritative",
+            "last_accepted_only",
+            "last_accepted_requires",
+            "unavailable_cards",
+            "incompatible",
+            "actions_enabled",
+            "freshness_unknown"
+          ],
+          "properties": {
+            "states": {
+              "const": [
+                "healthy",
+                "stale",
+                "unavailable",
+                "reconciling",
+                "incompatible"
+              ]
+            },
+            "authoritative": {
+              "const": [
+                "healthy"
+              ]
+            },
+            "last_accepted_only": {
+              "const": [
+                "stale",
+                "reconciling"
+              ]
+            },
+            "last_accepted_requires": {
+              "const": [
+                "visible_non_authoritative_marker",
+                "source_watermark",
+                "prior_redaction_acceptance"
+              ]
+            },
+            "unavailable_cards": {
+              "const": "NONE"
+            },
+            "incompatible": {
+              "const": "QUARANTINE_AFFECTED_NO_CURRENT_TRUTH"
+            },
+            "actions_enabled": {
+              "const": false
+            },
+            "freshness_unknown": {
+              "const": "NO_CURRENT_TRUTH"
+            }
+          }
+        },
+        "runtime_prerequisites": {
+          "const": [
+            "owner_contract_adoption",
+            "exact_source_denominator",
+            "physical_namespace_decision",
+            "verified_source_producer_binding",
+            "typed_snapshot_mapping",
+            "digest_implementation_and_vectors",
+            "per_producer_freshness_policy",
+            "operator_grant_and_revocation_implementation",
+            "redaction_acceptance",
+            "transactional_single_writer",
+            "separate_sql_rehearsal_and_apply",
+            "private_consumer_and_release_acceptance"
+          ]
+        },
+        "effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider_access",
+            "live_data_access",
+            "sql_generated",
+            "database_mutation",
+            "auth_changes",
+            "deployment",
+            "source_retirement"
+          ],
+          "properties": {
+            "provider_access": {
+              "const": false
+            },
+            "live_data_access": {
+              "const": false
+            },
+            "sql_generated": {
+              "const": false
+            },
+            "database_mutation": {
+              "const": false
+            },
+            "auth_changes": {
+              "const": false
+            },
+            "deployment": {
+              "const": false
+            },
+            "source_retirement": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "purpose",
+        "cases"
+      ],
+      "properties": {
+        "version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "OWNER_DECISION"
+        },
+        "purpose": {
+          "const": "SYNTHETIC_POLICY_VECTORS_NOT_AUTHENTICATION_OR_RUNTIME_PROOF"
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "input",
+              "expected"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^fixture-[0-9]{3}$"
+              },
+              "input": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "access_result",
+                  "health",
+                  "accepted_redacted_projection",
+                  "identity_validated"
+                ],
+                "properties": {
+                  "access_result": {
+                    "enum": [
+                      "deny",
+                      "unknown",
+                      "operator_verified"
+                    ]
+                  },
+                  "health": {
+                    "enum": [
+                      "healthy",
+                      "stale",
+                      "unavailable",
+                      "reconciling",
+                      "incompatible",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "accepted_redacted_projection": {
+                    "type": "boolean"
+                  },
+                  "identity_validated": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "expected": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "render_state",
+                  "payload",
+                  "current_truth",
+                  "visible_marker",
+                  "watermark_required",
+                  "actions_enabled"
+                ],
+                "properties": {
+                  "render_state": {
+                    "enum": [
+                      "denied",
+                      "healthy",
+                      "stale",
+                      "unavailable",
+                      "reconciling",
+                      "incompatible"
+                    ]
+                  },
+                  "payload": {
+                    "enum": [
+                      "none",
+                      "last_accepted",
+                      "current"
+                    ]
+                  },
+                  "current_truth": {
+                    "type": "boolean"
+                  },
+                  "visible_marker": {
+                    "type": "boolean"
+                  },
+                  "watermark_required": {
+                    "type": "boolean"
+                  },
+                  "actions_enabled": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/contract"
+    },
+    {
+      "$ref": "#/$defs/examples"
+    }
+  ]
+}

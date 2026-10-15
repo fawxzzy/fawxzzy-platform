@@ -1,0 +1,1231 @@
+{
+  "version": "1.0.0",
+  "status": "OWNER_DECISION",
+  "purpose": "SYNTHETIC_POLICY_VECTORS_NOT_AUTHENTICATION_OR_RUNTIME_PROOF",
+  "cases": [
+    {
+      "id": "fixture-001",
+      "input": {
+        "access_result": "deny",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-002",
+      "input": {
+        "access_result": "deny",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-003",
+      "input": {
+        "access_result": "deny",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-004",
+      "input": {
+        "access_result": "deny",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-005",
+      "input": {
+        "access_result": "deny",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-006",
+      "input": {
+        "access_result": "deny",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-007",
+      "input": {
+        "access_result": "deny",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-008",
+      "input": {
+        "access_result": "deny",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-009",
+      "input": {
+        "access_result": "deny",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-010",
+      "input": {
+        "access_result": "deny",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-011",
+      "input": {
+        "access_result": "deny",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-012",
+      "input": {
+        "access_result": "deny",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-013",
+      "input": {
+        "access_result": "deny",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-014",
+      "input": {
+        "access_result": "deny",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-015",
+      "input": {
+        "access_result": "deny",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-016",
+      "input": {
+        "access_result": "deny",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-017",
+      "input": {
+        "access_result": "deny",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-018",
+      "input": {
+        "access_result": "deny",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-019",
+      "input": {
+        "access_result": "deny",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-020",
+      "input": {
+        "access_result": "deny",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-021",
+      "input": {
+        "access_result": "deny",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-022",
+      "input": {
+        "access_result": "deny",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-023",
+      "input": {
+        "access_result": "deny",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-024",
+      "input": {
+        "access_result": "deny",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-025",
+      "input": {
+        "access_result": "unknown",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-026",
+      "input": {
+        "access_result": "unknown",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-027",
+      "input": {
+        "access_result": "unknown",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-028",
+      "input": {
+        "access_result": "unknown",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-029",
+      "input": {
+        "access_result": "unknown",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-030",
+      "input": {
+        "access_result": "unknown",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-031",
+      "input": {
+        "access_result": "unknown",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-032",
+      "input": {
+        "access_result": "unknown",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-033",
+      "input": {
+        "access_result": "unknown",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-034",
+      "input": {
+        "access_result": "unknown",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-035",
+      "input": {
+        "access_result": "unknown",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-036",
+      "input": {
+        "access_result": "unknown",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-037",
+      "input": {
+        "access_result": "unknown",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-038",
+      "input": {
+        "access_result": "unknown",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-039",
+      "input": {
+        "access_result": "unknown",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-040",
+      "input": {
+        "access_result": "unknown",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-041",
+      "input": {
+        "access_result": "unknown",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-042",
+      "input": {
+        "access_result": "unknown",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-043",
+      "input": {
+        "access_result": "unknown",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-044",
+      "input": {
+        "access_result": "unknown",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-045",
+      "input": {
+        "access_result": "unknown",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-046",
+      "input": {
+        "access_result": "unknown",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-047",
+      "input": {
+        "access_result": "unknown",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-048",
+      "input": {
+        "access_result": "unknown",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "denied",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": false,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-049",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-050",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "healthy",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "unavailable",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-051",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "last_accepted",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-052",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "healthy",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "healthy",
+        "payload": "current",
+        "current_truth": true,
+        "visible_marker": false,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-053",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-054",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "stale",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "stale",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-055",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "last_accepted",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-056",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "stale",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "stale",
+        "payload": "last_accepted",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-057",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "unavailable",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-058",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "unavailable",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "unavailable",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-059",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "unavailable",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-060",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "unavailable",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "unavailable",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-061",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-062",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "reconciling",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-063",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "last_accepted",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-064",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "reconciling",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "last_accepted",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": true,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-065",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "incompatible",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-066",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "incompatible",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "incompatible",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-067",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "incompatible",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-068",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "incompatible",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "incompatible",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-069",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-070",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": false,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-071",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": false
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    },
+    {
+      "id": "fixture-072",
+      "input": {
+        "access_result": "operator_verified",
+        "health": "UNKNOWN",
+        "accepted_redacted_projection": true,
+        "identity_validated": true
+      },
+      "expected": {
+        "render_state": "reconciling",
+        "payload": "none",
+        "current_truth": false,
+        "visible_marker": true,
+        "watermark_required": false,
+        "actions_enabled": false
+      }
+    }
+  ]
+}
