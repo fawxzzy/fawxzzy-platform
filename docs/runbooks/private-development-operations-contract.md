@@ -189,6 +189,61 @@ full positive fixtures, every required field, closed properties, types, version
 and revision mismatches, malformed dates, legacy vocabulary, event targeting,
 duplicate keys, UTF-8/bounds, digest tampering and input preservation.
 
+## Candidate append-only event journal
+
+`scripts/lib/development-operations-journal.mjs` exports
+`appendCandidateOperationsJournal(historyInput, batchInput)`. Both inputs are
+bounded raw JSON arrays. Each entry contains exactly `envelope` and
+`detached_source_proof`, with the same values consumed by the complete
+contribution validator. Only event v1 and event v2 enter this candidate journal.
+Every retained history entry is revalidated; a caller-supplied disposition or
+`verified` flag is not trusted. The API does not authenticate either input.
+
+The result has `kind: candidate_only`, retained `entries`, recomputed
+`dispositions` for each retained index and `results` for each batch index. Store
+only `entries` as the next local candidate history input. These entries contain
+unchanged private source bodies: this is an internal source helper, not a
+redacted response or a public serialization boundary. No caller status, producer
+name, role or valid digest grants trust, current truth or operator access.
+
+The candidate behavior is:
+
+- A new `(producer_identity,event_id)` is a `recorded_candidate`.
+- An exact producer/event/revision/digest repeat is `duplicate_candidate` and
+  adds no row. Its result reports the existing candidate disposition, including
+  quarantine. Duplicate rows in submitted retained history are rejected rather
+  than silently removing an original row.
+- Conflicting reuse appends a `quarantined_candidate` with `IDENTITY_CONFLICT`,
+  retaining both original and conflicting evidence. Each distinct conflict is
+  retained once; repeating it does not clear its quarantine.
+- Supersession requires a new event ID and an explicit earlier predecessor in
+  the same producer's journal. Self, missing, ambiguous or quarantined references
+  quarantine the new entry. The original entry and its source status are never
+  rewritten. A later arrival does not silently rehabilitate an earlier
+  quarantined reference. These conservative linkage rules await owner adoption.
+
+Submission is limited to 256 history-plus-batch entries, counting duplicates,
+and 1048576 bytes for their combined JSON serialization. Each raw input also
+retains the existing parser's byte/depth/value limits. These local candidate
+bounds are not a retention policy or an approved runtime transport. No entries
+are truncated or evicted when a bound is reached. Parsing and all candidate
+updates are local; a rejected batch returns no partial journal and changes no
+caller input. Errors contain only fixed codes and no source content.
+
+Arrival order is preserved, including occurrence strings and source statuses.
+Both state and non-state events remain history candidates. This module does not
+apply lifecycle prose, select a snapshot, normalize time, reorder late events,
+compute a watermark or establish a transactional database projection. A conflict
+can prevent a later predecessor link without deleting an earlier row; a future
+trusted projection must derive its own complete consistency state from retained
+history. Source trust, approved mapping, observation freshness, operator grants,
+redaction and runtime adoption remain open prerequisites.
+
+Run `node --test test/development-operations-journal.test.mjs` for v1/v2 append,
+duplicate/conflict cases, predecessor rules, replay equivalence, retained-history
+validation, adversarial identities, bounded submissions, fixed errors and
+all-or-nothing batch failure. Fixtures are synthetic and no provider is invoked.
+
 ## Failure prevention
 
 Before working from a retained draft, compare immutable current owner visibility, writer, source and lifecycle contracts. A newer unpublished local receipt does not supersede accepted architecture. An old export whose command was deliberately retired must not be silently restored as a current feed.

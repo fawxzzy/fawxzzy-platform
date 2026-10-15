@@ -38,6 +38,17 @@ enforce the schema without coercion, defaults or property removal. Only the
 matching digest is returned. Source authenticity, approved mapping, redaction,
 operator access and live intake remain separate adoption prerequisites.
 
+The candidate event journal now supplies bounded local append-only history,
+exact-repeat no-ops and conflicting-identity quarantine using the complete event
+validators. Its retained-history and batch inputs are raw JSON; prior computed
+dispositions are never trusted input. A new-ID supersession must reference an
+earlier, unique, non-quarantined candidate from the same producer. Missing, self,
+ambiguous or quarantined references remain quarantined without rewriting source
+or deleting history. These conservative local linkage rules remain proposed
+adoption choices. The journal preserves arrival order; chronological replay,
+snapshot mapping, trusted source transport and consumer redaction remain separate.
+Caller `status`, role and producer strings cannot grant acceptance or access.
+
 Only `healthy` exposes authoritative current truth. `stale` and `reconciling` may show a previous accepted redacted projection with a visible marker and watermark. `unavailable` exposes no cards. `incompatible` quarantines affected records; the conservative synthetic examples withhold the whole payload. All states are read-only.
 
 The 72 examples exhaust three hypothetical access results, six hypothetical health inputs, projection presence and schema-identity validity. They validate the proposed policy, not credentials, operator grants, redaction, source integrity or a running service. The evaluator is named `evaluateSyntheticOperationsFixture` to preserve that distinction; it must not be imported as a production authorization gate.
