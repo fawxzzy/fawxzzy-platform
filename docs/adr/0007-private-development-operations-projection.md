@@ -49,6 +49,43 @@ adoption choices. The journal preserves arrival order; chronological replay,
 snapshot mapping, trusted source transport and consumer redaction remain separate.
 Caller `status`, role and producer strings cannot grant acceptance or access.
 
+The integrated `rehearseCandidateOperationsProjection` now composes that journal
+with exact card-snapshot associations, an explicit complete producer policy,
+precision-preserving event ordering, closed display mapping and candidate
+watermarks. Its input is one bounded raw JSON object. All producer, admission,
+observation and redaction policy fields are hypothetical inputs: the module has
+no trusted transport, operator check, database or live consumer. Every result
+remains `candidate_only` and `authoritative: false`, even when its hypothetical
+health is healthy. The separately reviewed runtime design must supply those
+boundaries before adoption.
+
+Mapping `socials-card-snapshot:v1` admits only exact card v1 snapshots for accepted
+state events. It never infers state from prose, rewrites v1/v2 payloads, or treats
+a producer's status as runtime acceptance. Board-state mappings remain unsupported.
+An event and snapshot must match producer, admitted revision, mapping and card ID.
+Conflict/quarantine or unsupported mapping withholds the entire projection.
+Explicit state supersession requires an earlier state for the same card, no
+fork, and nondecreasing occurrence time. An accepted non-state event claiming a
+state predecessor makes the candidate incompatible. Rejected/superseded source
+statuses remain non-effective history and do not remove an accepted state.
+
+The local policy supplies separately reviewed display fields bound to a snapshot
+digest; copying a source title, blocker prose, raw reference or sanitized flag is
+not allowed. Runtime must independently authenticate the Platform-owned policy
+pin; a producer-controlled manifest cannot approve redaction. Source repository
+identity must bind every claimed producer/revision before this candidate API.
+Producer-qualified IDs prevent cross-owner card collisions. Missing/self links
+or missing display dispositions withhold cards as reconciling.
+
+Occurrence ordering uses Gregorian integer seconds and exact fractional strings,
+then UTF8 producer/event/digest ordering. Leap-second ordering and unknown offset
+`-00:00` are explicitly unsupported; they cannot produce a healthy candidate.
+Complete producer watermarks, registry/redaction pins, mapping, selected digests
+and closed mapped cards bind the projection revision. Observation freshness is
+explicit per producer and never inferred from commit age. This helper has no
+prior accepted generation, so stale/reconciling/incompatible results contain no
+cards. External unavailability remains the future runtime adapter's decision.
+
 Only `healthy` exposes authoritative current truth. `stale` and `reconciling` may show a previous accepted redacted projection with a visible marker and watermark. `unavailable` exposes no cards. `incompatible` quarantines affected records; the conservative synthetic examples withhold the whole payload. All states are read-only.
 
 The 72 examples exhaust three hypothetical access results, six hypothetical health inputs, projection presence and schema-identity validity. They validate the proposed policy, not credentials, operator grants, redaction, source integrity or a running service. The evaluator is named `evaluateSyntheticOperationsFixture` to preserve that distinction; it must not be imported as a production authorization gate.

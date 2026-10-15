@@ -244,6 +244,85 @@ duplicate/conflict cases, predecessor rules, replay equivalence, retained-histor
 validation, adversarial identities, bounded submissions, fixed errors and
 all-or-nothing batch failure. Fixtures are synthetic and no provider is invoked.
 
+## Integrated candidate projection rehearsal
+
+`rehearseCandidateOperationsProjection(input)` in
+`scripts/lib/development-operations-projection.mjs` consumes one bounded raw JSON
+object with exactly `history`, `batch`, `snapshots`, `associations`, `policy` and
+`now`. History and batch use the reviewed journal format; snapshots use the same
+two-field contribution format. Associations name exactly `producer_identity`,
+`event_id`, `event_digest` and `snapshot_digest`. No fields are added to the
+frozen source schemas.
+
+Policy fields are `mapping_version`, `registry_revision`, `redaction_revision`,
+`producers` and `redactions`. Each producer names `producer_identity`, current
+`source_revision`, the complete `admitted_revisions` list, `observed_at`, explicit
+positive integer `max_observation_age_seconds` and boolean `complete`. Revisions
+are exact lowercase 40-hex candidate Git identities. Each redaction disposition
+names `snapshot_digest`, reviewed `title`, `owner_role`, fixed `blocker_codes` and
+opaque `evidence_handles`. Codes use uppercase identifier syntax; handles use
+`evidence:` plus 16-128 URL-safe opaque characters, never raw URLs. These are
+proposed local wire rules, not installed policy or proof of source trust.
+
+One integration call validates the whole journal, validates snapshots, joins
+exact associations, orders states without fraction loss, selects the latest
+eligible snapshot per producer/card, maps closed display fields and returns a
+single candidate result. Existing identities and payloads are preserved. Any
+conflict/quarantine invalidates the candidate projection. Missing redaction or
+known same-producer link prevents current display. No producer self-approval,
+getter-bearing objects, unknown fields, duplicate policy identities or silently
+defaulted freshness thresholds are accepted.
+
+The result contains `kind`, `health`, `authoritative`, `actions_enabled`, `cards`,
+`source_watermark` and `projection_revision`. `kind` is always `candidate_only`;
+`authoritative` and `actions_enabled` are always false. A healthy hypothetical
+case has mapped cards and a deterministic revision. Other states have no cards
+or revision because no previously accepted, independently redacted generation is
+supplied. An empty but explicitly complete synthetic source may produce an empty
+healthy candidate; it is never evidence that a live source is empty. Never wire
+this helper directly to an HTTP response or use it as a source/auth grant check.
+
+An accepted non-state event claiming a state predecessor is incompatible, even
+though the append-only journal can retain that link. Rejected/superseded source
+statuses remain non-effective history. This rule is checked before skipping
+non-state history, preventing an unsupported accepted successor from appearing
+as a healthy state projection.
+
+Local limits: one existing parser-bounded 1MiB input, 256 entries per source
+array, the journal's combined 256 event limit, at most32 producers, at most256
+revisions/codes/handles per relevant array. These are bounded rehearsal limits,
+not retention policy. All state is local until return; invalid input has fixed
+content-free errors and no partial mutation. Reaching bounds never evicts data.
+
+Run `node --test test/development-operations-projection.test.mjs`. Synthetic
+integrated vectors cover v1/v2 events, duplicate/replay, source claims, exact
+snapshot associations, conflict/supersession, subnanosecond and zone ordering,
+late arrivals, complete watermarks, fractional freshness, private-field
+withholding, qualified links, malformed/oversized input and failure atomicity.
+Full repository verification remains required before publication. Existing SQL
+artifacts remain unchanged.
+
+The implementation sequence is projection rehearsal, transactional storage with
+one-shot admitted trusted ingestion, server-owned operator sessions and private
+reader, then producer adoption and genuine runtime acceptance. Platform owns
+source/admission/redaction policy and canonical projection; Socials owns source
+contributions; Web hosts the governed delegate and private presentation. Initial
+runtime source denominator and full archived-work parity must be accepted
+separately. A passing candidate fixture cannot close the private capability.
+
+Rule: every added helper must name its integrated consumer and remaining
+acceptance path. Keep source, adoption, SQL installation and runtime acceptance
+distinct; do not restart validation work when its exact proof is still valid.
+
+Full verification and `npm test` both run test files serially. The generator
+determinism test rewrites shared repository manifests while contract validation
+reads their digest bindings; parallel file execution can observe a partial
+rewrite and report false source drift. Keep the same `--test-concurrency=1`
+policy in both entrypoints until generator tests are isolated in disposable
+fixtures. Regression coverage pins the common runner policy and failure
+propagation without skipping any test. A transient race must not be treated as
+permission to update pinned manifest hashes or weaken source verification.
+
 ## Failure prevention
 
 Before working from a retained draft, compare immutable current owner visibility, writer, source and lifecycle contracts. A newer unpublished local receipt does not supersede accepted architecture. An old export whose command was deliberately retired must not be silently restored as a current feed.
