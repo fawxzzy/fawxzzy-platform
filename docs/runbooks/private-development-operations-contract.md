@@ -4,7 +4,7 @@ Status: `OWNER_DECISION`
 
 ## Scope
 
-This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, digest implementation, database schema, SQL, network client or consumer route.
+This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, database schema, SQL, network client or consumer route. The candidate helpers below implement bounded parsing, proposed covered-byte computation, supplied-digest/carrier comparison and complete contribution-schema validation. They do not authenticate source or authorize access.
 
 ## Verify local source
 
@@ -25,6 +25,303 @@ Run focused validation twice and compare a deterministic summary, excluding runn
 4. Prove server-only operator authorization/revocation and response redaction. Deny ordinary/signed-out/cross-user requests and demonstrate no operational data in their HTML, JSON, static assets, caches or logs.
 5. Prove transactional projection, complete watermark and all five health states. A fixture access_result or accepted_redacted_projection is a hypothetical input, never live evidence.
 6. Only a later exact apply/release packet may install and verify the actual private consumer. Receipt should distinguish source review, owner adoption, rehearsal, installation and runtime acceptance.
+
+## Candidate canonical digest helper
+
+`scripts/lib/development-operations-digest.mjs` exports `canonicalizeOperationsJson`
+and `computeCandidateOperationsDigest`. It follows [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785.html)
+for primitive serialization, recursive UTF-16 key ordering and final UTF-8 bytes.
+Array order, Unicode normalization form, timestamp strings and precision-bearing
+strings remain unchanged. Event ordering by UTF-8 bytes is a separate contract.
+
+The digest covers the exact five envelope fields. Only the root `payload.digest`
+string is omitted; nested fields named `digest` remain covered. The helper returns
+a lowercase hexadecimal SHA-256 and never mutates input. It does not compare a
+submitted digest, validate a contribution schema, verify producer/revision identity,
+authorize an operator, or make the proposal adopted. A caller must complete each
+of those gates before accepting data, even when computed hashes match.
+
+Expected integrity evidence is detached from both that envelope and its source
+payload: `detached_source_proof.digest` must be bound to an independently verified
+immutable source and the exact envelope. All five contribution schemas require
+this evidence under the candidate policy. The carrier rules are:
+
+| Source schema | Payload digest rule |
+| --- | --- |
+| Card v1 | Forbidden by the unchanged source schema |
+| Board v1 | Forbidden by the unchanged source schema |
+| Event v1 | Forbidden by the unchanged source schema |
+| Board v2 | Forbidden by the unchanged source schema |
+| Event v2 | Existing required field must match the detached digest |
+
+Both supplied digests use `sha256:` followed by 64 lowercase hexadecimal digits;
+the hash helper returns only the 64 digits. Never add or replace a payload field
+to satisfy integrity validation. Unknown schemas, missing proof, unverified source
+binding or a mismatch must prevent acceptance and current-truth claims. A detached
+digest submitted by an untrusted caller is not verified source evidence. Its
+transport, source verification and runtime integration remain adoption prerequisites. The local comparison helper below supplies the bounded candidate comparison only.
+
+Inputs are plain JSON values represented as local JavaScript objects. Proxies,
+accessors, custom prototypes, non-enumerable fields, symbol keys, sparse arrays,
+cycles, invalid Unicode and non-finite numbers are rejected without invoking
+input getters or `toJSON`. Candidate computation is bounded to depth 64, 100000
+visited values and 1048576 serialized UTF-8 bytes. These implementation bounds
+are not approved source-observation or runtime transport policy.
+
+Callers must enforce bounded I-JSON parsing with duplicate-key rejection before
+calling this value-based helper. `JSON.parse` alone loses duplicate-key evidence;
+this module cannot recover it. Callers must preserve numbers requiring more than
+IEEE754 precision as schema-approved strings and must not coerce timestamp strings
+to dates before hashing. Syntax/version checks for a supplied `payload.digest`
+are performed by the separate candidate integrity helper below; omission in this
+hash helper is for digest computation only.
+
+Run `node --test test/development-operations-digest.test.mjs` for normative numeric
+and UTF-8 vectors, envelope binding, mutation preservation and adversarial inputs.
+Only synthetic fixtures are used; live intake, storage, authorization, redaction,
+mapping, rollback and consumer acceptance remain separate prerequisites.
+
+## Candidate bounded JSON parser
+
+`scripts/lib/development-operations-json.mjs` exports
+`parseCandidateOperationsJson` for the prerequisite above. It accepts a primitive
+string or a genuine Uint8Array (including Buffer), checks UTF-8 bytes with fatal
+decoding, and rejects a leading BOM. For strings already decoded by the caller,
+the caller must have rejected invalid original UTF-8; replacement characters
+cannot reveal bytes lost by an earlier permissive decoder.
+
+Following [RFC 7493](https://www.rfc-editor.org/rfc/rfc7493.html), decoded object
+names must be unique within each object, and strings and names cannot contain
+unpaired surrogates or Unicode noncharacters. Escaped names participate in the
+same duplicate check. Unicode normalization and timestamp strings are preserved.
+Numbers use ordinary finite IEEE754 binary64 semantics, including rounding and
+underflow; precision-bearing identifiers and exact decimals must be schema-approved
+strings. The parser is not an arbitrary-precision numeric transport.
+
+Raw input is limited to 1048576 UTF-8 bytes (including whitespace), depth 64 and
+100000 values, matching the candidate digest limits. Shared byte buffers,
+unsupported input objects and proxies are rejected. Input coercion, getters,
+iterators and revivers are never called. Errors contain a fixed code, never
+source data or field names. Prototype-like names remain ordinary own data fields;
+later consumers must not copy them into prototype-sensitive destinations.
+
+Run `node --test test/development-operations-json.test.mjs` for duplicate-name,
+encoding, grammar, size, depth, count and digest-composition proofs. This local
+candidate is not wired to an intake endpoint. The contribution helper below
+adds schema/version validation. Trusted producer/revision binding, quarantine
+and private consumer authorization remain separate acceptance gates.
+
+## Candidate detached integrity comparison
+
+`scripts/lib/development-operations-integrity.mjs` exports
+`verifyCandidateOperationsIntegrity(envelopeInput, proofInput)`. Both inputs are
+raw JSON strings or Uint8Array bytes and independently use the bounded parser
+above, including duplicate-name rejection. The proof input is the local value
+of `detached_source_proof` and must contain exactly one field, `digest`. No
+`verified` flag or other authority assertion is accepted in this value. This
+local API does not define or install the eventual proof transport.
+
+The helper validates the exact five-field envelope shape and nonempty string
+bindings, recognizes only the five declared carrier identities, and requires
+an exact `sha256:` prefix plus 64 lowercase hexadecimal digits. Event v2 must
+already contain the same correctly formatted payload digest; the other four
+schemas must not contain that field. All cases compare the supplied digest
+against independently recomputed canonical covered bytes. Nothing is inserted,
+removed or rewritten in either input. Each raw input has the parser's existing
+byte/depth/value limits; their combined raw-byte ceiling is twice its per-input
+byte limit. Errors use fixed codes without input contents.
+
+On success it returns only the matching prefixed digest. This does not prove
+that a caller's producer/revision claims or detached evidence are authentic.
+A caller able to alter both payload and proof can compute a matching pair.
+Full contribution-schema validation (including v2 body/envelope identity),
+trusted immutable source binding, mapping and operator authorization must still
+succeed before data is accepted. The contribution wrapper below supplies the
+first of those checks. No acceptance/current-truth/access flag is
+returned, and this candidate is not wired to an intake or production gate.
+
+Run `node --test test/development-operations-integrity.test.mjs` for all five
+carrier rules, independent expected hash bytes, tampering, malformed/duplicate
+proof, raw-input bounds and immutability. Minimal carrier fixtures deliberately
+do not assert full source-schema validity.
+
+## Candidate complete contribution validation
+
+`scripts/lib/development-operations-contribution.mjs` exports
+`verifyCandidateOperationsContribution(envelopeInput, proofInput)`. It composes
+the bounded raw parser and detached-integrity comparison with Ajv 8.17.1 checks
+against all five complete Socials contribution schemas. Only the exact declared
+identity dispatches a validator. Required fields, closed properties, types,
+enums, patterns, array constraints and event target requirements are enforced.
+V2 `contract_version` must match the envelope schema and `source_revision` must
+match the envelope revision byte for byte. V1 records retain their original
+schemas and vocabulary; there is no implicit migration or revision rewriting.
+
+The schema copies under `contracts/v1/operations/source-schemas/` preserve the
+parsed definitions from Socials commit
+`6662045aaedb20b0da657ebd982faf9729004afc`. Only JSON formatting changes to meet
+this repository's canonical two-space/LF rule. `source-manifest.json` records
+both upstream-byte and local-byte SHA-256 hashes. The module checks the five
+fixed local hashes before compiling; input cannot choose a file or supply a
+schema. There is no remote schema fetch. These pins establish source custody,
+not the authenticity of an incoming producer or contribution.
+
+Date-time validation uses pinned `ajv-formats` 3.0.1 in full mode, preceded by
+the [RFC3339](https://www.rfc-editor.org/rfc/rfc3339#section-5.6) grammar's explicit
+time separator, zone shape and local clock/offset ranges. The grammar guard
+also applies during leap-second validation, when the library alone can accept
+out-of-range local components. Calendar dates and leap-second position are
+checked by the library. Fractional precision, case and offset strings are retained;
+timestamps are never converted to Date values. This is not a historical
+leap-second bulletin, chronological ordering or observation-freshness check.
+Coercion, defaults and unknown-property removal are disabled. Ajv's detailed
+errors are cleared after each validation; rejection exposes a fixed error code
+and no caller field names or values.
+
+Each raw input retains the parser's byte/depth/value ceilings; the helper
+returns only the matching prefixed digest and never modifies either input.
+A fully valid schema and matching digest still do not prove trusted immutable
+source identity, approved mapping, snapshot relations, private operator access,
+redaction or owner adoption. This helper remains unwired to live intake.
+
+Run `node --test test/development-operations-contribution.test.mjs` for all five
+full positive fixtures, every required field, closed properties, types, version
+and revision mismatches, malformed dates, legacy vocabulary, event targeting,
+duplicate keys, UTF-8/bounds, digest tampering and input preservation.
+
+## Candidate append-only event journal
+
+`scripts/lib/development-operations-journal.mjs` exports
+`appendCandidateOperationsJournal(historyInput, batchInput)`. Both inputs are
+bounded raw JSON arrays. Each entry contains exactly `envelope` and
+`detached_source_proof`, with the same values consumed by the complete
+contribution validator. Only event v1 and event v2 enter this candidate journal.
+Every retained history entry is revalidated; a caller-supplied disposition or
+`verified` flag is not trusted. The API does not authenticate either input.
+
+The result has `kind: candidate_only`, retained `entries`, recomputed
+`dispositions` for each retained index and `results` for each batch index. Store
+only `entries` as the next local candidate history input. These entries contain
+unchanged private source bodies: this is an internal source helper, not a
+redacted response or a public serialization boundary. No caller status, producer
+name, role or valid digest grants trust, current truth or operator access.
+
+The candidate behavior is:
+
+- A new `(producer_identity,event_id)` is a `recorded_candidate`.
+- An exact producer/event/revision/digest repeat is `duplicate_candidate` and
+  adds no row. Its result reports the existing candidate disposition, including
+  quarantine. Duplicate rows in submitted retained history are rejected rather
+  than silently removing an original row.
+- Conflicting reuse appends a `quarantined_candidate` with `IDENTITY_CONFLICT`,
+  retaining both original and conflicting evidence. Each distinct conflict is
+  retained once; repeating it does not clear its quarantine.
+- Supersession requires a new event ID and an explicit earlier predecessor in
+  the same producer's journal. Self, missing, ambiguous or quarantined references
+  quarantine the new entry. The original entry and its source status are never
+  rewritten. A later arrival does not silently rehabilitate an earlier
+  quarantined reference. These conservative linkage rules await owner adoption.
+
+Submission is limited to 256 history-plus-batch entries, counting duplicates,
+and 1048576 bytes for their combined JSON serialization. Each raw input also
+retains the existing parser's byte/depth/value limits. These local candidate
+bounds are not a retention policy or an approved runtime transport. No entries
+are truncated or evicted when a bound is reached. Parsing and all candidate
+updates are local; a rejected batch returns no partial journal and changes no
+caller input. Errors contain only fixed codes and no source content.
+
+Arrival order is preserved, including occurrence strings and source statuses.
+Both state and non-state events remain history candidates. This module does not
+apply lifecycle prose, select a snapshot, normalize time, reorder late events,
+compute a watermark or establish a transactional database projection. A conflict
+can prevent a later predecessor link without deleting an earlier row; a future
+trusted projection must derive its own complete consistency state from retained
+history. Source trust, approved mapping, observation freshness, operator grants,
+redaction and runtime adoption remain open prerequisites.
+
+Run `node --test test/development-operations-journal.test.mjs` for v1/v2 append,
+duplicate/conflict cases, predecessor rules, replay equivalence, retained-history
+validation, adversarial identities, bounded submissions, fixed errors and
+all-or-nothing batch failure. Fixtures are synthetic and no provider is invoked.
+
+## Integrated candidate projection rehearsal
+
+`rehearseCandidateOperationsProjection(input)` in
+`scripts/lib/development-operations-projection.mjs` consumes one bounded raw JSON
+object with exactly `history`, `batch`, `snapshots`, `associations`, `policy` and
+`now`. History and batch use the reviewed journal format; snapshots use the same
+two-field contribution format. Associations name exactly `producer_identity`,
+`event_id`, `event_digest` and `snapshot_digest`. No fields are added to the
+frozen source schemas.
+
+Policy fields are `mapping_version`, `registry_revision`, `redaction_revision`,
+`producers` and `redactions`. Each producer names `producer_identity`, current
+`source_revision`, the complete `admitted_revisions` list, `observed_at`, explicit
+positive integer `max_observation_age_seconds` and boolean `complete`. Revisions
+are exact lowercase 40-hex candidate Git identities. Each redaction disposition
+names `snapshot_digest`, reviewed `title`, `owner_role`, fixed `blocker_codes` and
+opaque `evidence_handles`. Codes use uppercase identifier syntax; handles use
+`evidence:` plus 16-128 URL-safe opaque characters, never raw URLs. These are
+proposed local wire rules, not installed policy or proof of source trust.
+
+One integration call validates the whole journal, validates snapshots, joins
+exact associations, orders states without fraction loss, selects the latest
+eligible snapshot per producer/card, maps closed display fields and returns a
+single candidate result. Existing identities and payloads are preserved. Any
+conflict/quarantine invalidates the candidate projection. Missing redaction or
+known same-producer link prevents current display. No producer self-approval,
+getter-bearing objects, unknown fields, duplicate policy identities or silently
+defaulted freshness thresholds are accepted.
+
+The result contains `kind`, `health`, `authoritative`, `actions_enabled`, `cards`,
+`source_watermark` and `projection_revision`. `kind` is always `candidate_only`;
+`authoritative` and `actions_enabled` are always false. A healthy hypothetical
+case has mapped cards and a deterministic revision. Other states have no cards
+or revision because no previously accepted, independently redacted generation is
+supplied. An empty but explicitly complete synthetic source may produce an empty
+healthy candidate; it is never evidence that a live source is empty. Never wire
+this helper directly to an HTTP response or use it as a source/auth grant check.
+
+An accepted non-state event claiming a state predecessor is incompatible, even
+though the append-only journal can retain that link. Rejected/superseded source
+statuses remain non-effective history. This rule is checked before skipping
+non-state history, preventing an unsupported accepted successor from appearing
+as a healthy state projection.
+
+Local limits: one existing parser-bounded 1MiB input, 256 entries per source
+array, the journal's combined 256 event limit, at most32 producers, at most256
+revisions/codes/handles per relevant array. These are bounded rehearsal limits,
+not retention policy. All state is local until return; invalid input has fixed
+content-free errors and no partial mutation. Reaching bounds never evicts data.
+
+Run `node --test test/development-operations-projection.test.mjs`. Synthetic
+integrated vectors cover v1/v2 events, duplicate/replay, source claims, exact
+snapshot associations, conflict/supersession, subnanosecond and zone ordering,
+late arrivals, complete watermarks, fractional freshness, private-field
+withholding, qualified links, malformed/oversized input and failure atomicity.
+Full repository verification remains required before publication. Existing SQL
+artifacts remain unchanged.
+
+The implementation sequence is projection rehearsal, transactional storage with
+one-shot admitted trusted ingestion, server-owned operator sessions and private
+reader, then producer adoption and genuine runtime acceptance. Platform owns
+source/admission/redaction policy and canonical projection; Socials owns source
+contributions; Web hosts the governed delegate and private presentation. Initial
+runtime source denominator and full archived-work parity must be accepted
+separately. A passing candidate fixture cannot close the private capability.
+
+Rule: every added helper must name its integrated consumer and remaining
+acceptance path. Keep source, adoption, SQL installation and runtime acceptance
+distinct; do not restart validation work when its exact proof is still valid.
+
+Full verification and `npm test` both run test files serially. The generator
+determinism test rewrites shared repository manifests while contract validation
+reads their digest bindings; parallel file execution can observe a partial
+rewrite and report false source drift. Keep the same `--test-concurrency=1`
+policy in both entrypoints until generator tests are isolated in disposable
+fixtures. Regression coverage pins the common runner policy and failure
+propagation without skipping any test. A transient race must not be treated as
+permission to update pinned manifest hashes or weaken source verification.
 
 ## Failure prevention
 

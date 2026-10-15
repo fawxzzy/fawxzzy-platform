@@ -4,7 +4,9 @@ import { validateRepository } from './lib/repository.mjs';
 
 const contracts = validateContracts();
 const repository = validateRepository();
-const tests = spawnSync(process.execPath, ['--test'], {
+// Generator tests rewrite shared deterministic fixtures. Match npm test's
+// serial file policy so digest readers cannot observe a partial rewrite.
+const tests = spawnSync(process.execPath, ['--test', '--test-concurrency=1'], {
   cwd: process.cwd(),
   encoding: 'utf8',
   env: { ...process.env, NO_COLOR: '1' }

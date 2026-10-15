@@ -31,6 +31,16 @@ for (const [name, change] of [
   ['provider identifier authority', (c) => { c.domain.discord_ids = 'CANONICAL_KEYS'; }],
   ['implicit version upgrade', (c) => { c.version_dispatch.v1_fresh_to_v2_healthy = true; }],
   ['digest coverage drift', (c) => { c.candidate_wire_decisions.digest.covered_fields.pop(); }],
+  ['universal payload digest', (c) => { c.candidate_wire_decisions.digest.digest_location = 'payload.digest'; }],
+  ['bare digest format', (c) => { c.candidate_wire_decisions.digest.digest_format = '<64-lowercase-hex>'; }],
+  ['optional detached proof', (c) => { c.candidate_wire_decisions.digest.detached_source_proof.required = false; }],
+  ['self-reported source proof', (c) => { c.candidate_wire_decisions.digest.detached_source_proof.caller_supplied_claim_is_authority = true; }],
+  ['unbound source proof', (c) => { c.candidate_wire_decisions.digest.detached_source_proof.source_binding = 'MATCHING_DIGEST_ONLY'; }],
+  ['invented proof transport', (c) => { c.candidate_wire_decisions.digest.detached_source_proof.transport = 'CURRENT'; }],
+  ['mutate source to add digest', (c) => { c.candidate_wire_decisions.digest.source_payload_mutation = true; }],
+  ['accept missing digest evidence', (c) => { c.candidate_wire_decisions.digest.missing_unknown_or_mismatch = 'ACCEPT'; }],
+  ['digest format as trust', (c) => { c.candidate_wire_decisions.digest.format_alone_proves_integrity = true; }],
+  ['hash self field', (c) => { c.candidate_wire_decisions.digest.self_field_excluded = false; }],
   ['overwrite conflicting ID', (c) => { c.candidate_wire_decisions.idempotency.conflicting_reuse = 'OVERWRITE'; }],
   ['prose lifecycle inference', (c) => { c.candidate_wire_decisions.state_mapping.prose_drives_lifecycle = true; }],
   ['unknown healthy', (c) => { c.candidate_wire_decisions.watermark.unknown_threshold_is_healthy = true; }],
@@ -45,6 +55,54 @@ for (const [name, change] of [
     assert.ok(validateDevelopmentOperationsDocuments(docs).length > 0);
   });
 }
+
+const sourceDigestCarriers = {
+  'socials-os.development-card.v1.schema.json': 'FORBIDDEN_BY_SOURCE_SCHEMA',
+  'socials-os.development-board.v1.schema.json': 'FORBIDDEN_BY_SOURCE_SCHEMA',
+  'socials-os.development-event.v1.schema.json': 'FORBIDDEN_BY_SOURCE_SCHEMA',
+  'socials-os.development-board.v2.schema.json': 'FORBIDDEN_BY_SOURCE_SCHEMA',
+  'socials-os.development-event.v2.schema.json': 'REQUIRED_MATCH_DETACHED_DIGEST',
+};
+
+test('digest carrier denominator preserves all five immutable contribution schemas', () => {
+  // Source: Socials 6662045aaedb20b0da657ebd982faf9729004afc, contracts/development-*.schema.json.
+  // This asserts the candidate policy, not live source validation or trusted intake.
+  const contract = documents()[operationsContractPath];
+  const digest = contract.candidate_wire_decisions.digest;
+  assert.deepEqual(digest.payload_digest_by_schema, sourceDigestCarriers);
+  assert.deepEqual(Object.values(contract.version_dispatch).filter((v) => typeof v === 'string' && v.endsWith('.schema.json')).sort(), Object.keys(sourceDigestCarriers).sort());
+  assert.deepEqual(contract.candidate_wire_decisions.envelope.fields, ['schema_identity', 'producer_identity', 'source_revision', 'mapping_version', 'payload']);
+  assert.equal(digest.digest_location, 'detached_source_proof.digest');
+  assert.equal(digest.detached_source_proof.required, true);
+  assert.equal(digest.source_payload_mutation, false);
+});
+
+for (const identity of Object.keys(sourceDigestCarriers)) {
+  test(`reject missing digest carrier: ${identity}`, () => {
+    const docs = documents();
+    delete docs[operationsContractPath].candidate_wire_decisions.digest.payload_digest_by_schema[identity];
+    assert.ok(validateDevelopmentOperationsDocuments(docs).length > 0);
+  });
+  test(`reject changed digest carrier: ${identity}`, () => {
+    const docs = documents();
+    docs[operationsContractPath].candidate_wire_decisions.digest.payload_digest_by_schema[identity] = 'OPTIONAL_OR_INSERT';
+    assert.ok(validateDevelopmentOperationsDocuments(docs).length > 0);
+  });
+}
+
+test('reject unknown schema carrier and partial or extra detached proof policy', () => {
+  const unknown = documents();
+  unknown[operationsContractPath].candidate_wire_decisions.digest.payload_digest_by_schema['future.v3.schema.json'] = 'REQUIRED_MATCH_DETACHED_DIGEST';
+  assert.ok(validateDevelopmentOperationsDocuments(unknown).length > 0);
+  for (const field of ['required', 'source_binding', 'caller_supplied_claim_is_authority', 'transport']) {
+    const missing = documents();
+    delete missing[operationsContractPath].candidate_wire_decisions.digest.detached_source_proof[field];
+    assert.ok(validateDevelopmentOperationsDocuments(missing).length > 0);
+  }
+  const extra = documents();
+  extra[operationsContractPath].candidate_wire_decisions.digest.detached_source_proof.client_override = true;
+  assert.ok(validateDevelopmentOperationsDocuments(extra).length > 0);
+});
 
 for (const [name, mutate] of [
   ['denied data', (rows) => { rows[0].expected.payload = 'current'; }],
