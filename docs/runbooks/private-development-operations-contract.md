@@ -4,7 +4,7 @@ Status: `OWNER_DECISION`
 
 ## Scope
 
-This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, database schema, SQL, network client or consumer route. The candidate digest helper below implements only proposed covered-byte computation.
+This package is repository-only, secret-free and non-executable at every provider boundary. It is a concrete candidate for owner contract adoption; green checks do not make it adopted or installed. It includes no production Auth gate, database schema, SQL, network client or consumer route. The candidate helpers below implement bounded parsing, proposed covered-byte computation and supplied-digest/carrier comparison. They do not authenticate source or authorize access.
 
 ## Verify local source
 
@@ -59,7 +59,7 @@ the hash helper returns only the 64 digits. Never add or replace a payload field
 to satisfy integrity validation. Unknown schemas, missing proof, unverified source
 binding or a mismatch must prevent acceptance and current-truth claims. A detached
 digest submitted by an untrusted caller is not verified source evidence. Its
-transport, source verification and runtime comparison remain adoption prerequisites.
+transport, source verification and runtime integration remain adoption prerequisites. The local comparison helper below supplies the bounded candidate comparison only.
 
 Inputs are plain JSON values represented as local JavaScript objects. Proxies,
 accessors, custom prototypes, non-enumerable fields, symbol keys, sparse arrays,
@@ -73,7 +73,8 @@ calling this value-based helper. `JSON.parse` alone loses duplicate-key evidence
 this module cannot recover it. Callers must preserve numbers requiring more than
 IEEE754 precision as schema-approved strings and must not coerce timestamp strings
 to dates before hashing. Syntax/version checks for a supplied `payload.digest`
-remain external; omission of that field is for digest computation only.
+are performed by the separate candidate integrity helper below; omission in this
+hash helper is for digest computation only.
 
 Run `node --test test/development-operations-digest.test.mjs` for normative numeric
 and UTF-8 vectors, envelope binding, mutation preservation and adversarial inputs.
@@ -106,9 +107,42 @@ later consumers must not copy them into prototype-sensitive destinations.
 
 Run `node --test test/development-operations-json.test.mjs` for duplicate-name,
 encoding, grammar, size, depth, count and digest-composition proofs. This local
-candidate is not wired to an intake endpoint. Schema/version validation, supplied
-digest comparison, trusted producer/revision binding, quarantine and private
-consumer authorization remain separate acceptance gates.
+candidate is not wired to an intake endpoint. Full contribution-schema/version
+validation, trusted producer/revision binding, quarantine and private consumer
+authorization remain separate acceptance gates.
+
+## Candidate detached integrity comparison
+
+`scripts/lib/development-operations-integrity.mjs` exports
+`verifyCandidateOperationsIntegrity(envelopeInput, proofInput)`. Both inputs are
+raw JSON strings or Uint8Array bytes and independently use the bounded parser
+above, including duplicate-name rejection. The proof input is the local value
+of `detached_source_proof` and must contain exactly one field, `digest`. No
+`verified` flag or other authority assertion is accepted in this value. This
+local API does not define or install the eventual proof transport.
+
+The helper validates the exact five-field envelope shape and nonempty string
+bindings, recognizes only the five declared carrier identities, and requires
+an exact `sha256:` prefix plus 64 lowercase hexadecimal digits. Event v2 must
+already contain the same correctly formatted payload digest; the other four
+schemas must not contain that field. All cases compare the supplied digest
+against independently recomputed canonical covered bytes. Nothing is inserted,
+removed or rewritten in either input. Each raw input has the parser's existing
+byte/depth/value limits; their combined raw-byte ceiling is twice its per-input
+byte limit. Errors use fixed codes without input contents.
+
+On success it returns only the matching prefixed digest. This does not prove
+that a caller's producer/revision claims or detached evidence are authentic.
+A caller able to alter both payload and proof can compute a matching pair.
+Full contribution-schema validation (including v2 body/envelope identity),
+trusted immutable source binding, mapping and operator authorization must still
+succeed before data is accepted. No acceptance/current-truth/access flag is
+returned, and this candidate is not wired to an intake or production gate.
+
+Run `node --test test/development-operations-integrity.test.mjs` for all five
+carrier rules, independent expected hash bytes, tampering, malformed/duplicate
+proof, raw-input bounds and immutability. Minimal carrier fixtures deliberately
+do not assert full source-schema validity.
 
 ## Failure prevention
 
