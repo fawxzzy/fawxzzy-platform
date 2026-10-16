@@ -19,6 +19,59 @@ Run focused validation twice and compare a deterministic summary, excluding runn
 
 ## Next acceptance boundaries
 
+### Private rich-card adoption candidate
+
+`contracts/v1/operations/private-card-adoption-contract.json` binds a separate
+rich-card adoption proposal to the existing logical `work` domain and its sole
+FawxzzyPlatform canonical writer. It does **not** widen the installed operations
+projection's ten-field display allowlist. Its physical namespace, private ACL,
+trusted producer transport, transactional writer, and private reader remain
+unselected or unimplemented. The public repository contains only this synthetic
+contract and tests, never the prepared private Fitness planning packet.
+
+`planCandidatePrivateCardAdoption` in
+`scripts/lib/development-operations-private-adoption.mjs` accepts one bounded,
+duplicate-key-rejecting raw JSON input for a complete 39-record synthetic
+Fitness graph. It requires the 15 fixed baselines, 153 original criterion IDs,
+all record versions, a whole-graph digest, per-record digests and incoming-edge
+preimages. It proposes only changes to active/planned records. Every changed
+record increments its version and keeps accepted implementation status, triage
+status, triage time, and private visibility separate from Plan-depth edits.
+Absorbed IDs remain as versioned records with explicit `superseded_by`, while
+their criteria move only to the declared survivor with preserved IDs and history.
+Already-absorbed records remain valid input to later unrelated batches. Existing edges must survive
+or redirect to retained destinations; self-edges, cycles, orphans and incoming
+edge loss reject the whole candidate. A prior batch with the same ID and exact
+input digest is a no-op; changed-input reuse is rejected.
+
+The candidate output contains IDs and hashes, with no titles, descriptions,
+criteria or source objects. It is internal source evidence only, **not** a
+private reader or public export. Caller-supplied role names, digests and graph
+preimages are not trusted source or writer authorization. Later runtime work
+must bind immutable producer identity and the exact source envelope through a
+server-verified trust path; independently select private storage, ACL and a
+single transactional compare-and-swap writer; and prove a private redacted
+reader before any real application. Green synthetic tests do not admit live
+cards, DDL, provider calls, or delivery.
+
+Focused command: `node --test test/development-operations-private-adoption.test.mjs`.
+Repository verification remains `npm run verify`.
+
+The source-only `rehearseCandidatePrivateCardWrite` integration models the
+canonical `work` writer's transaction boundary. Its source port must obtain an
+immutable plan through a server-verified producer binding; its store port must
+provide a private serializable transaction with a complete graph read, durable
+batch lookup/recording, and exact per-record compare-and-swap. Those adapters,
+operator authorization and physical storage do not exist here. The synthetic
+port test demonstrates graph-preimage rejection, atomic all-or-nothing changes,
+postimage validation, exact-repeat no-op and changed-input collision. The
+batch record must commit with all card versions and changes, never in a second
+transaction. No result is a private reader or public export, and neither the
+injected method names nor caller-provided digests authenticate a source. A
+future owner implementation must prove the real adapter's rollback, isolation,
+ACL, and consumer redaction independently before installation. Focused command:
+`node --test test/development-operations-private-writer.test.mjs`.
+
 1. The canonical data owner accepts or revises all candidate wire choices. Resolve operator-grant storage, source observation thresholds and exact snapshot transport in separately scoped implementation packets. Consumer owner accepts the private response contract. Until then status remains OWNER_DECISION and owner_adopted=false.
 2. Prove producer/revision identity, canonical digest vectors, explicit version dispatch and conflict quarantine with synthetic adversarial data before any live intake. A valid source schema alone does not grant trust.
 3. Choose physical storage separately. Rehearse exact retained-source mapping, dependencies, append-only history, deterministic replay and rollback on an admitted disposable target. Preserve archived originals; do not reactivate retired DiscordOS rows.

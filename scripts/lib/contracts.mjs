@@ -65,6 +65,7 @@ const executableBundlePinnedEvidenceBindings = Object.freeze([
 ]);
 
 export const documentSpecs = Object.freeze([
+  ['contracts/v1/operations/private-card-adoption-contract.json', 'urn:fawxzzy:platform:schemas:v1:private-card-adoption-contract'],
   [operationsContractPath, `${operationsSchemaId}#/$defs/contract`],
   [operationsExamplesPath, `${operationsSchemaId}#/$defs/examples`],
   [observedTopologyPath, 'urn:fawxzzy:platform:schemas:v1:observed-project-topology'],
@@ -3067,6 +3068,15 @@ export function validateSemantics(documents) {
 
   failures.push(...validatePlatformDataConvergenceContracts(documents));
   failures.push(...validateDevelopmentOperationsDocuments(documents));
+  const privateAdoption = documents['contracts/v1/operations/private-card-adoption-contract.json'];
+  const operationsProposal = documents[operationsContractPath];
+  requireCondition(privateAdoption.binding.logical_domain === operationsProposal.domain.logical
+    && privateAdoption.binding.canonical_writer === operationsProposal.domain.canonical_writer
+    && privateAdoption.binding.physical_namespace === operationsProposal.domain.physical_namespace
+    && sameValues(privateAdoption.binding.entities, operationsProposal.domain.entities)
+    && privateAdoption.lifecycle.owner_adopted === false
+    && privateAdoption.lifecycle.apply_admitted === false,
+  'private rich-card adoption must remain bound to the unadopted work-domain owner');
   failures.push(...validateObservedProjectTopology(documents));
 
   const registry = documents['contracts/v1/registry/project-registry.json'];
@@ -3730,15 +3740,15 @@ export function validateContracts() {
     source_planning_schema_count: convergenceDocumentPaths.length,
     source_planning_document_count: convergenceDocumentPaths.length,
     source_planning_semantic_check_groups: 1,
-    private_operations_schema_count: 1,
-    private_operations_document_count: 2,
-    private_operations_semantic_check_groups: 1,
+    private_operations_schema_count: 2,
+    private_operations_document_count: 3,
+    private_operations_semantic_check_groups: 2,
     observation_schema_count: 1,
     observation_document_count: 1,
     observation_semantic_check_groups: 1,
     validated_schema_count: schemaPaths().length,
     validated_document_count: documentSpecs.length,
-    validated_semantic_check_groups: 30,
+    validated_semantic_check_groups: 31,
     failures
   };
 }
