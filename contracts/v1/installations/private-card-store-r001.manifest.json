@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "status": "OWNER_DECISION",
+  "source_contract": "private-card-store-r001",
+  "migration_name": "private_card_store_r001",
+  "sql_path": "contracts/v1/installations/private-card-store-r001.sql",
+  "sql_sha256": "6908a5094d8b9f06390ef14adea618ead5412a0648079ff207aea2b582b682bf",
+  "sql_bytes": 15733,
+  "reviewed_origin": "ATLAS private-card-reviewed-source-r008-20261016 install.sql sha256:6908a5094d8b9f06390ef14adea618ead5412a0648079ff207aea2b582b682bf",
+  "provider_discovered": false,
+  "server_assigned_migration_version": "UNKNOWN",
+  "execution": "BLOCKED",
+  "apply_admitted": false,
+  "required_before_apply": [
+    "independent_owner_source_and_security_review",
+    "management_api_transaction_and_migration_ledger_proof",
+    "fresh_master_catalog_and_migration_history_preimage",
+    "exact_canonical_writer_cost_rollback_and_uncertain_acknowledgement_gates"
+  ]
+}

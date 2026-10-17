@@ -156,8 +156,8 @@ test('repository includes proposal while retaining sealed and convergence denomi
   assert.equal(result.ok,true);
   assert.deepEqual([result.schema_count,result.document_count,result.semantic_check_groups],[28,27,27]);
   assert.deepEqual([result.source_planning_schema_count,result.source_planning_document_count,result.source_planning_semantic_check_groups],[3,3,1]);
-  assert.deepEqual([result.private_operations_schema_count,result.private_operations_document_count,result.private_operations_semantic_check_groups],[1,2,1]);
+  assert.deepEqual([result.private_operations_schema_count,result.private_operations_document_count,result.private_operations_semantic_check_groups],[2,3,2]);
   assert.deepEqual([result.observation_schema_count,result.observation_document_count,result.observation_semantic_check_groups],[1,1,1]);
-  assert.deepEqual([result.validated_schema_count,result.validated_document_count,result.validated_semantic_check_groups],[33,33,30]);
+  assert.deepEqual([result.validated_schema_count,result.validated_document_count,result.validated_semantic_check_groups],[34,34,31]);
   assert.deepEqual(validateContracts(),result);
 });

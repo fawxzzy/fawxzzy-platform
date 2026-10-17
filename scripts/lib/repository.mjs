@@ -1,9 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { repositoryRoot } from './contracts.mjs';
 
 const rootLocalExcludedDirectories = new Set(['node_modules', 'outputs', 'work']);
+const privateCardOwnerSqlPath = 'contracts/v1/installations/private-card-store-r001.sql';
+const privateCardOwnerSqlSha256 = '6908a5094d8b9f06390ef14adea618ead5412a0648079ff207aea2b582b682bf';
 const allowedRootFiles = new Set([
   '.gitattributes',
   '.gitignore',
@@ -69,6 +72,7 @@ export function listRepositoryFiles() {
 function allowedPath(relativePath) {
   if (/(^|\/)(?:work|outputs)(?:\/|$)/.test(relativePath)) return false;
   return allowedRootFiles.has(relativePath)
+    || relativePath === privateCardOwnerSqlPath
     || /^\.github\/workflows\/[a-z0-9-]+\.yml$/.test(relativePath)
     || /^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)
     || /^bootstrap\/artifacts\/executable-sql\/(?:00000000000001_mazer_schema|00000000000002_fitness_schema|00000000000003_discordos_schema|00000000000004_platform_security_overlay)\.sql$/.test(relativePath)
@@ -113,10 +117,15 @@ export function validateRepositoryEntries(entries) {
   for (const { relativePath, content } of entries) {
     if (!allowedPath(relativePath)) failures.push(`${relativePath}: path is outside the repository allowlist`);
     if (relativePath.endsWith('.sql')
+      && relativePath !== privateCardOwnerSqlPath
       && !/^bootstrap\/sources\/(?:discordos|fitness|mazer)\/supabase\/migrations\/[A-Za-z0-9_.-]+\.sql$/.test(relativePath)
       && !/^bootstrap\/artifacts\/inert-sql\/0000000000000(?:1_mazer_schema_inert|2_fitness_schema_inert|3_discordos_schema_inert|4_platform_security_overlay_inert)\.sql$/.test(relativePath)
       && !/^bootstrap\/artifacts\/executable-sql\/(?:00000000000001_mazer_schema|00000000000002_fitness_schema|00000000000003_discordos_schema|00000000000004_platform_security_overlay)\.sql$/.test(relativePath)) {
       failures.push(`${relativePath}: SQL is outside the inert source and review-artifact boundary`);
+    }
+    if (relativePath === privateCardOwnerSqlPath
+      && createHash('sha256').update(content).digest('hex') !== privateCardOwnerSqlSha256) {
+      failures.push(`${relativePath}: reviewed private-card SQL digest drift`);
     }
     if (/(^|\/)\.env(?:\.|$)/.test(relativePath)) failures.push(`${relativePath}: environment files are forbidden`);
 
