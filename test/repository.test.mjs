@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { inspectContent, listWorkingTreeFiles, validateRepository, validateRepositoryEntries } from '../scripts/lib/repository.mjs';
 
 function withTemporaryDirectory(run) {
@@ -79,6 +80,17 @@ test('blocked bootstrap SQL is admitted only in the exact non-executable artifac
     assert.ok(failures.some((failure) => failure.includes('path is outside the repository allowlist')), relativePath);
     assert.ok(failures.some((failure) => failure.includes('SQL is outside the inert source and review-artifact boundary')), relativePath);
   }
+});
+
+test('only the exact reviewed private-card owner SQL is allowed outside historical artifacts', () => {
+  const relativePath = 'contracts/v1/installations/private-card-store-r001.sql';
+  const content = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', relativePath), 'utf8');
+  assert.deepEqual(validateRepositoryEntries([{ relativePath, content }]), []);
+  const changed = validateRepositoryEntries([{ relativePath, content: `${content}\n` }]);
+  assert.ok(changed.some((failure) => failure.includes('reviewed private-card SQL digest drift')));
+  const relocated = validateRepositoryEntries([{ relativePath: 'contracts/v1/installations/private-card-store-r002.sql', content }]);
+  assert.ok(relocated.some((failure) => failure.includes('path is outside the repository allowlist')));
+  assert.ok(relocated.some((failure) => failure.includes('SQL is outside the inert source and review-artifact boundary')));
 });
 
 test('provider-canonical governance history admits only an exact versioned namespace-plan archive', () => {
