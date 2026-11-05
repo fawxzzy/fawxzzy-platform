@@ -27,30 +27,45 @@ function change(plan, index, mutate) {
   const original = plan.baseline[index];
   const next = structuredClone(original); next.version += 1; mutate(next);
   plan.changes.push({ stable_id: original.stable_id, expected_version: original.version,
-    expected_record_digest: digest(original), expected_incoming_ids: [], next });
+    expected_body_digest: digest(original), next });
 }
+function create(plan, stableId) {
+  const next = structuredClone(plan.baseline[0]);
+  Object.assign(next, { stable_id: stableId, version: 1, criteria: [], dependency_ids: [] });
+  plan.changes.push({ stable_id: stableId, expected_version: 0, expected_body_digest: null, next });
+}
+const admission = { source_revision: 'a'.repeat(40), trust_receipt: `sha256:${'b'.repeat(64)}` };
 function ports(plan, options = {}) {
   const durable = { graph: structuredClone(plan.baseline), batches: new Map() };
   let calls = 0;
-  const sourcePort = { readVerifiedImmutablePlan: async () => JSON.stringify(plan) };
+  const sourcePort = { readVerifiedImmutablePlan: async () => JSON.stringify(plan), readVerifiedAdmission: async () => ({ ...admission }) };
   const storePort = { transaction: async (work) => {
     const graph = structuredClone(durable.graph);
     const batches = new Map(durable.batches);
     const tx = {
       readBatch: async (batchId) => batches.get(batchId) ?? null,
       readFullGraph: async () => structuredClone(graph),
-      compareAndSwap: async ({ stable_id, expected_version, expected_record_digest, next }) => {
+      compareAndSwap: async ({ stable_id, expected_version, expected_body_digest, next }) => {
         calls += 1;
         if (options.failCasAt === calls) return false;
         const index = graph.findIndex((card) => card.stable_id === stable_id);
+        if (expected_version === 0) {
+          if (index >= 0 || expected_body_digest !== null) return false;
+          graph.push(structuredClone(next));
+          graph.sort((left, right) => (left.stable_id < right.stable_id ? -1 : 1));
+          return true;
+        }
         if (index < 0 || graph[index].version !== expected_version
-            || digest(graph[index]) !== expected_record_digest) return false;
+            || digest(graph[index]) !== expected_body_digest) return false;
         graph[index] = structuredClone(next);
         if (options.corruptPostimage) graph[index].priority = 'low';
         return true;
       },
       recordBatch: async (batch) => {
         if (options.failReceipt) throw new Error('synthetic receipt failure');
+        // Every NOT NULL column of work.private_card_batches must be present, and nothing else.
+        assert.deepEqual(Object.keys(batch).sort(), ['baseline_digest', 'batch_id', 'changed_ids', 'input_digest',
+          'post_graph_digest', 'source_revision', 'trust_receipt']);
         batches.set(batch.batch_id, structuredClone(batch));
       }
     };
@@ -83,6 +98,9 @@ test('integrated source and private transaction rehearsal commits changed cards 
   assert.equal(p.durable.graph[0].version, 2);
   assert.equal(p.durable.graph[1].title, 'synthetic changed private title');
   assert.equal(p.durable.batches.get(plan.batch_id).input_digest, first.input_digest);
+  assert.equal(p.durable.batches.get(plan.batch_id).source_revision, admission.source_revision);
+  assert.equal(p.durable.batches.get(plan.batch_id).trust_receipt, admission.trust_receipt);
+  assert.deepEqual(p.durable.batches.get(plan.batch_id).changed_ids, ['FF-001', 'FF-002']);
   const repeat = await rehearseCandidatePrivateCardWrite(p);
   assert.equal(repeat.disposition, 'exact_repeat_no_op');
   assert.equal(p.durable.graph[0].version, 2);
@@ -114,4 +132,19 @@ test('missing ports, unverified-shaped source and empty updates fail closed', as
   await assert.rejects(rehearseCandidatePrivateCardWrite(ports(empty)), { code: 'ERR_PRIVATE_CARD_WRITER_EMPTY_CHANGESET' });
   const p = ports(empty); p.sourcePort.readVerifiedImmutablePlan = async () => ({ raw: JSON.stringify(empty) });
   await assert.rejects(rehearseCandidatePrivateCardWrite(p), { code: 'ERR_PRIVATE_CARD_WRITER_SOURCE' });
+});
+test('creates go through the same transaction with expected_version 0 and a null digest', async () => {
+  const plan = fixture(); create(plan, 'FF-040'); change(plan, 0, (next) => { next.priority = 'high'; });
+  const p = ports(plan);
+  const result = await rehearseCandidatePrivateCardWrite(p);
+  assert.deepEqual(result.changed_ids, ['FF-001', 'FF-040']);
+  assert.equal(p.durable.graph.length, 40);
+  assert.equal(p.durable.graph.at(-1).stable_id, 'FF-040');
+});
+test('a malformed admission from the source port fails closed', async () => {
+  const plan = fixture(); change(plan, 0, (next) => { next.priority = 'high'; });
+  for (const bad of [null, { source_revision: 'x', trust_receipt: admission.trust_receipt }, { ...admission, extra: 1 }]) {
+    const p = ports(plan); p.sourcePort.readVerifiedAdmission = async () => bad;
+    await assert.rejects(rehearseCandidatePrivateCardWrite(p), { code: 'ERR_PRIVATE_CARD_WRITER_ADMISSION' });
+  }
 });

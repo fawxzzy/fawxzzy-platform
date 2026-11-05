@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { candidatePrivateCardDigest, planCandidatePrivateCardAdoption } from '../scripts/lib/development-operations-private-adoption.mjs';
+import { createHash } from 'node:crypto';
+import { buildCandidatePrivateCardSqlPayload, candidatePrivateCardDigest, maxPrivateCardChanges, planCandidatePrivateCardAdoption } from '../scripts/lib/development-operations-private-adoption.mjs';
+import { jsonbText, sortCardsByStableId } from '../scripts/lib/development-operations-jsonb.mjs';
 import { createValidator, validateContracts } from '../scripts/lib/contracts.mjs';
 
 const cardId = (n) => `FF-${String(n).padStart(3, '0')}`;
@@ -26,10 +28,14 @@ function fixture() {
 function change(input, index, mutate) {
   const old = input.baseline[index];
   const next = structuredClone(old); next.version += 1; mutate(next);
-  const expected_incoming_ids = input.baseline.filter((record) => record.dependency_ids.includes(old.stable_id))
-    .map((record) => record.stable_id).sort();
   input.changes.push({ stable_id: old.stable_id, expected_version: old.version,
-    expected_record_digest: digest(old), expected_incoming_ids, next });
+    expected_body_digest: digest(old), next });
+}
+function create(input, stableId, mutate = () => {}) {
+  const next = structuredClone(input.baseline[0]);
+  Object.assign(next, { stable_id: stableId, version: 1, criteria: [], dependency_ids: [] });
+  mutate(next);
+  input.changes.push({ stable_id: stableId, expected_version: 0, expected_body_digest: null, next });
 }
 const plan = (input) => planCandidatePrivateCardAdoption(JSON.stringify(input));
 const rejection = (input, code) => assert.throws(() => plan(input), { code: `ERR_PRIVATE_CARD_ADOPTION_${code}` });
@@ -89,9 +95,8 @@ test('exact record and whole-graph preimages are mandatory', () => {
   const input = fixture(); change(input, 0, (next) => { next.priority = 'high'; });
   input.changes[0].expected_version = 2; rejection(input, 'RECORD_PREIMAGE');
   const graph = fixture(); graph.expected_graph_digest = digest([]); rejection(graph, 'GRAPH_PREIMAGE');
-  const incoming = fixture(); incoming.baseline[2].dependency_ids = ['FF-001'];
-  incoming.expected_graph_digest = digest(incoming.baseline); change(incoming, 0, (next) => { next.priority = 'high'; });
-  incoming.changes[0].expected_incoming_ids = []; rejection(incoming, 'INCOMING_PREIMAGE');
+  const body = fixture(); change(body, 0, (next) => { next.priority = 'high'; });
+  body.changes[0].expected_body_digest = digest(body.baseline[1]); rejection(body, 'RECORD_PREIMAGE');
 });
 test('private visibility, accepted status, triage and fixed baselines cannot be rewritten as plans', () => {
   const visibility = fixture(); change(visibility, 0, (next) => { next.visibility = 'PUBLIC'; }); rejection(visibility, 'RECORD_VALUE');
@@ -112,4 +117,75 @@ test('missing original criterion, duplicate card and opaque extra fields fail cl
   const duplicate = fixture(); duplicate.baseline[1].stable_id = 'FF-001';
   duplicate.expected_graph_digest = digest(duplicate.baseline); rejection(duplicate, 'DUPLICATE_CARD');
   const extra = fixture(); extra.changes_extra = 'synthetic'; rejection(extra, 'INPUT_FIELDS');
+});
+
+test('old five-key change shape and any extra or missing wire key are rejected', () => {
+  const old = fixture(); change(old, 0, (next) => { next.priority = 'high'; });
+  const legacy = structuredClone(old);
+  legacy.changes[0] = { stable_id: 'FF-001', expected_version: 1, expected_record_digest: digest(old.baseline[0]),
+    expected_incoming_ids: [], next: legacy.changes[0].next };
+  rejection(legacy, 'CHANGE_FIELDS');
+  const extra = structuredClone(old); extra.changes[0].expected_incoming_ids = []; rejection(extra, 'CHANGE_FIELDS');
+  const missing = structuredClone(old); delete missing.changes[0].expected_body_digest; rejection(missing, 'CHANGE_FIELDS');
+});
+test('creates use expected_version 0 with a null digest and version 1, and never touch existing ids', () => {
+  const input = fixture(); create(input, 'FF-040', (next) => { next.dependency_ids = ['FF-001']; });
+  const result = plan(input);
+  assert.deepEqual(result.changed_ids, ['FF-040']);
+  assert.equal(result.post_graph_digest, digest([...input.baseline, input.changes[0].next]));
+  const built = buildCandidatePrivateCardSqlPayload(JSON.stringify(input));
+  assert.deepEqual(Object.keys(built.payload).sort(), ['baseline', 'batch_id', 'changes']);
+  assert.deepEqual(Object.keys(built.payload.changes[0]).sort(), ['expected_body_digest', 'expected_version', 'next', 'stable_id']);
+  assert.equal(built.payload.changes[0].expected_body_digest, null);
+  const digestText = (value) => `sha256:${createHash('sha256').update(jsonbText(value)).digest('hex')}`;
+  assert.equal(built.plan.input_digest, digestText(built.payload));
+  const version = fixture(); create(version, 'FF-040', (next) => { next.version = 2; }); rejection(version, 'PLAN_BOUNDARY');
+  const digestSet = fixture(); create(digestSet, 'FF-040'); digestSet.changes[0].expected_body_digest = digest(digestSet.baseline[0]);
+  rejection(digestSet, 'RECORD_PREIMAGE');
+  const existing = fixture(); create(existing, 'FF-001'); rejection(existing, 'CHANGE_ID');
+  const accepted = fixture(); create(accepted, 'FF-040', (next) => { next.accepted_status = 'accepted'; }); rejection(accepted, 'PLAN_BOUNDARY');
+  const duplicate = fixture(); create(duplicate, 'FF-040'); create(duplicate, 'FF-040'); rejection(duplicate, 'CHANGE_ID');
+  const updateTwice = fixture(); change(updateTwice, 0, (next) => { next.priority = 'high'; });
+  change(updateTwice, 0, (next) => { next.priority = 'low'; }); rejection(updateTwice, 'CHANGE_ID');
+});
+test('change cap is the SQL cap of 39, with the 24 updatable records as a separate fixed-record bound', () => {
+  assert.equal(maxPrivateCardChanges, 39);
+  // 24 non-fixed baseline records updated + 15 creates = 39 changes: accepted, and SQL accepts 1..39.
+  const full = fixture();
+  for (let index = 0; index < 24; index += 1) change(full, index, (next) => { next.priority = 'high'; });
+  for (let index = 0; index < 15; index += 1) create(full, cardId(100 + index));
+  assert.equal(full.changes.length, 39);
+  assert.equal(plan(full).changed_ids.length, 39);
+  create(full, 'FF-999'); assert.equal(full.changes.length, 40); rejection(full, 'INPUT_VALUE');
+  // The 25th update necessarily hits a fixed record: rejected per record, not by count.
+  const fixed = fixture();
+  for (let index = 0; index < 25; index += 1) change(fixed, index, (next) => { next.priority = 'high'; });
+  rejection(fixed, 'CHANGE_ID');
+});
+test('payload and graph row order follow stable_id bytewise, independent of caller order', () => {
+  const sorted = fixture(); change(sorted, 0, (next) => { next.priority = 'high'; }); change(sorted, 1, (next) => { next.priority = 'low'; });
+  const shuffled = structuredClone(sorted);
+  shuffled.baseline.reverse(); shuffled.changes.reverse();
+  assert.deepEqual(plan(shuffled), plan(sorted));
+  assert.deepEqual(buildCandidatePrivateCardSqlPayload(JSON.stringify(shuffled)).payload.baseline.map((r) => r.stable_id),
+    sorted.baseline.map((r) => r.stable_id));
+  // C collation: '-' (0x2d) sorts before '0' (0x30), so FF-1-A precedes FF-10 (locale collations differ).
+  assert.deepEqual(sortCardsByStableId([{ stable_id: 'FF-10' }, { stable_id: 'FF-1-A' }, { stable_id: 'FF-1' }]).map((r) => r.stable_id),
+    ['FF-1', 'FF-1-A', 'FF-10']);
+});
+test('no-change plans stay plannable but cannot become a SQL payload', () => {
+  const input = fixture();
+  assert.deepEqual(plan(input).changed_ids, []);
+  assert.throws(() => buildCandidatePrivateCardSqlPayload(JSON.stringify(input)), { code: 'ERR_PRIVATE_CARD_ADOPTION_EMPTY_CHANGESET' });
+});
+test('U+0000 and non-integer numbers are rejected because jsonb cannot represent them faithfully', () => {
+  const nul = fixture(); change(nul, 0, (next) => { next.title = 'bad-NUL-title'; });
+  const rawNul = JSON.stringify(nul).replace('bad-NUL-title', 'bad\\u0000title');
+  assert.throws(() => planCandidatePrivateCardAdoption(rawNul), { code: 'ERR_JSONB_NUL' });
+  const rawNulBaseline = JSON.stringify(fixture()).replace('synthetic private description', 'x\\u0000y');
+  assert.throws(() => planCandidatePrivateCardAdoption(rawNulBaseline), { code: 'ERR_JSONB_NUL' });
+  for (const token of ['1.0', '1e2', '1.5', '9007199254740993']) {
+    const raw = JSON.stringify(fixture()).replace('"version":1', `"version":${token}`);
+    assert.throws(() => planCandidatePrivateCardAdoption(raw), { code: 'ERR_JSONB_NUMBER' }, token);
+  }
 });
