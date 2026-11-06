@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
@@ -344,7 +345,24 @@ function sortedPayload(input) {
     changes: [...input.changes].sort((a, b) => (a.stable_id < b.stable_id ? -1 : 1)) };
 }
 
+test('real server: the 128-character batch_id cap is the same in JS and SQL', { skip }, () => {
+  const longest = `syn_${'a'.repeat(124)}`;
+  assert.equal(longest.length, 128);
+  const input = fixture(longest);
+  update(input, 0, (next) => { next.priority = 'high'; });
+  resetGraph(input);
+  const batch = build(input);
+  assert.equal(lastLine(sql(DB_C, seal(batch, batch.plan))), batch.plan.input_digest);
+  const tooLong = fixture(`${longest}a`);
+  update(tooLong, 0, (next) => { next.priority = 'high'; });
+  assert.throws(() => build(tooLong), { code: 'ERR_PRIVATE_CARD_ADOPTION_INPUT_VALUE' });
+  const sqlOnly = { ...batch.payload, batch_id: `${longest}a` };
+  sqlFails(DB_C, seal({ payloadText: jsonbText(sqlOnly) }, batch.plan), 'PRIVATE_CARD_SEAL_INVALID');
+});
+
 test('pinned SQL bytes used by this test are unchanged', { skip }, () => {
   const bytes = fs.readFileSync(installSql);
   assert.equal(bytes.length, 15733);
+  // Full digest, not just length: the same value the manifest and the owner-install-source test pin.
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), '6908a5094d8b9f06390ef14adea618ead5412a0648079ff207aea2b582b682bf');
 });

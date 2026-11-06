@@ -20,8 +20,10 @@ const changeFields = ['stable_id', 'expected_version', 'expected_body_digest', '
 // The old JS bound of 24 was 39 minus the 15 fixed records; creates make that bound meaningless,
 // and fixed-record edits are rejected individually (CHANGE_ID), so the cap is the SQL cap.
 export const maxPrivateCardChanges = 39;
-const maxBodyOctets = 262144; // SQL: octet_length(body::text) <= 262144
-const maxPayloadOctets = 2097152; // SQL: octet_length(payload::text) <= 2097152
+// SQL: octet_length(body::text) <= 262144 and octet_length(payload::text) <= 2097152.
+export const privateCardSizeCaps = Object.freeze({ bodyOctets: 262144, payloadOctets: 2097152 });
+// SQL: batch_id ~ '^[a-z][a-z0-9_-]{1,127}$' (at most 128 characters); JS ids are 'syn_' plus 1..124 characters.
+const batchIdPattern = /^syn_[a-z0-9_-]{1,124}$/u;
 
 function reject(code) {
   const error = new TypeError(`Candidate private-card adoption rejected: ${code}`);
@@ -67,7 +69,7 @@ function validateRecord(record) {
         || !Array.isArray(criterion.history) || criterion.history.some((item) => typeof item !== 'string')) reject('CRITERION_VALUE');
   }
   unique(record.criteria.map((criterion) => criterion.id), 'DUPLICATE_CRITERION');
-  if (Buffer.byteLength(jsonbText(record), 'utf8') > maxBodyOctets) reject('RECORD_SIZE');
+  if (Buffer.byteLength(jsonbText(record), 'utf8') > privateCardSizeCaps.bodyOctets) reject('RECORD_SIZE');
 }
 function graph(records) {
   const byId = new Map();
@@ -103,13 +105,18 @@ function incoming(byId, target) {
     .map((record) => record.stable_id).sort();
 }
 
+/** Same measure as SQL: octets of the payload's jsonb text. */
+export function assertPayloadWithinCap(payloadText) {
+  if (Buffer.byteLength(payloadText, 'utf8') > privateCardSizeCaps.payloadOctets) reject('PAYLOAD_SIZE');
+}
+
 const byStableId = (left, right) => compareBytewise(left.stable_id, right.stable_id);
 
 function analyse(rawJson) {
   assertJsonbSafeNumberTokens(rawJson);
   const input = parseCandidateOperationsJson(rawJson);
   keys(input, ['batch_id', 'baseline', 'changes', 'original_criterion_ids', 'expected_graph_digest', 'prior_batch'], 'INPUT_FIELDS');
-  if (typeof input.batch_id !== 'string' || !/^syn_[a-z0-9_-]+$/u.test(input.batch_id)
+  if (typeof input.batch_id !== 'string' || !batchIdPattern.test(input.batch_id)
       || !Array.isArray(input.baseline) || input.baseline.length !== 39
       || !Array.isArray(input.changes) || input.changes.length > maxPrivateCardChanges
       || !Array.isArray(input.original_criterion_ids) || input.original_criterion_ids.length !== 153
@@ -185,7 +192,7 @@ function analyse(rawJson) {
   // Exactly what SQL seals and applies: three keys; baseline and changes in stable_id order, so
   // changed_ids read back from SQL (change order) equal the sorted ids reported here.
   const payload = { batch_id: input.batch_id, baseline, changes: [...input.changes].sort(byStableId) };
-  if (Buffer.byteLength(jsonbText(payload), 'utf8') > maxPayloadOctets) reject('PAYLOAD_SIZE');
+  assertPayloadWithinCap(jsonbText(payload));
   const inputDigest = digest(payload);
   if (input.prior_batch !== null) {
     keys(input.prior_batch, ['batch_id', 'input_digest'], 'PRIOR_FIELDS');

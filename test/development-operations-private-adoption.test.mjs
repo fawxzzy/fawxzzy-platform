@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
-import { buildCandidatePrivateCardSqlPayload, candidatePrivateCardDigest, maxPrivateCardChanges, planCandidatePrivateCardAdoption } from '../scripts/lib/development-operations-private-adoption.mjs';
+import { assertPayloadWithinCap, buildCandidatePrivateCardSqlPayload, candidatePrivateCardDigest, maxPrivateCardChanges, planCandidatePrivateCardAdoption, privateCardSizeCaps } from '../scripts/lib/development-operations-private-adoption.mjs';
 import { jsonbText, sortCardsByStableId } from '../scripts/lib/development-operations-jsonb.mjs';
 import { createValidator, validateContracts } from '../scripts/lib/contracts.mjs';
 
@@ -188,4 +188,61 @@ test('U+0000 and non-integer numbers are rejected because jsonb cannot represent
     const raw = JSON.stringify(fixture()).replace('"version":1', `"version":${token}`);
     assert.throws(() => planCandidatePrivateCardAdoption(raw), { code: 'ERR_JSONB_NUMBER' }, token);
   }
+});
+
+test('batch_id is capped at the SQL maximum of 128 characters and must keep the syn_ shape', () => {
+  const at = (batchId) => { const input = fixture(); input.batch_id = batchId; change(input, 0, (next) => { next.priority = 'high'; }); return input; };
+  const longest = `syn_${'a'.repeat(124)}`;
+  assert.equal(longest.length, 128);
+  assert.equal(plan(at(longest)).batch_id, longest);
+  assert.equal(plan(at(`syn_${'a-_0'.repeat(31)}`)).disposition, 'proposed');
+  rejection(at(`${longest}a`), 'INPUT_VALUE');
+  rejection(at(`syn_${'a'.repeat(200)}`), 'INPUT_VALUE');
+  rejection(at('syn_'), 'INPUT_VALUE');
+  rejection(at('syn_A'), 'INPUT_VALUE');
+  rejection(at('syn_a b'), 'INPUT_VALUE');
+  rejection(at('Syn_a'), 'INPUT_VALUE');
+  rejection(at('syn_a\n'), 'INPUT_VALUE');
+  assert.equal(plan(at('syn_a')).batch_id, 'syn_a');
+});
+test('size caps equal the pinned SQL caps and are measured in octets', () => {
+  const sql = fs.readFileSync(new URL('../contracts/v1/installations/private-card-store-r001.sql', import.meta.url), 'utf8');
+  assert.match(sql, /octet_length\(body::text\) <= 262144/u);
+  assert.match(sql, /octet_length\(payload::text\) > 2097152/u);
+  assert.deepEqual({ ...privateCardSizeCaps }, { bodyOctets: 262144, payloadOctets: 2097152 });
+  assert.ok(Object.isFrozen(privateCardSizeCaps));
+  // The whole-payload cap cannot be reached through the planner: raw input is limited to 1 MiB and jsonb text is at
+  // most 1.5x the compact input, so the check is pinned directly on the helper the planner calls.
+  assertPayloadWithinCap('a'.repeat(2097152));
+  assert.throws(() => assertPayloadWithinCap('a'.repeat(2097153)), { code: 'ERR_PRIVATE_CARD_ADOPTION_PAYLOAD_SIZE' });
+  assert.throws(() => assertPayloadWithinCap('é'.repeat(1048577)), { code: 'ERR_PRIVATE_CARD_ADOPTION_PAYLOAD_SIZE' });
+  assertPayloadWithinCap('é'.repeat(1048576));
+});
+test('a record whose jsonb text exceeds 262144 octets is rejected, one octet less is accepted', () => {
+  const sized = (octets, filler = 'x', unit = 1) => {
+    const input = fixture();
+    change(input, 0, (next) => { next.priority = 'high'; });
+    const next = input.changes[0].next;
+    const base = Buffer.byteLength(jsonbText(next), 'utf8');
+    next.description += filler.repeat(Math.floor((octets - base) / unit));
+    return { input, size: Buffer.byteLength(jsonbText(next), 'utf8') };
+  };
+  const exact = sized(262144);
+  assert.equal(exact.size, 262144);
+  assert.deepEqual(plan(exact.input).changed_ids, ['FF-001']);
+  const over = sized(262145);
+  assert.equal(over.size, 262145);
+  rejection(over.input, 'RECORD_SIZE');
+  // Multi-byte text: 140000 characters but 280000 octets, so a character count would let it through.
+  const wide = sized(280000, 'é', 2);
+  assert.ok(wide.input.changes[0].next.description.length < 262144 && wide.size > 262144);
+  rejection(wide.input, 'RECORD_SIZE');
+  const under = sized(262143, 'é', 2);
+  assert.ok(under.size <= 262144);
+  assert.deepEqual(plan(under.input).changed_ids, ['FF-001']);
+  // A baseline record is held to the same cap.
+  const baseline = fixture();
+  baseline.baseline[3].description += 'x'.repeat(262145 - Buffer.byteLength(jsonbText(baseline.baseline[3]), 'utf8'));
+  baseline.expected_graph_digest = digest(baseline.baseline);
+  rejection(baseline, 'RECORD_SIZE');
 });

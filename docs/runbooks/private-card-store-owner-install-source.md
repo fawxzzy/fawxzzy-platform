@@ -45,3 +45,26 @@ The pinned SQL is the authority; the JS planner and writer conform to it, not th
   as `PRIVATE_CARD_GRAPH_PREIMAGE`. Install only on a database whose `datcollate` was checked.
 - `test/private-card-store-postgres.integration.test.mjs` proves the digest equality on a real server. It is
   skipped unless `PG_TEST_URL` is set (a throwaway local cluster only).
+
+## Verified-source admission port and known limits
+
+The writer rehearsal reads a plan and an admission from two separate awaits on the verified-source port.
+SQL treats the sealed admission row as the source of truth (apply copies `source_revision` and `trust_receipt`
+from it and ignores the caller), so the JS copy is only a rehearsal of that row.
+
+- `readVerifiedAdmission()` must return a plain object (no proxy, accessor or class instance) with exactly
+  `batch_id`, `source_revision` (40 lowercase hex) and `trust_receipt` (`sha256:` plus 64 lowercase hex), and may
+  also state `input_digest`, `baseline_digest` and `post_graph_digest`. The writer snapshots those primitives once.
+- The admission is bound to the plan: its `batch_id` must equal the plan's, and every digest the port states must equal
+  the plan's, otherwise the writer stops with `ADMISSION_MISMATCH` before opening the store. A port that cannot
+  supply the three digests is accepted but is then bound by `batch_id` only; the sealed admission row in SQL holds all
+  of them, so a real adapter should pass them and should read plan and admission in one atomic call.
+- A real adapter must not forward JS-held `source_revision` or `trust_receipt` into SQL.
+- `batch_id` is `syn_` plus 1 to 124 characters (at most 128, as in SQL).
+- Limits left as they are: the planner requires the 39-card, 153-criterion baseline, so after a batch that creates
+  cards it cannot plan a next batch (the flow is one-shot by design here; SQL has no such limit). The writer's per-change
+  compare-and-swap with `readFullGraph` models a transaction but the pinned SQL exposes one `private_card_apply(payload)`
+  call, and `buildCandidatePrivateCardSqlPayload` is the real adapter input. The exact-repeat path returns the store's
+  `post_graph_digest` as given, unchecked in JS.
+- `npm test` pins `jsonbText`/`jsonbDigest` hermetically against `scripts/fixtures/jsonb-golden-vectors.mjs`, values captured
+  from a real PostgreSQL server by `scripts/generate-jsonb-golden-vectors.mjs` (throwaway loopback cluster only).

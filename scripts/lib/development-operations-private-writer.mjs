@@ -1,3 +1,4 @@
+import { types } from 'node:util';
 import { parseCandidateOperationsJson } from './development-operations-json.mjs';
 import { candidatePrivateCardGraphDigest, planCandidatePrivateCardAdoption } from './development-operations-private-adoption.mjs';
 
@@ -12,13 +13,37 @@ function requireMethod(object, name) {
   if (!object || typeof object[name] !== 'function') reject('PORT');
 }
 // work.private_card_batches requires source_revision and trust_receipt (NOT NULL). In SQL they come
-// from the sealed admission, never from the apply payload, so the verified-source port supplies them.
+// from the sealed admission row, never from the apply payload, so the verified-source port supplies them.
+// The admission row is keyed by batch_id and also holds the sealed digests, so the port must say which
+// batch it admits (batch_id, required) and may state the sealed digests (checked against the plan when given).
+const admissionDigestFields = ['input_digest', 'baseline_digest', 'post_graph_digest'];
+const admissionKeys = ['batch_id', 'source_revision', 'trust_receipt', ...admissionDigestFields];
+const sha256Pattern = /^sha256:[0-9a-f]{64}$/u;
+/**
+ * Snapshot of the port's admission: own enumerable DATA properties only (a getter, proxy or non-plain
+ * prototype is rejected), each primitive read exactly once, validated, and copied into a fresh frozen
+ * object. Nothing the port holds can change what is recorded after this returns.
+ */
 function verifiedAdmission(admission) {
-  if (!admission || typeof admission !== 'object' || Array.isArray(admission)
-      || Object.keys(admission).length !== 2
-      || typeof admission.source_revision !== 'string' || !/^[0-9a-f]{40}$/u.test(admission.source_revision)
-      || typeof admission.trust_receipt !== 'string' || !/^sha256:[0-9a-f]{64}$/u.test(admission.trust_receipt)) reject('ADMISSION');
-  return { source_revision: admission.source_revision, trust_receipt: admission.trust_receipt };
+  if (!admission || typeof admission !== 'object' || Array.isArray(admission) || types.isProxy(admission)) reject('ADMISSION');
+  const prototype = Object.getPrototypeOf(admission);
+  if (prototype !== Object.prototype && prototype !== null) reject('ADMISSION');
+  const names = Reflect.ownKeys(admission);
+  const copy = {};
+  for (const name of names) {
+    if (typeof name !== 'string' || !admissionKeys.includes(name)) reject('ADMISSION');
+    const descriptor = Object.getOwnPropertyDescriptor(admission, name);
+    if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) reject('ADMISSION');
+    copy[name] = descriptor.value;
+  }
+  for (const required of ['batch_id', 'source_revision', 'trust_receipt']) if (!Object.hasOwn(copy, required)) reject('ADMISSION');
+  if (typeof copy.batch_id !== 'string' || !/^[a-z][a-z0-9_-]{1,127}$/u.test(copy.batch_id)
+      || typeof copy.source_revision !== 'string' || !/^[0-9a-f]{40}$/u.test(copy.source_revision)
+      || typeof copy.trust_receipt !== 'string' || !sha256Pattern.test(copy.trust_receipt)) reject('ADMISSION');
+  for (const field of admissionDigestFields) {
+    if (Object.hasOwn(copy, field) && (typeof copy[field] !== 'string' || !sha256Pattern.test(copy[field]))) reject('ADMISSION');
+  }
+  return Object.freeze(copy);
 }
 
 /**
@@ -38,6 +63,11 @@ export async function rehearseCandidatePrivateCardWrite({ sourcePort, storePort 
   if (input.prior_batch !== null) reject('CALLER_PRIOR_BATCH');
   const proposal = planCandidatePrivateCardAdoption(raw);
   if (proposal.changed_ids.length === 0) reject('EMPTY_CHANGESET');
+  // The admission must be the one sealed for THIS plan: same batch and, when the port states them, same digests.
+  if (admission.batch_id !== proposal.batch_id
+      || (Object.hasOwn(admission, 'input_digest') && admission.input_digest !== proposal.input_digest)
+      || (Object.hasOwn(admission, 'baseline_digest') && admission.baseline_digest !== proposal.baseline_digest)
+      || (Object.hasOwn(admission, 'post_graph_digest') && admission.post_graph_digest !== proposal.post_graph_digest)) reject('ADMISSION_MISMATCH');
   const changes = new Map(input.changes.map((change) => [change.stable_id, change]));
   return storePort.transaction(async (tx) => {
     for (const method of ['readBatch', 'readFullGraph', 'compareAndSwap', 'recordBatch']) requireMethod(tx, method);
