@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "status": "OWNER_DECISION",
+  "lifecycle": {
+    "source": "PROPOSAL_ONLY",
+    "owner_adopted": false,
+    "execution": "BLOCKED",
+    "apply_admitted": false
+  },
+  "binding": {
+    "logical_domain": "work",
+    "entities": [
+      "projects",
+      "cards",
+      "events",
+      "dependencies",
+      "external_refs"
+    ],
+    "canonical_writer": "FawxzzyPlatform",
+    "physical_namespace": "UNKNOWN",
+    "trusted_producer_binding": "SERVER_VERIFIED_IMMUTABLE_SOURCE_AND_EXACT_ENVELOPE",
+    "role_or_digest_claim_is_authority": false,
+    "installed_projection_is_rich_writer": false
+  },
+  "candidate_plan": {
+    "source_scope": "FITNESS_FULL_39_RECORD_GRAPH",
+    "original_criterion_count": 153,
+    "read_write_semantics": "EXACT_VERSION_AND_GRAPH_PREIMAGE_CAS",
+    "idempotency": "EXACT_REPEAT_NO_OP_CHANGED_INPUT_COLLISION_REJECT",
+    "visibility": "PRIVATE_DEFAULT_DENY_PUBLIC_EXPORT",
+    "accepted_status": "PRESERVE_SEPARATE_FROM_PLAN_AND_TRIAGE",
+    "history": "PRESERVE_CRITERION_IDS_HISTORY_AND_ABSORBED_IDS",
+    "dependency_integrity": "REJECT_SELF_CYCLE_ORPHAN_OR_EDGE_LOSS",
+    "planner_is_writer_or_authority": false
+  },
+  "candidate_writer": {
+    "status": "OWNER_DECISION",
+    "source_port": "SERVER_VERIFIED_IMMUTABLE_PLAN_REQUIRED_NOT_IMPLEMENTED",
+    "store_port": "PRIVATE_SERIALIZABLE_TRANSACTION_REQUIRED_NOT_IMPLEMENTED",
+    "transaction_steps": "READ_BATCH_THEN_GRAPH_CAS_POSTIMAGE_AND_BATCH_RECEIPT_ATOMIC",
+    "repeat_semantics": "EXACT_RECEIPT_NO_OP_CHANGED_INPUT_COLLISION_REJECT",
+    "reader_binding": "NOT_IMPLEMENTED",
+    "synthetic_rehearsal_is_installation": false
+  },
+  "remaining_gates": [
+    "owner_contract_adoption",
+    "trusted_source_and_writer_context",
+    "private_physical_storage_and_acl",
+    "transactional_single_writer_and_cas",
+    "private_reader_redaction_and_consumer_acceptance",
+    "separate_sql_rehearsal_and_apply"
+  ],
+  "effects": {
+    "provider_access": false,
+    "live_data_access": false,
+    "sql_generated": false,
+    "database_mutation": false,
+    "public_export": false
+  }
+}
