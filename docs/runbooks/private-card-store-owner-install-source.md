@@ -4,7 +4,7 @@
 copy of the independently reviewed ATLAS R008 combined SQL. Its SHA-256 is
 `6908a5094d8b9f06390ef14adea618ead5412a0648079ff207aea2b582b682bf`.
 The adjacent manifest binds the source to the proposed Management API migration
-name `private_card_store_r001`. This source is not installed or admitted.
+name `private_card_store_r001`. This source file is not itself installed or admitted under that name.
 
 The file is outside `supabase/migrations` and the frozen four-file historical
 executable bundle. Neither existing source package is changed. The owner
@@ -68,3 +68,12 @@ from it and ignores the caller), so the JS copy is only a rehearsal of that row.
   `post_graph_digest` as given, unchecked in JS.
 - `npm test` pins `jsonbText`/`jsonbDigest` hermetically against `scripts/fixtures/jsonb-golden-vectors.mjs`, values captured
   from a real PostgreSQL server by `scripts/generate-jsonb-golden-vectors.mjs` (throwaway loopback cluster only).
+
+## Observed master state (read-only, 2026-11-09)
+
+A read-only query of the master migration ledger (`supabase_migrations.schema_migrations`, project `bxtcuhkotumitoqtrcej`)
+shows the private card store was installed through a CLI-managed migration named `private_card_cli_managed_r085`,
+server-assigned version `20261017201604`. No ledger row is named `private_card_store_r001`. The manifest's
+`server_assigned_migration_version: UNKNOWN` therefore stays correct for this source under its own name. Whether the
+installed SQL is byte-identical to the file above is not proven here; compare it against a fresh catalog readback before
+treating this source as the installed truth. This note records an observation only and grants no apply authority.
