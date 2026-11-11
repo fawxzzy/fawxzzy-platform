@@ -24,9 +24,17 @@ Run focused validation twice and compare a deterministic summary, excluding runn
 `contracts/v1/operations/private-card-adoption-contract.json` binds a separate
 rich-card adoption proposal to the existing logical `work` domain and its sole
 FawxzzyPlatform canonical writer. It does **not** widen the installed operations
-projection's ten-field display allowlist. Its physical namespace, private ACL,
-trusted producer transport, transactional writer, and private reader remain
-unselected or unimplemented. The public repository contains only this synthetic
+projection's ten-field display allowlist. Source-proven in this repository: only
+this synthetic contract, its JS planner and writer rehearsal, and tests. Observed
+on master by read-only checks (2026-11-06 to 2026-11-10, see
+`private-card-store-owner-install-source.md`): a private card store and a
+board-bound private reader function were installed through separate owner
+migrations outside this repository, and one private card has been written. That
+is installed provider state, not adoption of this contract: its physical
+namespace stays `UNKNOWN`, the trusted producer transport remains unselected
+(the sealed trust receipt is an opaque digest that SQL does not verify), and
+whether the installed store SQL is byte-identical to the file in this repository
+is unproven. The public repository contains only this synthetic
 contract and tests, never the prepared private Fitness planning packet.
 
 `planCandidatePrivateCardAdoption` in
