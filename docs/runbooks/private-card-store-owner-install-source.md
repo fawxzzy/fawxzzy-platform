@@ -77,3 +77,10 @@ server-assigned version `20261017201604`. No ledger row is named `private_card_s
 `server_assigned_migration_version: UNKNOWN` therefore stays correct for this source under its own name. Whether the
 installed SQL is byte-identical to the file above is not proven here; compare it against a fresh catalog readback before
 treating this source as the installed truth. This note records an observation only and grants no apply authority.
+
+Later read-only observations (ledger readback 2026-11-10, card count from the 2026-11-09 status record): the ledger holds 24 rows, latest
+`20261106120000` `projects_private_reader_r112`, which is the board-bound private reader function
+`operations_api.read_private_project_card`, installed 2026-11-06 under a separate owner approval and not
+part of this repository. One private card exists in the store. These facts are installed provider state only;
+they do not make this source adopted, change the manifest's `UNKNOWN` version, `BLOCKED` execution or
+`apply_admitted: false`, or admit a replay of this SQL.
